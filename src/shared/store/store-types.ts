@@ -26,6 +26,16 @@ export interface RegistrySource {
   enabled: boolean
   /** Whether this is the built-in official registry (cannot be deleted) */
   isDefault?: boolean
+  /**
+   * Source type — determines which adapter is used to fetch and parse the index.
+   * Defaults to 'halo' when absent (backward-compatible).
+   */
+  sourceType?: 'halo' | 'mcp-registry' | 'smithery' | 'claude-skills'
+  /**
+   * Adapter-specific configuration (e.g. API keys).
+   * Interpreted exclusively by the adapter for this sourceType.
+   */
+  adapterConfig?: Record<string, unknown>
 }
 
 // ============================================
@@ -128,7 +138,7 @@ export interface RegistryEntry {
 // Store Query & Filtering
 // ============================================
 
-/** Query parameters for listing store apps */
+/** Query parameters for listing store apps (legacy, kept for backward compat) */
 export interface StoreQuery {
   /** Free-text search (matches name, description, tags, and locale overrides when locale is provided) */
   search?: string
@@ -140,6 +150,43 @@ export interface StoreQuery {
   type?: AppType
   /** Filter by tags */
   tags?: string[]
+}
+
+/** Paginated query parameters for the new store:query IPC channel */
+export interface StoreQueryParams {
+  search?: string
+  locale?: string
+  category?: string
+  type?: AppType
+  page: number
+  pageSize: number
+}
+
+/** Response from store:query */
+export interface StoreQueryResponse {
+  items: RegistryEntry[]
+  total?: number
+  hasMore: boolean
+  /** All tab preview mode: per-type group info */
+  groups?: Array<{
+    type: AppType
+    count: number
+    hasMore: boolean
+  }>
+  /** Per-source status */
+  sources: Array<{
+    registryId: string
+    status: 'ok' | 'error'
+    error?: string
+  }>
+}
+
+/** Sync status for a single registry (pushed from main to renderer) */
+export interface StoreSyncStatus {
+  registryId: string
+  status: 'idle' | 'syncing' | 'error'
+  appCount: number
+  error?: string
 }
 
 // ============================================

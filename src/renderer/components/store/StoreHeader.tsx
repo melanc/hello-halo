@@ -1,7 +1,7 @@
 /**
  * Store Header
  *
- * Search input and category filter chips for the store.
+ * Search input, type filter tabs, and category filter chips for the store.
  * Provides real-time filtering as user types or selects categories.
  */
 
@@ -10,14 +10,24 @@ import { Search, RefreshCw } from 'lucide-react'
 import { useAppsPageStore } from '../../stores/apps-page.store'
 import { STORE_CATEGORY_META } from '../../../shared/store/store-types'
 import { useTranslation } from '../../i18n'
+import type { AppType } from '../../../shared/apps/spec-types'
+
+const TYPE_FILTERS: Array<{ id: AppType | null; labelKey: string }> = [
+  { id: null, labelKey: 'All' },
+  { id: 'automation', labelKey: 'Digital Human' },
+  { id: 'skill', labelKey: 'Skill' },
+  { id: 'mcp', labelKey: 'MCP' },
+]
 
 export function StoreHeader() {
   const { t } = useTranslation()
   const storeSearchQuery = useAppsPageStore(state => state.storeSearchQuery)
   const storeCategory = useAppsPageStore(state => state.storeCategory)
+  const storeTypeFilter = useAppsPageStore(state => state.storeTypeFilter)
   const storeLoading = useAppsPageStore(state => state.storeLoading)
   const setStoreSearch = useAppsPageStore(state => state.setStoreSearch)
   const setStoreCategory = useAppsPageStore(state => state.setStoreCategory)
+  const setStoreTypeFilter = useAppsPageStore(state => state.setStoreTypeFilter)
   const loadStoreApps = useAppsPageStore(state => state.loadStoreApps)
   const refreshStore = useAppsPageStore(state => state.refreshStore)
 
@@ -31,7 +41,8 @@ export function StoreHeader() {
       clearTimeout(debounceRef.current)
     }
     debounceRef.current = setTimeout(() => {
-      loadStoreApps({ search: value || undefined, category: useAppsPageStore.getState().storeCategory ?? undefined })
+      const state = useAppsPageStore.getState()
+      loadStoreApps({ search: value || undefined, category: state.storeCategory ?? undefined, type: state.storeTypeFilter ?? undefined })
     }, 300)
   }, [setStoreSearch, loadStoreApps])
 
@@ -44,12 +55,25 @@ export function StoreHeader() {
     }
   }, [])
 
+  // Type filter click triggers immediate filter
+  const handleTypeFilterClick = useCallback((typeId: string | null) => {
+    setStoreTypeFilter(typeId)
+    const state = useAppsPageStore.getState()
+    loadStoreApps({
+      search: state.storeSearchQuery || undefined,
+      category: state.storeCategory ?? undefined,
+      type: typeId ?? undefined,
+    })
+  }, [setStoreTypeFilter, loadStoreApps])
+
   // Category click triggers immediate filter
   const handleCategoryClick = useCallback((categoryId: string | null) => {
     setStoreCategory(categoryId)
+    const state = useAppsPageStore.getState()
     loadStoreApps({
-      search: useAppsPageStore.getState().storeSearchQuery || undefined,
+      search: state.storeSearchQuery || undefined,
       category: categoryId ?? undefined,
+      type: state.storeTypeFilter ?? undefined,
     })
   }, [setStoreCategory, loadStoreApps])
 
@@ -75,6 +99,23 @@ export function StoreHeader() {
         >
           <RefreshCw className={`w-4 h-4 ${storeLoading ? 'animate-spin' : ''}`} />
         </button>
+      </div>
+
+      {/* Type filter tabs */}
+      <div className="flex items-center gap-1">
+        {TYPE_FILTERS.map(tf => (
+          <button
+            key={String(tf.id)}
+            onClick={() => handleTypeFilterClick(tf.id)}
+            className={`flex-shrink-0 px-3 py-1 text-xs rounded-md transition-colors ${
+              storeTypeFilter === tf.id
+                ? 'bg-primary text-primary-foreground font-medium'
+                : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+            }`}
+          >
+            {t(tf.labelKey)}
+          </button>
+        ))}
       </div>
 
       {/* Category chips */}

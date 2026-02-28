@@ -827,6 +827,8 @@ export const api = {
     onEvent('agent:compact', callback),
   onAgentAskQuestion: (callback: (data: unknown) => void) =>
     onEvent('agent:ask-question', callback),
+  onAgentSessionInfo: (callback: (data: unknown) => void) =>
+    onEvent('agent:session-info', callback),
   onRemoteStatusChange: (callback: (data: unknown) => void) =>
     onEvent('remote:status-change', callback),
 
@@ -1300,7 +1302,7 @@ export const api = {
     return httpRequest('GET', `/api/apps/${appId}`)
   },
 
-  appInstall: async (input: { spaceId: string; spec: unknown; userConfig?: Record<string, unknown> }): Promise<ApiResponse> => {
+  appInstall: async (input: { spaceId: string | null; spec: unknown; userConfig?: Record<string, unknown> }): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.appInstall(input)
     }
@@ -1444,6 +1446,21 @@ export const api = {
     return httpRequest('POST', '/api/apps/import-spec', input as Record<string, unknown>)
   },
 
+  appOpenSkillFolder: async (appId: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.appOpenSkillFolder(appId)
+    }
+    // No filesystem access in web mode
+    return { success: false, error: 'Not supported outside Electron' }
+  },
+
+  appMoveSpace: async (appId: string, newSpaceId: string | null): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.appMoveSpace({ appId, newSpaceId })
+    }
+    return httpRequest('POST', `/api/apps/${appId}/move-space`, { newSpaceId })
+  },
+
   // App Chat
   appChatSend: async (request: { appId: string; spaceId: string; message: string; thinkingEnabled?: boolean }): Promise<ApiResponse> => {
     if (isElectron()) {
@@ -1494,6 +1511,13 @@ export const api = {
     onEvent('app:navigate', callback),
 
   // ===== Store (App Registry) =====
+  storeQuery: async (params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.storeQuery(params)
+    }
+    return httpRequest('POST', '/api/store/query', params)
+  },
+
   storeListApps: async (query: { search?: string; locale?: string; category?: string; type?: string; tags?: string[] }): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.storeListApps(query)
@@ -1517,7 +1541,7 @@ export const api = {
     return httpRequest('GET', `/api/store/apps/${slug}`)
   },
 
-  storeInstall: async (slug: string, spaceId: string, userConfig?: Record<string, unknown>): Promise<ApiResponse> => {
+  storeInstall: async (slug: string, spaceId: string | null, userConfig?: Record<string, unknown>): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.storeInstall({ slug, spaceId, userConfig })
     }
@@ -1545,7 +1569,7 @@ export const api = {
     return httpRequest('GET', '/api/store/registries')
   },
 
-  storeAddRegistry: async (input: { name: string; url: string }): Promise<ApiResponse> => {
+  storeAddRegistry: async (input: { name: string; url: string; sourceType?: string; adapterConfig?: Record<string, unknown> }): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.storeAddRegistry(input)
     }
@@ -1564,6 +1588,20 @@ export const api = {
       return window.halo.storeToggleRegistry({ registryId, enabled })
     }
     return httpRequest('POST', `/api/store/registries/${registryId}/toggle`, { enabled })
+  },
+
+  storeUpdateRegistryAdapterConfig: async (registryId: string, adapterConfig: Record<string, unknown>): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.storeUpdateRegistryAdapterConfig({ registryId, adapterConfig })
+    }
+    return httpRequest('PATCH', `/api/store/registries/${registryId}/adapter-config`, adapterConfig)
+  },
+
+  onStoreSyncStatusChanged: (callback: (data: { registryId: string; status: string; appCount: number; error?: string }) => void) => {
+    if (isElectron()) {
+      return window.halo.onStoreSyncStatusChanged(callback)
+    }
+    return onEvent('store:sync-status-changed', callback)
   },
 }
 

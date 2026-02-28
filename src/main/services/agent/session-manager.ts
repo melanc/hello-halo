@@ -14,6 +14,7 @@ import { existsSync, copyFileSync, mkdirSync } from 'fs'
 import { app } from 'electron'
 import { unstable_v2_createSession } from '@anthropic-ai/claude-agent-sdk'
 import { getConfig, onApiConfigChange, getCredentialsGeneration } from '../config.service'
+import { onMcpAppsChange } from '../../apps/manager/service'
 import { getConversation } from '../conversation.service'
 import type {
   V2SDKSession,
@@ -26,7 +27,8 @@ import {
   getHeadlessElectronPath,
   getWorkingDir,
   getApiCredentials,
-  getEnabledMcpServers
+  getEnabledMcpServers,
+  getDbMcpServers
 } from './helpers'
 import { registerProcess, unregisterProcess, getCurrentInstanceId } from '../health'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
@@ -525,11 +527,11 @@ export async function ensureSessionWarm(
   // Resolve credentials for SDK (handles OpenAI compat router for non-Anthropic providers)
   const resolvedCredentials = await resolveCredentialsForSdk(credentials)
 
-  // Get enabled MCP servers
-  const enabledMcpServers = getEnabledMcpServers(config.mcpServers || {})
+  // Get MCP servers from installed apps database (global + space-scoped)
+  const dbMcpServers = getDbMcpServers(spaceId)
 
   // Build MCP servers config (must match sendMessage to avoid session rebuild)
-  const mcpServers: Record<string, any> = enabledMcpServers ? { ...enabledMcpServers } : {}
+  const mcpServers: Record<string, any> = dbMcpServers ? { ...dbMcpServers } : {}
   mcpServers['halo-apps'] = createHaloAppsMcpServer(spaceId)
 
   // Build SDK options using shared configuration
@@ -612,6 +614,35 @@ export function invalidateAllSessions(): void {
   console.log('[Agent] All sessions invalidated, will use new config on next message')
 }
 
+/**
+ * Invalidate sessions belonging to a specific space.
+ * Called when an MCP is installed/uninstalled/paused/resumed in a space.
+ *
+ * Global MCP changes (spaceId=null) affect all spaces → use invalidateAllSessions() instead.
+ * Space-scoped MCP changes only affect that space's sessions.
+ *
+ * Active (in-flight) sessions are deferred via pendingInvalidations,
+ * consistent with invalidateAllSessions() behavior.
+ */
+export function invalidateSessionsForSpace(spaceId: string): void {
+  let count = 0
+  for (const [convId, info] of Array.from(v2Sessions.entries())) {
+    if (info.spaceId !== spaceId) continue
+
+    if (activeSessions.has(convId)) {
+      pendingInvalidations.add(convId)
+      console.log(`[Agent][${convId}] MCP changed, deferring session close until idle`)
+    } else {
+      cleanupSession(convId, 'MCP config change')
+    }
+    count++
+  }
+
+  if (count > 0) {
+    console.log(`[Agent] Invalidated ${count} session(s) in space ${spaceId} due to MCP change`)
+  }
+}
+
 // ============================================
 // Active Session State
 // ============================================
@@ -666,4 +697,15 @@ export function getActiveSession(conversationId: string): SessionState | undefin
 // This is called once when the module loads
 onApiConfigChange(() => {
   invalidateAllSessions()
+})
+
+// Register for MCP apps change notifications.
+// Global MCP changes (spaceId=null) invalidate all sessions.
+// Space-scoped MCP changes invalidate only that space's sessions.
+onMcpAppsChange((spaceId) => {
+  if (spaceId === null) {
+    invalidateAllSessions()
+  } else {
+    invalidateSessionsForSpace(spaceId)
+  }
 })

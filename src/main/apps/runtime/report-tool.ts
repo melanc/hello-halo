@@ -90,12 +90,13 @@ export function createReportToolServer(
         'Entry type. Use "run_complete" for normal task completion. REQUIRED — must be one of the listed values.'
       ),
       summary: z.string().describe(
-        'REQUIRED. The actual content to show the user. Write what happened, be specific. ' +
+        'REQUIRED. Briefly tell the user what happened in clear markdown. ' +
         'Example: "💧 Drink water reminder: Stay hydrated! It\'s been 1 hour since your last reminder." ' +
-        'Do NOT leave this empty or generic.'
+        'Do not include raw JSON or code blocks — unless the user explicitly requires it.'
       ),
-      data: z.record(z.unknown()).optional().describe(
-        'Optional structured data (tables, lists) for rich rendering.'
+      data: z.string().optional().describe(
+        'Optional detailed markdown. Choose whichever format best serves readability ' +
+        '— tables, lists, headings, etc. Shown below the summary.'
       ),
       question: z.string().optional().describe(
         'Only for escalation: the question to ask the user.'

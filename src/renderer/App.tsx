@@ -24,6 +24,7 @@ import { useNotificationStore } from './stores/notification.store'
 import { api } from './api'
 import { useTranslation } from './i18n'
 import type { AgentEventBase, Thought, ToolCall, HaloConfig, AgentErrorType, Question } from './types'
+import type { SessionInitInfo } from './types/slash-command'
 import { hasAnyAISource } from './types'
 
 // Lazy load heavy page components for better initial load performance
@@ -88,6 +89,7 @@ export default function App() {
     handleAgentThought,
     handleAgentThoughtDelta,
     handleAgentCompact,
+    handleAgentSessionInfo,
     handleAskQuestion,
     currentSpaceId,
     setCurrentSpace: setChatCurrentSpace,
@@ -262,6 +264,11 @@ export default function App() {
       handleAskQuestion(data as AgentEventBase & { id: string; questions: Question[] })
     })
 
+    // Session info from SDK system:init — slash_commands / skills / agents for autocomplete
+    const unsubSessionInfo = api.onAgentSessionInfo((data) => {
+      handleAgentSessionInfo(data as AgentEventBase & SessionInitInfo)
+    })
+
     // MCP status updates (global - not per-conversation)
     const unsubMcpStatus = api.onAgentMcpStatus((data) => {
       console.log('[App] Received agent:mcp-status event:', data)
@@ -281,6 +288,7 @@ export default function App() {
       unsubComplete()
       unsubCompact()
       unsubAskQuestion()
+      unsubSessionInfo()
       unsubMcpStatus()
     }
   }, [
@@ -292,6 +300,7 @@ export default function App() {
     handleAgentThought,
     handleAgentThoughtDelta,
     handleAgentCompact,
+    handleAgentSessionInfo,
     handleAskQuestion,
     setMcpStatus
   ])

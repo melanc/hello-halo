@@ -22,6 +22,7 @@
 import { create } from 'zustand'
 import { api } from '../api'
 import type { Conversation, ConversationMeta, Message, ToolCall, Artifact, Thought, AgentEventBase, ImageAttachment, CompactInfo, CanvasContext, AgentErrorType, PendingQuestion, Question, TaskStatus, PulseItem } from '../types'
+import type { SessionInitInfo } from '../types/slash-command'
 import { PULSE_READ_GRACE_PERIOD_MS } from '../types'
 import { canvasLifecycle } from '../services/canvas-lifecycle'
 
@@ -91,6 +92,9 @@ interface ChatState {
   // Per-session runtime state: Map<conversationId, SessionState>
   // This persists across space switches - background tasks keep running
   sessions: Map<string, SessionState>
+
+  // Session init info from SDK system:init — slash_commands, skills, agents per conversation
+  sessionInitInfo: Map<string, SessionInitInfo>
 
   // Pulse: tracks conversations that completed while user was not viewing them
   // Map<conversationId, { spaceId: string; title: string }>
@@ -166,6 +170,7 @@ interface ChatState {
     isToolResult?: boolean
   }) => void
   handleAgentCompact: (data: AgentEventBase & { trigger: 'manual' | 'auto'; preTokens: number }) => void
+  handleAgentSessionInfo: (data: AgentEventBase & SessionInitInfo) => void
 
   // AskUserQuestion handlers
   handleAskQuestion: (data: AgentEventBase & { id: string; questions: Question[] }) => void
@@ -195,6 +200,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
   spaceStates: new Map<string, SpaceState>(),
   conversationCache: new Map<string, Conversation>(),
   sessions: new Map<string, SessionState>(),
+  sessionInitInfo: new Map<string, SessionInitInfo>(),
   unseenCompletions: new Map<string, { spaceId: string; title: string }>(),
   pulseReadAt: new Map<string, { readAt: number; originalStatus: 'completed-unseen' | 'error'; spaceId: string; title: string }>(),
   currentSpaceId: null,
@@ -1064,8 +1070,10 @@ export const useChatStore = create<ChatState>((set, get) => ({
           }
 
           // Clear session state atomically with conversation update
-          // Error is now persisted in message.error, so clear session-level error
-          // Note: interrupted errors are sent AFTER agent:complete, so they won't be affected
+          // Error is now persisted in message.error, so clear session-level error.
+          // IMPORTANT: interrupted errors arrive AFTER agent:complete via a separate IPC event.
+          // Because this reload is async, handleAgentError may have already written the
+          // interrupted error into the session by the time we get here. We must NOT clear it.
           const newSessions = new Map(state.sessions)
           const currentSession = newSessions.get(conversationId)
           if (currentSession) {
@@ -1075,8 +1083,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
               streamingContent: '',
               compactInfo: null,  // Clear temporary compact notification
               pendingQuestion: null,  // Clear pending question
-              error: null,  // Clear session error — now persisted in message.error
-              errorType: null
+              // Preserve interrupted errors — they may have arrived during the async reload
+              error: currentSession.errorType === 'interrupted' ? currentSession.error : null,
+              errorType: currentSession.errorType === 'interrupted' ? currentSession.errorType : null
             })
           }
 
@@ -1207,6 +1216,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
         compactInfo: { trigger, preTokens }
       })
       return { sessions: newSessions }
+    })
+  },
+
+  // Handle session-info from SDK system:init — store slash_commands / skills / agents
+  handleAgentSessionInfo: (data) => {
+    const { conversationId, slashCommands, skills, agents } = data
+    console.log(`[ChatStore] handleAgentSessionInfo [${conversationId}]: cmds=${slashCommands.length}, skills=${skills.length}, agents=${agents.length}`)
+    set((state) => {
+      const newSessionInitInfo = new Map(state.sessionInitInfo)
+      newSessionInitInfo.set(conversationId, { slashCommands, skills, agents })
+      return { sessionInitInfo: newSessionInitInfo }
     })
   },
 
@@ -1341,6 +1361,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       spaceStates: new Map(),
       conversationCache: new Map(),
       sessions: new Map(),
+      sessionInitInfo: new Map(),
       unseenCompletions: new Map(),
       pulseReadAt: new Map(),
       currentSpaceId: null,

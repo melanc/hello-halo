@@ -34,6 +34,47 @@ import {
   InvalidStatusTransitionError,
   SpaceNotFoundError,
 } from './errors'
+import { syncSkillToFilesystem, removeSkillFromFilesystem } from './skill-sync'
+
+// ============================================
+// MCP Apps Change Event
+//
+// Notifies subscribers (session-manager) when MCP app status changes,
+// so active sessions can be invalidated and rebuilt with the new config.
+//
+// Pattern: same as onApiConfigChange in config.service.ts.
+// Low-level module (apps/manager) exposes subscription API.
+// High-level module (services/agent) subscribes without creating circular deps.
+// ============================================
+
+type McpChangeHandler = (spaceId: string | null) => void
+const mcpChangeHandlers: McpChangeHandler[] = []
+
+/**
+ * Register a callback to be notified when MCP app configuration changes.
+ * Called by session-manager to invalidate sessions when an MCP app is
+ * installed, uninstalled, reinstalled, paused, resumed, its status changes
+ * (e.g. active→error or error→active), or its spec is updated.
+ *
+ * @returns Unsubscribe function
+ */
+export function onMcpAppsChange(handler: McpChangeHandler): () => void {
+  mcpChangeHandlers.push(handler)
+  return () => {
+    const idx = mcpChangeHandlers.indexOf(handler)
+    if (idx >= 0) mcpChangeHandlers.splice(idx, 1)
+  }
+}
+
+function emitMcpChange(spaceId: string | null): void {
+  for (const handler of mcpChangeHandlers) {
+    try {
+      handler(spaceId)
+    } catch (err) {
+      console.error('[AppManager] mcpChange handler error:', err)
+    }
+  }
+}
 
 // ============================================
 // State Machine
@@ -75,6 +116,12 @@ export interface AppManagerDeps {
    * Returns null if the space does not exist.
    */
   getSpacePath: (spaceId: string) => string | null
+
+  /**
+   * Get the root directory for global app data (haloDir).
+   * Global apps store work data at `{haloDir}/apps/{appId}/`.
+   */
+  getGlobalAppDir: () => string
 }
 
 /**
@@ -84,7 +131,7 @@ export interface AppManagerDeps {
  * @returns A fully functional AppManagerService
  */
 export function createAppManagerService(deps: AppManagerDeps): AppManagerService {
-  const { store, getSpacePath } = deps
+  const { store, getSpacePath, getGlobalAppDir } = deps
 
   // Status change event listeners
   const statusChangeHandlers: StatusChangeHandler[] = []
@@ -117,9 +164,17 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
 
   /**
    * Resolve the work directory path for an App.
-   * Format: {spacePath}/.halo/apps/{appId}/
+   * Space-scoped: {spacePath}/.halo/apps/{appId}/
+   * Global: {haloDir}/apps/{appId}/
    */
-  function resolveWorkDir(spacePath: string, appId: string): string {
+  function resolveWorkDir(appId: string, spaceId: string | null): string {
+    if (spaceId === null) {
+      return join(getGlobalAppDir(), 'apps', appId)
+    }
+    const spacePath = getSpacePath(spaceId)
+    if (!spacePath) {
+      throw new SpaceNotFoundError(spaceId)
+    }
     return join(spacePath, '.halo', 'apps', appId)
   }
 
@@ -132,20 +187,43 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
     }
   }
 
+  /**
+   * List effective apps of a given type for a space.
+   * Merges global (spaceId=null) + space-scoped apps.
+   * Space-scoped apps override global ones sharing the same specId.
+   * Only returns active (non-uninstalled) apps.
+   */
+  function listEffectiveByType(type: 'mcp' | 'skill', spaceId: string): InstalledApp[] {
+    // Get global apps of this type
+    const globalApps = store.list({ spaceId: null, type }).filter(a => a.status !== 'uninstalled')
+    // Get space-scoped apps of this type
+    const spaceApps = store.list({ spaceId, type }).filter(a => a.status !== 'uninstalled')
+
+    // Build effective set: space overrides global by specId
+    const spaceSpecIds = new Set(spaceApps.map(a => a.specId))
+    const effective: InstalledApp[] = [
+      ...spaceApps,
+      ...globalApps.filter(a => !spaceSpecIds.has(a.specId)),
+    ]
+    return effective
+  }
+
   // ── Service Interface Implementation ─────────
 
   const service: AppManagerService = {
     // ── Installation ──────────────────────────
 
     async install(
-      spaceId: string,
+      spaceId: string | null,
       spec: AppSpec,
       userConfig?: Record<string, unknown>
     ): Promise<string> {
-      // Validate space exists
-      const spacePath = getSpacePath(spaceId)
-      if (!spacePath) {
-        throw new SpaceNotFoundError(spaceId)
+      // For space-scoped installs, validate space exists
+      if (spaceId !== null) {
+        const spacePath = getSpacePath(spaceId)
+        if (!spacePath) {
+          throw new SpaceNotFoundError(spaceId)
+        }
       }
 
       // Validate spec before any DB operations
@@ -178,9 +256,6 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       }
 
       // Persist to SQLite first (atomic: if this fails, no filesystem side effects).
-      // Catch UNIQUE constraint violations from concurrent installs and convert to
-      // the domain error, so callers receive AppAlreadyInstalledError regardless of
-      // whether the duplicate was detected by the pre-check or by the DB constraint.
       try {
         store.insert(app)
       } catch (dbError: unknown) {
@@ -192,8 +267,7 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       }
 
       // Create work directories after the DB record is committed.
-      // If directory creation fails, roll back the DB record to avoid orphaned rows.
-      const workDir = resolveWorkDir(spacePath, appId)
+      const workDir = resolveWorkDir(appId, spaceId)
       const memoryDir = join(workDir, 'memory')
 
       try {
@@ -205,9 +279,20 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
         throw dirError
       }
 
+      const scope = spaceId ? `space ${spaceId}` : 'global'
       console.log(
-        `[AppManager] Installed app '${spec.name}' (${appId}) in space ${spaceId}`
+        `[AppManager] Installed app '${spec.name}' (${appId}) in ${scope}`
       )
+
+      // Sync skill file to filesystem for Claude Code auto-loading
+      if (spec.type === 'skill') {
+        syncSkillToFilesystem(app, getSpacePath)
+      }
+
+      // Notify session-manager to invalidate affected sessions
+      if (spec.type === 'mcp') {
+        emitMcpChange(spaceId)
+      }
 
       return appId
     },
@@ -227,6 +312,16 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       store.updateUninstalledAt(appId, Date.now())
       notifyStatusChange(appId, oldStatus, newStatus)
 
+      // Remove skill file from filesystem on uninstall
+      if (app.spec.type === 'skill') {
+        removeSkillFromFilesystem(app, getSpacePath)
+      }
+
+      // Notify session-manager to invalidate affected sessions
+      if (app.spec.type === 'mcp') {
+        emitMcpChange(app.spaceId)
+      }
+
       console.log(
         `[AppManager] Soft-deleted app ${appId} (was: ${oldStatus})`
       )
@@ -245,6 +340,16 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       store.updateUninstalledAt(appId, null)
       notifyStatusChange(appId, oldStatus, newStatus)
 
+      // Re-sync skill file to filesystem on reinstall
+      if (app.spec.type === 'skill') {
+        syncSkillToFilesystem(app, getSpacePath)
+      }
+
+      // Notify session-manager to invalidate affected sessions
+      if (app.spec.type === 'mcp') {
+        emitMcpChange(app.spaceId)
+      }
+
       console.log(`[AppManager] Reinstalled app ${appId}`)
     },
 
@@ -260,21 +365,23 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
         )
       }
 
+      // Ensure skill file is removed from filesystem (idempotent)
+      if (app.spec.type === 'skill') {
+        removeSkillFromFilesystem(app, getSpacePath)
+      }
+
       // Hard-delete the database record
       store.delete(appId)
 
       // Purge the work directory
-      const spacePath = getSpacePath(app.spaceId)
-      if (spacePath) {
-        const workDir = resolveWorkDir(spacePath, appId)
+      try {
+        const workDir = resolveWorkDir(appId, app.spaceId)
         if (existsSync(workDir)) {
-          try {
-            rmSync(workDir, { recursive: true, force: true })
-            console.log(`[AppManager] Purged work directory: ${workDir}`)
-          } catch (error) {
-            console.error(`[AppManager] Failed to purge work directory ${workDir}:`, error)
-          }
+          rmSync(workDir, { recursive: true, force: true })
+          console.log(`[AppManager] Purged work directory: ${workDir}`)
         }
+      } catch (error) {
+        console.error(`[AppManager] Failed to purge work directory for ${appId}:`, error)
       }
 
       console.log(`[AppManager] Permanently deleted app ${appId}`)
@@ -294,6 +401,17 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       store.updateStatus(appId, newStatus, null, null)
       notifyStatusChange(appId, oldStatus, newStatus)
 
+      // Skills live as .md files on disk that the SDK auto-loads.
+      // Removing the file is the only way to prevent injection when paused.
+      if (app.spec.type === 'skill') {
+        removeSkillFromFilesystem(app, getSpacePath)
+      }
+
+      // MCP paused = no longer available in sessions
+      if (app.spec.type === 'mcp') {
+        emitMcpChange(app.spaceId)
+      }
+
       console.log(`[AppManager] App ${appId}: ${oldStatus} -> ${newStatus}`)
     },
 
@@ -309,6 +427,16 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       // Clear error-related fields on resume
       store.updateStatus(appId, newStatus, null, null)
       notifyStatusChange(appId, oldStatus, newStatus)
+
+      // Restore the skill file so the SDK picks it up again.
+      if (app.spec.type === 'skill') {
+        syncSkillToFilesystem(app, getSpacePath)
+      }
+
+      // MCP resumed = available again in sessions
+      if (app.spec.type === 'mcp') {
+        emitMcpChange(app.spaceId)
+      }
 
       console.log(`[AppManager] App ${appId}: ${oldStatus} -> ${newStatus}`)
     },
@@ -345,6 +473,13 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       )
 
       notifyStatusChange(appId, oldStatus, status)
+
+      // MCP availability changed: invalidate affected sessions so they
+      // rebuild with the correct tool set (e.g. active→error stops the
+      // server; error/needs_login→active makes it available again).
+      if (app.spec.type === 'mcp') {
+        emitMcpChange(app.spaceId)
+      }
 
       console.log(`[AppManager] App ${appId}: ${oldStatus} -> ${status}`)
     },
@@ -393,7 +528,85 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       // Persist
       store.updateSpec(appId, validatedSpec)
 
+      // Re-sync skill file so Claude Code auto-loads the updated content.
+      if (validatedSpec.type === 'skill') {
+        const updatedApp = { ...app, spec: validatedSpec } as InstalledApp
+        syncSkillToFilesystem(updatedApp, getSpacePath)
+      }
+
+      // MCP server definition may have changed (command/args/env/etc.):
+      // invalidate affected sessions so they reconnect with the new config.
+      if (validatedSpec.type === 'mcp') {
+        emitMcpChange(app.spaceId)
+      }
+
       console.log(`[AppManager] Updated spec for app ${appId}`)
+    },
+
+    async moveToSpace(appId: string, newSpaceId: string | null): Promise<void> {
+      const app = requireApp(appId)
+
+      // Cannot move an uninstalled app
+      if (app.status === 'uninstalled') {
+        throw new InvalidStatusTransitionError(
+          appId,
+          app.status,
+          app.status,
+          `App ${appId} is uninstalled and cannot be moved to a different space`
+        )
+      }
+
+      // No-op: already in the target scope
+      if (app.spaceId === newSpaceId) {
+        return
+      }
+
+      // Validate that the target space exists (if non-global)
+      if (newSpaceId !== null) {
+        const spacePath = getSpacePath(newSpaceId)
+        if (!spacePath) {
+          throw new SpaceNotFoundError(newSpaceId)
+        }
+      }
+
+      // Guard: reject if the same specId is already installed in the target scope.
+      // This covers both active and uninstalled records — the DB unique index also
+      // enforces this, but we prefer an explicit error before touching the filesystem.
+      const conflict = store.getBySpecAndSpace(app.specId, newSpaceId)
+      if (conflict) {
+        throw new AppAlreadyInstalledError(app.specId, newSpaceId)
+      }
+
+      const oldSpaceId = app.spaceId
+
+      // For skill apps: remove from the old FS location before updating the DB.
+      // If the DB update fails below, the skill file is already gone — this is
+      // acceptable because the DB is authoritative; a re-sync can restore the file.
+      // We do it in this order so the file never exists in two locations simultaneously.
+      if (app.spec.type === 'skill') {
+        removeSkillFromFilesystem(app, getSpacePath)
+      }
+
+      // Persist the new spaceId. The DB unique-index guards against races.
+      store.updateSpaceId(appId, newSpaceId)
+
+      // For skill apps: write files to the new location.
+      // Build a synthetic InstalledApp with the updated spaceId for the sync call.
+      if (app.spec.type === 'skill') {
+        const movedApp: InstalledApp = { ...app, spaceId: newSpaceId }
+        syncSkillToFilesystem(movedApp, getSpacePath)
+      }
+
+      // For MCP apps: notify both old and new scopes so session-manager
+      // can invalidate the affected sessions on both sides.
+      if (app.spec.type === 'mcp') {
+        emitMcpChange(oldSpaceId)
+        emitMcpChange(newSpaceId)
+      }
+
+      const fromScope = oldSpaceId === null ? 'global' : `space ${oldSpaceId}`
+      const toScope   = newSpaceId === null ? 'global' : `space ${newSpaceId}`
+      console.log(`[AppManager] Moved app ${appId} from ${fromScope} to ${toScope}`)
     },
 
     // ── Run Tracking ──────────────────────────
@@ -411,6 +624,14 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
 
     listApps(filter?: AppListFilter): InstalledApp[] {
       return store.list(filter)
+    },
+
+    listEffectiveMcpApps(spaceId: string): InstalledApp[] {
+      return listEffectiveByType('mcp', spaceId)
+    },
+
+    listEffectiveSkillApps(spaceId: string): InstalledApp[] {
+      return listEffectiveByType('skill', spaceId)
     },
 
     // ── Permissions ───────────────────────────
@@ -449,13 +670,7 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
 
     getAppWorkDir(appId: string): string {
       const app = requireApp(appId)
-      const spacePath = getSpacePath(app.spaceId)
-
-      if (!spacePath) {
-        throw new SpaceNotFoundError(app.spaceId)
-      }
-
-      const workDir = resolveWorkDir(spacePath, appId)
+      const workDir = resolveWorkDir(appId, app.spaceId)
 
       // Auto-create if missing (contract: returned path always exists)
       ensureDir(workDir)

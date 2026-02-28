@@ -30,7 +30,7 @@ import { buildAppSystemPrompt, buildInitialMessage } from './prompt'
 import { createReportToolServer } from './report-tool'
 import type { ReportToolContext } from './report-tool'
 import { createNotifyToolServer } from './notify-tool'
-import { getApiCredentials, getApiCredentialsForSource, getHeadlessElectronPath, getWorkingDir } from '../../services/agent/helpers'
+import { getApiCredentials, getApiCredentialsForSource, getHeadlessElectronPath, getWorkingDir, getMcpServersForRequires } from '../../services/agent/helpers'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from '../../services/agent/sdk-config'
 import { createAIBrowserMcpServer, createScopedBrowserContext } from '../../services/ai-browser'
 import { getConfig } from '../../services/config.service'
@@ -124,6 +124,13 @@ const SESSION_KEY_PREFIX = 'app-run'
  */
 export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResult> {
   const { app, trigger, store, memory, abortSignal } = options
+
+  // Guard: executeRun is only valid for automation apps.
+  // This narrows app.spec to AutomationSpec for the rest of the function.
+  if (app.spec.type !== 'automation') {
+    throw new RunExecutionError('unknown', 'unknown', `executeRun called for non-automation app type: ${app.spec.type}`)
+  }
+
   const runId = randomUUID()
   const sessionKey = `${SESSION_KEY_PREFIX}-${runId.slice(0, 8)}`
   const startedAt = Date.now()
@@ -157,10 +164,10 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
   // ── Build memory scope (before try so it's available in catch) ─────
   const memoryScope: MemoryCallerScope = {
     type: 'app',
-    spaceId: app.spaceId,
+    spaceId: app.spaceId!, // Automation apps always have a spaceId
     // Use space.path (not workingDir) to match the directory layout that
     // AppManager creates: {space.path}/.halo/apps/{appId}/memory/
-    spacePath: getSpace(app.spaceId)?.path ?? '',
+    spacePath: getSpace(app.spaceId!)?.path ?? '',
     appId: app.id,
   }
 
@@ -174,7 +181,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
       : await getApiCredentials(config)
     const resolvedCreds = await resolveCredentialsForSdk(credentials)
     const electronPath = getHeadlessElectronPath()
-    const workDir = getWorkingDir(app.spaceId)
+    const workDir = getWorkingDir(app.spaceId!)
 
     console.log(
       `[Runtime][${runTag}] Credentials resolved: provider=${credentials.provider}, ` +
@@ -287,20 +294,28 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
       }
     }
 
+    // Resolve MCPs declared in requires.mcps from the installed apps database.
+    // Only injects explicitly declared MCPs (least-privilege: automation gets only what it declares).
+    const requiredMcpServers = getMcpServersForRequires(
+      (app.spec.requires?.mcps as Array<{ id: string }> | undefined),
+      app.spaceId ?? 'halo-temp'
+    )
+
     const sdkOptions = buildBaseSdkOptions({
       credentials: resolvedCreds,
       workDir,
       electronPath,
-      spaceId: app.spaceId,
+      spaceId: app.spaceId!,
       conversationId: sessionKey, // Use session key as conversation ID
       abortController,
       stderrHandler: (data: string) => {
         console.error(`[Runtime][${app.id}] CLI stderr:`, data)
       },
       mcpServers: {
-        'halo-memory': memoryMcpServer,
-        'halo-report': reportMcpServer,
-        'halo-notify': notifyMcpServer,
+        ...requiredMcpServers,              // declared MCP dependencies
+        'halo-memory': memoryMcpServer,     // built-in: persistent memory
+        'halo-report': reportMcpServer,     // built-in: completion signal
+        'halo-notify': notifyMcpServer,     // built-in: user notification
         ...(usesAIBrowser ? { 'ai-browser': createAIBrowserMcpServer(scopedBrowserCtx) } : {}),
       },
     })
@@ -321,7 +336,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
     console.log(`[Runtime][${runTag}] V2 session created, sending initial message`)
 
     // ── 5b. Open session writer for "View process" ────────
-    const spacePath = getSpace(app.spaceId)?.path ?? ''
+    const spacePath = getSpace(app.spaceId!)?.path ?? ''
     let sessionWriter: SessionWriter | undefined
     if (spacePath) {
       sessionWriter = openSessionWriter(spacePath, app.id, runId)

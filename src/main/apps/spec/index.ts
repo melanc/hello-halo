@@ -88,7 +88,10 @@ export type { ValidationIssue }
 // Zod schemas (for advanced consumers who need schema introspection)
 export {
   AppSpecSchema,
-  AppSpecBaseSchema,
+  AutomationSpecSchema,
+  McpSpecSchema,
+  SkillSpecSchema,
+  ExtensionSpecSchema,
   AppTypeSchema,
   FilterRuleSchema,
   FilterOpSchema,
@@ -116,6 +119,10 @@ export {
 export type {
   AppType,
   AppSpec,
+  AutomationSpec,
+  McpSpec,
+  SkillSpec,
+  ExtensionSpec,
   FilterOp,
   FilterRule,
   InputType,

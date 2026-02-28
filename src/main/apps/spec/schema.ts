@@ -225,6 +225,8 @@ export const McpDependencySchema = z.object({
 // ============================================
 
 export const McpServerConfigSchema = z.object({
+  /** Transport protocol (default: stdio) */
+  transport: z.enum(['stdio', 'sse', 'streamable-http']).default('stdio'),
   /** Command to start the MCP server */
   command: nonEmptyString,
   /** Command arguments */
@@ -325,191 +327,149 @@ export const StoreMetadataSchema = z.object({
 }).optional()
 
 // ============================================
-// Full App Spec Schema
+// Full App Spec Schema (Discriminated Union by type)
 // ============================================
 
 /**
- * Base schema with all fields that are common across all app types.
- * Type-specific refinements are applied after base parsing.
+ * i18n locale block schema — shared across all app types.
  */
-export const AppSpecBaseSchema = z.object({
-  /** Spec format version (default "1", for forward compatibility) */
-  spec_version: z.string().default('1'),
-
-  /** App display name */
-  name: nonEmptyString,
-
-  /** App version */
-  version: versionString,
-
-  /** App author */
-  author: nonEmptyString,
-
-  /** App description */
-  description: nonEmptyString,
-
-  /** App type -- determines runtime behavior */
-  type: AppTypeSchema,
-
-  /** Icon identifier or URL */
-  icon: z.string().optional(),
-
-  /**
-   * Core system prompt -- the "soul" of the app.
-   * Required for skill and automation types.
-   */
-  system_prompt: z.string().optional(),
-
-  /** Dependency declarations */
-  requires: RequiresSchema.optional(),
-
-  /**
-   * Subscription definitions (only meaningful for type=automation).
-   * Presence of this field is what makes an app "active" in the background.
-   */
-  subscriptions: z.array(SubscriptionDefSchema).optional(),
-
-  /** Rule-based event filters (zero LLM cost pre-filtering) */
-  filters: z.array(FilterRuleSchema).optional(),
-
-  /** Memory schema -- what the AI should track in its memory file */
-  memory_schema: MemorySchemaSchema.optional(),
-
-  /** User configuration schema -- rendered as a form during install */
-  config_schema: z.array(InputDefSchema).optional(),
-
-  /** Output configuration */
-  output: OutputConfigSchema.optional(),
-
-  /** Permission declarations */
-  permissions: z.array(z.string()).optional(),
-
-  /**
-   * MCP server configuration (only for type=mcp).
-   * This is the standard Claude Code MCP server config format.
-   */
-  mcp_server: McpServerConfigSchema.optional(),
-
-  /** Escalation behavior configuration (type=automation) */
-  escalation: EscalationConfigSchema.optional(),
-
-  /** Optional model recommendation from the spec author (informational only, not used at runtime) */
-  recommended_model: z.string().optional(),
-
-  /** Store/registry metadata (for distribution and discovery) */
-  store: StoreMetadataSchema,
-
-  /**
-   * Locale-specific display text overrides.
-   * Keys are BCP 47 locale tags (e.g. "zh-CN", "ja").
-   * Only affects display text (name, description, config_schema labels/descriptions/placeholders/options).
-   * system_prompt and runtime behavior are never overridden by i18n.
-   */
-  i18n: z.record(
+const I18nLocaleBlockSchema = z.object({
+  name: z.string().optional(),
+  description: z.string().optional(),
+  config_schema: z.record(
     z.string(),
     z.object({
-      name: z.string().optional(),
+      label: z.string().optional(),
       description: z.string().optional(),
-      config_schema: z.record(
-        z.string(),
-        z.object({
-          label: z.string().optional(),
-          description: z.string().optional(),
-          placeholder: z.string().optional(),
-          /** Map of option value (as string) → translated label */
-          options: z.record(z.string(), z.string()).optional(),
-        })
-      ).optional(),
+      placeholder: z.string().optional(),
+      /** Map of option value (as string) → translated label */
+      options: z.record(z.string(), z.string()).optional(),
     })
   ).optional(),
 })
 
 /**
- * Full AppSpec schema with cross-field refinements.
+ * Common fields shared by ALL app types.
+ * Internal base — not exported as a standalone schema.
  */
-export const AppSpecSchema = AppSpecBaseSchema.superRefine((data, ctx) => {
-  // type=automation requires system_prompt
-  if (data.type === 'automation' && !data.system_prompt) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Automation apps require a system_prompt',
-      path: ['system_prompt']
-    })
-  }
+const AppSpecCommonSchema = z.object({
+  /** Spec format version (default "1", for forward compatibility) */
+  spec_version: z.string().default('1'),
+  /** App display name */
+  name: nonEmptyString,
+  /** App version */
+  version: versionString,
+  /** App author */
+  author: nonEmptyString,
+  /** App description */
+  description: nonEmptyString,
+  /** Icon identifier or URL */
+  icon: z.string().optional(),
+  /** Permission declarations */
+  permissions: z.array(z.string()).optional(),
+  /** Dependency declarations */
+  requires: RequiresSchema.optional(),
+  /** User configuration schema — rendered as a form during install */
+  config_schema: z.array(InputDefSchema).optional(),
+  /** Store/registry metadata (for distribution and discovery) */
+  store: StoreMetadataSchema,
+  /** Locale-specific display text overrides */
+  i18n: z.record(z.string(), I18nLocaleBlockSchema).optional(),
+})
 
-  // type=skill requires system_prompt
-  if (data.type === 'skill' && !data.system_prompt) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'Skill apps require a system_prompt',
-      path: ['system_prompt']
-    })
-  }
+/**
+ * Automation (AI Digital Human) — Halo core type.
+ * Requires system_prompt. Supports subscriptions, filters, memory, output, escalation.
+ */
+export const AutomationSpecSchema = AppSpecCommonSchema.extend({
+  type: z.literal('automation'),
+  /** Core system prompt — the "soul" of the automation */
+  system_prompt: nonEmptyString,
+  /** Subscription definitions — makes the app "active" in the background */
+  subscriptions: z.array(SubscriptionDefSchema).optional(),
+  /** Rule-based event filters (zero LLM cost pre-filtering) */
+  filters: z.array(FilterRuleSchema).optional(),
+  /** Memory schema — what the AI should track in its memory file */
+  memory_schema: MemorySchemaSchema.optional(),
+  /** Output configuration */
+  output: OutputConfigSchema.optional(),
+  /** Escalation behavior configuration */
+  escalation: EscalationConfigSchema.optional(),
+  /** Optional model recommendation (informational only) */
+  recommended_model: z.string().optional(),
+})
 
-  // type=mcp requires mcp_server
-  if (data.type === 'mcp' && !data.mcp_server) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: 'MCP apps require a mcp_server configuration',
-      path: ['mcp_server']
-    })
-  }
+/**
+ * MCP Server — external community format.
+ * Requires mcp_server config.
+ */
+export const McpSpecSchema = AppSpecCommonSchema.extend({
+  type: z.literal('mcp'),
+  /** MCP server configuration */
+  mcp_server: McpServerConfigSchema,
+})
 
-  // subscriptions only allowed for type=automation
-  if (data.subscriptions && data.subscriptions.length > 0 && data.type !== 'automation') {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Subscriptions are only allowed for type=automation (got type=${data.type})`,
-      path: ['subscriptions']
-    })
-  }
+/**
+ * Skill — external community format (Claude SKILL.md).
+ * Lightweight validation, no system_prompt required.
+ */
+export const SkillSpecSchema = AppSpecCommonSchema.extend({
+  type: z.literal('skill'),
+  /** Single-file content (manual add / legacy). Used when skill is a single .md file. */
+  skill_content: z.string().optional(),
+  /** All files in the skill folder, keyed by filename (e.g. { 'SKILL.md': '...' }). Used for registry installs. */
+  skill_files: z.record(z.string()).optional(),
+})
 
-  // memory_schema only allowed for type=automation
-  if (data.memory_schema && Object.keys(data.memory_schema).length > 0 && data.type !== 'automation') {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `memory_schema is only allowed for type=automation (got type=${data.type})`,
-      path: ['memory_schema']
-    })
-  }
+/**
+ * Extension — reserved for future use.
+ */
+export const ExtensionSpecSchema = AppSpecCommonSchema.extend({
+  type: z.literal('extension'),
+})
 
-  // mcp_server only allowed for type=mcp
-  if (data.mcp_server && data.type !== 'mcp') {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `mcp_server is only allowed for type=mcp (got type=${data.type})`,
-      path: ['mcp_server']
-    })
-  }
-
-  // Validate subscription IDs are unique
-  if (data.subscriptions && data.subscriptions.length > 1) {
-    const ids = data.subscriptions
-      .map((s, i) => s.id || `sub_${i}`)
-    const seen = new Set<string>()
-    for (let i = 0; i < ids.length; i++) {
-      if (seen.has(ids[i])) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `Duplicate subscription id: "${ids[i]}"`,
-          path: ['subscriptions', i, 'id']
-        })
+/**
+ * Full AppSpec schema — discriminated union by `type` field.
+ * Each type has its own required/optional fields.
+ * Cross-field refinements for automation are applied via superRefine.
+ */
+export const AppSpecSchema = z.discriminatedUnion('type', [
+  AutomationSpecSchema,
+  McpSpecSchema,
+  SkillSpecSchema,
+  ExtensionSpecSchema,
+]).superRefine((data, ctx) => {
+  // Automation-specific cross-field validations
+  if (data.type === 'automation') {
+    // Validate subscription IDs are unique
+    if (data.subscriptions && data.subscriptions.length > 1) {
+      const ids = data.subscriptions
+        .map((s, i) => s.id || `sub_${i}`)
+      const seen = new Set<string>()
+      for (let i = 0; i < ids.length; i++) {
+        if (seen.has(ids[i])) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Duplicate subscription id: "${ids[i]}"`,
+            path: ['subscriptions', i, 'id']
+          })
+        }
+        seen.add(ids[i])
       }
-      seen.add(ids[i])
     }
-  }
 
-  // Validate config_key references exist in config_schema
-  if (data.subscriptions && data.config_schema) {
-    const configKeys = new Set(data.config_schema.map(c => c.key))
-    for (let i = 0; i < data.subscriptions.length; i++) {
-      const sub = data.subscriptions[i]
-      if (sub.config_key && !configKeys.has(sub.config_key)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: `config_key "${sub.config_key}" not found in config_schema`,
-          path: ['subscriptions', i, 'config_key']
-        })
+    // Validate config_key references exist in config_schema
+    if (data.subscriptions && data.config_schema) {
+      const configKeys = new Set(data.config_schema.map(c => c.key))
+      for (let i = 0; i < data.subscriptions.length; i++) {
+        const sub = data.subscriptions[i]
+        if (sub.config_key && !configKeys.has(sub.config_key)) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `config_key "${sub.config_key}" not found in config_schema`,
+            path: ['subscriptions', i, 'config_key']
+          })
+        }
       }
     }
   }
@@ -538,6 +498,12 @@ export type EscalationConfig = z.infer<typeof EscalationConfigSchema>
 export type StoreMetadata = z.infer<typeof StoreMetadataSchema>
 export type AppSpec = z.infer<typeof AppSpecSchema>
 
+// Per-type convenience aliases
+export type AutomationSpec = z.infer<typeof AutomationSpecSchema>
+export type McpSpec = z.infer<typeof McpSpecSchema>
+export type SkillSpec = z.infer<typeof SkillSpecSchema>
+export type ExtensionSpec = z.infer<typeof ExtensionSpecSchema>
+
 // i18n derived types (re-exported for convenience)
-export type I18nConfigFieldOverride = NonNullable<NonNullable<AppSpec['i18n']>[string]['config_schema']>[string]
-export type I18nLocaleBlock = NonNullable<AppSpec['i18n']>[string]
+export type I18nConfigFieldOverride = NonNullable<NonNullable<AutomationSpec['i18n']>[string]['config_schema']>[string]
+export type I18nLocaleBlock = NonNullable<AutomationSpec['i18n']>[string]

@@ -28,6 +28,8 @@ import { ImageAttachmentPreview } from './ImageAttachmentPreview'
 import { processImage, isValidImageType, formatFileSize } from '../../utils/imageProcessor'
 import type { ImageAttachment } from '../../types'
 import { useTranslation } from '../../i18n'
+import { SlashCommandMenu, filterSlashCommands } from './SlashCommandMenu'
+import type { SlashCommandItem } from '../../types/slash-command'
 
 interface InputAreaProps {
   onSend: (content: string, images?: ImageAttachment[], thinkingEnabled?: boolean) => void
@@ -35,6 +37,8 @@ interface InputAreaProps {
   isGenerating: boolean
   placeholder?: string
   isCompact?: boolean
+  /** Available slash commands for the "/" quick-input autocomplete */
+  slashCommands?: SlashCommandItem[]
 }
 
 // Image constraints
@@ -47,7 +51,7 @@ interface ImageError {
   message: string
 }
 
-export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact = false }: InputAreaProps) {
+export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact = false, slashCommands = [] }: InputAreaProps) {
   const { t } = useTranslation()
   const [content, setContent] = useState('')
   const [isFocused, setIsFocused] = useState(false)
@@ -57,6 +61,9 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   const [imageError, setImageError] = useState<ImageError | null>(null)
   const [thinkingEnabled, setThinkingEnabled] = useState(false)  // Extended thinking mode
   const [showAttachMenu, setShowAttachMenu] = useState(false)  // Attachment menu visibility
+  // Slash-command autocomplete
+  const [slashMenuOpen, setSlashMenuOpen] = useState(false)
+  const [slashSelectedIndex, setSlashSelectedIndex] = useState(0)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachMenuRef = useRef<HTMLDivElement>(null)
@@ -237,6 +244,33 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     }
   }, [isGenerating, isOnboardingSendStep])
 
+  // Slash-command helpers
+  // `slashFilter` is the text typed after "/" — used for filtering the menu
+  const slashFilter = slashMenuOpen && content.startsWith('/') ? content.slice(1) : ''
+
+  const handleSlashClose = () => {
+    setSlashMenuOpen(false)
+    setSlashSelectedIndex(0)
+  }
+
+  const handleSlashSelect = (item: SlashCommandItem) => {
+    const newContent = item.command + ' '
+    setContent(newContent)
+    setSlashMenuOpen(false)
+    setSlashSelectedIndex(0)
+    // Resize textarea to fit the new (short) content and restore focus
+    requestAnimationFrame(() => {
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto'
+        textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`
+        textareaRef.current.focus()
+        // Place cursor at the end
+        const len = textareaRef.current.value.length
+        textareaRef.current.setSelectionRange(len, len)
+      }
+    })
+  }
+
   // Handle send
   const handleSend = () => {
     const textToSend = isOnboardingSendStep ? onboardingPrompt : content.trim()
@@ -267,6 +301,44 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
     // Ignore key events during IME composition (Chinese/Japanese/Korean input)
     // This prevents Enter from sending the message while confirming IME candidates
     if (e.nativeEvent.isComposing) return
+
+    // ── Slash-command menu navigation ─────────────────────────────────────────
+    if (slashMenuOpen && slashCommands.length > 0) {
+      const filteredLen = filterSlashCommands(slashCommands, slashFilter).length
+
+      if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        setSlashSelectedIndex((i) => (filteredLen === 0 ? 0 : (i + 1) % filteredLen))
+        return
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        setSlashSelectedIndex((i) => (filteredLen === 0 ? 0 : (i - 1 + filteredLen) % filteredLen))
+        return
+      }
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault()
+        const filtered = filterSlashCommands(slashCommands, slashFilter)
+        if (filtered[slashSelectedIndex]) {
+          handleSlashSelect(filtered[slashSelectedIndex])
+        }
+        return
+      }
+      if (e.key === 'Tab') {
+        e.preventDefault()
+        const filtered = filterSlashCommands(slashCommands, slashFilter)
+        if (filtered[slashSelectedIndex]) {
+          handleSlashSelect(filtered[slashSelectedIndex])
+        }
+        return
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        handleSlashClose()
+        return
+      }
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     // Mobile: Enter for newline, send via button only
     // PC: Enter to send, Shift+Enter for newline
@@ -327,6 +399,16 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
         >
+          {/* Slash-command autocomplete menu — floats above the input box */}
+          {slashMenuOpen && slashCommands.length > 0 && (
+            <SlashCommandMenu
+              items={slashCommands}
+              filter={slashFilter}
+              selectedIndex={slashSelectedIndex}
+              onSelect={handleSlashSelect}
+              onClose={handleSlashClose}
+            />
+          )}
           {/* Image preview area */}
           {hasImages && (
             <ImageAttachmentPreview
@@ -360,7 +442,18 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
             <textarea
               ref={textareaRef}
               value={displayContent}
-              onChange={(e) => !isOnboardingSendStep && setContent(e.target.value)}
+              onChange={(e) => {
+                if (isOnboardingSendStep) return
+                const val = e.target.value
+                setContent(val)
+                // Open slash menu when input starts with "/" and has no space yet
+                if (slashCommands.length > 0 && val.startsWith('/') && !val.includes(' ')) {
+                  setSlashMenuOpen(true)
+                  setSlashSelectedIndex(0)
+                } else {
+                  setSlashMenuOpen(false)
+                }
+              }}
               onKeyDown={handleKeyDown}
               onPaste={handlePaste}
               onFocus={() => setIsFocused(true)}

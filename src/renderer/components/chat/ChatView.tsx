@@ -9,9 +9,10 @@
  * - Compact mode (isCompact=true): Sidebar-style when Canvas is open
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useSpaceStore } from '../../stores/space.store'
 import { useChatStore } from '../../stores/chat.store'
+import { useAppsStore } from '../../stores/apps.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useAIBrowserStore } from '../../stores/ai-browser.store'
 import { MessageList } from './MessageList'
@@ -27,6 +28,7 @@ import {
 } from '../onboarding/onboardingData'
 import { api } from '../../api'
 import type { ImageAttachment } from '../../types'
+import type { SlashCommandItem } from '../../types/slash-command'
 import { useTranslation } from '../../i18n'
 
 interface ChatViewProps {
@@ -38,12 +40,15 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
   const { currentSpace } = useSpaceStore()
   const {
     getCurrentConversation,
+    getCurrentConversationId,
     getCurrentSession,
+    sessionInitInfo,
     sendMessage,
     stopGeneration,
     continueAfterInterrupt,
     answerQuestion
   } = useChatStore()
+  const { apps } = useAppsStore()
 
   // Onboarding state
   const {
@@ -179,6 +184,67 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
   const { isLoadingConversation } = useChatStore()
   const session = getCurrentSession()
   const { isGenerating, streamingContent, isStreaming, thoughts, isThinking, compactInfo, error, errorType, textBlockVersion, pendingQuestion } = session
+
+  // Build the slash-command list for the autocomplete menu.
+  // Merges three sources, deduplicating by command string:
+  //   1. SDK slash_commands (built-in Claude Code commands)  → category 'builtin'
+  //   2. SDK agents                                          → category 'agent'
+  //   3. Installed + active skills from apps store           → category 'skill'
+  const slashCommands = useMemo<SlashCommandItem[]>(() => {
+    const conversationId = getCurrentConversationId()
+    const initInfo = conversationId ? sessionInitInfo.get(conversationId) : null
+
+    const items: SlashCommandItem[] = []
+    const seenCommands = new Set<string>()
+
+    const addItem = (item: SlashCommandItem) => {
+      if (!seenCommands.has(item.command)) {
+        seenCommands.add(item.command)
+        items.push(item)
+      }
+    }
+
+    // 1. Installed + active skills — listed first so they appear at top of menu
+    apps
+      .filter((app) => app.spec.type === 'skill' && app.status !== 'uninstalled' && app.status !== 'paused')
+      .forEach((app) => {
+        const slug = app.spec.name.toLowerCase().replace(/\s+/g, '-')
+        addItem({
+          id: `skill-${app.id}`,
+          command: `/${slug}`,
+          label: app.spec.name,
+          description: app.spec.description,
+          category: 'skill',
+        })
+      })
+
+    // 2. SDK built-in slash_commands
+    if (initInfo?.slashCommands) {
+      initInfo.slashCommands.forEach((cmd) => {
+        addItem({
+          id: `builtin-${cmd}`,
+          command: `/${cmd}`,
+          label: cmd,
+          category: 'builtin',
+        })
+      })
+    }
+
+    // 3. SDK agents
+    if (initInfo?.agents) {
+      initInfo.agents.forEach((agent) => {
+        const slug = agent.toLowerCase().replace(/\s+/g, '-')
+        addItem({
+          id: `agent-${slug}`,
+          command: `/${slug}`,
+          label: agent,
+          category: 'agent',
+        })
+      })
+    }
+
+    return items
+  }, [apps, sessionInitInfo, getCurrentConversationId])
 
   const onboardingPrompt = getOnboardingPrompt(t)
   const onboardingResponse = getOnboardingAiResponse(t)
@@ -345,6 +411,7 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
         isGenerating={isGenerating}
         placeholder={isCompact ? t('Continue conversation...') : (currentSpace?.isTemp ? t('Say something to Halo...') : t('Continue conversation...'))}
         isCompact={isCompact}
+        slashCommands={slashCommands}
       />
     </div>
   )

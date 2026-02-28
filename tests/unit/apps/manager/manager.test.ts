@@ -82,13 +82,17 @@ describe('AppManager', () => {
       [TEST_SPACE_ID_2]: join(testDir, 'spaces', TEST_SPACE_ID_2),
     }
 
+    const globalDir = join(testDir, 'global')
+
     for (const spacePath of Object.values(spacePaths)) {
       mkdirSync(spacePath, { recursive: true })
     }
+    mkdirSync(globalDir, { recursive: true })
 
     const deps: AppManagerDeps = {
       store,
       getSpacePath: (spaceId: string) => spacePaths[spaceId] ?? null,
+      getGlobalAppDir: () => globalDir,
     }
 
     service = createAppManagerService(deps)
@@ -899,6 +903,105 @@ describe('AppManager', () => {
       service.updateStatus(appId, 'active')
 
       expect(handler).not.toHaveBeenCalled()
+    })
+  })
+
+  // ===========================================================================
+  // Move to Space
+  // ===========================================================================
+
+  describe('moveToSpace', () => {
+    it('should update spaceId from one space to another', async () => {
+      const spec  = createTestSpec({ name: 'movable-app', type: 'skill' })
+      const appId = await service.install(TEST_SPACE_ID, spec)
+
+      expect(service.getApp(appId)!.spaceId).toBe(TEST_SPACE_ID)
+
+      await service.moveToSpace(appId, TEST_SPACE_ID_2)
+
+      expect(service.getApp(appId)!.spaceId).toBe(TEST_SPACE_ID_2)
+    })
+
+    it('should update spaceId from a space to global (null)', async () => {
+      const spec  = createTestSpec({ name: 'space-to-global', type: 'skill' })
+      const appId = await service.install(TEST_SPACE_ID, spec)
+
+      await service.moveToSpace(appId, null)
+
+      expect(service.getApp(appId)!.spaceId).toBeNull()
+    })
+
+    it('should update spaceId from global to a space', async () => {
+      const spec  = createTestSpec({ name: 'global-to-space', type: 'skill' })
+      const appId = await service.install(null, spec)
+
+      expect(service.getApp(appId)!.spaceId).toBeNull()
+
+      await service.moveToSpace(appId, TEST_SPACE_ID)
+
+      expect(service.getApp(appId)!.spaceId).toBe(TEST_SPACE_ID)
+    })
+
+    it('should be a no-op when moving to the current scope', async () => {
+      const spec  = createTestSpec({ name: 'noop-move', type: 'skill' })
+      const appId = await service.install(TEST_SPACE_ID, spec)
+
+      // Should not throw and should leave spaceId unchanged
+      await service.moveToSpace(appId, TEST_SPACE_ID)
+
+      expect(service.getApp(appId)!.spaceId).toBe(TEST_SPACE_ID)
+    })
+
+    it('should throw AppNotFoundError for non-existent app', async () => {
+      await expect(
+        service.moveToSpace('non-existent-id', TEST_SPACE_ID)
+      ).rejects.toThrow(AppNotFoundError)
+    })
+
+    it('should throw SpaceNotFoundError for unknown target space', async () => {
+      const spec  = createTestSpec({ name: 'bad-target-space', type: 'skill' })
+      const appId = await service.install(TEST_SPACE_ID, spec)
+
+      await expect(
+        service.moveToSpace(appId, 'non-existent-space')
+      ).rejects.toThrow(SpaceNotFoundError)
+    })
+
+    it('should throw AppAlreadyInstalledError when same specId exists in target scope', async () => {
+      const spec   = createTestSpec({ name: 'conflict-app', type: 'skill' })
+      const appId1 = await service.install(TEST_SPACE_ID, spec)
+      // Install the same spec in the target space
+      await service.install(TEST_SPACE_ID_2, spec)
+
+      await expect(
+        service.moveToSpace(appId1, TEST_SPACE_ID_2)
+      ).rejects.toThrow(AppAlreadyInstalledError)
+
+      // Original spaceId must be unchanged
+      expect(service.getApp(appId1)!.spaceId).toBe(TEST_SPACE_ID)
+    })
+
+    it('should throw for uninstalled apps', async () => {
+      const spec  = createTestSpec({ name: 'uninstalled-move', type: 'skill' })
+      const appId = await service.install(TEST_SPACE_ID, spec)
+      await service.uninstall(appId)
+
+      await expect(
+        service.moveToSpace(appId, TEST_SPACE_ID_2)
+      ).rejects.toThrow(InvalidStatusTransitionError)
+    })
+
+    it('should preserve app status and other fields after move', async () => {
+      const spec  = createTestSpec({ name: 'preserve-fields', type: 'skill' })
+      const appId = await service.install(TEST_SPACE_ID, spec, { key: 'value' })
+      service.pause(appId)
+
+      await service.moveToSpace(appId, TEST_SPACE_ID_2)
+
+      const app = service.getApp(appId)!
+      expect(app.status).toBe('paused')
+      expect(app.userConfig).toEqual({ key: 'value' })
+      expect(app.spaceId).toBe(TEST_SPACE_ID_2)
     })
   })
 

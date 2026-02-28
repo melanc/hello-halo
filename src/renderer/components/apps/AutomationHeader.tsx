@@ -68,7 +68,7 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
   }
 
   // Subscription frequency label (effective: user override > frequency.default > source config)
-  const sub = app.spec.subscriptions?.[0]
+  const sub = app.spec.type === 'automation' ? app.spec.subscriptions?.[0] : undefined
   let freqLabel: string | null = null
   if (sub) {
     const subId = sub.id ?? '0'

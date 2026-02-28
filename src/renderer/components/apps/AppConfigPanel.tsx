@@ -301,10 +301,16 @@ interface SettingsTabProps {
 function SettingsTab({ app, appId, t }: SettingsTabProps) {
   const { updateAppConfig, updateAppFrequency, updateAppSpec, updateAppOverrides, grantPermission, revokePermission } = useAppsStore()
 
+  // Type-narrowed helpers for automation-specific fields
+  const isAutomation = app.spec.type === 'automation'
+  const specSystemPromptValue = isAutomation ? app.spec.system_prompt : ''
+  const specSubscriptions = isAutomation ? (app.spec.subscriptions ?? []) : []
+  const specRecommendedModel = isAutomation ? app.spec.recommended_model : undefined
+
   // ── Spec fields (name, description, system_prompt) ──
   const [specName, setSpecName] = useState(app.spec.name)
   const [specDescription, setSpecDescription] = useState(app.spec.description)
-  const [specSystemPrompt, setSpecSystemPrompt] = useState(app.spec.system_prompt ?? '')
+  const [specSystemPrompt, setSpecSystemPrompt] = useState(specSystemPromptValue)
   const [specSaving, setSpecSaving] = useState(false)
   const [specSaveSuccess, setSpecSaveSuccess] = useState(false)
   const [specError, setSpecError] = useState<string | null>(null)
@@ -318,12 +324,12 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
   useEffect(() => {
     setSpecName(app.spec.name)
     setSpecDescription(app.spec.description)
-    setSpecSystemPrompt(app.spec.system_prompt ?? '')
+    setSpecSystemPrompt(specSystemPromptValue)
     setSpecSaveSuccess(false)
     setSpecError(null)
     setFormValues({ ...app.userConfig })
     setConfigSaveSuccess(false)
-  }, [app.id, app.spec.name, app.spec.description, app.spec.system_prompt, app.userConfig])
+  }, [app.id, app.spec.name, app.spec.description, specSystemPromptValue, app.userConfig])
 
   const handleFieldChange = useCallback((key: string, value: unknown) => {
     setFormValues(prev => ({ ...prev, [key]: value }))
@@ -331,7 +337,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
   }, [])
 
   const configSchema = resolveSpecI18n(app.spec, getCurrentLanguage()).config_schema ?? []
-  const subscriptions = app.spec.subscriptions ?? []
+  const subscriptions = specSubscriptions
   const hasConfig = configSchema.length > 0
   const hasFrequency = subscriptions.some(s => s.frequency || s.source.type === 'schedule')
 
@@ -339,7 +345,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
   const specHasChanges =
     specName !== app.spec.name ||
     specDescription !== app.spec.description ||
-    specSystemPrompt !== (app.spec.system_prompt ?? '')
+    specSystemPrompt !== specSystemPromptValue
 
   // Config form change detection
   const configHasChanges = hasConfig && JSON.stringify(formValues) !== JSON.stringify(app.userConfig)
@@ -359,7 +365,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
     const patch: Record<string, unknown> = {}
     if (specName !== app.spec.name) patch.name = specName.trim()
     if (specDescription !== app.spec.description) patch.description = specDescription.trim()
-    if (specSystemPrompt !== (app.spec.system_prompt ?? '')) {
+    if (specSystemPrompt !== specSystemPromptValue) {
       patch.system_prompt = specSystemPrompt.trim() || null
     }
 
@@ -376,7 +382,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
   function handleSpecReset() {
     setSpecName(app.spec.name)
     setSpecDescription(app.spec.description)
-    setSpecSystemPrompt(app.spec.system_prompt ?? '')
+    setSpecSystemPrompt(specSystemPromptValue)
     setSpecSaveSuccess(false)
     setSpecError(null)
   }
@@ -500,7 +506,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
         <AppModelSelector
           modelSourceId={app.userOverrides.modelSourceId}
           modelId={app.userOverrides.modelId}
-          recommendedModel={app.spec.recommended_model}
+          recommendedModel={specRecommendedModel}
           onChange={async (sourceId, modelId) => {
             await updateAppOverrides(appId, {
               modelSourceId: sourceId,

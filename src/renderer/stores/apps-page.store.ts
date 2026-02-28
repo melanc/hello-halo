@@ -14,7 +14,8 @@
 import { create } from 'zustand'
 import { api } from '../api'
 import { getCurrentLanguage } from '../i18n'
-import type { RegistryEntry, StoreAppDetail, UpdateInfo, StoreQuery } from '../../shared/store/store-types'
+import type { RegistryEntry, StoreAppDetail, UpdateInfo, StoreQuery, StoreQueryResponse } from '../../shared/store/store-types'
+import type { AppType } from '../../shared/apps/spec-types'
 
 let storeListRequestSeq = 0
 let storeDetailRequestSeq = 0
@@ -35,7 +36,7 @@ export type AppsDetailView =
   | { type: 'uninstalled-detail'; appId: string }
   | null
 
-export type AppsPageTab = 'my-digital-humans' | 'store'
+export type AppsPageTab = 'my-digital-humans' | 'my-apps' | 'store'
 
 // ============================================
 // State Interface
@@ -57,6 +58,9 @@ interface AppsPageState {
   storeError: string | null
   storeSearchQuery: string
   storeCategory: string | null
+  storeTypeFilter: AppType | null
+  storePage: number
+  storeHasMore: boolean
   storeSelectedSlug: string | null
   storeSelectedDetail: StoreAppDetail | null
   storeDetailLoading: boolean
@@ -78,11 +82,13 @@ interface AppsPageState {
   // ── Store Actions ──────────────────────────
   setCurrentTab: (tab: AppsPageTab) => void
   loadStoreApps: (query?: StoreQuery) => Promise<void>
+  loadMoreStoreApps: () => Promise<void>
   setStoreSearch: (query: string) => void
   setStoreCategory: (category: string | null) => void
+  setStoreTypeFilter: (type: AppType | null) => void
   selectStoreApp: (slug: string) => Promise<void>
   clearStoreSelection: () => void
-  installFromStore: (slug: string, spaceId: string, userConfig?: Record<string, unknown>) => Promise<string | null>
+  installFromStore: (slug: string, spaceId: string | null, userConfig?: Record<string, unknown>) => Promise<string | null>
   refreshStore: () => Promise<void>
   checkUpdates: () => Promise<void>
 }
@@ -106,6 +112,9 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
   storeError: null,
   storeSearchQuery: '',
   storeCategory: null,
+  storeTypeFilter: null,
+  storePage: 1,
+  storeHasMore: false,
   storeSelectedSlug: null,
   storeSelectedDetail: null,
   storeDetailLoading: false,
@@ -150,6 +159,9 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
     storeError: null,
     storeSearchQuery: '',
     storeCategory: null,
+    storeTypeFilter: null,
+    storePage: 1,
+    storeHasMore: false,
     storeSelectedSlug: null,
     storeSelectedDetail: null,
     storeDetailLoading: false,
@@ -162,20 +174,71 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
 
   loadStoreApps: async (query) => {
     const requestId = ++storeListRequestSeq
-    set({ storeLoading: true, storeError: null })
+    set({ storeLoading: true, storeError: null, storeApps: [], storePage: 1, storeHasMore: false })
     try {
       const locale = getCurrentLanguage()
       const baseQuery = query ?? {
         search: get().storeSearchQuery || undefined,
         category: get().storeCategory ?? undefined,
+        type: get().storeTypeFilter ?? undefined,
       }
-      const res = await api.storeListApps({ ...baseQuery, locale })
+
+      if (baseQuery.type) {
+        const requestQuery = { ...baseQuery, locale, page: 1, pageSize: 30 }
+        const res = await api.storeQuery(requestQuery)
+        if (requestId !== storeListRequestSeq) {
+          return
+        }
+
+        if (res.success && res.data) {
+          const data = res.data as StoreQueryResponse
+          set({ storeApps: data.items, storeHasMore: data.hasMore, storePage: 1 })
+        } else {
+          set({ storeError: (res.error as string) || 'Failed to load store apps' })
+        }
+        return
+      }
+
+      // All tab: query each type independently and render whichever returns first.
+      const typeOrder: AppType[] = ['automation', 'skill', 'mcp']
+      const typeResults: Partial<Record<AppType, StoreQueryResponse>> = {}
+      const errors: string[] = []
+
+      const applyPartialResults = () => {
+        if (requestId !== storeListRequestSeq) return
+        const merged = typeOrder.flatMap(type => typeResults[type]?.items ?? [])
+        set({ storeApps: merged, storePage: 1, storeHasMore: false })
+      }
+
+      await Promise.all(typeOrder.map(async (type) => {
+        try {
+          const res = await api.storeQuery({
+            search: baseQuery.search,
+            category: baseQuery.category,
+            type,
+            locale,
+            page: 1,
+            pageSize: 30,
+          })
+
+          if (requestId !== storeListRequestSeq) return
+          if (res.success && res.data) {
+            typeResults[type] = res.data as StoreQueryResponse
+            applyPartialResults()
+          } else {
+            errors.push(`${type}: ${(res.error as string) || 'query failed'}`)
+          }
+        } catch (err) {
+          const msg = err instanceof Error ? err.message : String(err)
+          errors.push(`${type}: ${msg}`)
+        }
+      }))
+
       if (requestId !== storeListRequestSeq) return
 
-      if (res.success && res.data) {
-        set({ storeApps: res.data as RegistryEntry[] })
-      } else {
-        set({ storeError: (res.error as string) || 'Failed to load store apps' })
+      const merged = typeOrder.flatMap(type => typeResults[type]?.items ?? [])
+      if (merged.length === 0 && errors.length > 0) {
+        set({ storeError: `Failed to load store apps (${errors.join('; ')})` })
       }
     } catch (err) {
       if (requestId !== storeListRequestSeq) return
@@ -188,9 +251,51 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
     }
   },
 
+  loadMoreStoreApps: async () => {
+    const { storeHasMore, storeLoading, storePage } = get()
+    if (!storeHasMore || storeLoading) return
+
+    const requestId = ++storeListRequestSeq
+    set({ storeLoading: true })
+    try {
+      const locale = getCurrentLanguage()
+      const nextPage = storePage + 1
+      const requestQuery = {
+        search: get().storeSearchQuery || undefined,
+        category: get().storeCategory ?? undefined,
+        type: get().storeTypeFilter ?? undefined,
+        locale,
+        page: nextPage,
+        pageSize: 30,
+      }
+      const res = await api.storeQuery(requestQuery)
+      if (requestId !== storeListRequestSeq) {
+        return
+      }
+
+      if (res.success && res.data) {
+        const data = res.data as StoreQueryResponse
+        set({
+          storeApps: [...get().storeApps, ...data.items],
+          storeHasMore: data.hasMore,
+          storePage: nextPage,
+        })
+      }
+    } catch (err) {
+      if (requestId !== storeListRequestSeq) return
+      console.error('[AppsPageStore] loadMoreStoreApps error:', err)
+    } finally {
+      if (requestId === storeListRequestSeq) {
+        set({ storeLoading: false })
+      }
+    }
+  },
+
   setStoreSearch: (query) => set({ storeSearchQuery: query }),
 
   setStoreCategory: (category) => set({ storeCategory: category }),
+
+  setStoreTypeFilter: (type) => set({ storeTypeFilter: type }),
 
   selectStoreApp: async (slug) => {
     const requestId = ++storeDetailRequestSeq

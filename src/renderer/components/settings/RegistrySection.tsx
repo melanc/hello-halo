@@ -1,13 +1,20 @@
 /**
  * Registry Section Component
- * Manages App Store registry sources (view, add, remove, toggle)
+ * Manages App Store registry sources (view, add, remove, toggle, adapter config)
  */
 
 import { useState, useEffect, useCallback } from 'react'
-import { Plus, Trash2, Loader2 } from 'lucide-react'
+import { Plus, Trash2, Loader2, Key } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { api } from '../../api'
 import type { RegistrySource } from '../../../shared/store/store-types'
+
+const SOURCE_TYPE_LABELS: Record<string, string> = {
+  'halo': 'Halo',
+  'mcp-registry': 'MCP',
+  'smithery': 'Smithery',
+  'claude-skills': 'Claude Skills',
+}
 
 export function RegistrySection() {
   const { t } = useTranslation()
@@ -21,6 +28,9 @@ export function RegistrySection() {
   const [newUrl, setNewUrl] = useState('')
   const [adding, setAdding] = useState(false)
   const [addError, setAddError] = useState<string | null>(null)
+  // Smithery API key editing state: registryId -> value
+  const [apiKeyEditing, setApiKeyEditing] = useState<Record<string, string>>({})
+  const [apiKeySaving, setApiKeySaving] = useState<Record<string, boolean>>({})
 
   // Load registries on mount
   const loadRegistries = useCallback(async () => {
@@ -29,7 +39,7 @@ export function RegistrySection() {
       setError(null)
       const result = await api.storeGetRegistries()
       if (result.success && result.data) {
-        setRegistries(result.data)
+        setRegistries(result.data as RegistrySource[])
       } else {
         setError(result.error || t('Failed to load registries'))
       }
@@ -48,7 +58,6 @@ export function RegistrySection() {
   const handleAdd = async () => {
     setAddError(null)
 
-    // Validation
     const trimmedName = newName.trim()
     const trimmedUrl = newUrl.trim()
 
@@ -107,7 +116,6 @@ export function RegistrySection() {
       setError(null)
       const result = await api.storeToggleRegistry(registryId, enabled)
       if (result.success) {
-        // Optimistic update
         setRegistries((prev) =>
           prev.map((r) => (r.id === registryId ? { ...r, enabled } : r))
         )
@@ -118,6 +126,33 @@ export function RegistrySection() {
       setError(t('Failed to update registry'))
     }
   }
+
+  // Save Smithery API key
+  const handleSaveApiKey = async (registryId: string) => {
+    const apiKey = apiKeyEditing[registryId] ?? ''
+    setApiKeySaving(prev => ({ ...prev, [registryId]: true }))
+    try {
+      const result = await api.storeUpdateRegistryAdapterConfig(registryId, { apiKey })
+      if (!result.success) {
+        setError(result.error || t('Failed to save API key'))
+      } else {
+        // Clear editing state on success
+        setApiKeyEditing(prev => {
+          const next = { ...prev }
+          delete next[registryId]
+          return next
+        })
+      }
+    } catch {
+      setError(t('Failed to save API key'))
+    } finally {
+      setApiKeySaving(prev => ({ ...prev, [registryId]: false }))
+    }
+  }
+
+  const BUILTIN_IDS = new Set(['official', 'mcp-official', 'smithery', 'claude-skills'])
+  const isBuiltin = (registry: RegistrySource) =>
+    registry.isDefault || BUILTIN_IDS.has(registry.id)
 
   return (
     <section id="app-store" className="bg-card rounded-xl border border-border p-6">
@@ -146,54 +181,89 @@ export function RegistrySection() {
           {/* Registry list */}
           <div className="space-y-0 divide-y divide-border rounded-lg border border-border overflow-hidden">
             {registries.map((registry) => (
-              <div
-                key={registry.id}
-                className="flex items-center justify-between px-4 py-3"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium truncate">{registry.name}</span>
-                    {registry.isDefault && (
-                      <span className="inline-flex items-center px-1.5 py-0.5 text-xs rounded-full bg-secondary text-secondary-foreground">
-                        {t('Default')}
-                      </span>
+              <div key={registry.id} className="px-4 py-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">{registry.name}</span>
+                      {registry.sourceType && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
+                          {SOURCE_TYPE_LABELS[registry.sourceType] ?? registry.sourceType}
+                        </span>
+                      )}
+                      {registry.isDefault && !registry.sourceType && (
+                        <span className="inline-flex items-center px-1.5 py-0.5 text-xs rounded-full bg-secondary text-secondary-foreground">
+                          {t('Default')}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate mt-0.5">
+                      {registry.url}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-3 ml-4 shrink-0">
+                    {/* Toggle switch */}
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={registry.enabled}
+                        onChange={() => handleToggle(registry.id, !registry.enabled)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-secondary rounded-full peer peer-checked:bg-primary transition-colors">
+                        <div
+                          className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${
+                            registry.enabled ? 'translate-x-5' : 'translate-x-0.5'
+                          } mt-0.5`}
+                        />
+                      </div>
+                    </label>
+
+                    {/* Delete button — hidden for builtins */}
+                    {!isBuiltin(registry) && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemove(registry.id)}
+                        className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors"
+                        title={t('Remove registry')}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
-                  <p className="text-xs text-muted-foreground truncate mt-0.5">
-                    {registry.url}
-                  </p>
                 </div>
 
-                <div className="flex items-center gap-3 ml-4 shrink-0">
-                  {/* Toggle switch */}
-                  <label className="relative inline-flex items-center cursor-pointer">
+                {/* Smithery API key row */}
+                {registry.sourceType === 'smithery' && (
+                  <div className="mt-3 flex items-center gap-2">
+                    <Key className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                     <input
-                      type="checkbox"
-                      checked={registry.enabled}
-                      onChange={() => handleToggle(registry.id, !registry.enabled)}
-                      className="sr-only peer"
+                      type="password"
+                      value={
+                        apiKeyEditing[registry.id] !== undefined
+                          ? apiKeyEditing[registry.id]
+                          : ((registry.adapterConfig?.apiKey as string) ?? '')
+                      }
+                      onChange={e =>
+                        setApiKeyEditing(prev => ({ ...prev, [registry.id]: e.target.value }))
+                      }
+                      placeholder={t('Smithery API key (optional)')}
+                      className="flex-1 px-2.5 py-1.5 text-xs bg-muted border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary"
                     />
-                    <div className="w-11 h-6 bg-secondary rounded-full peer peer-checked:bg-primary transition-colors">
-                      <div
-                        className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${
-                          registry.enabled ? 'translate-x-5' : 'translate-x-0.5'
-                        } mt-0.5`}
-                      />
-                    </div>
-                  </label>
-
-                  {/* Delete button - not shown for default registry */}
-                  {!registry.isDefault && (
-                    <button
-                      type="button"
-                      onClick={() => handleRemove(registry.id)}
-                      className="p-1.5 text-muted-foreground hover:text-destructive rounded-lg transition-colors"
-                      title={t('Remove registry')}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
+                    {apiKeyEditing[registry.id] !== undefined && (
+                      <button
+                        type="button"
+                        onClick={() => handleSaveApiKey(registry.id)}
+                        disabled={apiKeySaving[registry.id]}
+                        className="flex items-center gap-1 px-2.5 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                      >
+                        {apiKeySaving[registry.id] && <Loader2 className="w-3 h-3 animate-spin" />}
+                        {t('Save')}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ))}
 
@@ -234,7 +304,6 @@ export function RegistrySection() {
                 />
               </div>
 
-              {/* Add form error */}
               {addError && (
                 <p className="text-sm text-red-500">{addError}</p>
               )}

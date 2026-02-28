@@ -28,10 +28,13 @@
  *   app:chat-session-state Get session state for recovery after refresh
  *   app:export-spec        Export an app's spec as a YAML string
  *   app:import-spec        Install an app from a YAML spec string
+ *   app:open-skill-folder  Reveal a skill's on-disk directory in the OS file manager
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, shell } from 'electron'
+import { existsSync } from 'fs'
 import { getAppManager } from '../apps/manager'
+import { getSkillDir } from '../apps/manager/skill-sync'
 import {
   getAppRuntime,
   sendAppChatMessage,
@@ -85,7 +88,7 @@ export function registerAppHandlers(): void {
   // ── app:install ──────────────────────────────────────────────────────────
   ipcMain.handle(
     'app:install',
-    async (_event, input: { spaceId: string; spec: AppSpec; userConfig?: Record<string, unknown> }) => {
+    async (_event, input: { spaceId: string | null; spec: AppSpec; userConfig?: Record<string, unknown> }) => {
       try {
         const r = requireManager()
         if (!r.success) return r
@@ -499,6 +502,10 @@ export function registerAppHandlers(): void {
           return { success: false, error: `App not found: ${input.appId}` }
         }
 
+        if (!app.spaceId) {
+          return { success: false, error: `Global apps do not have session data` }
+        }
+
         const space = getSpace(app.spaceId)
         if (!space?.path) {
           return { success: false, error: `Space not found for app: ${input.appId}` }
@@ -630,7 +637,7 @@ export function registerAppHandlers(): void {
   // ── app:import-spec ────────────────────────────────────────────────────
   ipcMain.handle(
     'app:import-spec',
-    async (_event, input: { spaceId: string; yamlContent: string; userConfig?: Record<string, unknown> }) => {
+    async (_event, input: { spaceId: string | null; yamlContent: string; userConfig?: Record<string, unknown> }) => {
       try {
         const result = await appController.importSpec(input)
         if (result.success) {
@@ -645,5 +652,94 @@ export function registerAppHandlers(): void {
     }
   )
 
-  console.log('[AppIPC] App management handlers registered (23 channels)')
+  // ── app:open-skill-folder ──────────────────────────────────────────────
+  ipcMain.handle(
+    'app:open-skill-folder',
+    async (_event, appId: string) => {
+      try {
+        const r = requireManager()
+        if (!r.success) return r
+
+        const app = r.manager.getApp(appId)
+        if (!app || app.spec.type !== 'skill') {
+          return { success: false, error: 'Not a skill app' }
+        }
+
+        const skillDir = getSkillDir(app, (spaceId) => {
+          const space = getSpace(spaceId)
+          return space?.path ?? null
+        })
+
+        if (!skillDir) {
+          return { success: false, error: 'Could not resolve skill directory' }
+        }
+
+        if (!existsSync(skillDir)) {
+          return { success: false, error: 'Skill directory does not exist on filesystem' }
+        }
+
+        shell.showItemInFolder(skillDir)
+        console.log(`[AppIPC] app:open-skill-folder: appId=${appId}, dir=${skillDir}`)
+        return { success: true }
+      } catch (error: unknown) {
+        const err = error as Error
+        console.error('[AppIPC] app:open-skill-folder error:', err.message)
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
+  // ── app:move-space ─────────────────────────────────────────────────────
+  ipcMain.handle(
+    'app:move-space',
+    async (_event, input: { appId: string; newSpaceId: string | null }) => {
+      try {
+        const r = requireManager()
+        if (!r.success) return r
+
+        const app = r.manager.getApp(input.appId)
+        if (!app) {
+          return { success: false, error: `App not found: ${input.appId}` }
+        }
+
+        // For automation apps that are active: deactivate before moving so the
+        // scheduler and event-bus don't hold stale space references, then
+        // re-activate after the move completes.
+        const isAutomation = app.spec.type === 'automation'
+        const wasActive = app.status === 'active'
+        const runtime = getAppRuntime()
+
+        if (isAutomation && wasActive && runtime) {
+          await runtime.deactivate(input.appId).catch(err => {
+            console.warn(`[AppIPC] app:move-space -- runtime deactivate failed (non-fatal): ${err}`)
+          })
+        }
+
+        await r.manager.moveToSpace(input.appId, input.newSpaceId)
+
+        // Re-activate automation apps that were running before the move
+        let activationWarning: string | undefined
+        if (isAutomation && wasActive && runtime) {
+          try {
+            await runtime.activate(input.appId)
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : String(err)
+            console.warn(`[AppIPC] app:move-space -- runtime activate failed: ${errMsg}`)
+            activationWarning = errMsg
+          }
+        }
+
+        console.log(
+          `[AppIPC] app:move-space: appId=${input.appId}, newSpaceId=${input.newSpaceId ?? 'global'}`
+        )
+        return { success: true, data: { activationWarning } }
+      } catch (error: unknown) {
+        const err = error as Error
+        console.error('[AppIPC] app:move-space error:', err.message)
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
+  console.log('[AppIPC] App management handlers registered (25 channels)')
 }

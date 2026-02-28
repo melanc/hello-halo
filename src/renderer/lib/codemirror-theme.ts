@@ -49,6 +49,12 @@ export const haloEditorTheme = EditorView.theme(
       fontFamily: 'inherit',
     },
 
+    // Suppress the white corner box that appears at the intersection of
+    // horizontal + vertical scrollbars in webkit browsers.
+    '.cm-scroller::-webkit-scrollbar-corner': {
+      backgroundColor: 'hsl(var(--background))',
+    },
+
     // Cursor
     '&.cm-focused .cm-cursor': {
       borderLeftColor: 'hsl(var(--primary))',

@@ -13,6 +13,7 @@
 import { randomUUID } from 'crypto'
 import type { InstalledApp, AppManagerService, RunOutcome, AppStatus } from '../manager'
 import { AppNotFoundError } from '../manager'
+import type { AutomationSpec, SubscriptionDef } from '../spec'
 import type { SchedulerService, SchedulerJob, SchedulerJobCreate } from '../../platform/scheduler'
 import type { EventBusService, EventFilter, FilterRule } from '../../platform/event-bus'
 import type { MemoryService } from '../../platform/memory'
@@ -295,7 +296,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
       }
 
       // Handle output.notify — send notifications on successful completion
-      const notifyConfig = app.spec.output?.notify
+      const notifyConfig = app.spec.type === 'automation' ? app.spec.output?.notify : undefined
       const shouldNotify = notifyConfig && (notifyConfig.system !== false || (notifyConfig.channels && notifyConfig.channels.length > 0))
       console.log(`[Runtime][Notify] output.notify check: config=${JSON.stringify(notifyConfig)}, outcome=${outcome}`)
       if (shouldNotify && outcome !== 'error') {
@@ -383,7 +384,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
         if (app.status !== 'waiting_user') continue
 
         // Determine timeout from app spec (default: 24 hours)
-        const timeoutHours = app.spec.escalation?.timeout_hours ?? DEFAULT_ESCALATION_TIMEOUT_HOURS
+        const timeoutHours = (app.spec.type === 'automation' ? app.spec.escalation?.timeout_hours : undefined) ?? DEFAULT_ESCALATION_TIMEOUT_HOURS
         const timeoutMs = timeoutHours * 60 * 60 * 1000
         const elapsed = now - entry.ts
 
@@ -453,7 +454,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
   // ── Helper: Map subscription to scheduler job ───────
   function subscriptionToSchedulerJob(
     app: InstalledApp,
-    sub: NonNullable<InstalledApp['spec']['subscriptions']>[0],
+    sub: SubscriptionDef,
     index: number
   ): SchedulerJobCreate | null {
     const subId = sub.id || `sub-${index}`
@@ -490,7 +491,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
 
   // ── Helper: Map subscription to event filter ────────
   function subscriptionToEventFilter(
-    sub: NonNullable<InstalledApp['spec']['subscriptions']>[0]
+    sub: SubscriptionDef
   ): EventFilter | null {
     switch (sub.source.type) {
       case 'file': {
@@ -695,6 +696,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
 
       const app = appManager.getApp(appId)
       if (!app) return
+      if (app.spec.type !== 'automation') return // Only automation apps have subscriptions
 
       const subscriptions = app.spec.subscriptions ?? []
       const desiredJobIds = new Set<string>()

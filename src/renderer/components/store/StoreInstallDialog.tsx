@@ -14,13 +14,18 @@ import { resolveSpecI18n } from '../../utils/spec-i18n'
 import type { StoreAppDetail } from '../../../shared/store/store-types'
 import type { InputDef } from '../../../shared/apps/spec-types'
 
+// Sentinel value used in <select> to represent spaceId = null (global)
+const GLOBAL_SCOPE = '__global__'
+
 interface StoreInstallDialogProps {
   detail: StoreAppDetail
   onClose: () => void
   onInstalled: (appId: string) => void
+  /** If true, adds "Global (all spaces)" as the first scope option */
+  showGlobalOption?: boolean
 }
 
-export function StoreInstallDialog({ detail, onClose, onInstalled }: StoreInstallDialogProps) {
+export function StoreInstallDialog({ detail, onClose, onInstalled, showGlobalOption }: StoreInstallDialogProps) {
   const { t } = useTranslation()
   const installFromStore = useAppsPageStore(state => state.installFromStore)
 
@@ -36,8 +41,9 @@ export function StoreInstallDialog({ detail, onClose, onInstalled }: StoreInstal
     return result
   }, [haloSpace, spaces])
 
+  // For MCP/Skill (showGlobalOption=true), default to global; otherwise default to current/first space
   const [selectedSpaceId, setSelectedSpaceId] = useState(
-    currentSpace?.id ?? allSpaces[0]?.id ?? ''
+    showGlobalOption ? GLOBAL_SCOPE : (currentSpace?.id ?? allSpaces[0]?.id ?? '')
   )
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -68,7 +74,7 @@ export function StoreInstallDialog({ detail, onClose, onInstalled }: StoreInstal
 
     try {
       if (!selectedSpaceId) {
-        setError(t('Please select a space'))
+        setError(t('Please select a scope'))
         setLoading(false)
         return
       }
@@ -94,9 +100,12 @@ export function StoreInstallDialog({ detail, onClose, onInstalled }: StoreInstal
         }
       }
 
+      // Map sentinel '__global__' back to null for global installs
+      const resolvedSpaceId = selectedSpaceId === GLOBAL_SCOPE ? null : selectedSpaceId
+
       const appId = await installFromStore(
         detail.entry.slug,
-        selectedSpaceId,
+        resolvedSpaceId,
         Object.keys(userConfig).length > 0 ? userConfig : undefined,
       )
 
@@ -138,12 +147,12 @@ export function StoreInstallDialog({ detail, onClose, onInstalled }: StoreInstal
 
         {/* Body */}
         <div className="p-4 space-y-4 overflow-y-auto flex-1">
-          {/* Space selector */}
+          {/* Scope selector */}
           <div className="space-y-2">
             <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {t('Install to')}
             </h3>
-            {allSpaces.length <= 1 ? (
+            {!showGlobalOption && allSpaces.length <= 1 ? (
               <p className="text-sm text-foreground">
                 {allSpaces[0]?.name ?? t('No spaces available')}
               </p>
@@ -153,6 +162,9 @@ export function StoreInstallDialog({ detail, onClose, onInstalled }: StoreInstal
                 onChange={e => setSelectedSpaceId(e.target.value)}
                 className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
               >
+                {showGlobalOption && (
+                  <option value={GLOBAL_SCOPE}>{t('Global (all spaces)')}</option>
+                )}
                 {allSpaces.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}

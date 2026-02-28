@@ -1,67 +1,90 @@
 /**
  * Registry Service
  *
- * Core service for fetching, caching, querying, and installing
- * apps from remote registries. Manages multiple registry sources
- * and provides a unified view of available apps.
+ * Core service for browsing, querying, and installing apps from remote registries.
+ *
+ * Architecture (post-refactor):
+ *   - SyncService:  Background sync for Mirror sources → SQLite
+ *   - QueryService: Unified query entry (Mirror → FTS5, Proxy → adapter.query)
+ *   - This file:    Config management, registry CRUD, install/update orchestration
  *
  * Design principles:
- * - Registry-agnostic: works with any source that serves index.json
- * - Cache-first: minimizes network requests with configurable TTL
- * - Graceful degradation: offline mode uses cached data
- * - Multi-registry: merges indexes, first-wins on slug conflict
+ *   - Sync & query are fully separated — user queries never block on network
+ *   - SQLite is a transparent cache — can be dropped and rebuilt at any time
+ *   - Type Tab routing avoids cross-source merge complexity
  */
 
 import { v4 as uuidv4 } from 'uuid'
-import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 import { getConfig, saveConfig as saveHaloConfig } from '../services/config.service'
 import { getAppManager } from '../apps/manager'
 import { getAppRuntime } from '../apps/runtime'
-import { AppSpecSchema } from '../apps/spec/schema'
 import type { AppSpec } from '../apps/spec/schema'
 import type {
-  RegistryIndex,
   RegistryEntry,
   RegistrySource,
   StoreQuery,
   StoreAppDetail,
+  StoreQueryParams,
+  StoreQueryResponse,
   UpdateInfo,
-  RegistryServiceConfig,
-  CachedIndex,
-} from './registry.types'
-import {
-  readCachedIndex,
-  writeCachedIndex,
-  readCachedSpec,
-  writeCachedSpec,
-  clearCache,
-} from './registry.cache'
+} from '../../shared/store/store-types'
+import type { RegistryServiceConfig } from './registry.types'
+import type { DatabaseManager } from '../platform/store/types'
+import { SyncService } from './sync.service'
+import { QueryService } from './query.service'
+import { STORE_CACHE_NAMESPACE, storeCacheMigrations } from './store-cache.schema'
+import { getAdapter } from './adapters'
 
 // ============================================
 // Constants
 // ============================================
 
-/** Default registry source */
-const DEFAULT_REGISTRY: RegistrySource = {
-  id: 'official',
-  name: 'Digital Human Protocol',
-  url: 'https://openkursar.github.io/digital-human-protocol',
-  enabled: true,
-  isDefault: true,
-}
+/** Built-in registry sources (always present, user can toggle but not delete) */
+const BUILTIN_REGISTRIES: RegistrySource[] = [
+  {
+    id: 'official',
+    name: 'Digital Human Protocol',
+    url: 'https://openkursar.github.io/digital-human-protocol',
+    enabled: true,
+    isDefault: true,
+    sourceType: 'halo',
+  },
+  {
+    id: 'mcp-official',
+    name: 'MCP Official Registry',
+    url: 'https://registry.modelcontextprotocol.io',
+    enabled: true,
+    sourceType: 'mcp-registry',
+  },
+  {
+    id: 'smithery',
+    name: 'Smithery',
+    url: 'https://registry.smithery.ai',
+    enabled: true,
+    sourceType: 'smithery',
+    adapterConfig: { apiKey: '' },
+  },
+  {
+    id: 'claude-skills',
+    name: 'Claude Skills Registry',
+    url: 'https://majiayu000.github.io/claude-skill-registry-core',
+    enabled: true,
+    sourceType: 'claude-skills',
+  },
+]
+
+/** The primary default registry (first in BUILTIN_REGISTRIES) */
+const DEFAULT_REGISTRY = BUILTIN_REGISTRIES[0]
 
 /** Default cache TTL: 1 hour */
 const DEFAULT_CACHE_TTL_MS = 3600000
 
-/** Fetch timeout: 10 seconds */
-const FETCH_TIMEOUT_MS = 10000
+/** Per-registry timeout for getIndex: prevents one slow registry from blocking all data */
+const REGISTRY_LOAD_TIMEOUT_MS = 15000
 
 /** Config key used in HaloConfig for store settings */
 const CONFIG_KEY = 'appStore'
-
-/** Supported app types in index.json */
-const APP_TYPE_VALUES = ['automation', 'skill', 'mcp', 'extension'] as const
 
 // ============================================
 // Runtime Validation Schemas (main-process only)
@@ -73,46 +96,8 @@ const RegistrySourceSchema = z.object({
   url: z.string().url(),
   enabled: z.boolean(),
   isDefault: z.boolean().optional(),
-})
-
-const RegistryEntrySchema = z.object({
-  slug: z.string().regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/),
-  name: z.string().trim().min(1),
-  version: z.string().trim().min(1),
-  author: z.string().trim().min(1),
-  description: z.string().trim().min(1),
-  type: z.enum(APP_TYPE_VALUES),
-  format: z.literal('bundle'),
-  path: z.string().trim().min(1),
-  download_url: z.string().url().optional(),
-  size_bytes: z.number().int().nonnegative().optional(),
-  checksum: z.string().trim().min(1).optional(),
-  category: z.string().trim().default('other'),
-  tags: z.array(z.string()).default([]),
-  icon: z.string().optional(),
-  locale: z.string().optional(),
-  min_app_version: z.string().optional(),
-  requires_mcps: z.array(z.string()).optional(),
-  requires_skills: z.array(z.string()).optional(),
-  created_at: z.string().optional(),
-  updated_at: z.string().optional(),
-  i18n: z.record(
-    z.string(),
-    z.object({
-      name: z.string().trim().min(1).optional(),
-      description: z.string().trim().min(1).optional(),
-    })
-  ).optional(),
-  // Open extension container — protocol places no constraints on contents.
-  // Each registry publisher / client implementation may use this freely.
-  meta: z.record(z.string(), z.unknown()).optional(),
-})
-
-const RegistryIndexSchema = z.object({
-  version: z.number(),
-  generated_at: z.string(),
-  source: z.string(),
-  apps: z.array(RegistryEntrySchema),
+  sourceType: z.enum(['halo', 'mcp-registry', 'smithery', 'claude-skills']).optional(),
+  adapterConfig: z.record(z.string(), z.unknown()).optional(),
 })
 
 // ============================================
@@ -126,11 +111,14 @@ let config: RegistryServiceConfig = {
   autoCheckUpdates: true,
 }
 
-/** In-memory index cache (keyed by registryId) */
-const indexCache = new Map<string, CachedIndex>()
+/** SyncService instance (created during init) */
+let syncService: SyncService | null = null
 
-/** In-memory mapping of entry slug -> registryId for cross-referencing */
-const slugToRegistryMap = new Map<string, string>()
+/** QueryService instance (created during init) */
+let queryService: QueryService | null = null
+
+/** Listener for sync status changes (set by IPC layer) */
+let syncStatusListener: ((event: { registryId: string; status: string; appCount: number; error?: string }) => void) | null = null
 
 // ============================================
 // Initialization / Shutdown
@@ -139,12 +127,13 @@ const slugToRegistryMap = new Map<string, string>()
 /**
  * Initialize the Registry Service.
  *
- * Loads persisted configuration from the main config file. If no
- * configuration exists, uses defaults with the official registry.
+ * Loads config, runs SQLite migrations, creates SyncService + QueryService,
+ * and triggers an initial background sync for Mirror sources.
  *
- * @param overrides - Optional partial config for testing or customization
+ * @param opts.db - DatabaseManager from platform/store (required for SQLite)
+ * @param opts.overrides - Optional partial config for testing
  */
-export function initRegistryService(overrides?: Partial<RegistryServiceConfig>): void {
+export function initRegistryService(opts?: { db?: DatabaseManager; overrides?: Partial<RegistryServiceConfig> }): void {
   if (initialized) {
     console.log('[RegistryService] Already initialized, skipping')
     return
@@ -157,14 +146,33 @@ export function initRegistryService(overrides?: Partial<RegistryServiceConfig>):
   const persisted = loadConfig()
   config = {
     ...persisted,
-    ...overrides,
-    registries: normalizeRegistries(overrides?.registries ?? persisted.registries),
-    cacheTtlMs: normalizeCacheTtl(overrides?.cacheTtlMs ?? persisted.cacheTtlMs),
+    ...opts?.overrides,
+    registries: normalizeRegistries(opts?.overrides?.registries ?? persisted.registries),
+    cacheTtlMs: normalizeCacheTtl(opts?.overrides?.cacheTtlMs ?? persisted.cacheTtlMs),
   }
 
-  const defaultChanged = ensureDefaultRegistry()
+  const defaultChanged = ensureBuiltinRegistries()
   if (defaultChanged) {
     saveConfigToFile()
+  }
+
+  // Initialize SQLite cache layer (if DatabaseManager provided)
+  if (opts?.db) {
+    const appDb = opts.db.getAppDatabase()
+    opts.db.runMigrations(appDb, STORE_CACHE_NAMESPACE, storeCacheMigrations)
+
+    syncService = new SyncService(opts.db)
+    queryService = new QueryService(opts.db)
+
+    // Wire sync status listener
+    syncService.onSyncStatusChanged((event) => {
+      syncStatusListener?.(event)
+    })
+
+    // Trigger initial background sync (non-blocking)
+    syncService.syncAll(config.registries, config.cacheTtlMs).catch(err => {
+      console.error('[RegistryService] Initial sync failed:', err)
+    })
   }
 
   initialized = true
@@ -174,206 +182,114 @@ export function initRegistryService(overrides?: Partial<RegistryServiceConfig>):
 }
 
 /**
+ * Register a listener for sync status changes.
+ * Called by the IPC layer to push events to the renderer.
+ */
+export function onSyncStatusChanged(listener: typeof syncStatusListener): void {
+  syncStatusListener = listener
+}
+
+/**
  * Shutdown the Registry Service.
  *
- * Persists current configuration and clears in-memory caches.
+ * Persists current configuration and clears references.
  */
 export function shutdownRegistryService(): void {
   if (!initialized) return
 
   saveConfigToFile()
-  indexCache.clear()
-  slugToRegistryMap.clear()
+  syncService = null
+  queryService = null
+  syncStatusListener = null
   initialized = false
 
   console.log('[RegistryService] Shutdown complete')
 }
 
 // ============================================
-// Index Management
+// Sync & Query
 // ============================================
 
 /**
- * Refresh the index from one or all registries.
+ * Refresh store data.
  *
- * Fetches the latest index.json from each enabled registry, updates
- * both in-memory and disk caches. On network failure, logs the error
- * and retains any existing cached data.
+ * Mirror sources: triggers SyncService re-sync.
+ * Proxy sources: clears query cache so next query fetches fresh data.
  *
- * @param registryId - If provided, only refresh this registry. Otherwise refresh all.
+ * @param force - If true, clears all caches and re-syncs from scratch.
  */
-export async function refreshIndex(registryId?: string): Promise<void> {
+export async function refreshIndex(force = false): Promise<void> {
   ensureInitialized()
 
-  const registries = registryId
-    ? config.registries.filter(r => r.id === registryId && r.enabled)
-    : config.registries.filter(r => r.enabled)
-
-  if (registries.length === 0) {
-    console.log('[RegistryService] No enabled registries to refresh')
+  if (!syncService) {
+    console.warn('[RegistryService] refreshIndex: no SyncService (db not provided)')
     return
   }
 
-  const results = await Promise.allSettled(
-    registries.map(registry => fetchAndCacheIndex(registry))
-  )
+  const t0 = performance.now()
+  console.log(`[RegistryService] refreshIndex: ${force ? 'force' : 'normal'} refresh`)
 
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i]
-    const registry = registries[i]
-    if (result.status === 'rejected') {
-      console.error(`[RegistryService] Failed to refresh index for "${registry.name}":`, result.reason)
-    }
+  if (force) {
+    await syncService.forceSyncAll(config.registries)
+  } else {
+    await syncService.syncAll(config.registries, 0) // TTL=0 forces re-check
   }
+
+  const dt = performance.now() - t0
+  console.log(`[RegistryService] refreshIndex: completed in ${dt.toFixed(0)}ms`)
 }
 
 /**
- * Get the merged index from all enabled registries.
+ * Paginated query — the new primary query entry point.
  *
- * Returns entries from all enabled registries, merged with first-wins
- * semantics on slug conflicts (higher-priority registries listed first).
- * Uses cached data when available and within TTL.
+ * Routes by type tab:
+ *   - type set   → Mirror (SQLite) + Proxy (adapter) merged
+ *   - type unset → All tab preview (grouped by type)
  */
-export async function getIndex(): Promise<RegistryEntry[]> {
+export async function queryStore(params: StoreQueryParams): Promise<StoreQueryResponse> {
   ensureInitialized()
 
-  const enabledRegistries = config.registries.filter(r => r.enabled)
-  const allEntries: RegistryEntry[] = []
-  const seenSlugs = new Set<string>()
-
-  // Rebuild on each call so removed/disabled registries do not leave stale mappings.
-  slugToRegistryMap.clear()
-
-  for (const registry of enabledRegistries) {
-    const index = await loadIndexForRegistry(registry)
-
-    if (!index) continue
-
-    for (const entry of index.apps) {
-      // Guard against stale cache entries from old registries that used legacy
-      // yaml-only packaging. Bundle is the only supported package format.
-      if (!isBundleFormat(entry)) {
-        continue
-      }
-
-      if (!seenSlugs.has(entry.slug)) {
-        seenSlugs.add(entry.slug)
-        slugToRegistryMap.set(entry.slug, registry.id)
-        allEntries.push(entry)
-      }
-    }
+  if (!queryService) {
+    return { items: [], hasMore: false, sources: [] }
   }
 
-  return allEntries
+  const result = await queryService.query(params, config.registries)
+
+  // If any mirror source has error/never-synced state, trigger background re-sync
+  if (syncService) {
+    retryFailedMirrorSources()
+  }
+
+  return result
 }
 
 // ============================================
-// Querying
+// Querying (legacy compat)
 // ============================================
 
 /**
- * Resolve entry-level localized text for search matching.
- * Resolution order: exact locale -> language-prefix -> canonical fallback.
- */
-function resolveEntrySearchText(entry: RegistryEntry, locale?: string): { name: string; description: string } {
-  if (!locale || !entry.i18n) {
-    return { name: entry.name, description: entry.description }
-  }
-
-  const exact = entry.i18n[locale]
-  if (exact) {
-    return {
-      name: exact.name ?? entry.name,
-      description: exact.description ?? entry.description,
-    }
-  }
-
-  const prefix = locale.split('-')[0]?.toLowerCase()
-  if (prefix) {
-    for (const [tag, block] of Object.entries(entry.i18n)) {
-      if (tag.toLowerCase() === prefix || tag.toLowerCase().startsWith(`${prefix}-`)) {
-        return {
-          name: block.name ?? entry.name,
-          description: block.description ?? entry.description,
-        }
-      }
-    }
-  }
-
-  return { name: entry.name, description: entry.description }
-}
-
-/**
- * Extract the display rank from an entry's meta block.
+ * List apps with optional filtering (legacy API, kept for backward compat).
  *
- * Reads `entry.meta.rank` and returns it only when it is a finite,
- * non-negative integer — any other value (string, float, negative) is
- * treated as absent so that malformed registry data never corrupts ordering.
- * Entries without a valid rank are sorted after all ranked entries.
- */
-function resolveRank(entry: RegistryEntry): number {
-  const rank = entry.meta?.rank
-  if (typeof rank === 'number' && Number.isFinite(rank) && rank >= 0 && Number.isInteger(rank)) {
-    return rank
-  }
-  return Infinity
-}
-
-/**
- * List apps from the registry with optional filtering, sorted by rank.
- *
- * Entries that carry a numeric `meta.rank` value are presented first,
- * in ascending rank order. Entries without a rank follow in their
- * original index order (stable sort).
- *
- * @param query - Optional search/filter criteria
- * @returns Filtered and ranked list of registry entries
+ * Internally delegates to queryStore with page=1, pageSize=10000.
+ * New code should use queryStore() directly.
  */
 export async function listApps(query?: StoreQuery): Promise<RegistryEntry[]> {
-  const entries = await getIndex()
-
-  const filtered = !query
-    ? entries
-    : entries.filter(entry => {
-        // Search: case-insensitive match against localized name/description and tags.
-        if (query.search) {
-          const search = query.search.toLowerCase()
-          const localized = resolveEntrySearchText(entry, query.locale)
-          const nameMatch = localized.name.toLowerCase().includes(search)
-          const descMatch = localized.description.toLowerCase().includes(search)
-          const tagMatch = entry.tags.some(t => t.toLowerCase().includes(search))
-          if (!nameMatch && !descMatch && !tagMatch) return false
-        }
-
-        // Category: exact match
-        if (query.category && entry.category !== query.category) {
-          return false
-        }
-
-        // Type: exact match
-        if (query.type && entry.type !== query.type) {
-          return false
-        }
-
-        // Tags: intersection (entry must have ALL queried tags)
-        if (query.tags && query.tags.length > 0) {
-          const entryTags = new Set(entry.tags.map(tag => tag.toLowerCase()))
-          const hasAllTags = query.tags.every(tag => entryTags.has(tag.toLowerCase()))
-          if (!hasAllTags) return false
-        }
-
-        return true
-      })
-
-  // Sort by meta.rank ascending; unranked entries retain their original order.
-  return filtered.slice().sort((a, b) => resolveRank(a) - resolveRank(b))
+  const result = await queryStore({
+    search: query?.search,
+    locale: query?.locale,
+    category: query?.category,
+    type: query?.type,
+    page: 1,
+    pageSize: 10000,
+  })
+  return result.items
 }
 
 /**
  * Get detailed information about a store app by slug.
  *
- * Fetches the full spec from the registry and merges with registry source
- * information.
+ * Looks up the entry in SQLite (Mirror) first, then falls back to
+ * Proxy query caches. Fetches the full spec with SQLite caching.
  *
  * @param slug - The app slug to look up
  * @returns Detailed app information including full spec
@@ -382,24 +298,23 @@ export async function listApps(query?: StoreQuery): Promise<RegistryEntry[]> {
 export async function getAppDetail(slug: string): Promise<StoreAppDetail> {
   ensureInitialized()
 
-  // Find the entry in the merged index
-  const entries = await getIndex()
-  const entry = entries.find(e => e.slug === slug)
-  if (!entry) {
+  if (!queryService) {
+    throw new Error('QueryService not available (db not provided)')
+  }
+
+  // Look up entry in SQLite
+  const found = queryService.findEntry(slug)
+  if (!found) {
     throw new Error(`App not found in store: ${slug}`)
   }
 
-  // Resolve the registry ID for this entry
-  const registryId = resolveRegistryId(entry)
+  const { entry, registryId } = found
 
-  // Fetch the full spec
-  const spec = await fetchSpec(entry, registryId)
+  // Fetch the full spec (with SQLite cache)
+  const spec = await queryService.fetchSpec(entry, registryId, config.registries)
+  const specWithStore = withInstallStoreMetadata(spec, entry.slug, registryId)
 
-  return {
-    entry,
-    spec,
-    registryId,
-  }
+  return { entry, spec: specWithStore, registryId }
 }
 
 // ============================================
@@ -409,8 +324,8 @@ export async function getAppDetail(slug: string): Promise<StoreAppDetail> {
 /**
  * Install an app from the store into a specific space.
  *
- * Fetches the full spec, applies user configuration, and delegates
- * to the App Manager for installation and runtime activation.
+ * Uses QueryService to find the entry and fetch the spec,
+ * then delegates to the App Manager for installation.
  *
  * @param slug - The app slug to install
  * @param spaceId - The target space ID
@@ -419,17 +334,22 @@ export async function getAppDetail(slug: string): Promise<StoreAppDetail> {
  */
 export async function installFromStore(
   slug: string,
-  spaceId: string,
+  spaceId: string | null,
   userConfig?: Record<string, unknown>
 ): Promise<string> {
   ensureInitialized()
 
+  if (!queryService) {
+    throw new Error('QueryService not available (db not provided)')
+  }
+
   // Find the entry
-  const entries = await getIndex()
-  const entry = entries.find(e => e.slug === slug)
-  if (!entry) {
+  const found = queryService.findEntry(slug)
+  if (!found) {
     throw new Error(`App not found in store: ${slug}`)
   }
+
+  const { entry, registryId } = found
 
   if (!isBundleFormat(entry)) {
     throw new Error(
@@ -437,15 +357,14 @@ export async function installFromStore(
     )
   }
 
-  // Resolve the registry ID for this entry
-  const registryId = resolveRegistryId(entry)
-
-  // Fetch the full spec
-  const spec = await fetchSpec(entry, registryId)
-
-  // Ensure store metadata includes slug for update tracking.
-  // Merge with any existing store metadata from the spec YAML, preserving
-  // category/tags/locale etc. Only add fields that StoreMetadataSchema allows.
+  // Fetch the full spec — bypass spec cache on install to ensure fresh content
+  // (cached specs may be missing skill_files if the initial fetch failed)
+  const registry = config.registries.find(r => r.id === registryId)
+  if (!registry) {
+    throw new Error(`Registry not found: ${registryId}`)
+  }
+  const adapter = getAdapter(registry)
+  const spec = await adapter.fetchSpec(registry, entry)
   const specWithStore = withInstallStoreMetadata(spec, entry.slug, registryId)
 
   // Delegate to App Manager
@@ -478,8 +397,8 @@ export async function installFromStore(
 /**
  * Check for available updates for installed apps.
  *
- * Compares installed app versions with the latest versions in the registry.
- * Only checks apps that have store metadata (slug) from a prior store install.
+ * Compares installed app versions with entries in SQLite (Mirror sources).
+ * Proxy source apps are not checked (no full index available).
  *
  * @param installedApps - List of installed apps to check
  * @returns List of available updates
@@ -492,44 +411,19 @@ export async function checkUpdates(
 ): Promise<UpdateInfo[]> {
   ensureInitialized()
 
-  const mergedEntries = await getIndex()
+  if (!queryService) return []
+
   const updates: UpdateInfo[] = []
-  const registryEntriesCache = new Map<string, RegistryEntry[]>()
-
-  const getEntriesForRegistry = async (registryId: string): Promise<RegistryEntry[]> => {
-    if (registryEntriesCache.has(registryId)) {
-      return registryEntriesCache.get(registryId) ?? []
-    }
-
-    const registry = config.registries.find(r => r.id === registryId && r.enabled)
-    if (!registry) {
-      registryEntriesCache.set(registryId, [])
-      return []
-    }
-
-    const index = await loadIndexForRegistry(registry)
-    const entries = (index?.apps ?? []).filter(isBundleFormat)
-    registryEntriesCache.set(registryId, entries)
-    return entries
-  }
 
   for (const app of installedApps) {
     const slug = app.spec.store?.slug
     if (!slug) continue
 
-    const preferredRegistryId = app.spec.store?.registry_id
-    let entry: RegistryEntry | undefined
+    const found = queryService.findEntry(slug)
+    if (!found) continue
 
-    if (preferredRegistryId) {
-      const preferredEntries = await getEntriesForRegistry(preferredRegistryId)
-      entry = preferredEntries.find(e => e.slug === slug)
-    } else {
-      entry = mergedEntries.find(e => e.slug === slug)
-    }
+    const { entry } = found
 
-    if (!entry) continue
-
-    // Only report if registry has a newer version (not just different)
     if (isNewerVersion(entry.version, app.spec.version)) {
       updates.push({
         appId: app.id,
@@ -603,13 +497,15 @@ export function removeRegistry(registryId: string): void {
   if (!registry) {
     throw new Error(`Registry not found: ${registryId}`)
   }
-  if (isDefaultRegistry(registry)) {
-    throw new Error('Cannot remove the default registry')
+  if (isDefaultRegistry(registry) || isBuiltinRegistry(registry)) {
+    throw new Error('Cannot remove a built-in registry')
   }
 
   config.registries = config.registries.filter(r => r.id !== registryId)
-  indexCache.delete(registryId)
-  clearCache(registryId)
+  // Clear SQLite cache for this registry
+  if (syncService) {
+    syncService.clearProxyCache(registryId)
+  }
   saveConfigToFile()
 
   console.log(`[RegistryService] Removed registry: "${registry.name}" (${registryId})`)
@@ -635,6 +531,29 @@ export function toggleRegistry(registryId: string, enabled: boolean): void {
   console.log(`[RegistryService] Registry "${registry.name}" ${enabled ? 'enabled' : 'disabled'}`)
 }
 
+/**
+ * Update the adapterConfig for a registry source (e.g. Smithery API key).
+ *
+ * @param registryId - The registry ID to update
+ * @param adapterConfig - Partial config to merge into the existing adapterConfig
+ */
+export function updateRegistryAdapterConfig(
+  registryId: string,
+  adapterConfig: Record<string, unknown>
+): void {
+  ensureInitialized()
+
+  const registry = config.registries.find(r => r.id === registryId)
+  if (!registry) {
+    throw new Error(`Registry not found: ${registryId}`)
+  }
+
+  registry.adapterConfig = { ...(registry.adapterConfig ?? {}), ...adapterConfig }
+  saveConfigToFile()
+
+  console.log(`[RegistryService] Updated adapterConfig for registry "${registry.name}"`)
+}
+
 // ============================================
 // Config Persistence
 // ============================================
@@ -650,7 +569,7 @@ export function loadConfig(): RegistryServiceConfig {
 
     if (!storeConfig) {
       return {
-        registries: [DEFAULT_REGISTRY],
+        registries: [...BUILTIN_REGISTRIES],
         cacheTtlMs: DEFAULT_CACHE_TTL_MS,
         autoCheckUpdates: true,
       }
@@ -660,7 +579,7 @@ export function loadConfig(): RegistryServiceConfig {
       registries: normalizeRegistries(
         Array.isArray(storeConfig.registries)
           ? (storeConfig.registries as RegistrySource[])
-          : [DEFAULT_REGISTRY]
+          : [...BUILTIN_REGISTRIES]
       ),
       cacheTtlMs: normalizeCacheTtl(
         typeof storeConfig.cacheTtlMs === 'number'
@@ -674,7 +593,7 @@ export function loadConfig(): RegistryServiceConfig {
   } catch (error) {
     console.error('[RegistryService] Failed to load config, using defaults:', error)
     return {
-      registries: [DEFAULT_REGISTRY],
+      registries: [...BUILTIN_REGISTRIES],
       cacheTtlMs: DEFAULT_CACHE_TTL_MS,
       autoCheckUpdates: true,
     }
@@ -691,6 +610,45 @@ export function saveConfig(): void {
 // ============================================
 // Internal Helpers
 // ============================================
+
+/** Cooldown to avoid hammering re-sync on every query */
+let lastRetryAttemptMs = 0
+const RETRY_COOLDOWN_MS = 30_000 // 30s between retry attempts
+
+/**
+ * Check mirror sources for error/never-synced state and trigger background re-sync.
+ * Non-blocking, fire-and-forget. Debounced by RETRY_COOLDOWN_MS.
+ */
+function retryFailedMirrorSources(): void {
+  const now = Date.now()
+  if (now - lastRetryAttemptMs < RETRY_COOLDOWN_MS) return
+
+  const mirrorRegistries = config.registries.filter(r => {
+    if (!r.enabled) return false
+    const adapter = getAdapter(r)
+    return adapter.strategy === 'mirror'
+  })
+
+  const states = syncService!.getSyncStates()
+  const stateMap = new Map(states.map(s => [s.registryId, s]))
+
+  const needsRetry = mirrorRegistries.filter(r => {
+    const state = stateMap.get(r.id)
+    // Never synced, or synced with error and 0 items
+    return !state || state.status === 'error' || state.appCount === 0
+  })
+
+  if (needsRetry.length === 0) return
+
+  lastRetryAttemptMs = now
+  console.log(`[RegistryService] retryFailedMirrorSources: ${needsRetry.map(r => r.id).join(', ')}`)
+
+  for (const registry of needsRetry) {
+    syncService!.syncOne(registry, 0, true).catch(err => {
+      console.error(`[RegistryService] Background retry failed for ${registry.id}:`, err)
+    })
+  }
+}
 
 /**
  * Compare two version strings to determine if `latest` is newer than `current`.
@@ -799,81 +757,65 @@ function isDefaultRegistry(registry: RegistrySource): boolean {
   return registry.id === DEFAULT_REGISTRY.id || registry.isDefault === true
 }
 
-function ensureDefaultRegistry(): boolean {
-  const official = config.registries.find((registry) => registry.id === DEFAULT_REGISTRY.id)
-  if (official) {
-    let changed = false
-    const wasEnabled = official.enabled
-    const wasName = official.name
-    const wasUrl = official.url
-    const wasDefault = official.isDefault
+function isBuiltinRegistry(registry: RegistrySource): boolean {
+  return BUILTIN_REGISTRIES.some(b => b.id === registry.id)
+}
 
-    official.id = DEFAULT_REGISTRY.id
-    official.name = DEFAULT_REGISTRY.name
-    official.url = DEFAULT_REGISTRY.url
-    official.isDefault = true
-    official.enabled = official.enabled !== false
+/**
+ * Ensure all built-in registries are present in the config.
+ *
+ * For each built-in registry:
+ *  - If already present: update immutable fields (name, url, sourceType) but
+ *    preserve the user's `enabled` toggle and `adapterConfig` (e.g. API keys).
+ *  - If absent: insert it at the correct position.
+ *
+ * The official registry is always first.
+ *
+ * @returns true if any change was made (triggers a config save)
+ */
+function ensureBuiltinRegistries(): boolean {
+  let changed = false
 
-    if (wasEnabled !== official.enabled || wasName !== official.name || wasUrl !== official.url || wasDefault !== official.isDefault) {
-      changed = true
-    }
+  for (const builtin of BUILTIN_REGISTRIES) {
+    const existing = config.registries.find(r => r.id === builtin.id)
 
-    for (const registry of config.registries) {
-      if (registry !== official && registry.isDefault) {
-        registry.isDefault = false
+    if (existing) {
+      // Update immutable fields, preserve user-controlled fields
+      if (
+        existing.name !== builtin.name ||
+        existing.url !== builtin.url ||
+        existing.sourceType !== builtin.sourceType ||
+        existing.isDefault !== builtin.isDefault
+      ) {
+        existing.name = builtin.name
+        existing.url = builtin.url
+        existing.sourceType = builtin.sourceType
+        existing.isDefault = builtin.isDefault
         changed = true
       }
-    }
-
-    const officialIndex = config.registries.indexOf(official)
-    if (officialIndex > 0) {
-      config.registries.splice(officialIndex, 1)
-      config.registries.unshift(official)
+      // Preserve existing.enabled and existing.adapterConfig
+    } else {
+      // Insert missing builtin
+      config.registries.push({ ...builtin })
       changed = true
     }
-
-    return changed
   }
 
-  const markedDefault = config.registries.find((registry) => registry.isDefault)
-  if (!markedDefault) {
-    config.registries.unshift({ ...DEFAULT_REGISTRY })
-    return true
-  }
-
-  let changed = false
-  const wasId = markedDefault.id
-  const wasName = markedDefault.name
-  const wasUrl = markedDefault.url
-  const wasEnabled = markedDefault.enabled
-
-  markedDefault.isDefault = true
-  markedDefault.id = DEFAULT_REGISTRY.id
-  markedDefault.name = DEFAULT_REGISTRY.name
-  markedDefault.url = DEFAULT_REGISTRY.url
-  markedDefault.enabled = markedDefault.enabled !== false
-
-  if (
-    wasId !== markedDefault.id
-    || wasName !== markedDefault.name
-    || wasUrl !== markedDefault.url
-    || wasEnabled !== markedDefault.enabled
-  ) {
+  // Ensure official registry is first
+  const officialIndex = config.registries.findIndex(r => r.id === DEFAULT_REGISTRY.id)
+  if (officialIndex > 0) {
+    const [official] = config.registries.splice(officialIndex, 1)
+    config.registries.unshift(official)
     changed = true
   }
 
+  // Ensure only the official registry has isDefault=true
   for (const registry of config.registries) {
-    if (registry !== markedDefault && registry.isDefault) {
-      registry.isDefault = false
+    const shouldBeDefault = registry.id === DEFAULT_REGISTRY.id
+    if (registry.isDefault !== shouldBeDefault) {
+      registry.isDefault = shouldBeDefault
       changed = true
     }
-  }
-
-  const markedIndex = config.registries.indexOf(markedDefault)
-  if (markedIndex > 0) {
-    config.registries.splice(markedIndex, 1)
-    config.registries.unshift(markedDefault)
-    changed = true
   }
 
   return changed
@@ -915,220 +857,6 @@ function saveConfigToFile(): void {
   } catch (error) {
     console.error('[RegistryService] Failed to save config:', error)
   }
-}
-
-/**
- * Get a valid (within TTL) cached index for a registry.
- * Checks in-memory first, then disk.
- */
-function getValidCachedIndex(registryId: string): CachedIndex | null {
-  const now = Date.now()
-
-  // Check in-memory cache first
-  const memCached = indexCache.get(registryId)
-  if (memCached && (now - memCached.fetchedAt) < config.cacheTtlMs) {
-    return memCached
-  }
-
-  // Check disk cache
-  const diskCached = readCachedIndex(registryId)
-  if (diskCached && (now - diskCached.fetchedAt) < config.cacheTtlMs) {
-    // Populate in-memory cache
-    indexCache.set(registryId, diskCached)
-    return diskCached
-  }
-
-  return null
-}
-
-async function loadIndexForRegistry(registry: RegistrySource): Promise<RegistryIndex | null> {
-  const cached = getValidCachedIndex(registry.id)
-  if (cached) {
-    return cached.index
-  }
-
-  // Try to fetch, fallback to stale cache on failure
-  try {
-    return await fetchAndCacheIndex(registry)
-  } catch {
-    // Try stale disk cache (ignoring TTL)
-    const stale = readCachedIndex(registry.id)
-    if (stale) {
-      console.log(`[RegistryService] Using stale cache for "${registry.name}"`)
-      // Update in-memory cache with stale data so repeated calls don't re-fetch
-      indexCache.set(registry.id, stale)
-      return stale.index
-    }
-    return null
-  }
-}
-
-/**
- * Fetch the index.json from a registry and update caches.
- *
- * @param registry - The registry source to fetch from
- * @returns The parsed RegistryIndex
- * @throws Error on network failure or invalid response
- */
-async function fetchAndCacheIndex(registry: RegistrySource): Promise<RegistryIndex> {
-  const url = `${registry.url.replace(/\/+$/, '')}/index.json`
-
-  console.log(`[RegistryService] Fetching index from "${registry.name}": ${url}`)
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-
-  try {
-    const response = await fetch(url, {
-      signal: controller.signal,
-      headers: {
-        'Accept': 'application/json',
-        'User-Agent': 'Halo-Store/1.0',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const data = await response.json() as unknown
-    const parsed = RegistryIndexSchema.safeParse(data)
-    if (!parsed.success) {
-      throw new Error(
-        `Invalid index format: ${parsed.error.issues.map(issue => issue.path.join('.')).join(', ') || 'schema mismatch'}`
-      )
-    }
-
-    const index: RegistryIndex = parsed.data
-
-    const duplicateSlugs = findDuplicateSlugs(index.apps)
-    if (duplicateSlugs.length > 0) {
-      throw new Error(`Invalid index: duplicate slug(s): ${duplicateSlugs.join(', ')}`)
-    }
-
-    // Update caches
-    const cached: CachedIndex = {
-      index,
-      fetchedAt: Date.now(),
-      registryId: registry.id,
-    }
-    indexCache.set(registry.id, cached)
-    writeCachedIndex(registry.id, index)
-
-    console.log(`[RegistryService] Fetched index from "${registry.name}": ${index.apps.length} apps`)
-    return index
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
-/**
- * Resolve the registry ID for a given entry.
- * Uses the slug-to-registry mapping populated during getIndex().
- * Falls back to 'official' if no mapping is found.
- */
-function resolveRegistryId(entry: RegistryEntry): string {
-  const mapped = slugToRegistryMap.get(entry.slug)
-  if (mapped) return mapped
-
-  const defaultRegistry = config.registries.find(isDefaultRegistry)
-  return defaultRegistry?.id ?? DEFAULT_REGISTRY.id
-}
-
-/**
- * Fetch and parse a spec file for a registry entry.
- *
- * Checks the disk cache first. On cache miss, fetches from the registry,
- * parses YAML, validates against AppSpecSchema, and caches the result.
- *
- * @param entry - The registry entry to fetch the spec for
- * @param registryId - The registry ID this entry belongs to
- * @returns The parsed and validated AppSpec
- * @throws Error on network failure, parse error, or validation failure
- */
-async function fetchSpec(entry: RegistryEntry, registryId: string): Promise<AppSpec> {
-  // Check disk cache first
-  const cached = readCachedSpec(registryId, entry.slug)
-  if (
-    cached &&
-    (Date.now() - cached.fetchedAt) < config.cacheTtlMs &&
-    cached.spec.version === entry.version &&
-    cached.spec.type === entry.type &&
-    (!cached.spec.store?.slug || cached.spec.store.slug === entry.slug)
-  ) {
-    return withInstallStoreMetadata(cached.spec, entry.slug, registryId)
-  }
-
-  // Find the registry URL
-  const registry = config.registries.find(r => r.id === registryId)
-  if (!registry) {
-    throw new Error(`Registry not found for entry: ${entry.slug}`)
-  }
-
-  // Bundle packages are directory-based; the install spec is always {path}/spec.yaml.
-  const specPath = `${entry.path}/spec.yaml`
-  const specUrl = entry.download_url || `${registry.url.replace(/\/+$/, '')}/${specPath}`
-
-  console.log(`[RegistryService] Fetching spec for "${entry.slug}" from: ${specUrl}`)
-
-  const controller = new AbortController()
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS)
-
-  try {
-    const response = await fetch(specUrl, {
-      signal: controller.signal,
-      headers: {
-        'User-Agent': 'Halo-Store/1.0',
-      },
-    })
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-    }
-
-    const text = await response.text()
-
-    // Parse as YAML (which also handles plain JSON)
-    const raw = parseYaml(text)
-
-    // Validate against AppSpecSchema
-    const parsedSpec = AppSpecSchema.parse(raw)
-
-    if (parsedSpec.type !== entry.type) {
-      throw new Error(
-        `Spec type mismatch for "${entry.slug}": index=${entry.type}, spec=${parsedSpec.type}`
-      )
-    }
-    if (parsedSpec.store?.slug && parsedSpec.store.slug !== entry.slug) {
-      throw new Error(
-        `Spec slug mismatch for "${entry.slug}": index=${entry.slug}, spec=${parsedSpec.store.slug}`
-      )
-    }
-
-    const spec = withInstallStoreMetadata(parsedSpec, entry.slug, registryId)
-
-    // Cache the validated spec
-    writeCachedSpec(registryId, entry.slug, spec)
-
-    return spec
-  } finally {
-    clearTimeout(timeout)
-  }
-}
-
-function findDuplicateSlugs(entries: RegistryEntry[]): string[] {
-  const seen = new Set<string>()
-  const duplicates = new Set<string>()
-
-  for (const entry of entries) {
-    if (seen.has(entry.slug)) {
-      duplicates.add(entry.slug)
-    } else {
-      seen.add(entry.slug)
-    }
-  }
-
-  return [...duplicates]
 }
 
 function isBundleFormat(entry: { format?: string }): entry is { format: 'bundle' } {

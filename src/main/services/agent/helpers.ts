@@ -13,6 +13,7 @@ import { getConfig, getTempSpacePath } from '../config.service'
 import { getSpace } from '../space.service'
 import { getAISourceManager } from '../ai-sources'
 import { broadcastToAll, broadcastToWebSocket } from '../../http/websocket'
+import { getAppManager } from '../../apps/manager'
 import type { ApiCredentials, MainWindowRef } from './types'
 
 // ============================================
@@ -334,6 +335,135 @@ export function getEnabledMcpServers(mcpServers: Record<string, any>): Record<st
   }
 
   return Object.keys(enabled).length > 0 ? enabled : null
+}
+
+/**
+ * Build MCP servers config from installed MCP apps in the database.
+ * Reads effective MCP apps for the given space (global + space-scoped, with override)
+ * and converts them to the SDK mcpServers format.
+ */
+export function getDbMcpServers(spaceId: string): Record<string, any> | null {
+  const manager = getAppManager()
+  if (!manager) return null
+
+  const mcpApps = manager.listEffectiveMcpApps(spaceId)
+  if (mcpApps.length === 0) return null
+
+  const servers: Record<string, any> = {}
+  for (const app of mcpApps) {
+    if (app.status === 'paused') continue
+    const spec = app.spec as any
+    if (!spec.mcp_server) continue
+
+    const serverConfig: Record<string, any> = {}
+    const mcpServer = spec.mcp_server
+
+    // Map transport type
+    if (mcpServer.transport === 'sse') {
+      serverConfig.type = 'sse'
+      serverConfig.url = mcpServer.command // For SSE, command holds URL
+    } else if (mcpServer.transport === 'streamable-http') {
+      serverConfig.type = 'http'
+      serverConfig.url = mcpServer.command
+    } else {
+      // stdio (default)
+      serverConfig.command = mcpServer.command
+      if (mcpServer.args?.length) serverConfig.args = mcpServer.args
+      if (mcpServer.cwd) serverConfig.cwd = mcpServer.cwd
+    }
+    // Merge static spec env with user-provided config values (e.g. API tokens).
+    // userConfig keys map directly to env var names; user values override spec defaults.
+    const mergedEnv: Record<string, string> = {
+      ...(mcpServer.env ?? {}),
+      ...Object.fromEntries(
+        Object.entries(app.userConfig ?? {})
+          .filter(([, v]) => v != null)
+          .map(([k, v]) => [k, String(v)])
+      )
+    }
+    if (Object.keys(mergedEnv).length > 0) {
+      serverConfig.env = mergedEnv
+    }
+
+    servers[app.specId] = serverConfig
+  }
+
+  return Object.keys(servers).length > 0 ? servers : null
+}
+
+/**
+ * Build MCP servers config for a specific set of MCP dependency declarations.
+ *
+ * Used by automation runtime (execute.ts) to inject only the MCPs that
+ * an automation explicitly declares in its requires.mcps field.
+ * This enforces least-privilege: automations only receive the tools they declare.
+ *
+ * @param requiredMcps - The requires.mcps array from the automation spec
+ * @param spaceId - The space context (app.spaceId ?? fallback)
+ * @returns SDK-compatible mcpServers config, keyed by specId
+ */
+export function getMcpServersForRequires(
+  requiredMcps: Array<{ id: string; reason?: string; bundled?: boolean }> | undefined,
+  spaceId: string
+): Record<string, any> {
+  if (!requiredMcps || requiredMcps.length === 0) return {}
+
+  const manager = getAppManager()
+  if (!manager) return {}
+
+  // Get all effective MCP apps for this space (global + space-scoped)
+  const allMcpApps = manager.listEffectiveMcpApps(spaceId)
+
+  const result: Record<string, any> = {}
+
+  for (const dep of requiredMcps) {
+    const app = allMcpApps.find(
+      (a) => a.specId === dep.id && a.status === 'active'
+    )
+    if (!app) {
+      console.warn(
+        `[Agent] Required MCP "${dep.id}" not found or not active (spaceId=${spaceId})`
+      )
+      continue
+    }
+
+    const spec = app.spec as any
+    if (!spec.mcp_server) continue
+
+    const mcpServer = spec.mcp_server
+    const serverConfig: Record<string, any> = {}
+
+    // Map transport type — mirrors getDbMcpServers conversion logic
+    if (mcpServer.transport === 'sse') {
+      serverConfig.type = 'sse'
+      serverConfig.url = mcpServer.command // For SSE, command holds URL
+    } else if (mcpServer.transport === 'streamable-http') {
+      serverConfig.type = 'http'
+      serverConfig.url = mcpServer.command
+    } else {
+      // stdio (default)
+      serverConfig.command = mcpServer.command
+      if (mcpServer.args?.length) serverConfig.args = mcpServer.args
+      if (mcpServer.cwd) serverConfig.cwd = mcpServer.cwd
+    }
+    // Merge static spec env with user-provided config values (e.g. API tokens).
+    // userConfig keys map directly to env var names; user values override spec defaults.
+    const mergedEnv: Record<string, string> = {
+      ...(mcpServer.env ?? {}),
+      ...Object.fromEntries(
+        Object.entries(app.userConfig ?? {})
+          .filter(([, v]) => v != null)
+          .map(([k, v]) => [k, String(v)])
+      )
+    }
+    if (Object.keys(mergedEnv).length > 0) {
+      serverConfig.env = mergedEnv
+    }
+
+    result[app.specId] = serverConfig
+  }
+
+  return result
 }
 
 // ============================================

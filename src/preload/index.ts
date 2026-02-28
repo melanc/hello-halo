@@ -141,6 +141,7 @@ export interface HaloAPI {
   onAgentMcpStatus: (callback: (data: unknown) => void) => () => void
   onAgentCompact: (callback: (data: unknown) => void) => () => void
   onAgentAskQuestion: (callback: (data: unknown) => void) => () => void
+  onAgentSessionInfo: (callback: (data: unknown) => void) => () => void
 
   // Artifact
   listArtifacts: (spaceId: string) => Promise<IpcResponse>
@@ -324,7 +325,7 @@ export interface HaloAPI {
   // Apps Management
   appList: (filter?: { spaceId?: string; status?: string; type?: string }) => Promise<IpcResponse>
   appGet: (appId: string) => Promise<IpcResponse>
-  appInstall: (input: { spaceId: string; spec: unknown; userConfig?: Record<string, unknown> }) => Promise<IpcResponse>
+  appInstall: (input: { spaceId: string | null; spec: unknown; userConfig?: Record<string, unknown> }) => Promise<IpcResponse>
   appUninstall: (input: { appId: string; options?: { purge?: boolean } }) => Promise<IpcResponse>
   appReinstall: (input: { appId: string }) => Promise<IpcResponse>
   appDelete: (input: { appId: string }) => Promise<IpcResponse>
@@ -345,6 +346,8 @@ export interface HaloAPI {
   // App Import / Export
   appExportSpec: (appId: string) => Promise<IpcResponse<{ yaml: string; filename: string }>>
   appImportSpec: (input: { spaceId: string; yamlContent: string; userConfig?: Record<string, unknown> }) => Promise<IpcResponse>
+  appOpenSkillFolder: (appId: string) => Promise<IpcResponse>
+  appMoveSpace: (input: { appId: string; newSpaceId: string | null }) => Promise<IpcResponse>
 
   // App Chat
   appChatSend: (request: { appId: string; spaceId: string; message: string; thinkingEnabled?: boolean }) => Promise<IpcResponse>
@@ -363,15 +366,18 @@ export interface HaloAPI {
   onNotificationToast: (callback: (data: unknown) => void) => () => void
 
   // Store (App Registry)
+  storeQuery: (params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string }) => Promise<IpcResponse>
   storeListApps: (query: { search?: string; locale?: string; category?: string; type?: string; tags?: string[] }) => Promise<IpcResponse>
   storeGetAppDetail: (slug: string) => Promise<IpcResponse>
-  storeInstall: (input: { slug: string; spaceId: string; userConfig?: Record<string, unknown> }) => Promise<IpcResponse>
+  storeInstall: (input: { slug: string; spaceId: string | null; userConfig?: Record<string, unknown> }) => Promise<IpcResponse>
   storeRefresh: () => Promise<IpcResponse>
   storeCheckUpdates: () => Promise<IpcResponse>
   storeGetRegistries: () => Promise<IpcResponse>
-  storeAddRegistry: (input: { name: string; url: string }) => Promise<IpcResponse>
+  storeAddRegistry: (input: { name: string; url: string; sourceType?: string; adapterConfig?: Record<string, unknown> }) => Promise<IpcResponse>
   storeRemoveRegistry: (registryId: string) => Promise<IpcResponse>
   storeToggleRegistry: (input: { registryId: string; enabled: boolean }) => Promise<IpcResponse>
+  storeUpdateRegistryAdapterConfig: (input: { registryId: string; adapterConfig: Record<string, unknown> }) => Promise<IpcResponse>
+  onStoreSyncStatusChanged: (callback: (data: { registryId: string; status: string; appCount: number; error?: string }) => void) => () => void
 }
 
 interface IpcResponse<T = unknown> {
@@ -479,6 +485,7 @@ const api: HaloAPI = {
   onAgentMcpStatus: (callback) => createEventListener('agent:mcp-status', callback),
   onAgentCompact: (callback) => createEventListener('agent:compact', callback),
   onAgentAskQuestion: (callback) => createEventListener('agent:ask-question', callback),
+  onAgentSessionInfo: (callback) => createEventListener('agent:session-info', callback),
 
   // Artifact
   listArtifacts: (spaceId) => ipcRenderer.invoke('artifact:list', spaceId),
@@ -642,6 +649,8 @@ const api: HaloAPI = {
   // App Import / Export
   appExportSpec: (appId) => ipcRenderer.invoke('app:export-spec', appId),
   appImportSpec: (input) => ipcRenderer.invoke('app:import-spec', input),
+  appOpenSkillFolder: (appId) => ipcRenderer.invoke('app:open-skill-folder', appId),
+  appMoveSpace: (input) => ipcRenderer.invoke('app:move-space', input),
 
   // App Chat
   appChatSend: (request) => ipcRenderer.invoke('app:chat-send', request),
@@ -657,6 +666,7 @@ const api: HaloAPI = {
   onAppNavigate: (callback) => createEventListener('app:navigate', callback),
 
   // Store (App Registry)
+  storeQuery: (params) => ipcRenderer.invoke('store:query', params),
   storeListApps: (query) => ipcRenderer.invoke('store:list-apps', query),
   storeGetAppDetail: (slug) => ipcRenderer.invoke('store:get-app-detail', slug),
   storeInstall: (input) => ipcRenderer.invoke('store:install', input),
@@ -666,6 +676,8 @@ const api: HaloAPI = {
   storeAddRegistry: (input) => ipcRenderer.invoke('store:add-registry', input),
   storeRemoveRegistry: (registryId) => ipcRenderer.invoke('store:remove-registry', registryId),
   storeToggleRegistry: (input) => ipcRenderer.invoke('store:toggle-registry', input),
+  storeUpdateRegistryAdapterConfig: (input) => ipcRenderer.invoke('store:update-registry-adapter-config', input),
+  onStoreSyncStatusChanged: (callback) => createEventListener('store:sync-status-changed', callback as (data: unknown) => void),
 
   // Notification (in-app toast)
   onNotificationToast: (callback) => createEventListener('notification:toast', callback),

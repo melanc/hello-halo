@@ -36,8 +36,9 @@ export type RunOutcome = 'useful' | 'noop' | 'error' | 'skipped'
 /**
  * Full representation of an installed App instance.
  *
- * Each installed App has a unique `id` (UUID), belongs to a specific `spaceId`,
- * and stores a snapshot of the AppSpec at install time plus user configuration.
+ * Each installed App has a unique `id` (UUID). It may belong to a specific
+ * `spaceId` or be global (`spaceId = null`), available across all spaces.
+ * Stores a snapshot of the AppSpec at install time plus user configuration.
  */
 export interface InstalledApp {
   /** Unique installation ID (UUID v4) */
@@ -46,8 +47,8 @@ export interface InstalledApp {
   /** App specification identifier (from spec.name or a registry ID) */
   specId: string
 
-  /** Space this App is installed in */
-  spaceId: string
+  /** Space this App is installed in (null = global, available in all spaces) */
+  spaceId: string | null
 
   /** Full AppSpec (initially set at install time, updatable via updateSpec) */
   spec: AppSpec
@@ -104,7 +105,8 @@ export interface InstalledApp {
 
 /** Filter criteria for listApps() */
 export interface AppListFilter {
-  spaceId?: string
+  /** Filter by space: string = specific space, null = global only, undefined = all */
+  spaceId?: string | null
   status?: AppStatus
   type?: AppType
 }
@@ -131,18 +133,19 @@ export interface AppManagerService {
   // ── Installation ────────────────────────────────
 
   /**
-   * Install an App into a space.
+   * Install an App into a space (or globally).
    *
    * Creates the App record in SQLite, generates a UUID, creates the work directory
-   * at `{space.path}/.halo/apps/{appId}/` and `{space.path}/.halo/apps/{appId}/memory/`.
+   * at `{space.path}/.halo/apps/{appId}/` (for space-scoped apps) or
+   * `{haloDir}/apps/{appId}/` (for global apps).
    *
-   * @param spaceId - Target space ID
+   * @param spaceId - Target space ID, or null for global install
    * @param spec - Validated AppSpec
    * @param userConfig - User-provided config values (optional)
    * @returns The generated App ID (UUID)
    * @throws AppAlreadyInstalledError if same specId+spaceId combination exists
    */
-  install(spaceId: string, spec: AppSpec, userConfig?: Record<string, unknown>): Promise<string>
+  install(spaceId: string | null, spec: AppSpec, userConfig?: Record<string, unknown>): Promise<string>
 
   /**
    * Uninstall an App (soft-delete).
@@ -243,6 +246,29 @@ export interface AppManagerService {
    */
   updateSpec(appId: string, specPatch: Record<string, unknown>): void
 
+  /**
+   * Move an App to a different space (or to/from global scope).
+   *
+   * For skill apps: atomically removes the skill files from the current
+   * filesystem location and writes them to the new location so Claude Code
+   * auto-loads them from the correct path.
+   *
+   * For MCP apps: emits an MCP change notification for both the old and new
+   * spaceId so affected sessions are invalidated.
+   *
+   * Constraints:
+   * - App must not be in 'uninstalled' status.
+   * - The target space must exist (unless newSpaceId is null = global).
+   * - No other app with the same specId may be installed in the target scope.
+   *
+   * @param appId      - The ID of the app to move
+   * @param newSpaceId - Target space ID, or null to move to global scope
+   * @throws AppNotFoundError if the App does not exist
+   * @throws SpaceNotFoundError if newSpaceId is non-null and space does not exist
+   * @throws AppAlreadyInstalledError if target scope already has the same specId
+   */
+  moveToSpace(appId: string, newSpaceId: string | null): Promise<void>
+
   // ── Run Tracking ───────────────────────────────
 
   /**
@@ -264,6 +290,20 @@ export interface AppManagerService {
    * Supports filtering by spaceId, status, and App type.
    */
   listApps(filter?: AppListFilter): InstalledApp[]
+
+  /**
+   * List effective MCP apps for a space.
+   * Returns global MCPs + space-scoped MCPs, with space-scoped overriding
+   * global when they share the same specId.
+   */
+  listEffectiveMcpApps(spaceId: string): InstalledApp[]
+
+  /**
+   * List effective Skill apps for a space.
+   * Returns global skills + space-scoped skills, with space-scoped overriding
+   * global when they share the same specId.
+   */
+  listEffectiveSkillApps(spaceId: string): InstalledApp[]
 
   // ── Permissions ────────────────────────────────
 

@@ -152,16 +152,25 @@ Use **Read** to load sections not in context.
 
 ### Archive Files
 
-Your memory directory has two types of archive files:
+Your memory lives in these files, accessed by priority: **\`memory.md\` → \`memory/\` → \`memory/run/\`** — coarse to fine, recent to historical.
 
-- **\`memory/run/\`** — Per-run execution records (one file per run, named \`YYYY-MM-DD-HHmm-run.md\`).
-  Each file contains the full details of what happened in that run.
-  Use these to recall past events: \`Read("memory/run/2026-01-15-1400-run.md")\`
-  The timestamp matches the \`# History\` heading in memory.md.
+Start with \`memory.md\`. Only go deeper if the detail you need is not there.
+
+- **\`memory.md\`** — Always start here. \`# now\` is pre-loaded each run.
+  \`Read("memory.md")\` for sections not in context.
 
 - **\`memory/\`** (root) — Compaction archives (old versions of memory.md).
   When memory.md grows too large, the system archives it and creates a fresh compact version.
   These are historical snapshots of your working memory at past points in time.
+  \`Bash("grep -i 'keyword or time' memory/2026-01-10-compact.md")\` or \`Read\` specific sections.
+
+- **\`memory/run/\`** — Raw execution logs (\`.jsonl\`, one per run, can be very large).
+  **In most cases you do NOT need them** — \`# History\` is sufficient.
+  Only when you need specific execution details absent from memory.md,
+  filter by keyword or time — never open in full:
+  \`Bash("grep -i 'keyword' memory/run/2026-01-15-1400-run.jsonl | head -20")\`
+  The run filename timestamp matches the \`## YYYY-MM-DD-HHmm\` entry in \`# History\`.
+
 
 ### Growth and Consolidation
 

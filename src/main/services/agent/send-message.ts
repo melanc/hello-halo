@@ -28,6 +28,7 @@ import {
   getWorkingDir,
   getApiCredentials,
   getEnabledMcpServers,
+  getDbMcpServers,
   sendToRenderer,
   setMainWindow
 } from './helpers'
@@ -126,11 +127,11 @@ export async function sendMessage(
     const electronPath = getHeadlessElectronPath()
     console.log(`[Agent] Using headless Electron as Node runtime: ${electronPath}`)
 
-    // Get enabled MCP servers
-    const enabledMcpServers = getEnabledMcpServers(config.mcpServers || {})
+    // Get MCP servers from installed apps database (global + space-scoped, with override)
+    const dbMcpServers = getDbMcpServers(spaceId)
 
-    // Build MCP servers config (including AI Browser if enabled)
-    const mcpServers: Record<string, any> = enabledMcpServers ? { ...enabledMcpServers } : {}
+    // Build MCP servers config (DB apps + built-in MCPs)
+    const mcpServers: Record<string, any> = dbMcpServers ? { ...dbMcpServers } : {}
     if (aiBrowserEnabled) {
       mcpServers['ai-browser'] = createAIBrowserMcpServer()
       console.log(`[Agent][${conversationId}] AI Browser MCP server added`)
@@ -171,8 +172,8 @@ export async function sendMessage(
     const t0 = Date.now()
     console.log(`[Agent][${conversationId}] Getting or creating V2 session...`)
 
-    // Log MCP servers if configured (only enabled ones)
-    const mcpServerNames = enabledMcpServers ? Object.keys(enabledMcpServers) : []
+    // Log MCP servers if configured
+    const mcpServerNames = mcpServers ? Object.keys(mcpServers) : []
     if (mcpServerNames.length > 0) {
       console.log(`[Agent][${conversationId}] MCP servers configured: ${mcpServerNames.join(', ')}`)
     }

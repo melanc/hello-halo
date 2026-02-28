@@ -12,7 +12,7 @@
  * instead of interactive conversation.
  */
 
-import type { AppSpec } from '../spec'
+import type { AutomationSpec } from '../spec'
 import type { MemorySnapshot } from '../../platform/memory/snapshot'
 import { buildSystemPrompt } from '../../services/agent/system-prompt'
 
@@ -71,13 +71,17 @@ Use \`mcp__halo-report__report_to_user\` to communicate results to the user.
 4. **Deliverable outputs** (type="output") — when you produce files,
    reports, or other artifacts. Tell the user where to find them.
 
-### Writing Style
+### Reporting Format
 
-Write the \`summary\` field for humans — be clear, direct, and avoid
-technical jargon.
+**summary** — write for humans: be clear, direct, and avoid technical jargon.
+  ✅ "AirPods Pro lowest price today: ¥1199, no change from yesterday."
+  ❌ "Successfully fetched 3 URLs, price delta: 0"
 
-Example: ✅ "AirPods Pro lowest price today: ¥1199, no change from yesterday"
-Not:     ❌ "Successfully fetched 3 URLs, price delta: 0"
+**data** (optional) — detailed markdown for users who want the full picture.
+  Choose whichever format best serves readability — tables, lists, headings, etc.
+
+Do not put raw JSON or code blocks in either field
+— unless the user explicitly requires otherwise.
 `.trim()
 
 // ============================================
@@ -140,8 +144,8 @@ when you discover something important that the user should know about immediatel
 // ============================================
 
 export interface AppPromptOptions {
-  /** The App's specification */
-  appSpec: AppSpec
+  /** The App's specification (must be automation type) */
+  appSpec: AutomationSpec
   /** Memory instructions (from memory.getPromptInstructions()) */
   memoryInstructions: string
   /** Trigger context description */
@@ -198,9 +202,12 @@ export function buildAppSystemPrompt(options: AppPromptOptions): string {
   sections.push(NOTIFICATION_INSTRUCTIONS)
 
   // 7. Sub-agent instructions (only if App uses AI Browser)
-  if (options.usesAIBrowser) {
-    sections.push(SUB_AGENT_INSTRUCTIONS)
-  }
+  // TODO: Temporarily disabled — testing whether skipping sub-agent delegation
+  // improves quality by preserving full context in the main agent.
+  // Re-enable and compare results before making permanent.
+  // if (options.usesAIBrowser) {
+  //   sections.push(SUB_AGENT_INSTRUCTIONS)
+  // }
 
   return sections.join('\n\n---\n\n')
 }
@@ -220,7 +227,7 @@ export function buildInitialMessage(options: {
   const parts: string[] = []
 
   // ── Trigger ────────────────────────────────────────────────────────────
-  parts.push(`## Trigger\n\n${options.triggerContext}`)
+  parts.push(`## Trigger\n\nWhat initiated this run.\n\n${options.triggerContext}`)
 
   // ── Memory ─────────────────────────────────────────────────────────────
   parts.push(buildMemorySection(options.memorySnapshot))
@@ -232,9 +239,11 @@ export function buildInitialMessage(options: {
 
   // ── Instructions ───────────────────────────────────────────────────────
   parts.push(
-    `## Instructions\n\nExecute the "${options.appName}" task based on the trigger above.\n` +
-    `Update memory (both \`# now\` and \`# History\`) before reporting.\n` +
-    `Report your findings via \`mcp__halo-report__report_to_user\` when done.`
+    `## Instructions\n\n` +
+    `Strictly follow the "${options.appName}" task requirements defined in your App Instructions (system prompt).\n` +
+    `Complete this run based on the trigger above, then:\n` +
+    `1. Update memory (\`# now\` and \`# History\`) — internal housekeeping, do not mention this in your report\n` +
+    `2. Report results via \`mcp__halo-report__report_to_user\``
   )
 
   return parts.join('\n\n')
@@ -255,6 +264,8 @@ export function buildInitialMessage(options: {
 function buildMemorySection(snapshot: MemorySnapshot): string {
   const lines: string[] = []
   lines.push('## Memory')
+  lines.push('')
+  lines.push('Your persistent memory from previous runs. Read it to maintain continuity and avoid repeating work.')
   lines.push('')
 
   if (!snapshot.exists) {

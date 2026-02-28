@@ -22,10 +22,13 @@ export function StoreDetail() {
   const availableUpdates = useAppsPageStore(state => state.availableUpdates)
   const clearStoreSelection = useAppsPageStore(state => state.clearStoreSelection)
   const checkUpdates = useAppsPageStore(state => state.checkUpdates)
+  const installFromStore = useAppsPageStore(state => state.installFromStore)
   const apps = useAppsStore(state => state.apps)
 
   const [showSystemPrompt, setShowSystemPrompt] = useState(false)
   const [showInstallDialog, setShowInstallDialog] = useState(false)
+  const [updateInstalling, setUpdateInstalling] = useState(false)
+  const [updateInstallError, setUpdateInstallError] = useState<string | null>(null)
 
   // Resolve entry and spec from detail
   const entry = storeSelectedDetail?.entry
@@ -89,11 +92,42 @@ export function StoreDetail() {
     console.log('[StoreDetail] App installed:', appId)
   }, [checkUpdates])
 
+  // Update in-place for MCP/Skill — reinstalls to the same scope as the existing install
+  const handleUpdateInPlace = useCallback(async () => {
+    if (!entry || !installedApp) return
+    setUpdateInstallError(null)
+    setUpdateInstalling(true)
+    try {
+      const appId = await installFromStore(entry.slug, installedApp.spaceId)
+      if (appId) {
+        useAppsStore.getState().loadApps()
+        void checkUpdates()
+      } else {
+        setUpdateInstallError(t('Installation failed. Please try again.'))
+      }
+    } catch (err) {
+      setUpdateInstallError(err instanceof Error ? err.message : t('Installation failed'))
+    } finally {
+      setUpdateInstalling(false)
+    }
+  }, [entry, installedApp, installFromStore, checkUpdates, t])
+
   // Loading state
   if (storeDetailLoading) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex-shrink-0">
+          <button
+            onClick={clearStoreSelection}
+            className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            {t('Back to Store')}
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
       </div>
     )
   }
@@ -101,8 +135,19 @@ export function StoreDetail() {
   // No detail loaded
   if (!storeSelectedDetail || !entry || !spec) {
     return (
-      <div className="flex-1 flex items-center justify-center">
-        <p className="text-sm text-muted-foreground">{t('App not found')}</p>
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex-shrink-0">
+          <button
+            onClick={clearStoreSelection}
+            className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            {t('Back to Store')}
+          </button>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <p className="text-sm text-muted-foreground">{t('App not found')}</p>
+        </div>
       </div>
     )
   }
@@ -148,7 +193,7 @@ export function StoreDetail() {
             </div>
 
             {/* Install / Installed / Update button */}
-            <div className="flex-shrink-0">
+            <div className="flex-shrink-0 flex flex-col items-end gap-1">
               {!isBundlePackage ? (
                 <button
                   disabled
@@ -157,6 +202,72 @@ export function StoreDetail() {
                 >
                   {t('Unsupported package format')}
                 </button>
+              ) : entry?.type === 'mcp' ? (
+                // MCP: store install disabled — manual add only
+                <>
+                  {installedApp && !updateInfo ? (
+                    <button
+                      disabled
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm bg-secondary text-muted-foreground rounded-lg cursor-default"
+                    >
+                      <Check className="w-4 h-4" />
+                      {t('Installed')}
+                    </button>
+                  ) : updateInfo ? (
+                    <button
+                      onClick={handleUpdateInPlace}
+                      disabled={updateInstalling}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {updateInstalling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      {t('Update to')} v{updateInfo.latestVersion}
+                    </button>
+                  ) : (
+                    <button
+                      disabled
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm bg-secondary text-muted-foreground rounded-lg cursor-not-allowed opacity-60"
+                      title={t('MCP store install is coming soon. Use Manual Add to configure MCP servers.')}
+                    >
+                      {t('Coming Soon')}
+                    </button>
+                  )}
+                  {updateInstallError && (
+                    <p className="text-xs text-red-400">{updateInstallError}</p>
+                  )}
+                </>
+              ) : entry?.type === 'skill' ? (
+                // Skill: normal install flow
+                <>
+                  {installedApp && !updateInfo ? (
+                    <button
+                      disabled
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm bg-secondary text-muted-foreground rounded-lg cursor-default"
+                    >
+                      <Check className="w-4 h-4" />
+                      {t('Installed')}
+                    </button>
+                  ) : updateInfo ? (
+                    <button
+                      onClick={handleUpdateInPlace}
+                      disabled={updateInstalling}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+                    >
+                      {updateInstalling ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                      {t('Update to')} v{updateInfo.latestVersion}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setShowInstallDialog(true)}
+                      className="flex items-center gap-1.5 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      <Download className="w-4 h-4" />
+                      {t('Install')}
+                    </button>
+                  )}
+                  {updateInstallError && (
+                    <p className="text-xs text-red-400">{updateInstallError}</p>
+                  )}
+                </>
               ) : (
                 <>
                   {installedApp && !updateInfo ? (
@@ -271,7 +382,7 @@ export function StoreDetail() {
           )}
 
           {/* System Prompt (collapsible) */}
-          {spec.system_prompt && (
+          {spec.type === 'automation' && spec.system_prompt && (
             <div className="space-y-2">
               <button
                 onClick={() => setShowSystemPrompt(!showSystemPrompt)}
@@ -330,6 +441,7 @@ export function StoreDetail() {
           detail={storeSelectedDetail}
           onClose={() => setShowInstallDialog(false)}
           onInstalled={handleInstalled}
+          showGlobalOption={entry?.type === 'mcp' || entry?.type === 'skill'}
         />
       )}
     </>

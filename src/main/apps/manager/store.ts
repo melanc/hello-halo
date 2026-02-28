@@ -21,7 +21,7 @@ import type { InstalledApp, AppStatus, RunOutcome, AppListFilter } from './types
 interface AppRow {
   id: string
   spec_id: string
-  space_id: string
+  space_id: string | null
   spec_json: string
   status: string
   pending_escalation_id: string | null
@@ -46,7 +46,7 @@ function rowToInstalledApp(row: AppRow): InstalledApp {
   return {
     id: row.id,
     specId: row.spec_id,
-    spaceId: row.space_id,
+    spaceId: row.space_id,  // null for global apps
     spec: JSON.parse(row.spec_json) as AppSpec,
     status: row.status as AppStatus,
     pendingEscalationId: row.pending_escalation_id ?? undefined,
@@ -82,8 +82,10 @@ export class AppManagerStore {
   private readonly stmtUpdatePermissions: Database.Statement
   private readonly stmtUpdateLastRun: Database.Statement
   private readonly stmtUpdateSpec: Database.Statement
+  private readonly stmtUpdateSpaceId: Database.Statement
   private readonly stmtListAll: Database.Statement
   private readonly stmtGetBySpecAndSpace: Database.Statement
+  private readonly stmtGetBySpecGlobal: Database.Statement
   private readonly stmtUpdateUninstalledAt: Database.Statement
 
   constructor(private readonly db: Database.Database) {
@@ -107,6 +109,10 @@ export class AppManagerStore {
 
     this.stmtGetBySpecAndSpace = db.prepare(`
       SELECT * FROM installed_apps WHERE spec_id = ? AND space_id = ?
+    `)
+
+    this.stmtGetBySpecGlobal = db.prepare(`
+      SELECT * FROM installed_apps WHERE spec_id = ? AND space_id IS NULL
     `)
 
     this.stmtListAll = db.prepare(`
@@ -160,6 +166,12 @@ export class AppManagerStore {
       WHERE id = @id
     `)
 
+    this.stmtUpdateSpaceId = db.prepare(`
+      UPDATE installed_apps
+      SET space_id = @space_id
+      WHERE id = @id
+    `)
+
     this.stmtUpdateUninstalledAt = db.prepare(`
       UPDATE installed_apps
       SET uninstalled_at = @uninstalled_at
@@ -204,11 +216,14 @@ export class AppManagerStore {
   }
 
   /**
-   * Check if an App with the given specId is already installed in the space.
+   * Check if an App with the given specId is already installed in the scope.
+   * When spaceId is null, checks global scope (space_id IS NULL).
    * Returns the existing InstalledApp if found, null otherwise.
    */
-  getBySpecAndSpace(specId: string, spaceId: string): InstalledApp | null {
-    const row = this.stmtGetBySpecAndSpace.get(specId, spaceId) as AppRow | undefined
+  getBySpecAndSpace(specId: string, spaceId: string | null): InstalledApp | null {
+    const row = spaceId === null
+      ? this.stmtGetBySpecGlobal.get(specId) as AppRow | undefined
+      : this.stmtGetBySpecAndSpace.get(specId, spaceId) as AppRow | undefined
     return row ? rowToInstalledApp(row) : null
   }
 
@@ -224,9 +239,14 @@ export class AppManagerStore {
     let apps = rows.map(rowToInstalledApp)
 
     if (filter) {
-      if (filter.spaceId) {
-        const spaceId = filter.spaceId
-        apps = apps.filter(a => a.spaceId === spaceId)
+      if (filter.spaceId !== undefined) {
+        if (filter.spaceId === null) {
+          // Explicitly filter to global-only apps
+          apps = apps.filter(a => a.spaceId === null)
+        } else {
+          const spaceId = filter.spaceId
+          apps = apps.filter(a => a.spaceId === spaceId)
+        }
       }
       if (filter.status) {
         const status = filter.status
@@ -298,6 +318,20 @@ export class AppManagerStore {
       id: appId,
       spec_json: JSON.stringify(spec),
       spec_id: spec.name,
+    })
+  }
+
+  /**
+   * Update the space_id for an installed App.
+   * Pass null for global scope.
+   *
+   * Callers must verify no UNIQUE(spec_id, space_id) collision exists before
+   * calling this — the DB constraint will throw if it does.
+   */
+  updateSpaceId(appId: string, spaceId: string | null): void {
+    this.stmtUpdateSpaceId.run({
+      id: appId,
+      space_id: spaceId,
     })
   }
 

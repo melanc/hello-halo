@@ -70,6 +70,8 @@ function formatZodIssues(zodError: ZodError): ValidationIssue[] {
       message = `Expected ${issue.expected}, received ${issue.received}`
     } else if (issue.code === 'invalid_enum_value') {
       message = `Invalid value. Expected one of: ${issue.options.join(', ')}`
+    } else if (issue.code === 'invalid_union_discriminator') {
+      message = `Invalid app type. Expected one of: ${issue.options.join(', ')}`
     }
 
     return {

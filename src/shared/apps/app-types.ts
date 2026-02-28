@@ -43,8 +43,9 @@ export type RunOutcome = 'useful' | 'noop' | 'error' | 'skipped'
 /**
  * Full representation of an installed App instance.
  *
- * Each installed App has a unique `id` (UUID), belongs to a specific `spaceId`,
- * and stores a snapshot of the AppSpec at install time plus user configuration.
+ * Each installed App has a unique `id` (UUID). It may belong to a specific
+ * `spaceId` or be global (`spaceId = null`), available across all spaces.
+ * Stores a snapshot of the AppSpec at install time plus user configuration.
  */
 export interface InstalledApp {
   /** Unique installation ID (UUID v4) */
@@ -53,8 +54,8 @@ export interface InstalledApp {
   /** App specification identifier (from spec.name or a registry ID) */
   specId: string
 
-  /** Space this App is installed in */
-  spaceId: string
+  /** Space this App is installed in (null = global, available in all spaces) */
+  spaceId: string | null
 
   /** Full AppSpec (initially set at install time, updatable via updateSpec) */
   spec: import('./spec-types').AppSpec
@@ -106,7 +107,8 @@ export interface InstalledApp {
 
 /** Filter criteria for listing Apps */
 export interface AppListFilter {
-  spaceId?: string
+  /** Filter by space: string = specific space, null = global only, undefined = all */
+  spaceId?: string | null
   status?: AppStatus
   type?: import('./spec-types').AppType
 }

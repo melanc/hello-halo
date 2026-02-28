@@ -14,6 +14,7 @@ import {
   getHeadlessElectronPath,
   getApiCredentials,
   getEnabledMcpServers,
+  getDbMcpServers,
   inferOpenAIWireApi,
   broadcastToAllClients,
   setMainWindow
@@ -102,8 +103,9 @@ export async function testMcpConnections(
       return { success: false, servers: [], error: 'API key not configured' }
     }
 
-    // Get enabled MCP servers from config
-    const enabledMcpServers = getEnabledMcpServers(config.mcpServers || {})
+    // Get MCP servers from installed apps database (global scope for testing)
+    // Use halo-temp as the space context since testMcpConnections has no explicit space
+    const enabledMcpServers = getDbMcpServers('halo-temp')
     if (!enabledMcpServers || Object.keys(enabledMcpServers).length === 0) {
       return { success: true, servers: [], error: 'No MCP servers configured' }
     }

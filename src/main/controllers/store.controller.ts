@@ -9,11 +9,12 @@
  * from propagating to transport layers.
  */
 
-import type { StoreQuery } from '../../shared/store/store-types'
+import type { StoreQuery, StoreQueryParams, StoreQueryResponse } from '../../shared/store/store-types'
 import type { RegistryEntry, StoreAppDetail, UpdateInfo, RegistrySource } from '../../shared/store/store-types'
 import type { AppType } from '../../shared/apps/spec-types'
 import {
   listApps,
+  queryStore,
   getAppDetail,
   installFromStore,
   refreshIndex,
@@ -22,10 +23,11 @@ import {
   addRegistry,
   removeRegistry,
   toggleRegistry,
+  updateRegistryAdapterConfig,
 } from '../store'
 import { getAppManager } from '../apps/manager'
 
-const ALLOWED_APP_TYPES: ReadonlySet<AppType> = new Set(['automation', 'skill', 'mcp', 'extension'])
+const ALLOWED_APP_TYPES: ReadonlySet<AppType> = new Set<AppType>(['automation', 'skill', 'mcp', 'extension'])
 
 // ============================================================================
 // Response Types
@@ -50,7 +52,23 @@ export type StoreControllerResponse<T> = StoreControllerSuccess<T> | StoreContro
 // ============================================================================
 
 /**
- * List apps from the store with optional filtering.
+ * Paginated query — the new primary query entry point.
+ */
+export async function queryStoreApps(
+  params: StoreQueryParams
+): Promise<StoreControllerResponse<StoreQueryResponse>> {
+  try {
+    const result = await queryStore(params)
+    return { success: true, data: result }
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error('[StoreController] queryStoreApps error:', err.message)
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * List apps from the store with optional filtering (legacy compat).
  */
 export async function listStoreApps(
   query?: StoreQuery | { search?: string; locale?: string; category?: string; type?: string; tags?: string[] }
@@ -97,16 +115,14 @@ export async function getStoreAppDetail(
  */
 export async function installStoreApp(
   slug: string,
-  spaceId: string,
+  spaceId: string | null,
   userConfig?: Record<string, unknown>
 ): Promise<StoreControllerResponse<{ appId: string }>> {
   try {
     if (!slug) {
       return { success: false, error: 'App slug is required' }
     }
-    if (!spaceId) {
-      return { success: false, error: 'Space ID is required' }
-    }
+    // spaceId may be null for global installs (MCP/Skill available across all spaces)
     const appId = await installFromStore(slug, spaceId, userConfig)
     return { success: true, data: { appId } }
   } catch (error: unknown) {
@@ -192,7 +208,7 @@ export function getStoreRegistries(): StoreControllerResponse<RegistrySource[]> 
  * Add a new registry source.
  */
 export function addStoreRegistry(
-  input: { name: string; url: string }
+  input: { name: string; url: string; sourceType?: string; adapterConfig?: Record<string, unknown> }
 ): StoreControllerResponse<RegistrySource> {
   try {
     if (!input.name || !input.name.trim()) {
@@ -217,6 +233,8 @@ export function addStoreRegistry(
       name: input.name.trim(),
       url: input.url.trim().replace(/\/+$/, ''),
       enabled: true,
+      ...(input.sourceType ? { sourceType: input.sourceType as RegistrySource['sourceType'] } : {}),
+      ...(input.adapterConfig ? { adapterConfig: input.adapterConfig } : {}),
     })
     return { success: true, data: registry }
   } catch (error: unknown) {
@@ -261,6 +279,26 @@ export function toggleStoreRegistry(
   } catch (error: unknown) {
     const err = error as Error
     console.error('[StoreController] toggleStoreRegistry error:', err.message)
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Update adapter config (e.g. API keys) for a registry source.
+ */
+export function updateStoreRegistryAdapterConfig(
+  registryId: string,
+  adapterConfig: Record<string, unknown>
+): StoreControllerResponse<void> {
+  try {
+    if (!registryId) {
+      return { success: false, error: 'Registry ID is required' }
+    }
+    updateRegistryAdapterConfig(registryId, adapterConfig)
+    return { success: true, data: undefined }
+  } catch (error: unknown) {
+    const err = error as Error
+    console.error('[StoreController] updateStoreRegistryAdapterConfig error:', err.message)
     return { success: false, error: err.message }
   }
 }

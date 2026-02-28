@@ -964,7 +964,7 @@ export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null
         return
       }
 
-      const space = getSpace(appData.spaceId)
+      const space = appData.spaceId ? getSpace(appData.spaceId) : null
       if (!space?.path) {
         res.status(404).json({ success: false, error: `Space not found for app: ${appId}` })
         return
@@ -1218,7 +1218,7 @@ export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null
         res.status(404).json({ success: false, error: `App not found: ${appId}` })
         return
       }
-      const space = getSpace(appData.spaceId)
+      const space = appData.spaceId ? getSpace(appData.spaceId) : null
       if (!space?.path) {
         res.json({ success: true, data: [] })
         return
@@ -1247,7 +1247,25 @@ export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null
 
   // ===== Store (App Registry) Routes =====
 
-  // GET /api/store/apps — list apps from the store
+  // POST /api/store/query — paginated query (new primary entry point)
+  app.post('/api/store/query', async (req: Request, res: Response) => {
+    try {
+      const { search, type, category, page, pageSize, locale } = req.body as Record<string, unknown>
+      const result = await storeController.queryStoreApps({
+        search: typeof search === 'string' ? search : undefined,
+        type: typeof type === 'string' ? type : undefined,
+        category: typeof category === 'string' ? category : undefined,
+        page: typeof page === 'number' ? page : undefined,
+        pageSize: typeof pageSize === 'number' ? pageSize : undefined,
+        locale: typeof locale === 'string' ? locale : undefined,
+      })
+      res.json(result)
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // GET /api/store/apps — list apps from the store (legacy compat)
   app.get('/api/store/apps', async (req: Request, res: Response) => {
     try {
       const query: { search?: string; locale?: string; category?: string; type?: string; tags?: string[] } = {}
@@ -1385,6 +1403,21 @@ export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null
         return
       }
       const result = storeController.toggleStoreRegistry(req.params.registryId, enabled)
+      res.json(result)
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // PATCH /api/store/registries/:registryId/adapter-config — update adapter config (e.g. API keys)
+  app.patch('/api/store/registries/:registryId/adapter-config', async (req: Request, res: Response) => {
+    try {
+      const adapterConfig = req.body as Record<string, unknown>
+      if (!adapterConfig || typeof adapterConfig !== 'object' || Array.isArray(adapterConfig)) {
+        res.status(400).json({ success: false, error: 'Request body must be a JSON object' })
+        return
+      }
+      const result = storeController.updateStoreRegistryAdapterConfig(req.params.registryId, adapterConfig)
       res.json(result)
     } catch (error) {
       res.json({ success: false, error: (error as Error).message })

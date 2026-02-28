@@ -381,7 +381,7 @@ function buildTools(spaceId: string) {
 
         // Handle frequency shorthand: update the primary subscription's schedule
         if (frequencyShorthand && typeof frequencyShorthand === 'string') {
-          const currentSubs = app.spec.subscriptions ?? []
+          const currentSubs = app.spec.type === 'automation' ? (app.spec.subscriptions ?? []) : []
           const scheduleSub = currentSubs.find(s => s.source.type === 'schedule')
 
           if (scheduleSub) {

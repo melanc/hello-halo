@@ -140,8 +140,8 @@ export async function sendAppChatMessage(
   // ── 2. Build memory scope ────────────────────────────
   const memoryScope: MemoryCallerScope = {
     type: 'app',
-    spaceId: app.spaceId,
-    spacePath: getSpace(app.spaceId)?.path ?? '',
+    spaceId: app.spaceId!, // Automation apps always have a spaceId
+    spacePath: getSpace(app.spaceId!)?.path ?? '',
     appId: app.id,
   }
 

@@ -43,7 +43,7 @@ interface AppsState {
   refreshApp: (appId: string) => Promise<void>
 
   // ── App Lifecycle ─────────────────────────
-  installApp: (spaceId: string, spec: AppSpec, userConfig?: Record<string, unknown>) => Promise<string | null>
+  installApp: (spaceId: string | null, spec: AppSpec, userConfig?: Record<string, unknown>) => Promise<string | null>
   uninstallApp: (appId: string) => Promise<boolean>
   reinstallApp: (appId: string) => Promise<boolean>
   deleteApp: (appId: string) => Promise<boolean>
@@ -66,6 +66,13 @@ interface AppsState {
   updateAppFrequency: (appId: string, subscriptionId: string, frequency: string) => Promise<boolean>
   updateAppOverrides: (appId: string, overrides: Record<string, unknown>) => Promise<boolean>
   updateAppSpec: (appId: string, specPatch: Record<string, unknown>) => Promise<boolean>
+
+  // ── Space Management ────────────────────
+  /**
+   * Move an app to a different space (or to/from global scope).
+   * Returns true on success. Updates spaceId optimistically, then refreshes.
+   */
+  moveAppToSpace: (appId: string, newSpaceId: string | null) => Promise<boolean>
 
   // ── Import / Export ─────────────────────────
   exportApp: (appId: string) => Promise<boolean>
@@ -410,6 +417,29 @@ export const useAppsStore = create<AppsState>((set, get) => ({
       return false
     } catch (err) {
       console.error('[AppsStore] updateAppSpec error:', err)
+      return false
+    }
+  },
+
+  // ── Space Management ─────────────────
+
+  moveAppToSpace: async (appId, newSpaceId) => {
+    try {
+      const res = await api.appMoveSpace(appId, newSpaceId)
+      if (res.success) {
+        // Optimistic update: reflect the new spaceId immediately
+        set(state => ({
+          apps: state.apps.map(a =>
+            a.id === appId ? { ...a, spaceId: newSpaceId } : a
+          ),
+        }))
+        // Authoritative refresh: get the full record from the backend
+        await get().refreshApp(appId)
+        return true
+      }
+      return false
+    } catch (err) {
+      console.error('[AppsStore] moveAppToSpace error:', err)
       return false
     }
   },

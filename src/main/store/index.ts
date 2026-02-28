@@ -11,8 +11,10 @@
 export {
   initRegistryService,
   shutdownRegistryService,
+  onSyncStatusChanged,
   // Re-export key functions for controller use
   refreshIndex,
+  queryStore,
   listApps,
   getAppDetail,
   installFromStore,
@@ -21,4 +23,5 @@ export {
   addRegistry,
   removeRegistry,
   toggleRegistry,
+  updateRegistryAdapterConfig,
 } from './registry.service'

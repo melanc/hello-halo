@@ -27,6 +27,7 @@
 
 import type { DatabaseManager } from '../../platform/store'
 import { getSpace } from '../../services/space.service'
+import { getHaloDir } from '../../services/config.service'
 import { AppManagerStore } from './store'
 import { createAppManagerService } from './service'
 import { MIGRATION_NAMESPACE, migrations } from './migrations'
@@ -112,6 +113,7 @@ export async function initAppManager(
       const space = getSpace(spaceId)
       return space?.path ?? null
     },
+    getGlobalAppDir: () => getHaloDir(),
   })
 
   managerInstance = service

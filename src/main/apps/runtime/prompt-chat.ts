@@ -83,7 +83,7 @@ export function buildAppChatSystemPrompt(options: AppChatPromptOptions): string 
   sections.push(APP_CHAT_CONTEXT)
 
   // 3. App-specific instructions (from App spec)
-  if (options.appSpec.system_prompt) {
+  if (options.appSpec.type === 'automation' && options.appSpec.system_prompt) {
     sections.push(`## App Instructions\n\n${options.appSpec.system_prompt}`)
   }
 

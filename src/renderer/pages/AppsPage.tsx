@@ -10,7 +10,7 @@
  * the Activity Thread without losing left-sidebar selection.
  */
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAppStore } from '../stores/app.store'
 import { useSpaceStore } from '../stores/space.store'
 import { useAppsStore } from '../stores/apps.store'
@@ -26,6 +26,8 @@ import { McpStatusCard } from '../components/apps/McpStatusCard'
 import { SkillInfoCard } from '../components/apps/SkillInfoCard'
 import { EmptyState } from '../components/apps/EmptyState'
 import { AppInstallDialog } from '../components/apps/AppInstallDialog'
+import { ManualAddDialog } from '../components/apps/ManualAddDialog'
+import { SkillInstallDialog } from '../components/apps/SkillInstallDialog'
 import { UninstalledDetailView } from '../components/apps/UninstalledDetailView'
 import { StoreView } from '../components/store/StoreView'
 import { useTranslation, getCurrentLanguage } from '../i18n'
@@ -47,10 +49,25 @@ export function AppsPage() {
     initialAppId,
     showInstallDialog,
     selectApp,
+    clearSelection,
     openActivityThread,
     setInitialAppId,
     setShowInstallDialog,
   } = useAppsPageStore()
+
+  const [showManualAddDialog, setShowManualAddDialog] = useState(false)
+  const [showSkillInstallDialog, setShowSkillInstallDialog] = useState(false)
+
+  /** Types that belong to the "My Apps" tab */
+  const NON_AUTOMATION_TYPES = useMemo(() => new Set(['mcp', 'skill', 'extension']), [])
+
+  /** Filter apps visible in the current tab (excludes store tab) */
+  const appsForCurrentTab = useMemo(() => {
+    return apps.filter(a => {
+      const isNonAutomation = NON_AUTOMATION_TYPES.has(a.spec.type)
+      return currentTab === 'my-apps' ? isNonAutomation : !isNonAutomation
+    })
+  }, [apps, currentTab, NON_AUTOMATION_TYPES])
 
   // Load all apps globally (across all spaces) on mount
   useEffect(() => {
@@ -73,22 +90,37 @@ export function AppsPage() {
     if (initialAppId && apps.length > 0) {
       const app = apps.find(a => a.id === initialAppId)
       if (app) {
+        // Switch to the correct tab for this app type
+        const isNonAutomation = NON_AUTOMATION_TYPES.has(app.spec.type)
+        const targetTab = isNonAutomation ? 'my-apps' : 'my-digital-humans'
+        if (currentTab !== targetTab) setCurrentTab(targetTab)
         selectApp(app.id, app.status === 'uninstalled' ? 'uninstalled' : app.spec.type)
         setInitialAppId(null)
       }
     }
-  }, [apps, initialAppId, selectApp, setInitialAppId])
+  }, [apps, initialAppId, selectApp, setInitialAppId, currentTab, setCurrentTab, NON_AUTOMATION_TYPES])
 
-  // Auto-select first app if nothing selected
+  // Clear selection when switching between split-layout tabs
+  const prevTabRef = useRef(currentTab)
   useEffect(() => {
-    if (!selectedAppId && apps.length > 0) {
-      // Prefer apps waiting for user, skip uninstalled for auto-select
-      const activeApps = apps.filter(a => a.status !== 'uninstalled')
+    const prev = prevTabRef.current
+    prevTabRef.current = currentTab
+    // Only clear when switching between the two list tabs (not to/from store)
+    if (prev !== currentTab && prev !== 'store' && currentTab !== 'store') {
+      clearSelection()
+    }
+  }, [currentTab, clearSelection])
+
+  // Auto-select first app for the current tab if nothing selected
+  useEffect(() => {
+    if (currentTab === 'store') return
+    if (!selectedAppId && appsForCurrentTab.length > 0) {
+      const activeApps = appsForCurrentTab.filter(a => a.status !== 'uninstalled')
       const waitingApp = activeApps.find(a => a.status === 'waiting_user')
-      const firstApp = waitingApp ?? activeApps[0] ?? apps[0]
+      const firstApp = waitingApp ?? activeApps[0] ?? appsForCurrentTab[0]
       selectApp(firstApp.id, firstApp.status === 'uninstalled' ? 'uninstalled' : firstApp.spec.type)
     }
-  }, [apps, selectedAppId, selectApp])
+  }, [appsForCurrentTab, selectedAppId, selectApp, currentTab])
 
   // Resolve the selected app (for breadcrumb and detail panel)
   const selectedApp = useMemo(
@@ -108,9 +140,20 @@ export function AppsPage() {
   const isUninstalledDetail = detailView?.type === 'uninstalled-detail'
 
   // Render the right-side detail panel
+  const emptyStateVariant = currentTab === 'my-apps' ? 'apps' as const : 'automation' as const
+  const emptyStateAction = currentTab === 'my-apps'
+    ? () => setCurrentTab('store')
+    : () => setShowInstallDialog(true)
+
   const renderDetail = () => {
     if (!detailView) {
-      return <EmptyState hasApps={apps.length > 0} onInstall={() => setShowInstallDialog(true)} />
+      return (
+        <EmptyState
+          hasApps={appsForCurrentTab.length > 0}
+          onInstall={emptyStateAction}
+          variant={emptyStateVariant}
+        />
+      )
     }
 
     switch (detailView.type) {
@@ -131,15 +174,21 @@ export function AppsPage() {
           />
         )
       case 'app-config':
-        return <AppConfigPanel appId={detailView.appId} spaceName={spaceMap[selectedApp?.spaceId ?? '']} />
+        return <AppConfigPanel appId={detailView.appId} spaceName={selectedApp?.spaceId ? spaceMap[selectedApp.spaceId] : t('Global')} />
       case 'mcp-status':
         return <McpStatusCard appId={detailView.appId} />
       case 'skill-info':
-        return <SkillInfoCard appId={detailView.appId} />
+        return <SkillInfoCard appId={detailView.appId} spaceName={selectedApp?.spaceId ? spaceMap[selectedApp.spaceId] : t('Global')} />
       case 'uninstalled-detail':
-        return <UninstalledDetailView appId={detailView.appId} spaceName={spaceMap[selectedApp?.spaceId ?? '']} />
+        return <UninstalledDetailView appId={detailView.appId} spaceName={selectedApp?.spaceId ? spaceMap[selectedApp.spaceId] : t('Global')} />
       default:
-        return <EmptyState hasApps={apps.length > 0} onInstall={() => setShowInstallDialog(true)} />
+        return (
+          <EmptyState
+            hasApps={appsForCurrentTab.length > 0}
+            onInstall={emptyStateAction}
+            variant={emptyStateVariant}
+          />
+        )
     }
   }
 
@@ -180,9 +229,12 @@ export function AppsPage() {
           {t('My Digital Humans')}
         </button>
         <button
-          disabled
-          className="px-3 py-1.5 text-sm rounded-md text-muted-foreground/50 cursor-not-allowed"
-          title={t('Coming soon')}
+          onClick={() => setCurrentTab('my-apps')}
+          className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+            currentTab === 'my-apps'
+              ? 'bg-secondary text-foreground font-medium'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary/50'
+          }`}
         >
           {t('My Apps')}
         </button>
@@ -198,13 +250,28 @@ export function AppsPage() {
         </button>
       </div>
 
-      {/* Content area: My Digital Humans or Store */}
-      {currentTab === 'my-digital-humans' ? (
-        /* Split layout: left sidebar + right detail */
+      {/* Content area */}
+      {currentTab === 'store' ? (
+        <StoreView />
+      ) : (
+        /* Split layout: left sidebar + right detail (shared by both tabs) */
         <div className="flex-1 flex overflow-hidden">
           {/* Left: App list (fixed 240px width) */}
           <div className="w-60 flex-shrink-0 border-r border-border flex flex-col overflow-hidden">
-            <AppList onInstall={() => setShowInstallDialog(true)} spaceMap={spaceMap} />
+            {currentTab === 'my-apps' ? (
+              <AppList
+                mode="apps"
+                onInstall={() => setCurrentTab('store')}
+                onManualAdd={() => setShowManualAddDialog(true)}
+                spaceMap={spaceMap}
+              />
+            ) : (
+              <AppList
+                mode="automation"
+                onInstall={() => setShowInstallDialog(true)}
+                spaceMap={spaceMap}
+              />
+            )}
           </div>
 
           {/* Right: Detail panel */}
@@ -238,7 +305,7 @@ export function AppsPage() {
 
             {/* App header bar — for automation apps (activity thread only) */}
             {!isSessionDetail && !isAppChat && !isAppConfig && !isUninstalledDetail && selectedAppId && detailView?.type === 'activity-thread' && (
-              <AutomationHeader appId={selectedAppId} spaceName={spaceMap[selectedApp?.spaceId ?? '']} />
+              <AutomationHeader appId={selectedAppId} spaceName={selectedApp?.spaceId ? spaceMap[selectedApp.spaceId] : t('Global')} />
             )}
 
             {/* Detail content — app-chat manages its own scroll + flex layout */}
@@ -247,14 +314,27 @@ export function AppsPage() {
             </div>
           </div>
         </div>
-      ) : (
-        <StoreView />
       )}
 
       {/* Install dialog */}
       {showInstallDialog && (
         <AppInstallDialog
           onClose={() => setShowInstallDialog(false)}
+        />
+      )}
+
+      {/* Manual add dialog (MCP only — Skill delegates to SkillInstallDialog) */}
+      {showManualAddDialog && (
+        <ManualAddDialog
+          onClose={() => setShowManualAddDialog(false)}
+          onSkillAdd={() => setShowSkillInstallDialog(true)}
+        />
+      )}
+
+      {/* Skill install dialog */}
+      {showSkillInstallDialog && (
+        <SkillInstallDialog
+          onClose={() => setShowSkillInstallDialog(false)}
         />
       )}
     </div>

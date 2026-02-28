@@ -3,17 +3,21 @@
  *
  * Responsive grid layout of StoreCard components.
  * Handles empty/loading states for the grid area.
+ * Supports paginated loading with "Load More" button.
  */
 
 import { useAppsPageStore } from '../../stores/apps-page.store'
 import { StoreCard } from './StoreCard'
 import { useTranslation } from '../../i18n'
-import { Package } from 'lucide-react'
+import { Package, Loader2 } from 'lucide-react'
 
 export function StoreGrid() {
   const { t } = useTranslation()
   const storeApps = useAppsPageStore(state => state.storeApps)
+  const storeHasMore = useAppsPageStore(state => state.storeHasMore)
+  const storeLoading = useAppsPageStore(state => state.storeLoading)
   const selectStoreApp = useAppsPageStore(state => state.selectStoreApp)
+  const loadMoreStoreApps = useAppsPageStore(state => state.loadMoreStoreApps)
 
   if (storeApps.length === 0) {
     return (
@@ -34,14 +38,30 @@ export function StoreGrid() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-      {storeApps.map(entry => (
-        <StoreCard
-          key={entry.slug}
-          entry={entry}
-          onClick={() => selectStoreApp(entry.slug)}
-        />
-      ))}
+    <div className="flex flex-col">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
+        {storeApps.map(entry => (
+          <StoreCard
+            key={entry.slug}
+            entry={entry}
+            onClick={() => selectStoreApp(entry.slug)}
+          />
+        ))}
+      </div>
+      {storeHasMore && (
+        <div className="flex justify-center pb-6">
+          <button
+            onClick={loadMoreStoreApps}
+            disabled={storeLoading}
+            className="px-4 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-secondary/50 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-2"
+          >
+            {storeLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : null}
+            {t('Load more')}
+          </button>
+        </div>
+      )}
     </div>
   )
 }

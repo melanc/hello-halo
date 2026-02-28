@@ -32,7 +32,7 @@ export type FilterOp = 'eq' | 'neq' | 'contains' | 'matches' | 'gt' | 'lt' | 'gt
 export interface FilterRule {
   field: string
   op: FilterOp
-  value: unknown
+  value?: unknown
 }
 
 // ============================================
@@ -159,6 +159,7 @@ export type SkillDependency = string | {
 // ============================================
 
 export interface McpServerConfig {
+  transport?: 'stdio' | 'sse' | 'streamable-http'
   command: string
   args?: string[]
   env?: Record<string, string>
@@ -266,10 +267,11 @@ export interface I18nLocaleBlock {
 }
 
 // ============================================
-// Full App Spec
+// Full App Spec (Discriminated Union by type)
 // ============================================
 
-export interface AppSpec {
+/** Common fields shared by ALL app types */
+export interface AppSpecCommon {
   spec_version: string
   name: string
   version: string
@@ -277,28 +279,47 @@ export interface AppSpec {
   description: string
   type: AppType
   icon?: string
-  system_prompt?: string
+  permissions?: string[]
   requires?: Requires
+  config_schema?: InputDef[]
+  store?: StoreMetadata
+  i18n?: Record<string, I18nLocaleBlock>
+}
+
+/** Automation (AI Digital Human) — Halo core type */
+export interface AutomationSpec extends AppSpecCommon {
+  type: 'automation'
+  system_prompt: string
   subscriptions?: SubscriptionDef[]
   filters?: FilterRule[]
   memory_schema?: MemorySchema
-  config_schema?: InputDef[]
   output?: OutputConfig
-  permissions?: string[]
-  mcp_server?: McpServerConfig
   escalation?: EscalationConfig
-  /** Optional model recommendation from the spec author (informational only, not used at runtime) */
   recommended_model?: string
-  /** Store/registry metadata (for distribution and discovery) */
-  store?: StoreMetadata
-  /**
-   * Locale-specific display text overrides.
-   * Keys are BCP 47 locale tags (e.g. "zh-CN", "ja").
-   * Only affects display text (name, description, config_schema labels).
-   * system_prompt and runtime behavior are never overridden by i18n.
-   */
-  i18n?: Record<string, I18nLocaleBlock>
 }
+
+/** MCP Server — external community format */
+export interface McpSpec extends AppSpecCommon {
+  type: 'mcp'
+  mcp_server: McpServerConfig
+}
+
+/** Skill — external community format (Claude SKILL.md) */
+export interface SkillSpec extends AppSpecCommon {
+  type: 'skill'
+  /** Single-file content (manual add / legacy) */
+  skill_content?: string
+  /** All files in the skill folder, keyed by filename. Used for registry installs. */
+  skill_files?: Record<string, string>
+}
+
+/** Extension — reserved for future use */
+export interface ExtensionSpec extends AppSpecCommon {
+  type: 'extension'
+}
+
+/** Discriminated union — narrow via spec.type */
+export type AppSpec = AutomationSpec | McpSpec | SkillSpec | ExtensionSpec
 
 // ============================================
 // Validation Issue (for error display in UI)

@@ -613,6 +613,21 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
       if (tools) {
         console.log(`[Agent][${conversationId}] Available tools: ${tools.length}`)
       }
+
+      // Forward slash_commands / skills / agents to renderer for input autocomplete.
+      // These are only present on the init subtype message.
+      if (subtype === 'init') {
+        const sdkSlashCommands = msg.slash_commands as string[] | undefined
+        const sdkSkills = msg.skills as string[] | undefined
+        const sdkAgents = msg.agents as string[] | undefined
+        if (sdkSlashCommands || sdkSkills || sdkAgents) {
+          sendToRenderer('agent:session-info', spaceId, conversationId, {
+            slashCommands: sdkSlashCommands ?? [],
+            skills: sdkSkills ?? [],
+            agents: sdkAgents ?? []
+          })
+        }
+      }
     } else if (sdkMessage.type === 'result') {
       receivedResult = true  // Mark that we received a result message
       if (!capturedSessionId) {

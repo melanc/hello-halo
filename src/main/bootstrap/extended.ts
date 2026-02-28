@@ -118,6 +118,7 @@ async function initPlatformAndApps(): Promise<void> {
   const webhookSecretResolver: WebhookSecretResolver = (hookPath: string) => {
     const apps = appManager.listApps({ status: 'active', type: 'automation' })
     for (const app of apps) {
+      if (app.spec.type !== 'automation') continue
       for (const sub of app.spec.subscriptions ?? []) {
         if (sub.source.type !== 'webhook') continue
         const config = sub.source.config
@@ -136,7 +137,7 @@ async function initPlatformAndApps(): Promise<void> {
   await initAppRuntime({ db, appManager, scheduler, eventBus, memory, background })
 
   // ── Phase 4: Registry Service (App Store) ─────────────────────────────
-  initRegistryService()
+  initRegistryService({ db })
 
   // ── Start timer loops AFTER all wiring is complete ──────────────────────
   // This ensures no events fire before subscriptions are registered.

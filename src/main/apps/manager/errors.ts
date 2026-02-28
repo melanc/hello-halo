@@ -44,14 +44,15 @@ export class InvalidStatusTransitionError extends Error {
 
 /**
  * Thrown when attempting to install an App that is already installed
- * in the same space (same specId + spaceId combination).
+ * in the same scope (same specId + spaceId combination, or same specId globally).
  */
 export class AppAlreadyInstalledError extends Error {
   readonly specId: string
-  readonly spaceId: string
+  readonly spaceId: string | null
 
-  constructor(specId: string, spaceId: string) {
-    super(`App '${specId}' is already installed in space '${spaceId}'`)
+  constructor(specId: string, spaceId: string | null) {
+    const scope = spaceId ? `space '${spaceId}'` : 'global scope'
+    super(`App '${specId}' is already installed in ${scope}`)
     this.name = 'AppAlreadyInstalledError'
     this.specId = specId
     this.spaceId = spaceId

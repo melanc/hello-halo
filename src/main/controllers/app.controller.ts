@@ -89,7 +89,7 @@ export function exportSpec(appId: string): AppControllerResponse<ExportSpecResul
 // ============================================================================
 
 export interface ImportSpecInput {
-  spaceId: string
+  spaceId: string | null
   yamlContent: string
   userConfig?: Record<string, unknown>
 }
