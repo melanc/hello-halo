@@ -6,7 +6,7 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react'
-import { ChevronLeft, ChevronDown, ChevronUp, Loader2, Check, Download } from 'lucide-react'
+import { ChevronLeft, ChevronDown, ChevronUp, Loader2, Check, Download, AlertCircle, RotateCcw } from 'lucide-react'
 import { useAppsPageStore } from '../../stores/apps-page.store'
 import { useAppsStore } from '../../stores/apps.store'
 import { STORE_CATEGORY_META } from '../../../shared/store/store-types'
@@ -19,8 +19,11 @@ export function StoreDetail() {
   const { t } = useTranslation()
   const storeSelectedDetail = useAppsPageStore(state => state.storeSelectedDetail)
   const storeDetailLoading = useAppsPageStore(state => state.storeDetailLoading)
+  const storeDetailError = useAppsPageStore(state => state.storeDetailError)
+  const storeSelectedSlug = useAppsPageStore(state => state.storeSelectedSlug)
   const availableUpdates = useAppsPageStore(state => state.availableUpdates)
   const clearStoreSelection = useAppsPageStore(state => state.clearStoreSelection)
+  const selectStoreApp = useAppsPageStore(state => state.selectStoreApp)
   const checkUpdates = useAppsPageStore(state => state.checkUpdates)
   const installFromStore = useAppsPageStore(state => state.installFromStore)
   const apps = useAppsStore(state => state.apps)
@@ -127,6 +130,37 @@ export function StoreDetail() {
         </div>
         <div className="flex-1 flex items-center justify-center">
           <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+        </div>
+      </div>
+    )
+  }
+
+  // Error state — fetch failed, stay on detail page and let user retry
+  if (storeDetailError) {
+    return (
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="px-4 py-3 border-b border-border flex-shrink-0">
+          <button
+            onClick={clearStoreSelection}
+            className="flex items-center gap-1 text-sm text-primary hover:text-primary/80 transition-colors font-medium"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            {t('Back to Store')}
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center gap-3">
+          <AlertCircle className="w-8 h-8 text-muted-foreground/50" />
+          <div className="text-center">
+            <p className="text-sm text-muted-foreground">{t('Failed to load app details')}</p>
+            <p className="text-xs text-muted-foreground/60 mt-1 max-w-xs">{storeDetailError}</p>
+          </div>
+          <button
+            onClick={() => storeSelectedSlug && void selectStoreApp(storeSelectedSlug)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-secondary transition-colors"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+            {t('Retry')}
+          </button>
         </div>
       </div>
     )

@@ -64,6 +64,7 @@ interface AppsPageState {
   storeSelectedSlug: string | null
   storeSelectedDetail: StoreAppDetail | null
   storeDetailLoading: boolean
+  storeDetailError: string | null
 
   // ── Update Info ────────────────────────────
   availableUpdates: UpdateInfo[]
@@ -118,6 +119,7 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
   storeSelectedSlug: null,
   storeSelectedDetail: null,
   storeDetailLoading: false,
+  storeDetailError: null,
 
   // ── Update Info ────────────────────────────
   availableUpdates: [],
@@ -165,6 +167,7 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
     storeSelectedSlug: null,
     storeSelectedDetail: null,
     storeDetailLoading: false,
+    storeDetailError: null,
     availableUpdates: [],
   }),
 
@@ -299,7 +302,7 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
 
   selectStoreApp: async (slug) => {
     const requestId = ++storeDetailRequestSeq
-    set({ storeSelectedSlug: slug, storeDetailLoading: true, storeSelectedDetail: null })
+    set({ storeSelectedSlug: slug, storeDetailLoading: true, storeSelectedDetail: null, storeDetailError: null })
     try {
       const res = await api.storeGetAppDetail(slug)
       if (requestId !== storeDetailRequestSeq) return
@@ -308,17 +311,14 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
         set({ storeSelectedDetail: res.data as StoreAppDetail })
       } else {
         console.error('[AppsPageStore] selectStoreApp failed:', res.error)
-        // Clear selection on error so user is returned to grid
-        set({ storeSelectedSlug: null, storeError: (res.error as string) || 'Failed to load app detail' })
+        set({ storeDetailError: (res.error as string) || 'Failed to load app detail' })
       }
     } catch (err) {
       if (requestId !== storeDetailRequestSeq) return
       console.error('[AppsPageStore] selectStoreApp error:', err)
-      set({ storeSelectedSlug: null, storeError: 'Failed to load app detail' })
+      set({ storeDetailError: 'Failed to load app detail' })
     } finally {
-      if (requestId === storeDetailRequestSeq) {
-        set({ storeDetailLoading: false })
-      }
+      set({ storeDetailLoading: false })
     }
   },
 
@@ -326,6 +326,7 @@ export const useAppsPageStore = create<AppsPageState>((set, get) => ({
     storeSelectedSlug: null,
     storeSelectedDetail: null,
     storeDetailLoading: false,
+    storeDetailError: null,
     storeError: null,
   }),
 
