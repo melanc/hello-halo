@@ -1,12 +1,73 @@
 /**
  * Agent IPC Handlers
+ *
+ * Bridges agent service events to Electron renderer via IPC.
+ * The agent service layer emits events through Emitter<T>;
+ * this module subscribes and forwards them to the BrowserWindow.
  */
 
 import { ipcMain } from 'electron'
-import { sendMessage, stopGeneration, getSessionState, ensureSessionWarm, testMcpConnections, resolveQuestion } from '../services/agent'
+import {
+  sendMessage,
+  stopGeneration,
+  getSessionState,
+  ensureSessionWarm,
+  testMcpConnections,
+  resolveQuestion,
+  onAgentEvent,
+  onAgentBroadcast
+} from '../services/agent'
 import { getMainWindow } from '../services/window.service'
+import { broadcastToWebSocket, broadcastToAll } from '../http/websocket'
+
+// Module-level subscription disposables (lifetime = process lifetime)
+// Stored to establish correct Disposable pattern; these are never disposed
+// because agent event forwarding lives as long as the Electron main process.
+const eventSubscriptions: import('../platform/event').IDisposable[] = []
 
 export function registerAgentHandlers(): void {
+
+  // ============================================
+  // Event Forwarding (Emitter → IPC + WebSocket)
+  // ============================================
+
+  // Forward conversation-scoped agent events to renderer and WebSocket
+  eventSubscriptions.push(onAgentEvent((e) => {
+    const eventData = { ...e.data, spaceId: e.spaceId, conversationId: e.conversationId }
+
+    // 1. Send to Electron renderer via IPC
+    const mainWindow = getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(e.channel, eventData)
+    }
+
+    // 2. Broadcast to remote WebSocket clients
+    try {
+      broadcastToWebSocket(e.channel, eventData)
+    } catch {
+      // WebSocket module might not be initialized yet, ignore
+    }
+  }))
+
+  // Forward global broadcast events to renderer and WebSocket
+  eventSubscriptions.push(onAgentBroadcast((e) => {
+    // 1. Send to Electron renderer via IPC
+    const mainWindow = getMainWindow()
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(e.channel, e.data)
+    }
+
+    // 2. Broadcast to remote WebSocket clients
+    try {
+      broadcastToAll(e.channel, e.data)
+    } catch {
+      // WebSocket module might not be initialized yet, ignore
+    }
+  }))
+
+  // ============================================
+  // IPC Handlers
+  // ============================================
 
   // Send message to agent (with optional images for multi-modal, optional thinking mode)
   ipcMain.handle(
@@ -30,7 +91,7 @@ export function registerAgentHandlers(): void {
       }
     ) => {
       try {
-        await sendMessage(getMainWindow(), request)
+        await sendMessage(request)
         return { success: true }
       } catch (error: unknown) {
         const err = error as Error
@@ -106,7 +167,7 @@ export function registerAgentHandlers(): void {
   // Test MCP server connections
   ipcMain.handle('agent:test-mcp', async () => {
     try {
-      const result = await testMcpConnections(getMainWindow())
+      const result = await testMcpConnections()
       return result
     } catch (error: unknown) {
       const err = error as Error

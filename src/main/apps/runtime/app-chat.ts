@@ -28,10 +28,9 @@ import {
   getApiCredentials,
   getApiCredentialsForSource,
   getWorkingDir,
-  getHeadlessElectronPath,
-  sendToRenderer,
-  setMainWindow
+  getHeadlessElectronPath
 } from '../../services/agent/helpers'
+import { emitAgentEvent } from '../../services/agent/events'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from '../../services/agent/sdk-config'
 import { createAIBrowserMcpServer, createScopedBrowserContext } from '../../services/ai-browser'
 import type { BrowserContext } from '../../services/ai-browser/context'
@@ -50,7 +49,6 @@ import { getSpace } from '../../services/space.service'
 import { openSessionWriter, readSessionMessages } from './session-store'
 import { getAppMemoryService } from './index'
 import { createMemoryStatusMcpServer } from '../../platform/memory/snapshot'
-import type { BrowserWindow } from 'electron'
 
 // ============================================
 // Types
@@ -104,18 +102,13 @@ const scopedContexts = new Map<string, BrowserContext>()
  * The V2 session is reused across messages (keyed by "app-chat:{appId}"),
  * providing in-memory conversation continuity without session restart.
  *
- * @param mainWindow - Electron main window (for IPC event delivery)
  * @param request - Chat request parameters
  */
 export async function sendAppChatMessage(
-  mainWindow: BrowserWindow | null,
   request: AppChatRequest
 ): Promise<void> {
   const { appId, spaceId, message, thinkingEnabled } = request
   const conversationId = getAppChatConversationId(appId)
-
-  // Set main window for sendToRenderer
-  setMainWindow(mainWindow)
 
   console.log(`[AppChat][${appId}] sendMessage: "${message.substring(0, 100)}"`)
 
@@ -277,7 +270,7 @@ export async function sendAppChatMessage(
     }
 
     console.error(`[AppChat][${appId}] Error:`, error)
-    sendToRenderer('agent:error', spaceId, conversationId, {
+    emitAgentEvent('agent:error', spaceId, conversationId, {
       type: 'error',
       error: err.message || 'Unknown error during app chat'
     })

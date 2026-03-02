@@ -4,7 +4,7 @@
  * Behaviour:
  *  - Appears above the textarea when the user types "/" at the start of the input.
  *  - Filters items in real-time as the user types after the slash.
- *  - Groups items into three labelled sections: Skills / Built-in / Agent.
+ *  - Groups items into two sections: Skills / Built-in.
  *  - The selected row is highlighted; selection is driven by the parent via `selectedIndex`.
  *  - Clicking a row calls `onSelect`; clicking outside calls `onClose`.
  *  - The menu scrolls the selected row into view automatically.
@@ -41,9 +41,8 @@ interface SlashCommandMenuProps {
 
 // Category label map — neutral labels only, no per-category colour
 const CATEGORY_LABEL: Record<SlashCommandItem['category'], string> = {
-  skill:   'Skill',
+  skill: 'Skill',
   builtin: 'Built-in',
-  agent:   'Agent',
 }
 
 /**
@@ -51,7 +50,7 @@ const CATEGORY_LABEL: Record<SlashCommandItem['category'], string> = {
  * Exported so InputArea can compute filtered length for keyboard-nav wrap-around.
  *
  * Matching logic:
- *  1. If filter is empty, show all items (skills first, then builtins, then agents).
+ *  1. If filter is empty, show all items (skills first, then builtins).
  *  2. Otherwise, include items whose command or label contains the filter (case-insensitive).
  *     Items whose command *starts with* the filter rank above partial matches.
  */
@@ -59,7 +58,7 @@ export function filterSlashCommands(items: SlashCommandItem[], filter: string): 
   const q = filter.toLowerCase().trim()
 
   if (!q) {
-    const order: SlashCommandItem['category'][] = ['skill', 'builtin', 'agent']
+    const order: SlashCommandItem['category'][] = ['skill', 'builtin']
     return [...items].sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category))
   }
 

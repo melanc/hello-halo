@@ -12,7 +12,6 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useSpaceStore } from '../../stores/space.store'
 import { useChatStore } from '../../stores/chat.store'
-import { useAppsStore } from '../../stores/apps.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useAIBrowserStore } from '../../stores/ai-browser.store'
 import { MessageList } from './MessageList'
@@ -29,8 +28,6 @@ import {
 import { api } from '../../api'
 import type { ImageAttachment } from '../../types'
 import type { SlashCommandItem } from '../../types/slash-command'
-import { getSkillMdContent, extractFrontmatterField } from '../../../shared/skill-frontmatter'
-import type { SkillSpec } from '../../../shared/apps/spec-types'
 import { useTranslation } from '../../i18n'
 
 interface ChatViewProps {
@@ -50,7 +47,6 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
     continueAfterInterrupt,
     answerQuestion
   } = useChatStore()
-  const { apps } = useAppsStore()
 
   // Onboarding state
   const {
@@ -188,14 +184,8 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
   const { isGenerating, streamingContent, isStreaming, thoughts, isThinking, compactInfo, error, errorType, textBlockVersion, pendingQuestion } = session
 
   // Build the slash-command list for the autocomplete menu.
-  // Merges three sources, deduplicating by command string:
-  //   1. SDK slash_commands (built-in Claude Code commands)  → category 'builtin'
-  //   2. Installed + active skills from apps store           → category 'skill'
-  //   3. SDK agents                                          → category 'agent'
-  //
-  // When a skill from the store has the same command as an SDK builtin,
-  // we keep the builtin category (SDK handles it natively) but enrich it
-  // with the store's richer metadata (description, argumentHint).
+  // Only reads from SDK slash_commands array.
+  // Commands are categorized as 'skill' if they appear in the skills array, otherwise 'builtin'.
   const slashCommands = useMemo<SlashCommandItem[]>(() => {
     const conversationId = getCurrentConversationId()
     const initInfo = conversationId ? sessionInitInfo.get(conversationId) : null
@@ -210,79 +200,23 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
       }
     }
 
-    // Enrich an existing item with richer metadata from a skill app.
-    // Preserves the original category (e.g. 'builtin') while adding
-    // the store's description and argumentHint.
-    const enrichItem = (
-      command: string,
-      extra: { description?: string; argumentHint?: string; label?: string }
-    ) => {
-      const existing = itemsByCommand.get(command)
-      if (!existing) return false
-      if (extra.description && !existing.description) existing.description = extra.description
-      if (extra.argumentHint && !existing.argumentHint) existing.argumentHint = extra.argumentHint
-      if (extra.label && existing.label === existing.command.slice(1)) existing.label = extra.label
-      return true
-    }
-
-    // 1. SDK built-in slash_commands — processed first so their category is authoritative
+    // SDK slash_commands - categorize based on skills array
     if (initInfo?.slashCommands) {
+      const skillsSet = new Set(initInfo.skills || [])
+
       initInfo.slashCommands.forEach((cmd) => {
+        const category = skillsSet.has(cmd) ? 'skill' : 'builtin'
         addItem({
-          id: `builtin-${cmd}`,
+          id: `${category}-${cmd}`,
           command: `/${cmd}`,
           label: cmd,
-          category: 'builtin',
-        })
-      })
-    }
-
-    // 2. Installed + active skills from apps store
-    //    If the command already exists as a builtin, enrich it with metadata.
-    //    Otherwise add as a new 'skill' entry.
-    apps
-      .filter((app) => app.spec.type === 'skill' && app.status === 'active')
-      .forEach((app) => {
-        const slug = app.spec.name.toLowerCase().replace(/\s+/g, '-')
-        const command = `/${slug}`
-        // Extract argument-hint from the SKILL.md frontmatter (CC SDK field)
-        const skillMd = getSkillMdContent(app.spec as SkillSpec)
-        const argumentHint = skillMd ? extractFrontmatterField(skillMd, 'argument-hint') : undefined
-
-        // If SDK already registered this command, enrich it with store metadata
-        const enriched = enrichItem(command, {
-          description: app.spec.description,
-          argumentHint,
-          label: app.spec.name,
-        })
-
-        if (!enriched) {
-          addItem({
-            id: `skill-${app.id}`,
-            command,
-            label: app.spec.name,
-            description: app.spec.description,
-            argumentHint,
-            category: 'skill',
-          })
-        }
-      })
-
-    // 3. SDK agents
-    if (initInfo?.agents) {
-      initInfo.agents.forEach((agent) => {
-        const slug = agent.toLowerCase().replace(/\s+/g, '-')
-        addItem({
-          id: `agent-${slug}`,
-          command: `/${slug}`,
-          label: agent,
-          category: 'agent',
+          category,
         })
       })
     }
 
     return items
-  }, [apps, sessionInitInfo, getCurrentConversationId])
+  }, [sessionInitInfo, getCurrentConversationId])
 
   const onboardingPrompt = getOnboardingPrompt(t)
   const onboardingResponse = getOnboardingAiResponse(t)

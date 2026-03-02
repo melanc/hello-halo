@@ -1,18 +1,21 @@
 /**
- * platform/event-bus -- Filter Engine
+ * apps/runtime -- Event Filter Engine
  *
- * Evaluates EventFilter + FilterRule against HaloEvent instances.
+ * Evaluates EventFilter + FilterRule against AutomationEvent instances.
  * This is the "zero LLM cost" pre-filtering layer: pure rule matching
  * with no external calls.
+ *
+ * Scoped to apps/runtime because this filtering logic is domain-specific
+ * to automation event routing. Generic pub/sub belongs in platform/event.
  *
  * Design decisions:
  * - Field path resolution is hand-rolled (no lodash dependency).
  *   Supports dot notation and array index: "payload.items[0].name"
  * - Type glob uses simple prefix matching: "file.*" matches "file.changed"
- * - All filter criteria use AND logic. types/sources use OR within their arrays.
+ * - All filter criteria use AND logic. types/sources use OR within arrays.
  */
 
-import type { HaloEvent, EventFilter, FilterRule } from './types'
+import type { AutomationEvent, EventFilter, FilterRule } from './event-types'
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -28,7 +31,7 @@ import type { HaloEvent, EventFilter, FilterRule } from './types'
  *
  * Omitted criteria are treated as "match any".
  */
-export function matchesFilter(event: HaloEvent, filter: EventFilter): boolean {
+export function matchesFilter(event: AutomationEvent, filter: EventFilter): boolean {
   // Type matching (OR logic within the array)
   if (filter.types && filter.types.length > 0) {
     const typeMatched = filter.types.some(pattern => matchTypeGlob(event.type, pattern))
@@ -76,11 +79,11 @@ export function matchTypeGlob(type: string, pattern: string): boolean {
 // ---------------------------------------------------------------------------
 
 /**
- * Evaluate a single filter rule against a HaloEvent.
+ * Evaluate a single filter rule against an AutomationEvent.
  *
  * Resolves the field path, then applies the operator.
  */
-export function evaluateRule(event: HaloEvent, rule: FilterRule): boolean {
+export function evaluateRule(event: AutomationEvent, rule: FilterRule): boolean {
   const fieldValue = getByPath(event as unknown as Record<string, unknown>, rule.field)
   return applyOperator(fieldValue, rule.op, rule.value)
 }

@@ -1222,7 +1222,6 @@ export const useChatStore = create<ChatState>((set, get) => ({
   // Handle session-info from SDK system:init — store slash_commands / skills / agents
   handleAgentSessionInfo: (data) => {
     const { conversationId, slashCommands, skills, agents } = data
-    console.log(`[ChatStore] handleAgentSessionInfo [${conversationId}]: cmds=${slashCommands.length}, skills=${skills.length}, agents=${agents.length}`)
     set((state) => {
       const newSessionInitInfo = new Map(state.sessionInitInfo)
       newSessionInitInfo.set(conversationId, { slashCommands, skills, agents })

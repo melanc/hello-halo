@@ -5,8 +5,6 @@
  * This file has no dependencies and is imported by all other agent modules.
  */
 
-import { BrowserWindow } from 'electron'
-
 // ============================================
 // API Credentials
 // ============================================
@@ -233,11 +231,3 @@ export interface SingleCallUsage {
   cacheCreationTokens: number
 }
 
-// ============================================
-// Renderer Communication
-// ============================================
-
-/**
- * Main window reference for IPC communication
- */
-export type MainWindowRef = BrowserWindow | null

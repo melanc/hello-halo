@@ -1,13 +1,13 @@
 /**
- * platform/event-bus -- FileWatcherSource
+ * apps/runtime/sources -- FileWatcherSource
  *
  * Event source adapter that bridges the existing file-watcher worker
- * (managed by watcher-host.service.ts) into the unified event bus.
+ * (managed by watcher-host.service.ts) into the automation event router.
  *
  * Integration approach:
  * - Calls `addFsEventsHandler(callback)` on the watcher-host to receive
  *   ProcessedFsEvent batches from the child_process worker.
- * - Converts each ProcessedFsEvent into a HaloEvent with:
+ * - Converts each ProcessedFsEvent into an AutomationEvent with:
  *   - type: "file.changed" | "file.created" | "file.deleted"
  *   - source: "file-watcher"
  *   - payload: { spaceId, filePath, relativePath, changeType, extension, ... }
@@ -21,7 +21,7 @@
  */
 
 import { extname } from 'path'
-import type { EventSourceAdapter, EventEmitFn } from '../types'
+import type { EventSourceAdapter, AutomationEventInput } from '../event-types'
 import type { ProcessedFsEvent } from '../../../../shared/protocol/file-watcher.protocol'
 
 // ---------------------------------------------------------------------------
@@ -29,7 +29,7 @@ import type { ProcessedFsEvent } from '../../../../shared/protocol/file-watcher.
 // ---------------------------------------------------------------------------
 
 /**
- * Map ProcessedFsEvent.changeType to a HaloEvent type string.
+ * Map ProcessedFsEvent.changeType to an AutomationEvent type string.
  *
  * The file-watcher worker produces: 'add', 'addDir', 'change', 'unlink'
  * We normalize to: 'file.created', 'file.changed', 'file.deleted'
@@ -56,7 +56,7 @@ function mapChangeType(changeType: string): string {
  * Minimal interface for the watcher-host service dependency.
  *
  * Uses addFsEventsHandler() which supports multiple simultaneous subscribers
- * (e.g. artifact-cache + event-bus), avoiding handler overwrites.
+ * (e.g. artifact-cache + event router), avoiding handler overwrites.
  * Returns an unsubscribe function so each subscriber can cleanly deregister.
  */
 export interface WatcherHostLike {
@@ -73,7 +73,7 @@ export class FileWatcherSource implements EventSourceAdapter {
   readonly id = 'file-watcher'
   readonly type = 'file-watcher' as const
 
-  private emitFn: EventEmitFn | null = null
+  private emitFn: ((event: AutomationEventInput) => void) | null = null
   private watcherHost: WatcherHostLike
   private unsubscribe: (() => void) | null = null
 
@@ -81,7 +81,7 @@ export class FileWatcherSource implements EventSourceAdapter {
     this.watcherHost = watcherHost
   }
 
-  start(emit: EventEmitFn): void {
+  start(emit: (event: AutomationEventInput) => void): void {
     this.emitFn = emit
 
     this.unsubscribe = this.watcherHost.addFsEventsHandler((spaceId, events) => {

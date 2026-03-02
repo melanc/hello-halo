@@ -1,11 +1,14 @@
 /**
- * platform/event-bus -- Dedup Cache
+ * apps/runtime -- Event Dedup Cache
  *
- * In-memory TTL-based deduplication cache for HaloEvent streams.
+ * In-memory TTL-based deduplication cache for automation event streams.
  *
  * When an event has a `dedupKey`, the cache checks if the same key
  * was seen within the TTL window. If so, the event is considered a
  * duplicate and should be dropped.
+ *
+ * Scoped to apps/runtime because deduplication is domain-specific to
+ * automation event routing. Generic pub/sub belongs in platform/event.
  *
  * Design decisions:
  * - In-memory Map (not SQLite): dedup state does not need to survive
@@ -16,7 +19,7 @@
  *   are added, using the Map insertion-order iteration.
  */
 
-import type { DedupConfig } from './types'
+import type { DedupConfig } from './event-types'
 
 // ---------------------------------------------------------------------------
 // Defaults
@@ -72,12 +75,9 @@ export function createDedupCache(config?: Partial<DedupConfig>): DedupCache {
       for (const [entryKey, entryTs] of Array.from(cache)) {
         if (entryTs < cutoff) {
           cache.delete(entryKey)
-        } else {
-          // Map is ordered by insertion; once we hit a non-expired entry,
-          // all subsequent entries are newer. However, since touch() reorders,
-          // we cannot break early. We iterate the full map for correctness.
-          // This is still O(n) but n is bounded by maxSize.
         }
+        // Note: we cannot break early because touch() reorders entries.
+        // Full iteration is O(n) but n is bounded by maxSize.
       }
     }
 

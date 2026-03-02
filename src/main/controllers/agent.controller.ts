@@ -1,9 +1,8 @@
-/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
+/**
  * Agent Controller - Unified business logic for agent operations
  * Used by both IPC handlers and HTTP routes
  */
 
-import { BrowserWindow } from 'electron'
 import {
   sendMessage as agentSendMessage,
   stopGeneration as agentStopGeneration,
@@ -44,11 +43,10 @@ export interface ControllerResponse<T = unknown> {
  * Send a message to the agent
  */
 export async function sendMessage(
-  mainWindow: BrowserWindow | null,
   request: SendMessageRequest
 ): Promise<ControllerResponse> {
   try {
-    await agentSendMessage(mainWindow, request)
+    await agentSendMessage(request)
     return { success: true }
   } catch (error: unknown) {
     const err = error as Error
@@ -142,9 +140,9 @@ export function answerQuestion(
 /**
  * Test MCP server connections
  */
-export async function testMcpConnections(mainWindow?: BrowserWindow | null): Promise<ControllerResponse> {
+export async function testMcpConnections(): Promise<ControllerResponse> {
   try {
-    const result = await agentTestMcpConnections(mainWindow)
+    const result = await agentTestMcpConnections()
     return result
   } catch (error: unknown) {
     const err = error as Error

@@ -1,14 +1,14 @@
 /**
- * platform/event-bus -- Type Definitions
+ * apps/runtime -- Automation Event Types
  *
- * Public types for the unified event routing system.
- * Consumed by apps/runtime for event subscription and by
- * bootstrap/extended.ts for initialization.
+ * Types for events flowing through the automation event routing layer.
+ * These are domain-specific to automation Apps: file changes, webhooks,
+ * and scheduled triggers. They do NOT belong in platform/ because they
+ * are consumed exclusively by the apps/runtime module.
  *
- * The event-bus is the central routing hub connecting information sources
- * (file changes, webhooks, scheduled triggers) to automation Apps.
- * It performs filtering and deduplication but does NOT process events
- * or know about AI/LLM.
+ * Design: The generic publish/subscribe primitive is Emitter<T> in
+ * platform/event. These types define the domain-specific event payload
+ * and filtering for the automation use case.
  */
 
 // ---------------------------------------------------------------------------
@@ -16,13 +16,14 @@
 // ---------------------------------------------------------------------------
 
 /**
- * A normalized event flowing through the event bus.
+ * A normalized automation event produced by source adapters.
  *
- * All event sources (file-watcher, webhook, scheduler bridge) produce
- * HaloEvent instances. Subscribers receive these after filtering and dedup.
+ * All source adapters (file-watcher, webhook, schedule-bridge) produce
+ * AutomationEvent instances. The runtime's event router dispatches
+ * these to matching App subscriptions after filtering and dedup.
  */
-export interface HaloEvent {
-  /** Unique event identifier (UUID v4, assigned by the bus on emit). */
+export interface AutomationEvent {
+  /** Unique event identifier (UUID v4, assigned by the router on emit). */
   id: string
   /**
    * Dotted event type string.
@@ -47,6 +48,12 @@ export interface HaloEvent {
    */
   dedupKey?: string
 }
+
+/**
+ * Partial event as produced by source adapters.
+ * The router assigns `id` and `timestamp` automatically.
+ */
+export type AutomationEventInput = Omit<AutomationEvent, 'id' | 'timestamp'>
 
 // ---------------------------------------------------------------------------
 // Filtering
@@ -73,13 +80,13 @@ export interface EventFilter {
 /**
  * A single field-level filter rule.
  *
- * Rules are evaluated against the full HaloEvent object, so `field` can
- * reference any property path: `"type"`, `"source"`, `"payload.extension"`,
- * `"payload.items[0].price"`, etc.
+ * Rules are evaluated against the full AutomationEvent object, so `field`
+ * can reference any property path: `"type"`, `"source"`,
+ * `"payload.extension"`, `"payload.items[0].price"`, etc.
  */
 export interface FilterRule {
   /**
-   * Dot-separated field path into the HaloEvent.
+   * Dot-separated field path into the AutomationEvent.
    * Supports array index notation: `"payload.items[0].name"`
    */
   field: string
@@ -94,72 +101,10 @@ export interface FilterRule {
 // ---------------------------------------------------------------------------
 
 /** Event handler callback. May be sync or async. */
-export type EventHandler = (event: HaloEvent) => void | Promise<void>
-
-/** Function to unsubscribe a previously registered handler. */
-export type Unsubscribe = () => void
+export type AutomationEventHandler = (event: AutomationEvent) => void | Promise<void>
 
 // ---------------------------------------------------------------------------
-// EventBus Service
-// ---------------------------------------------------------------------------
-
-/**
- * The public interface of the event bus.
- *
- * This is the contract that apps/runtime depends on.
- * Implementation details (dedup cache, filter engine) are internal.
- */
-export interface EventBusService {
-  /**
-   * Emit an event into the bus.
-   *
-   * The bus assigns `id` and `timestamp` automatically.
-   * If `dedupKey` is set and a duplicate is detected within the TTL,
-   * the event is silently dropped.
-   *
-   * Matching subscribers are invoked sequentially with error isolation.
-   */
-  emit(event: Omit<HaloEvent, 'id' | 'timestamp'>): void
-
-  /**
-   * Subscribe to events matching the given filter.
-   *
-   * @returns An unsubscribe function. Calling it removes this subscription.
-   */
-  on(filter: EventFilter, handler: EventHandler): Unsubscribe
-
-  /**
-   * Register an event source adapter.
-   *
-   * The source is started immediately if the bus is already running,
-   * otherwise it will be started when `start()` is called.
-   */
-  registerSource(source: EventSourceAdapter): void
-
-  /**
-   * Remove and stop a previously registered event source adapter.
-   */
-  removeSource(sourceId: string): void
-
-  /**
-   * List all registered event source adapters with basic info.
-   */
-  listSources(): EventSourceInfo[]
-
-  /**
-   * Start the event bus and all registered source adapters.
-   */
-  start(): void
-
-  /**
-   * Stop the event bus and all registered source adapters.
-   * Clears all subscriptions and the dedup cache.
-   */
-  stop(): void
-}
-
-// ---------------------------------------------------------------------------
-// Event Source Adapters
+// Source Adapters
 // ---------------------------------------------------------------------------
 
 /** Supported event source types. */
@@ -177,7 +122,7 @@ export type EventSourceType =
  * V1 implements three built-in adapters:
  * - FileWatcherSource: wraps the existing file-watcher worker
  * - WebhookSource: mounts POST /hooks/* on the existing Express server
- * - ScheduleBridgeSource: bridges scheduler jobDue events to HaloEvent
+ * - ScheduleBridgeSource: bridges scheduler jobDue events
  *
  * V2 will add WebPageSource (AI Browser snapshot + diff) and RSSSource.
  */
@@ -189,11 +134,11 @@ export interface EventSourceAdapter {
   /**
    * Start producing events.
    *
-   * @param emit - Callback to push events into the bus. The source calls
-   *   this whenever it has a new event. The bus handles id/timestamp assignment,
-   *   dedup, filtering, and dispatch.
+   * @param emit - Callback to push events into the router. The source calls
+   *   this whenever it has a new event. The router handles id/timestamp
+   *   assignment, dedup, filtering, and dispatch.
    */
-  start(emit: EventEmitFn): void
+  start(emit: (event: AutomationEventInput) => void): void
   /**
    * Stop producing events and clean up all listeners/routes.
    *
@@ -201,9 +146,6 @@ export interface EventSourceAdapter {
    */
   stop(): void
 }
-
-/** The emit function signature provided to source adapters. */
-export type EventEmitFn = (event: Omit<HaloEvent, 'id' | 'timestamp'>) => void
 
 /** Summary information about a registered source adapter. */
 export interface EventSourceInfo {
@@ -222,21 +164,4 @@ export interface DedupConfig {
   ttlMs: number
   /** Maximum number of entries in the cache. Default: 10_000. */
   maxSize: number
-}
-
-// ---------------------------------------------------------------------------
-// Init Dependencies
-// ---------------------------------------------------------------------------
-
-/**
- * Dependencies passed to `initEventBus()`.
- *
- * All fields are optional. If omitted, sensible defaults are used.
- * The `db` field is reserved for future SQLite-backed dedup (V2).
- */
-export interface EventBusDeps {
-  /** Database manager -- reserved for V2 persistent dedup. Not used in V1. */
-  db?: unknown
-  /** Dedup cache configuration override. */
-  dedup?: Partial<DedupConfig>
 }

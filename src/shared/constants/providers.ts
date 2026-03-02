@@ -4,8 +4,6 @@
  * This module defines all built-in AI providers that Halo supports out of the box.
  * Users can select these providers and only need to enter their API key.
  *
- * Based on: 2026 Global Top LLM Providers (OpenAI Compatible Version)
- *
  * Design Principles:
  * - All providers support OpenAI-compatible chat/completions API
  * - Anthropic is the only exception (native Claude API)

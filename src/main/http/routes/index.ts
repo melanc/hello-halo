@@ -4,7 +4,7 @@
  */
 
 import { Express, Request, Response } from 'express'
-import { BrowserWindow, app as electronApp } from 'electron'
+import { app as electronApp } from 'electron'
 import { createReadStream, statSync, existsSync, readdirSync, realpathSync } from 'fs'
 import { join, basename, relative, resolve, isAbsolute } from 'path'
 import { createGzip } from 'zlib'
@@ -27,7 +27,6 @@ import {
 } from '../../services/artifact.service'
 import { getTempSpacePath, getSpacesDir, getConfig as getServiceConfig } from '../../services/config.service'
 import { getSpace, getAllSpacePaths } from '../../services/space.service'
-import { getMainWindow } from '../../services/window.service'
 import { getAppManager } from '../../apps/manager'
 import { getAppRuntime, sendAppChatMessage, stopAppChat, isAppChatGenerating, loadAppChatMessages, getAppChatSessionState, getAppChatConversationId } from '../../apps/runtime'
 import type { AppListFilter, UninstallOptions } from '../../apps/manager'
@@ -127,7 +126,7 @@ function validateFilePath(res: Response, filePath?: string): string | null {
 /**
  * Register all API routes
  */
-export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null): void {
+export function registerApiRoutes(app: Express): void {
   // ===== Config Routes =====
   app.get('/api/config', async (req: Request, res: Response) => {
     const result = configController.getConfig()
@@ -353,7 +352,7 @@ export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null
   // ===== Agent Routes =====
   app.post('/api/agent/message', async (req: Request, res: Response) => {
     const { spaceId, conversationId, message, resumeSessionId, images, thinkingEnabled, aiBrowserEnabled } = req.body
-    const result = await agentController.sendMessage(mainWindow, {
+    const result = await agentController.sendMessage({
       spaceId,
       conversationId,
       message,
@@ -408,7 +407,7 @@ export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null
 
   // Test MCP server connections
   app.post('/api/agent/test-mcp', async (req: Request, res: Response) => {
-    const result = await agentController.testMcpConnections(mainWindow)
+    const result = await agentController.testMcpConnections()
     res.json(result)
   })
 
@@ -839,7 +838,7 @@ export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null
       }
 
       // For automation apps that are active: deactivate before moving so the
-      // scheduler and event-bus don't hold stale space references, then
+      // scheduler and event router don't hold stale space references, then
       // re-activate after the move completes.
       const isAutomation = appData.spec.type === 'automation'
       const wasActive = appData.status === 'active'
@@ -1212,7 +1211,7 @@ export function registerApiRoutes(app: Express, mainWindow: BrowserWindow | null
       const runtime = getRuntimeOrFail(res)
       if (!runtime) return
       const request: AppChatRequest = { ...req.body, appId }
-      sendAppChatMessage(getMainWindow(), request).catch((error: unknown) => {
+      sendAppChatMessage(request).catch((error: unknown) => {
         const err = error as Error
         console.error(`[HTTP] POST /api/apps/:appId/chat/send background error:`, err.message)
       })

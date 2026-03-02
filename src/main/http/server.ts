@@ -127,7 +127,7 @@ export async function startHttpServer(
   expressApp.use('/api', authMiddleware)
 
   // Register API routes
-  registerApiRoutes(expressApp, getMainWindowFromService())
+  registerApiRoutes(expressApp)
 
   // Serve static files (frontend)
   if (is.dev) {

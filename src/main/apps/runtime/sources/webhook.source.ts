@@ -1,5 +1,5 @@
 /**
- * platform/event-bus -- WebhookSource
+ * apps/runtime/sources -- WebhookSource
  *
  * Event source adapter that mounts a `POST /hooks/:path*` route on the
  * existing Express server to receive inbound webhook events.
@@ -7,7 +7,7 @@
  * Integration approach:
  * - Accepts an Express Application or Router in the constructor.
  * - On start(), mounts `POST /hooks/*` route handler.
- * - Incoming POST requests are converted to HaloEvent with:
+ * - Incoming POST requests are converted to AutomationEvent with:
  *   - type: "webhook.received"
  *   - source: "webhook"
  *   - payload: { path, body, headers, query, method, ip }
@@ -35,7 +35,7 @@
 
 import { createHash, createHmac, timingSafeEqual } from 'crypto'
 import type { Express, Request, Response, NextFunction } from 'express'
-import type { EventSourceAdapter, EventEmitFn } from '../types'
+import type { EventSourceAdapter, AutomationEventInput } from '../event-types'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -79,7 +79,7 @@ export class WebhookSource implements EventSourceAdapter {
   readonly id = 'webhook'
   readonly type = 'webhook' as const
 
-  private emitFn: EventEmitFn | null = null
+  private emitFn: ((event: AutomationEventInput) => void) | null = null
   private app: Express | null
   private active = false
   private secretResolver: WebhookSecretResolver | null
@@ -97,7 +97,7 @@ export class WebhookSource implements EventSourceAdapter {
     this.secretResolver = secretResolver ?? null
   }
 
-  start(emit: EventEmitFn): void {
+  start(emit: (event: AutomationEventInput) => void): void {
     this.emitFn = emit
     this.active = true
 

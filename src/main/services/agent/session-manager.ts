@@ -30,6 +30,7 @@ import {
   getEnabledMcpServers,
   getDbMcpServers
 } from './helpers'
+import { emitAgentEvent } from './events'
 import { registerProcess, unregisterProcess, getCurrentInstanceId } from '../health'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
 import { createHaloAppsMcpServer } from '../../apps/conversation-mcp'
@@ -511,6 +512,7 @@ export async function ensureSessionWarm(
   spaceId: string,
   conversationId: string
 ): Promise<void> {
+
   const config = getConfig()
   const workDir = getWorkingDir(spaceId)
   const conversation = getConversation(spaceId, conversationId)
@@ -550,9 +552,26 @@ export async function ensureSessionWarm(
   })
 
   try {
-    console.log(`[Agent] Warming up V2 session: ${conversationId}`)
-    await getOrCreateV2Session(spaceId, conversationId, sdkOptions, sessionId, undefined, workDir)
-    console.log(`[Agent] V2 session warmed up: ${conversationId}`)
+    const session = await getOrCreateV2Session(spaceId, conversationId, sdkOptions, sessionId, undefined, workDir)
+
+    // Fetch supported commands from SDK and send to renderer
+    // This provides slash commands immediately without needing to send a message
+    try {
+      const commands = await (session as any).query.supportedCommands()
+
+      // Extract command names (no need to parse skills here, frontend will handle it)
+      const slashCommands = commands.map((cmd: any) => cmd.name)
+
+      // Send session-info to renderer (same format as system:init message)
+      emitAgentEvent('agent:session-info', spaceId, conversationId, {
+        slashCommands,
+        skills: [],  // Let frontend/later logic handle classification
+        agents: []   // Not available from supportedCommands
+      })
+    } catch (error) {
+      console.error(`[Agent] Failed to fetch supported commands:`, error)
+      // Non-fatal: commands will be available after first message
+    }
   } catch (error) {
     console.error(`[Agent] Failed to warm up session ${conversationId}:`, error)
     // Don't throw on warm-up failure, sendMessage() will reinitialize (just slower)

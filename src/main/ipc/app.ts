@@ -49,7 +49,6 @@ import type { AppListFilter, UninstallOptions } from '../apps/manager'
 import type { ActivityQueryOptions, EscalationResponse, AppChatRequest } from '../apps/runtime'
 import { readSessionMessages } from '../apps/runtime/session-store'
 import { getSpace } from '../services/space.service'
-import { getMainWindow } from '../services/window.service'
 import { broadcastToAll } from '../http/websocket'
 import * as appController from '../controllers/app.controller'
 
@@ -529,7 +528,7 @@ export function registerAppHandlers(): void {
         // Fire-and-forget: streaming events are pushed to renderer via agent:* channels.
         // We don't await the full completion here because the renderer listens for
         // real-time events (agent:message, agent:thought, etc.) keyed by conversationId.
-        sendAppChatMessage(getMainWindow(), request).catch((error: unknown) => {
+        sendAppChatMessage(request).catch((error: unknown) => {
           const err = error as Error
           console.error(`[AppIPC] app:chat-send background error:`, err.message)
         })
@@ -703,7 +702,7 @@ export function registerAppHandlers(): void {
         }
 
         // For automation apps that are active: deactivate before moving so the
-        // scheduler and event-bus don't hold stale space references, then
+        // scheduler and event router don't hold stale space references, then
         // re-activate after the move completes.
         const isAutomation = app.spec.type === 'automation'
         const wasActive = app.status === 'active'

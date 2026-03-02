@@ -1,13 +1,13 @@
 /**
- * platform/event-bus -- ScheduleBridgeSource
+ * apps/runtime/sources -- ScheduleBridgeSource
  *
  * Event source adapter that bridges the scheduler module's "job due"
- * events into the unified event bus as HaloEvent objects.
+ * events into the automation event router as AutomationEvent objects.
  *
  * Integration approach:
  * - Accepts a scheduler-like object conforming to a minimal interface.
  * - On start(), registers a callback via scheduler.onJobDue().
- * - When a scheduled job fires, produces a HaloEvent with:
+ * - When a scheduled job fires, produces an AutomationEvent with:
  *   - type: "schedule.due"
  *   - source: "scheduler"
  *   - payload: { jobId, jobName, metadata, scheduledAt }
@@ -23,7 +23,7 @@
  * - stop(): calls the unsubscribe function returned by onJobDue()
  */
 
-import type { EventSourceAdapter, EventEmitFn } from '../types'
+import type { EventSourceAdapter, AutomationEventInput } from '../event-types'
 
 // ---------------------------------------------------------------------------
 // Minimal Scheduler Interface
@@ -70,13 +70,13 @@ export class ScheduleBridgeSource implements EventSourceAdapter {
   readonly id = 'schedule-bridge'
   readonly type = 'schedule-bridge' as const
 
-  private emitFn: EventEmitFn | null = null
+  private emitFn: ((event: AutomationEventInput) => void) | null = null
   private scheduler: SchedulerLike | null
 
   /**
    * @param scheduler - The scheduler service to bridge from.
    *   If null, the source operates in no-op mode (no events produced).
-   *   This allows the event bus to start even before the scheduler is ready.
+   *   This allows the event router to start even before the scheduler is ready.
    */
   constructor(scheduler: SchedulerLike | null) {
     this.scheduler = scheduler
@@ -85,7 +85,7 @@ export class ScheduleBridgeSource implements EventSourceAdapter {
   /**
    * Wire the scheduler after construction.
    *
-   * Useful when the scheduler is initialized after the event bus.
+   * Useful when the scheduler is initialized after the event router.
    * If the source is already running, the new scheduler is immediately
    * subscribed.
    */
@@ -98,7 +98,7 @@ export class ScheduleBridgeSource implements EventSourceAdapter {
     }
   }
 
-  start(emit: EventEmitFn): void {
+  start(emit: (event: AutomationEventInput) => void): void {
     this.emitFn = emit
 
     if (this.scheduler) {

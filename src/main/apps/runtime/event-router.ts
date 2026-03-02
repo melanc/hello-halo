@@ -1,29 +1,31 @@
 /**
- * platform/event-bus -- Core EventBus Implementation
+ * apps/runtime -- Event Router
  *
- * The central event routing hub. Manages:
- * - Subscription registry (filter + handler pairs)
- * - Event deduplication via in-memory TTL cache
+ * The automation event routing hub. A private implementation detail of
+ * the apps/runtime module, not a platform-level service.
+ *
+ * Manages:
  * - Source adapter lifecycle (start/stop)
+ * - Event deduplication via in-memory TTL cache
+ * - Subscription registry (filter + handler pairs)
  * - Sequential dispatch with error isolation
  *
- * This module does NOT know about AI/LLM. It is a pure event router.
+ * The platform-level generic pub/sub is Emitter<T> in platform/event.
+ * This module is the domain-specific event routing for automation Apps.
  */
 
 import { randomUUID } from 'crypto'
 import type {
-  HaloEvent,
+  AutomationEvent,
+  AutomationEventInput,
   EventFilter,
-  EventHandler,
-  EventBusService,
+  AutomationEventHandler,
   EventSourceAdapter,
   EventSourceInfo,
-  EventEmitFn,
-  Unsubscribe,
-  DedupConfig
-} from './types'
-import { matchesFilter } from './filter'
-import { createDedupCache, type DedupCache } from './dedup'
+  DedupConfig,
+} from './event-types'
+import { matchesFilter } from './event-filter'
+import { createDedupCache, type DedupCache } from './event-dedup'
 
 // ---------------------------------------------------------------------------
 // Internal Types
@@ -32,31 +34,92 @@ import { createDedupCache, type DedupCache } from './dedup'
 interface Subscription {
   id: string
   filter: EventFilter
-  handler: EventHandler
+  handler: AutomationEventHandler
+}
+
+/** Function to unsubscribe a previously registered handler. */
+export type Unsubscribe = () => void
+
+// ---------------------------------------------------------------------------
+// EventRouter Interface
+// ---------------------------------------------------------------------------
+
+/**
+ * The internal event routing service for automation Apps.
+ *
+ * This is the contract that apps/runtime/service.ts depends on.
+ * It is NOT exported outside of apps/runtime.
+ */
+export interface EventRouter {
+  /**
+   * Emit an event into the router.
+   *
+   * The router assigns `id` and `timestamp` automatically.
+   * If `dedupKey` is set and a duplicate is detected within the TTL,
+   * the event is silently dropped.
+   *
+   * Matching subscribers are invoked sequentially with error isolation.
+   */
+  emit(event: AutomationEventInput): void
+
+  /**
+   * Subscribe to events matching the given filter.
+   *
+   * @returns An unsubscribe function. Calling it removes this subscription.
+   */
+  on(filter: EventFilter, handler: AutomationEventHandler): Unsubscribe
+
+  /**
+   * Register an event source adapter.
+   *
+   * The source is started immediately if the router is already running,
+   * otherwise it will be started when `start()` is called.
+   */
+  registerSource(source: EventSourceAdapter): void
+
+  /**
+   * Remove and stop a previously registered event source adapter.
+   */
+  removeSource(sourceId: string): void
+
+  /**
+   * List all registered event source adapters with basic info.
+   */
+  listSources(): EventSourceInfo[]
+
+  /**
+   * Start the event router and all registered source adapters.
+   */
+  start(): void
+
+  /**
+   * Stop the event router and all registered source adapters.
+   * Clears all subscriptions and the dedup cache.
+   */
+  stop(): void
 }
 
 // ---------------------------------------------------------------------------
-// EventBus Class
+// Factory
 // ---------------------------------------------------------------------------
 
-export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusService {
+export function createEventRouter(dedupConfig?: Partial<DedupConfig>): EventRouter {
   const subscriptions = new Map<string, Subscription>()
   const sources = new Map<string, { adapter: EventSourceAdapter; running: boolean }>()
   const dedup: DedupCache = createDedupCache(dedupConfig)
   let running = false
 
   // The emit function passed to source adapters.
-  // Wraps the public emit() with proper id/timestamp assignment.
-  const emitFn: EventEmitFn = (partial) => {
-    bus.emit(partial)
+  const emitFn = (partial: AutomationEventInput): void => {
+    router.emit(partial)
   }
 
-  const bus: EventBusService = {
+  const router: EventRouter = {
     emit(partial) {
       if (!running) return
 
       // Assign id and timestamp
-      const event: HaloEvent = {
+      const event: AutomationEvent = {
         id: randomUUID(),
         timestamp: Date.now(),
         ...partial
@@ -86,7 +149,7 @@ export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusServ
 
     registerSource(source) {
       if (sources.has(source.id)) {
-        console.warn(`[EventBus] Source already registered: ${source.id}. Replacing.`)
+        console.warn(`[EventRouter] Source already registered: ${source.id}. Replacing.`)
         // Stop the existing one first
         const existing = sources.get(source.id)
         if (existing?.running) {
@@ -97,14 +160,14 @@ export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusServ
       const entry = { adapter: source, running: false }
       sources.set(source.id, entry)
 
-      // If bus is already running, start the source immediately
+      // If router is already running, start the source immediately
       if (running) {
         try {
           source.start(emitFn)
           entry.running = true
-          console.log(`[EventBus] Source started: ${source.id} (${source.type})`)
+          console.log(`[EventRouter] Source started: ${source.id} (${source.type})`)
         } catch (err) {
-          console.error(`[EventBus] Failed to start source ${source.id}:`, err)
+          console.error(`[EventRouter] Failed to start source ${source.id}:`, err)
         }
       }
     },
@@ -117,12 +180,12 @@ export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusServ
         try {
           entry.adapter.stop()
         } catch (err) {
-          console.error(`[EventBus] Error stopping source ${sourceId}:`, err)
+          console.error(`[EventRouter] Error stopping source ${sourceId}:`, err)
         }
       }
 
       sources.delete(sourceId)
-      console.log(`[EventBus] Source removed: ${sourceId}`)
+      console.log(`[EventRouter] Source removed: ${sourceId}`)
     },
 
     listSources() {
@@ -140,26 +203,26 @@ export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusServ
     start() {
       if (running) return
       running = true
-      console.log(`[EventBus] Starting with ${sources.size} source(s)...`)
+      console.log(`[EventRouter] Starting with ${sources.size} source(s)...`)
 
       for (const entry of Array.from(sources.values())) {
         if (entry.running) continue
         try {
           entry.adapter.start(emitFn)
           entry.running = true
-          console.log(`[EventBus] Source started: ${entry.adapter.id} (${entry.adapter.type})`)
+          console.log(`[EventRouter] Source started: ${entry.adapter.id} (${entry.adapter.type})`)
         } catch (err) {
-          console.error(`[EventBus] Failed to start source ${entry.adapter.id}:`, err)
+          console.error(`[EventRouter] Failed to start source ${entry.adapter.id}:`, err)
         }
       }
 
-      console.log(`[EventBus] Started. ${subscriptions.size} subscription(s) active.`)
+      console.log(`[EventRouter] Started. ${subscriptions.size} subscription(s) active.`)
     },
 
     stop() {
       if (!running) return
       running = false
-      console.log('[EventBus] Stopping...')
+      console.log('[EventRouter] Stopping...')
 
       // Stop all sources
       for (const entry of Array.from(sources.values())) {
@@ -168,7 +231,7 @@ export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusServ
           entry.adapter.stop()
           entry.running = false
         } catch (err) {
-          console.error(`[EventBus] Error stopping source ${entry.adapter.id}:`, err)
+          console.error(`[EventRouter] Error stopping source ${entry.adapter.id}:`, err)
         }
       }
 
@@ -176,7 +239,7 @@ export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusServ
       subscriptions.clear()
       dedup.clear()
 
-      console.log('[EventBus] Stopped.')
+      console.log('[EventRouter] Stopped.')
     }
   }
 
@@ -190,7 +253,7 @@ export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusServ
    * Handlers are invoked sequentially. If a handler throws or rejects,
    * the error is logged and the next handler is still called (error isolation).
    */
-  async function dispatchEvent(event: HaloEvent): Promise<void> {
+  async function dispatchEvent(event: AutomationEvent): Promise<void> {
     for (const sub of Array.from(subscriptions.values())) {
       if (!matchesFilter(event, sub.filter)) continue
 
@@ -202,12 +265,12 @@ export function createEventBus(dedupConfig?: Partial<DedupConfig>): EventBusServ
         }
       } catch (err) {
         console.error(
-          `[EventBus] Handler error (sub=${sub.id}, event=${event.type}):`,
+          `[EventRouter] Handler error (sub=${sub.id}, event=${event.type}):`,
           err
         )
       }
     }
   }
 
-  return bus
+  return router
 }

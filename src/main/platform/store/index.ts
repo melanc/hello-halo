@@ -2,7 +2,7 @@
  * platform/store -- Public API
  *
  * SQLite persistence foundation for the Halo platform layer.
- * This is the lowest module in the dependency chain: scheduler, event-bus,
+ * This is the lowest module in the dependency chain: scheduler,
  * apps/manager, and apps/runtime all depend on this module for database access.
  *
  * Usage in bootstrap/extended.ts:

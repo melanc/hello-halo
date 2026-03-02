@@ -9,6 +9,8 @@
  * via IPC, then returns the answers as updatedInput.
  */
 
+import { emitAgentEvent } from './events'
+
 // ============================================
 // Types
 // ============================================
@@ -24,15 +26,7 @@ type CanUseToolFn = (
   options: { signal: AbortSignal }
 ) => Promise<PermissionResult>
 
-type SendToRendererFn = (
-  channel: string,
-  spaceId: string,
-  conversationId: string,
-  data: Record<string, unknown>
-) => void
-
 interface CanUseToolDeps {
-  sendToRenderer: SendToRendererFn
   spaceId: string
   conversationId: string
 }
@@ -121,7 +115,7 @@ export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
       return { behavior: 'allow' as const, updatedInput: { ...input, answers: {} } }
     }
 
-    const { sendToRenderer, spaceId, conversationId } = deps
+    const { spaceId, conversationId } = deps
     const id = `ask-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
     const questions = input.questions as Array<{
       question: string
@@ -152,8 +146,8 @@ export function createCanUseTool(deps?: CanUseToolDeps): CanUseToolFn {
       }
     })
 
-    // Send questions to renderer
-    sendToRenderer('agent:ask-question', spaceId, conversationId, {
+    // Send questions to renderer via event emitter
+    emitAgentEvent('agent:ask-question', spaceId, conversationId, {
       id,
       questions: questions || []
     })

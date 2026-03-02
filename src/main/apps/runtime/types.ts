@@ -190,7 +190,7 @@ export interface AppRuntimeDeps {
   store: import('./store').ActivityStore
   appManager: import('../manager').AppManagerService
   scheduler: import('../../platform/scheduler').SchedulerService
-  eventBus: import('../../platform/event-bus').EventBusService
+  eventRouter: import('./event-router').EventRouter
   memory: import('../../platform/memory').MemoryService
   background: import('../../platform/background').BackgroundService
   getSpacePath: (spaceId: string) => string | null
@@ -209,7 +209,7 @@ export interface AppRuntimeService {
   // ── Activation ──────────────────────────────
 
   /**
-   * Activate an App: register scheduler jobs + event-bus subscriptions.
+   * Activate an App: register scheduler jobs + event router subscriptions.
    * Idempotent -- safe to call multiple times for the same App.
    *
    * @throws AppNotFoundError if the App does not exist
@@ -217,7 +217,7 @@ export interface AppRuntimeService {
   activate(appId: string): Promise<void>
 
   /**
-   * Deactivate an App: remove scheduler jobs + event-bus subscriptions.
+   * Deactivate an App: remove scheduler jobs + event router subscriptions.
    * Idempotent -- safe to call for non-activated Apps.
    */
   deactivate(appId: string): Promise<void>

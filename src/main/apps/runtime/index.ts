@@ -4,15 +4,19 @@
  * App execution engine: activate, execute, report, escalate.
  *
  * This is the core glue layer that connects all platform modules
- * (scheduler, event-bus, memory, background) with the Agent service
- * to provide autonomous App execution capabilities.
+ * (scheduler, memory, background) with the Agent service to provide
+ * autonomous App execution capabilities.
+ *
+ * The event routing layer (source adapters, filter engine, dedup cache)
+ * is owned internally by the runtime module. The platform layer provides
+ * only generic Emitter<T> for service-to-service communication.
  *
  * Usage in bootstrap/extended.ts:
  *
  *   import { initAppRuntime, shutdownAppRuntime } from '../apps/runtime'
  *
  *   const runtime = await initAppRuntime({
- *     db, appManager, scheduler, eventBus, memory, background
+ *     db, appManager, scheduler, memory, background
  *   })
  *
  *   // At shutdown:
@@ -30,13 +34,17 @@
 import type { DatabaseManager } from '../../platform/store'
 import type { AppManagerService } from '../manager'
 import type { SchedulerService } from '../../platform/scheduler'
-import type { EventBusService } from '../../platform/event-bus'
 import type { MemoryService } from '../../platform/memory'
 import type { BackgroundService } from '../../platform/background'
 import { getSpace } from '../../services/space.service'
+import { getExpressApp } from '../../http/server'
+import * as watcherHost from '../../services/watcher-host.service'
 import { ActivityStore } from './store'
 import { createAppRuntimeService } from './service'
 import { MIGRATION_NAMESPACE, migrations } from './migrations'
+import { createEventRouter, type EventRouter } from './event-router'
+import { FileWatcherSource } from './sources/file-watcher.source'
+import { WebhookSource, type WebhookSecretResolver } from './sources/webhook.source'
 import type { AppRuntimeService } from './types'
 
 // Re-export types for consumers
@@ -87,6 +95,7 @@ export type { AppChatRequest } from './app-chat'
 
 let runtimeService: AppRuntimeService | null = null
 let memoryServiceRef: MemoryService | null = null
+let eventRouterInstance: EventRouter | null = null
 
 // ============================================
 // Initialization
@@ -100,8 +109,6 @@ interface InitAppRuntimeDeps {
   appManager: AppManagerService
   /** Scheduler service */
   scheduler: SchedulerService
-  /** Event Bus service */
-  eventBus: EventBusService
   /** Memory service */
   memory: MemoryService
   /** Background service */
@@ -109,19 +116,28 @@ interface InitAppRuntimeDeps {
 }
 
 /**
+ * Normalize a webhook path for matching.
+ * Strips leading/trailing slashes and lowercases for consistent comparison.
+ */
+function normalizeWebhookPath(path: string): string {
+  return path.replace(/^\/+|\/+$/g, '').toLowerCase()
+}
+
+/**
  * Initialize the App Runtime module.
  *
  * 1. Gets the app-level database from DatabaseManager
  * 2. Runs schema migrations (automation_runs + activity_entries)
- * 3. Creates the ActivityStore and AppRuntimeService
- * 4. Activates all Apps with status='active'
- * 5. Returns the AppRuntimeService interface
+ * 3. Creates the EventRouter with source adapters
+ * 4. Creates the ActivityStore and AppRuntimeService
+ * 5. Starts the EventRouter (after all subscriptions are wired)
+ * 6. Activates all Apps with status='active'
+ * 7. Returns the AppRuntimeService interface
  *
  * Must be called after all Phase 1 + Phase 2 modules are initialized:
  * - platform/store (Phase 0)
  * - apps/spec (Phase 0)
  * - platform/scheduler (Phase 1)
- * - platform/event-bus (Phase 1)
  * - platform/memory (Phase 1)
  * - platform/background (Phase 1)
  * - apps/manager (Phase 2)
@@ -144,12 +160,43 @@ export async function initAppRuntime(
   // Create the activity store
   const store = new ActivityStore(appDb)
 
-  // Create the runtime service
+  // ── Create and wire EventRouter ──────────────────────────────────────
+  const eventRouter = createEventRouter()
+  eventRouterInstance = eventRouter
+
+  // FileWatcherSource: bridges watcher-host fs events into the event router.
+  // Uses addFsEventsHandler() (multi-subscriber) so artifact-cache is not displaced.
+  const fileWatcherSource = new FileWatcherSource(watcherHost)
+  eventRouter.registerSource(fileWatcherSource)
+
+  // WebhookSource: mounts POST /hooks/* on the Express server to receive
+  // inbound webhooks from external services (GitHub, Stripe, etc.).
+  // The secret resolver looks up HMAC secrets from installed Apps' webhook
+  // subscription configs for per-hook signature verification.
+  const webhookSecretResolver: WebhookSecretResolver = (hookPath: string) => {
+    const apps = deps.appManager.listApps({ status: 'active', type: 'automation' })
+    for (const app of apps) {
+      if (app.spec.type !== 'automation') continue
+      for (const sub of app.spec.subscriptions ?? []) {
+        if (sub.source.type !== 'webhook') continue
+        const config = sub.source.config
+        // Match if the subscription's configured path matches the incoming hook path
+        if (config.path && normalizeWebhookPath(config.path) === normalizeWebhookPath(hookPath)) {
+          if (config.secret) return config.secret
+        }
+      }
+    }
+    return null
+  }
+  const webhookSource = new WebhookSource(getExpressApp(), webhookSecretResolver)
+  eventRouter.registerSource(webhookSource)
+
+  // ── Create the runtime service ─────────────────────────────────────────
   const service = createAppRuntimeService({
     store,
     appManager: deps.appManager,
     scheduler: deps.scheduler,
-    eventBus: deps.eventBus,
+    eventRouter,
     memory: deps.memory,
     background: deps.background,
     getSpacePath: (spaceId: string): string | null => {
@@ -158,8 +205,12 @@ export async function initAppRuntime(
     },
   })
 
-  // Activate all active automation Apps
+  // Activate all active automation Apps (registers event subscriptions)
   await service.activateAll()
+
+  // Start the event router AFTER all subscriptions are registered
+  // to ensure no events are missed.
+  eventRouter.start()
 
   runtimeService = service
   memoryServiceRef = deps.memory
@@ -190,8 +241,9 @@ export function getAppMemoryService(): MemoryService | null {
  * Shutdown the App Runtime module.
  *
  * 1. Deactivates all Apps (removes scheduler jobs + event subscriptions)
- * 2. Cancels all running executions
- * 3. Clears the module state
+ * 2. Stops the event router and all source adapters
+ * 3. Cancels all running executions
+ * 4. Clears the module state
  */
 export async function shutdownAppRuntime(): Promise<void> {
   console.log('[Runtime] Shutting down App Runtime...')
@@ -200,6 +252,11 @@ export async function shutdownAppRuntime(): Promise<void> {
     await runtimeService.deactivateAll()
     runtimeService = null
     memoryServiceRef = null
+  }
+
+  if (eventRouterInstance) {
+    eventRouterInstance.stop()
+    eventRouterInstance = null
   }
 
   console.log('[Runtime] App Runtime shutdown complete')

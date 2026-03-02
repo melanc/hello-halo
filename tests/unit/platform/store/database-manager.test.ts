@@ -479,7 +479,7 @@ describe('DatabaseManager', () => {
   // ===========================================================================
 
   describe('multi-module realistic scenario', () => {
-    it('should support the full scheduler + app_manager + event_bus flow', () => {
+    it('should support the full scheduler + app_manager + runtime flow', () => {
       const db = manager.getAppDatabase()
 
       // Scheduler registers its tables
@@ -538,18 +538,22 @@ describe('DatabaseManager', () => {
         }
       ]
 
-      // Event bus registers its tables
-      const eventBusMigrations: Migration[] = [
+      // Runtime registers its tables
+      const runtimeMigrations: Migration[] = [
         {
           version: 1,
-          description: 'Create dedup_events table',
+          description: 'Create automation_runs table',
           up(db) {
             db.exec(`
-              CREATE TABLE dedup_events (
-                dedup_key TEXT PRIMARY KEY,
-                event_type TEXT NOT NULL,
-                created_at INTEGER NOT NULL,
-                expires_at INTEGER NOT NULL
+              CREATE TABLE automation_runs (
+                run_id TEXT PRIMARY KEY,
+                app_id TEXT NOT NULL,
+                status TEXT NOT NULL,
+                started_at INTEGER NOT NULL,
+                finished_at INTEGER,
+                duration_ms INTEGER,
+                session_key TEXT NOT NULL,
+                error_message TEXT
               )
             `)
           }
@@ -557,7 +561,7 @@ describe('DatabaseManager', () => {
       ]
 
       // Run all migrations -- order should not matter
-      manager.runMigrations(db, 'event_bus', eventBusMigrations)
+      manager.runMigrations(db, 'runtime', runtimeMigrations)
       manager.runMigrations(db, 'scheduler', schedulerMigrations)
       manager.runMigrations(db, 'app_manager', appManagerMigrations)
 
@@ -571,13 +575,13 @@ describe('DatabaseManager', () => {
       expect(tableNames).toContain('scheduler_jobs')
       expect(tableNames).toContain('scheduler_run_log')
       expect(tableNames).toContain('installed_apps')
-      expect(tableNames).toContain('dedup_events')
+      expect(tableNames).toContain('automation_runs')
 
       // Verify each namespace has correct version
       const migrations = db.prepare('SELECT namespace, version FROM _migrations ORDER BY namespace').all() as Array<{ namespace: string; version: number }>
       expect(migrations).toEqual([
         { namespace: 'app_manager', version: 1 },
-        { namespace: 'event_bus', version: 1 },
+        { namespace: 'runtime', version: 1 },
         { namespace: 'scheduler', version: 1 }
       ])
 

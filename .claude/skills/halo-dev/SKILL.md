@@ -1,6 +1,8 @@
 ---
 name: halo-dev
 description: Essential project context for AI developers working on Halo. Must read before writing any code. Minimal onboarding skill for Halo hard rules, task routing, and fast implementation checklists.
+allowed-tools: Read, Write, Edit, Bash
+user-invocable: true
 ---
 
 # Halo Development Context v2

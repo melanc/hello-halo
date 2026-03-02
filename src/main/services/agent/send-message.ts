@@ -9,7 +9,6 @@
  * - Error handling and recovery
  */
 
-import { BrowserWindow } from 'electron'
 import { getConfig } from '../config.service'
 import { getConversation, saveSessionId, addMessage, updateLastMessage } from '../conversation.service'
 import { type FileChangesSummary, extractFileChangesSummaryFromThoughts } from '../../../shared/file-changes'
@@ -28,10 +27,9 @@ import {
   getWorkingDir,
   getApiCredentials,
   getEnabledMcpServers,
-  getDbMcpServers,
-  sendToRenderer,
-  setMainWindow
+  getDbMcpServers
 } from './helpers'
+import { emitAgentEvent } from './events'
 import { buildSystemPromptWithAIBrowser } from './system-prompt'
 import {
   getOrCreateV2Session,
@@ -68,10 +66,8 @@ const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
  * - Error handling and recovery
  */
 export async function sendMessage(
-  mainWindow: BrowserWindow | null,
   request: AgentRequest
 ): Promise<void> {
-  setMainWindow(mainWindow)
 
   const {
     spaceId,
@@ -334,7 +330,7 @@ export async function sendMessage(
       }
     }
 
-    sendToRenderer('agent:error', spaceId, conversationId, {
+    emitAgentEvent('agent:error', spaceId, conversationId, {
       type: 'error',
       error: errorMessage
     })

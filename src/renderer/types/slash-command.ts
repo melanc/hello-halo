@@ -1,10 +1,8 @@
 /**
  * SlashCommandItem - Represents a single entry in the slash-command autocomplete menu.
  *
- * The list is built in ChatView by merging three sources:
- *  1. SDK init `slash_commands` array  → category 'builtin'
- *  2. SDK init `agents` array          → category 'agent'
- *  3. Installed enabled skills from the apps store → category 'skill'
+ * The list is built in ChatView from SDK init `slash_commands` array.
+ * Commands are categorized as 'skill' if they appear in the `skills` array, otherwise 'builtin'.
  */
 export interface SlashCommandItem {
   /** Stable unique key for React rendering (e.g. "builtin-compact") */
@@ -18,7 +16,7 @@ export interface SlashCommandItem {
   /** CC SDK `argument-hint` — shown after the command, e.g. "[issue-number]" */
   argumentHint?: string
   /** Category controls grouping and icon choice in the menu */
-  category: 'builtin' | 'skill' | 'agent'
+  category: 'builtin' | 'skill'
 }
 
 /**

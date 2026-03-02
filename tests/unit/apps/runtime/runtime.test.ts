@@ -1148,7 +1148,7 @@ describe('AppRuntimeService', () => {
   let store: ActivityStore
   let mockAppManager: any
   let mockScheduler: any
-  let mockEventBus: any
+  let mockEventRouter: any
   let mockMemory: any
   let mockBackground: any
 
@@ -1158,7 +1158,7 @@ describe('AppRuntimeService', () => {
       store,
       appManager: mockAppManager,
       scheduler: mockScheduler,
-      eventBus: mockEventBus,
+      eventRouter: mockEventRouter,
       memory: mockMemory,
       background: mockBackground,
       getSpacePath: () => '/tmp/test-space',
@@ -1195,8 +1195,8 @@ describe('AppRuntimeService', () => {
       stop: vi.fn(),
     }
 
-    // Mock EventBus
-    mockEventBus = {
+    // Mock EventRouter
+    mockEventRouter = {
       on: vi.fn().mockReturnValue(() => {}),
       emit: vi.fn(),
       start: vi.fn(),
@@ -1245,7 +1245,7 @@ describe('AppRuntimeService', () => {
       expect(addJobCall.metadata).toEqual({ appId, subscriptionId: 'check-prices' })
     })
 
-    it('should register event-bus subscriptions for file triggers', async () => {
+    it('should register event router subscriptions for file triggers', async () => {
       const appId = randomUUID()
       const app = {
         id: appId,
@@ -1267,8 +1267,8 @@ describe('AppRuntimeService', () => {
       const service = createService()
       await service.activate(appId)
 
-      expect(mockEventBus.on).toHaveBeenCalledTimes(1)
-      const filter = mockEventBus.on.mock.calls[0][0]
+      expect(mockEventRouter.on).toHaveBeenCalledTimes(1)
+      const filter = mockEventRouter.on.mock.calls[0][0]
       expect(filter.types).toEqual(['file.*'])
     })
 
@@ -1344,7 +1344,7 @@ describe('AppRuntimeService', () => {
 
       // Should not register any jobs or events
       expect(mockScheduler.addJob).not.toHaveBeenCalled()
-      expect(mockEventBus.on).not.toHaveBeenCalled()
+      expect(mockEventRouter.on).not.toHaveBeenCalled()
     })
 
     it('should throw for automation app with no subscriptions', async () => {
@@ -1417,7 +1417,7 @@ describe('AppRuntimeService', () => {
     it('should remove scheduler jobs and event subscriptions', async () => {
       const appId = randomUUID()
       const unsubFn = vi.fn()
-      mockEventBus.on.mockReturnValue(unsubFn)
+      mockEventRouter.on.mockReturnValue(unsubFn)
       const keepAliveDisposer = vi.fn()
       mockBackground.registerKeepAliveReason.mockReturnValue(keepAliveDisposer)
 

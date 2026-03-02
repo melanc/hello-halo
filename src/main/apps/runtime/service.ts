@@ -2,7 +2,7 @@
  * apps/runtime -- App Runtime Service
  *
  * The core orchestration layer that connects all platform modules.
- * Translates App subscriptions into scheduler jobs and event-bus
+ * Translates App subscriptions into scheduler jobs and event router
  * subscriptions, manages the activation lifecycle, and delegates
  * execution to executeRun().
  *
@@ -15,7 +15,8 @@ import type { InstalledApp, AppManagerService, RunOutcome, AppStatus } from '../
 import { AppNotFoundError } from '../manager'
 import type { AutomationSpec, SubscriptionDef } from '../spec'
 import type { SchedulerService, SchedulerJob, SchedulerJobCreate } from '../../platform/scheduler'
-import type { EventBusService, EventFilter, FilterRule } from '../../platform/event-bus'
+import type { EventRouter } from './event-router'
+import type { EventFilter, FilterRule } from './event-types'
 import type { MemoryService } from '../../platform/memory'
 import type { BackgroundService } from '../../platform/background'
 import type { ActivityStore } from './store'
@@ -74,7 +75,7 @@ const PRUNE_INTERVAL_MS = 24 * 60 * 60 * 1000
  * @returns Fully initialized AppRuntimeService
  */
 export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService {
-  const { store, appManager, scheduler, eventBus, memory, background } = deps
+  const { store, appManager, scheduler, eventRouter, memory, background } = deps
 
   // ── Internal State ──────────────────────────────────
   const activations = new Map<string, ActivationState>()
@@ -608,12 +609,12 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
         }
       }
 
-      // Register event-bus subscriptions for event-type subscriptions
+      // Register event router subscriptions for event-type subscriptions
       for (let i = 0; i < subscriptions.length; i++) {
         const sub = subscriptions[i]
         const filter = subscriptionToEventFilter(sub)
         if (filter) {
-          const unsub = eventBus.on(filter, async (event) => {
+          const unsub = eventRouter.on(filter, async (event) => {
             // Check if app is still active
             const currentApp = appManager.getApp(appId)
             if (!currentApp || currentApp.status !== 'active') return
@@ -663,7 +664,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
         }
       }
 
-      // Remove event-bus subscriptions
+      // Remove event router subscriptions
       for (const unsub of state.eventUnsubscribers) {
         try {
           unsub()

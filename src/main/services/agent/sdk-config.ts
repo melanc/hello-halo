@@ -14,7 +14,6 @@ import type { ApiCredentials } from './types'
 import { inferOpenAIWireApi } from './helpers'
 import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt'
 import { createCanUseTool } from './permission-handler'
-import { sendToRenderer } from './helpers'
 
 // ============================================
 // Configuration
@@ -359,6 +358,10 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     cwd: workDir,
     abortController,
     env,
+    // CRITICAL FIX: Use claude-code/cli.js instead of SDK's bundled CLI
+    // SDK's bundled CLI has a bug where skills without user-invocable: true return empty
+    // Use app.getAppPath() to get reliable path to node_modules
+    pathToClaudeCodeExecutable: path.join(app.getAppPath(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
     extraArgs: {
       'dangerously-skip-permissions': null
     },
@@ -373,7 +376,6 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     settingSources: ['user', 'project'],
     permissionMode: 'bypassPermissions' as const,
     canUseTool: createCanUseTool({
-      sendToRenderer,
       spaceId,
       conversationId
     }),

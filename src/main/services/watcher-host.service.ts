@@ -33,7 +33,7 @@ const pendingScans = new Map<string, {
 }>()
 
 // Callbacks for events from worker
-// fsEventsCallbacks supports multiple subscribers (artifact-cache + event-bus FileWatcherSource)
+// fsEventsCallbacks supports multiple subscribers (artifact-cache + FileWatcherSource)
 const onFsEventsCallbacks = new Set<(spaceId: string, events: ProcessedFsEvent[]) => void>()
 let onSpaceReadyCallback: ((spaceId: string) => void) | null = null
 let onSpaceErrorCallback: ((spaceId: string, error: string) => void) | null = null
@@ -295,7 +295,7 @@ export function refreshIgnoreRules(spaceId: string, rootPath: string): void {
 
 /**
  * Register a handler for file system events from worker.
- * Multiple handlers are supported simultaneously (artifact-cache + event-bus).
+ * Multiple handlers are supported simultaneously (artifact-cache + FileWatcherSource).
  * Returns an unsubscribe function that removes this specific handler.
  */
 export function addFsEventsHandler(

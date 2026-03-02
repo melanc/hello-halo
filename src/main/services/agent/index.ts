@@ -1,15 +1,13 @@
-/**		      	    				  	  	  	 		 		       	 	 	         	 	    					 
+/**
  * Agent Module - Public API
  *
  * This module provides the AI agent functionality for Halo.
  * It manages V2 Sessions with Claude Code SDK, handles message streaming,
  * tool permissions, and MCP server connections.
  *
- * The public API is designed to match the original agent.service.ts exports
- * for seamless migration.
- *
  * Module Structure:
  * - types.ts           - Type definitions
+ * - events.ts          - Event declarations (Emitter-based, decoupled from BrowserWindow)
  * - helpers.ts         - Utility functions
  * - session-manager.ts - V2 Session lifecycle management
  * - mcp-manager.ts     - MCP server status management
@@ -39,9 +37,24 @@ export type {
   V2SessionInfo,
   McpServerStatusInfo,
   TokenUsage,
-  SingleCallUsage,
-  MainWindowRef
+  SingleCallUsage
 } from './types'
+
+// ============================================
+// Event System
+// ============================================
+
+export {
+  onAgentEvent,
+  onAgentBroadcast,
+  emitAgentEvent,
+  emitAgentBroadcast
+} from './events'
+
+export type {
+  AgentEvent,
+  AgentBroadcastEvent
+} from './events'
 
 // ============================================
 // Core Functions
@@ -86,11 +99,8 @@ export {
 // Re-exports for Internal Use
 // ============================================
 
-// These are not part of the public API but may be needed internally
-// during the transition period
-
 export { createCanUseTool, resolveQuestion, rejectQuestion, rejectAllQuestions } from './permission-handler'
-export { getWorkingDir, getApiCredentials, sendToRenderer } from './helpers'
+export { getWorkingDir, getApiCredentials } from './helpers'
 export { parseSDKMessage, buildMessageContent, formatCanvasContext } from './message-utils'
 export { getOrCreateV2Session, activeSessions, v2Sessions } from './session-manager'
 export { broadcastMcpStatus } from './mcp-manager'

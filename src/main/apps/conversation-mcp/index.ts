@@ -428,7 +428,7 @@ function buildTools(spaceId: string) {
 
         // Reactivate runtime if subscriptions changed (new schedule needs re-registration)
         if (runtime && userChangedSubscriptions) {
-          // Full subscriptions change may affect event-bus subscriptions,
+          // Full subscriptions change may affect event router subscriptions,
           // so a full deactivate/activate cycle is needed
           try {
             await runtime.deactivate(args.app_id)
