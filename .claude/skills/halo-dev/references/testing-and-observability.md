@@ -13,7 +13,7 @@ Current unit test areas:
 - platform:
   - `tests/unit/platform/store/*`
   - `tests/unit/platform/scheduler/*`
-  - `tests/unit/platform/event-bus/*`
+  - `tests/unit/platform/event/*`
   - `tests/unit/platform/memory/*`
   - `tests/unit/platform/background/*`
 - existing services:

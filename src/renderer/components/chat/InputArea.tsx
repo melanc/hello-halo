@@ -360,7 +360,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   return (
     <div className={`
-      border-t border-border/50 bg-background/80 backdrop-blur-sm
+      border-t border-border/50 bg-background
       transition-[padding] duration-300 ease-out
       ${isCompact ? 'px-3 py-2' : 'px-4 py-3'}
     `}>

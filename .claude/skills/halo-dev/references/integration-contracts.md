@@ -17,7 +17,7 @@ Scope: bootstrap sequencing, IPC/HTTP/WS contracts, preload, and renderer API in
 
 1. `initStore()`
 2. `initScheduler({ db })`, `initEventBus()`, `initMemory()` in parallel
-3. event-bus source registration (`FileWatcherSource`, `ScheduleBridgeSource`)
+3. event source registration (`FileWatcherSource`, `ScheduleBridgeSource`)
 4. `initAppManager({ db })`
 5. `initAppRuntime({ ... })`
 6. `scheduler.start()` and `eventBus.start()`
@@ -76,11 +76,7 @@ Defined in `src/main/http/routes/index.ts`.
 
 ## 3.2 App route gaps and mismatches
 
-- Route install payload expects `config`, while IPC install path uses `userConfig`.
-- No HTTP routes currently exist for:
-  - `POST /api/apps/:appId/config`
-  - `POST /api/apps/:appId/frequency`
-  even though renderer API has remote-mode fallback calls for these endpoints.
+No known gaps at this time. All app-related HTTP routes are implemented, including config and frequency endpoints.
 
 ## 4) WebSocket Contracts
 
@@ -137,7 +133,6 @@ Primary source files:
 ## 7) Integration Watchouts
 
 - Keep transport contract names aligned across IPC, preload, renderer API, and HTTP.
-- Validate remote-mode behavior for app config/frequency until missing HTTP routes are implemented.
 - If new app event channels are added, update:
   1. IPC sender
   2. preload listener

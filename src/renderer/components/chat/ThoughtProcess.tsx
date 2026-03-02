@@ -113,37 +113,10 @@ function extractUrl(url: unknown): string {
 }
 
 
-// Timer display component to isolate re-renders
-function TimerDisplay({ startTime, isThinking }: { startTime: number | null; isThinking: boolean }) {
-  const [elapsedTime, setElapsedTime] = useState(0)
-  const requestRef = useRef<number>()
-
-  useEffect(() => {
-    if (!startTime) return
-
-    const animate = () => {
-      setElapsedTime((Date.now() - startTime) / 1000)
-      
-      if (isThinking) {
-        requestRef.current = requestAnimationFrame(animate)
-      }
-    }
-
-    if (isThinking) {
-      requestRef.current = requestAnimationFrame(animate)
-    } else {
-      // If not thinking, just update once to show ©∫final time
-      setElapsedTime((Date.now() - startTime) / 1000)
-    }
-
-    return () => {
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current)
-      }
-    }
-  }, [isThinking, startTime])
-
-  return <span>{elapsedTime.toFixed(1)}s</span>
+// Static elapsed time — only mounted after thinking completes
+function TimerDisplay({ startTime }: { startTime: number | null }) {
+  const elapsed = startTime ? ((Date.now() - startTime) / 1000).toFixed(1) : '0.0'
+  return <span>{elapsed}s</span>
 }
 
 // Individual thought item (for non-special tools)
@@ -473,13 +446,13 @@ export function ThoughtProcess({ thoughts, isThinking }: ThoughtProcessProps) {
             {isThinking ? (() => {
               const data = getActionSummaryData(thoughts)
               return t(data.key, data.params)
-            })() : t('Thought process')}
+            })() : t('Already thought')}
           </span>
 
           {/* Stats: only show elapsed time when thinking is complete */}
           {!isThinking && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground/60">
-              <TimerDisplay startTime={startTime} isThinking={isThinking} />
+              <TimerDisplay startTime={startTime} />
             </div>
           )}
 

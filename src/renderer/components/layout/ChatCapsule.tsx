@@ -40,7 +40,7 @@ export function ChatCapsule({ className = '' }: ChatCapsuleProps) {
         w-11 h-11
         flex items-center justify-center
         rounded-full
-        bg-background/80 backdrop-blur-md
+        bg-background
         border border-border/50
         shadow-lg shadow-black/10
         hover:bg-background hover:border-border

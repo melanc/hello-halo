@@ -485,7 +485,7 @@ export function ChatHistoryPanel() {
             <div
               className={`
                 fixed z-50
-                bg-card/95 backdrop-blur-xl rounded-xl border border-border/50
+                bg-card rounded-xl border border-border/50
                 shadow-2xl shadow-black/20 overflow-hidden
                 min-w-[320px] max-w-[400px]
                 ${isAnimatingOut ? 'animate-slide-out-top' : 'animate-slide-in-top'}

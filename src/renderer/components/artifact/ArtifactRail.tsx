@@ -430,7 +430,7 @@ export function ArtifactRail({
           className="
             fixed right-0 top-1/3 z-[60]
             w-10 h-14
-            bg-card/90 backdrop-blur-sm
+            bg-card
             border-l border-y border-border
             rounded-l-xl
             shadow-lg
@@ -454,7 +454,7 @@ export function ArtifactRail({
           <div className="fixed inset-0 z-[70] flex justify-end">
             {/* Backdrop */}
             <div
-              className="absolute inset-0 bg-background/60 backdrop-blur-sm animate-fade-in"
+              className="absolute inset-0 bg-background/70 animate-fade-in"
               onClick={() => setMobileOverlayOpen(false)}
             />
 

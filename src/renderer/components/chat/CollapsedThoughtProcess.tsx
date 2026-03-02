@@ -243,7 +243,7 @@ export function CollapsedThoughtProcess({ thoughts, defaultExpanded = false }: C
         )}
 
         {/* Label */}
-        <span className="text-muted-foreground">{t('Thought process')}</span>
+        <span className="text-muted-foreground">{t('Already thought')}</span>
 
         {/* Stats: time only (file changes moved to message bubble footer) */}
         <div className="flex items-center gap-1.5 text-muted-foreground/60">
@@ -342,7 +342,7 @@ export function LazyCollapsedThoughtProcess({ thoughtsSummary, onLoadThoughts }:
           <ChevronRight size={12} className="text-muted-foreground" />
         )}
         <Lightbulb size={14} className="text-primary" />
-        <span className="text-muted-foreground">{t('Thought process')}</span>
+        <span className="text-muted-foreground">{t('Already thought')}</span>
         <div className="flex items-center gap-1.5 text-muted-foreground/60">
           {duration != null && <span>{duration.toFixed(1)}s</span>}
         </div>

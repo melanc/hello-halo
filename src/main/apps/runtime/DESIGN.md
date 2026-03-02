@@ -240,7 +240,7 @@ apps/runtime depends on:
 ├── apps/manager          getApp(), updateStatus(), updateLastRun(), onAppStatusChange()
 ├── apps/spec             AppSpec type (via manager)
 ├── platform/scheduler    addJob(), removeJob(), onJobDue(), getJob()
-├── platform/event-bus    on(), emit()
+├── platform/event        on(), emit()
 ├── platform/memory       createTools(), getPromptInstructions()
 ├── platform/background   registerKeepAliveReason()
 ├── platform/store        DatabaseManager (for migrations + activity store)

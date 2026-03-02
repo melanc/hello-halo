@@ -10,7 +10,7 @@ Current modules:
 
 - store
 - scheduler
-- event-bus
+- event
 - memory
 - background
 
@@ -60,7 +60,7 @@ Operational notes:
 - default stuck job threshold: 2 hours
 - default max consecutive errors before disable: 5
 
-## 2.3 `platform/event-bus`
+## 2.3 `platform/event`
 
 Purpose:
 
@@ -70,14 +70,13 @@ Purpose:
 
 Key files:
 
-- `src/main/platform/event-bus/index.ts`
-- `src/main/platform/event-bus/event-bus.ts`
-- `src/main/platform/event-bus/filter.ts`
-- `src/main/platform/event-bus/dedup.ts`
-- `src/main/platform/event-bus/sources/file-watcher.source.ts`
-- `src/main/platform/event-bus/sources/schedule-bridge.source.ts`
-- `src/main/platform/event-bus/sources/webhook.source.ts`
-- `src/main/platform/event-bus/DESIGN.md`
+- `src/main/platform/event/index.ts`
+- `src/main/platform/event/event-bus.ts`
+- `src/main/platform/event/filter.ts`
+- `src/main/platform/event/dedup.ts`
+- `src/main/platform/event/sources/file-watcher.source.ts`
+- `src/main/platform/event/sources/schedule-bridge.source.ts`
+- `src/main/platform/event/sources/webhook.source.ts`
 
 Current source wiring in bootstrap:
 
@@ -139,7 +138,7 @@ Integration points:
 apps/runtime
   -> platform/store
   -> platform/scheduler
-  -> platform/event-bus
+  -> platform/event
   -> platform/memory
   -> platform/background
 ```
@@ -152,6 +151,6 @@ Platform unit tests:
 
 - `tests/unit/platform/store/database-manager.test.ts`
 - `tests/unit/platform/scheduler/scheduler.test.ts`
-- `tests/unit/platform/event-bus/event-bus.test.ts`
+- `tests/unit/platform/event/event.test.ts`
 - `tests/unit/platform/memory/memory.test.ts`
 - `tests/unit/platform/background/background.test.ts`

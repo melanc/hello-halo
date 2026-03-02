@@ -10,15 +10,16 @@ User Interaction Layer
   - Desktop UI and remote web UI
 
 Apps Layer (src/main/apps)
-  - spec        : App YAML parse + validate
-  - manager     : install/config/status persistence
-  - runtime     : activation/execution/activity/escalation
-  - store-index : planned
+  - spec            : App YAML parse + validate
+  - manager         : install/config/status persistence
+  - runtime         : activation/execution/activity/escalation
+  - conversation-mcp: in-process MCP server for app management tools
+  - store-index     : planned
 
 Platform Layer (src/main/platform)
   - store       : SQLite manager + migrations foundation
   - scheduler   : persistent job engine
-  - event-bus   : event routing/filter/dedup
+  - event       : event routing/filter/dedup
   - memory      : scoped memory tools + files
   - background  : keep-alive + tray + daemon browser
 
@@ -79,17 +80,7 @@ Remote mode: renderer -> HTTP/WS -> main.
 
 ## 6) Current Contract Gaps (Known)
 
-- `POST /api/apps/install` in HTTP currently reads `config`, while IPC/renderer install path uses `userConfig`.
-- Renderer remote fallbacks exist for these App endpoints, but HTTP routes are not implemented yet:
-  - `/api/apps/:appId/config`
-  - `/api/apps/:appId/frequency`
-  - `/api/apps/:appId/chat/send`
-  - `/api/apps/:appId/chat/stop`
-  - `/api/apps/:appId/chat/status`
-  - `/api/apps/:appId/chat/messages`
-  - `/api/apps/:appId/chat/session-state`
-
-Treat these as explicit alignment tasks when extending remote App capabilities.
+No known contract gaps at this time. All previously documented HTTP route gaps for App endpoints (config, frequency, chat/*) have been implemented and are available in `src/main/http/routes/index.ts`.
 
 ## 7) Deep-Dive Module Docs
 
@@ -99,6 +90,5 @@ When touching a module, read its design doc first:
 - `src/main/apps/runtime/DESIGN.md`
 - `src/main/platform/store/DESIGN.md`
 - `src/main/platform/scheduler/DESIGN.md`
-- `src/main/platform/event-bus/DESIGN.md`
 - `src/main/platform/memory/DESIGN.md`
 - `src/main/platform/background/DESIGN.md`

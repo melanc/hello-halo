@@ -10,7 +10,7 @@ Read this file after `../ARCHITECTURE.md`, then open only what your task needs.
 |---|---|---|
 | `path-routing.md` | path-to-doc routing matrix | you know touched files and want minimal required reading |
 | `apps-layer.md` | `src/main/apps/**` | app spec, install lifecycle, runtime execution, activity thread |
-| `platform-layer.md` | `src/main/platform/**` | store, scheduler, event-bus, memory, background |
+| `platform-layer.md` | `src/main/platform/**` | store, scheduler, event, memory, background |
 | `integration-contracts.md` | cross-layer integration | bootstrap, IPC, HTTP, WebSocket, preload, renderer API |
 | `storage-and-data-model.md` | persistence model | SQLite tables, local file layout, shared types |
 | `runtime-flows.md` | end-to-end execution | install/activate/run/escalate/recover flows |

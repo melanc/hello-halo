@@ -70,7 +70,7 @@ Main table:
 Purpose:
 
 - activate/deactivate automation apps
-- bridge app subscriptions to scheduler jobs and event-bus subscriptions
+- bridge app subscriptions to scheduler jobs and event subscriptions
 - execute runs via independent SDK sessions
 - write activity entries and escalation events
 - provide app runtime state and run history access
@@ -101,7 +101,23 @@ Execution details:
 - memory tools and `report_to_user` tool are injected per run
 - escalation ends current run and resumes via follow-up run
 
-## 2.4 `apps/store-index` (planned)
+## 2.4 `apps/conversation-mcp`
+
+Purpose:
+
+- provide in-process MCP server for app management tools
+- expose app-related tools to conversation sessions
+
+Key files:
+
+- `src/main/apps/conversation-mcp/index.ts`
+
+Integration:
+
+- Used by conversation sessions to access app management capabilities
+- Provides tools for listing, installing, and managing apps within conversations
+
+## 2.5 `apps/store-index` (planned)
 
 Status:
 
@@ -131,5 +147,3 @@ Transport and UI integration entry points:
 
 - Runtime and manager are initialized asynchronously in extended bootstrap.
 - App APIs can return not-ready errors immediately after startup until init completes.
-- Remote HTTP app install currently accepts `config` in route handler while IPC path uses `userConfig`.
-- HTTP endpoints for app config/frequency updates are not yet implemented even though renderer API includes remote fallback calls.

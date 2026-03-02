@@ -9,7 +9,7 @@ Scope: end-to-end paths across apps, platform, transport, and service layers.
 3. if app type is automation and runtime is ready, runtime `activate(appId)` is called
 4. runtime registers:
    - scheduler jobs for schedule subscriptions
-   - event-bus listeners for event-driven subscriptions
+   - event listeners for event-driven subscriptions
    - keep-alive reason via background service
 5. runtime emits status updates (`app:status_changed`)
 
@@ -41,14 +41,14 @@ Primary files:
 
 ## 3) Event-driven Run Flow
 
-1. source emits event into event-bus (`file-watcher`, `schedule-bridge`, optional others)
+1. source emits event into event (`file-watcher`, `schedule-bridge`, optional others)
 2. runtime subscription handler receives matching event
 3. runtime builds event trigger context and executes run
 
 Primary files:
 
-- `src/main/platform/event-bus/event-bus.ts`
-- `src/main/platform/event-bus/sources/*.ts`
+- `src/main/platform/event/event-bus.ts`
+- `src/main/platform/event/sources/*.ts`
 - `src/main/apps/runtime/service.ts`
 
 ## 4) Escalation Flow

@@ -52,7 +52,7 @@
 | Change install/config/status lifecycle | `src/main/apps/manager/service.ts` | `src/main/apps/manager/store.ts`, `src/main/apps/manager/migrations.ts`, `tests/unit/apps/manager/manager.test.ts` |
 | Change execution/trigger/escalation/activity | `src/main/apps/runtime/service.ts` | `src/main/apps/runtime/execute.ts`, `src/main/apps/runtime/report-tool.ts`, `src/main/apps/runtime/store.ts`, `tests/unit/apps/runtime/runtime.test.ts` |
 | Change scheduling behavior | `src/main/platform/scheduler/index.ts` | `src/main/platform/scheduler/schedule.ts`, `src/main/platform/scheduler/store.ts`, `tests/unit/platform/scheduler/scheduler.test.ts` |
-| Add event source/filter behavior | `src/main/platform/event-bus/*` | `src/main/bootstrap/extended.ts`, `tests/unit/platform/event-bus/event-bus.test.ts` |
+| Add event source/filter behavior | `src/main/platform/event/*` | `src/main/bootstrap/extended.ts` |
 | Change memory behavior/tools | `src/main/platform/memory/index.ts` | `src/main/platform/memory/tools.ts`, `src/main/platform/memory/prompt.ts`, `tests/unit/platform/memory/memory.test.ts` |
 | Add App IPC APIs | `src/main/ipc/app.ts` | `src/preload/index.ts`, `src/renderer/api/index.ts` |
 | Add App HTTP APIs (remote) | `src/main/http/routes/index.ts` | `src/renderer/api/index.ts`, auth/WS flow as needed |
@@ -94,9 +94,7 @@
 
 ## 4) Known Gaps You Must Account For
 
-1. HTTP App install reads `config`, but IPC/renderer install payload uses `userConfig`.
-2. Renderer remote fallbacks exist for App config/frequency/chat endpoints, but matching HTTP routes are not implemented yet.
-3. App activity HTTP route currently uses `limit` and `before`; renderer option names include `since/offset/type` (not all are consumed by backend).
+1. App activity HTTP route currently uses `limit` and `before`; renderer option names include `since/offset/type` (not all are consumed by backend).
 
 ## 5) Minimum Validation Before Handoff
 

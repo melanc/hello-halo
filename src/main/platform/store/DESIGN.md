@@ -7,7 +7,7 @@
 ## 1. Context
 
 `platform/store` is the persistence foundation for the entire new feature system.
-Every platform module (scheduler, event-bus, memory) and apps module (manager,
+Every platform module (scheduler, event, memory) and apps module (manager,
 runtime) depends on it for SQLite access. It must be the first module completed.
 
 ### What this module does

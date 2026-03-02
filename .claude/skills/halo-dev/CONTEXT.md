@@ -23,9 +23,10 @@ Current product shape:
   - `spec` implemented
   - `manager` implemented
   - `runtime` implemented
+  - `conversation-mcp` implemented
   - `store-index` planned (not implemented)
 - **platform layer** (`src/main/platform/`)
-  - `store`, `scheduler`, `event-bus`, `memory`, `background` implemented
+  - `store`, `scheduler`, `event`, `memory`, `background` implemented
 - **existing services integration**
   - bootstrap, session-manager, send-message, IPC/HTTP/WebSocket integration paths updated
 

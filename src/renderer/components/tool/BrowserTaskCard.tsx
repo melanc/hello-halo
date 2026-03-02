@@ -121,19 +121,6 @@ function getStepIcon(kind: string) {
 // Sub-components
 // ============================================
 
-/**
- * Scanline animation - indicates AI is "scanning" the page
- */
-function ScanlineAnimation() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none rounded-lg">
-      {/* Scanline */}
-      <div className="scanline-sweep" />
-      {/* Border glow */}
-      <div className="absolute inset-0 rounded-lg border border-primary/20 animate-border-glow" />
-    </div>
-  )
-}
 
 /**
  * Single step item
@@ -314,8 +301,6 @@ export function BrowserTaskCard({ browserToolCalls, isActive }: BrowserTaskCardP
     <div className="browser-task-card mt-3 relative">
       {/* Sci-fi background */}
       <div className="relative rounded-xl border border-primary/30 bg-gradient-to-br from-primary/5 via-background to-primary/10 overflow-hidden">
-        {/* Scanline animation (only when active) */}
-        {isActive && hasRunningStep && <ScanlineAnimation />}
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-primary/20">
@@ -324,10 +309,10 @@ export function BrowserTaskCard({ browserToolCalls, isActive }: BrowserTaskCardP
             <div className="relative">
               <Globe
                 size={18}
-                className={`text-primary ${isActive && hasRunningStep ? 'animate-pulse-gentle' : ''}`}
+                className="text-primary"
               />
               {isActive && hasRunningStep && (
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-green-500 rounded-full" />
               )}
             </div>
             <span className="font-medium text-sm">

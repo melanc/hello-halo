@@ -106,7 +106,7 @@ filters:
 **Rationale**: The product doc example used string filters (`"price_change_percent > 5%"`).
 This requires a parser and is error-prone. Structured rules:
 - Can be validated by Zod at install time.
-- Can be executed by `event-bus` with a simple field-path + operator evaluator.
+- Can be executed by `event` with a simple field-path + operator evaluator.
 - No custom DSL parser needed.
 - Non-technical users would be using a GUI form anyway, which naturally maps to structured
   objects.

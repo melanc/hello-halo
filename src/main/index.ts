@@ -22,21 +22,19 @@ log.transports.file.level = 'info'           // Always log info+ to file
 log.transports.console.level = isDev ? 'debug' : 'info'
 log.transports.file.maxSize = 5 * 1024 * 1024 // 5MB per file, auto-rotate
 
-// Handle EPIPE errors gracefully (must be registered BEFORE electron-log's errorHandler)
-// electron-log's startCatching() registers its own uncaughtException handler that shows
-// an Electron error dialog. By registering our EPIPE filter first, we intercept EPIPE
-// errors before they reach electron-log's handler, preventing unwanted error popups.
-process.on('uncaughtException', (error) => {
-  if (error.message?.includes('EPIPE')) {
-    log.warn('[Main] Ignored EPIPE error during shutdown')
-    return
+// Catch unhandled errors and log them.
+// Use onError callback to suppress EPIPE errors — returning false prevents electron-log
+// from showing the error dialog. A separate process.on('uncaughtException') handler
+// does NOT work because Node.js calls ALL registered listeners; the return in one
+// listener cannot stop electron-log's listener from firing and showing the dialog.
+log.errorHandler.startCatching({
+  onError({ error }) {
+    if (error?.message?.includes('EPIPE')) {
+      log.warn('[Main] Ignored EPIPE error (broken pipe)')
+      return false
+    }
   }
-  // Non-EPIPE errors: fall through to electron-log's handler (registered below via startCatching).
-  // Node.js calls all registered uncaughtException handlers in order — no need to re-throw.
 })
-
-// Catch unhandled errors and log them (after EPIPE filter is in place)
-log.errorHandler.startCatching()
 
 // Replace global console with electron-log (performance: direct replacement, no wrapper)
 Object.assign(console, log.functions)

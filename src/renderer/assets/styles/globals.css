@@ -483,20 +483,9 @@ body {
   animation: progress-indeterminate 1.5s ease-in-out infinite;
 }
 
-/* Thinking pulse animation */
-@keyframes thinking-pulse {
-  0%, 100% {
-    border-color: hsl(var(--primary) / 0.3);
-    box-shadow: 0 0 0 0 hsl(var(--primary) / 0.1);
-  }
-  50% {
-    border-color: hsl(var(--primary) / 0.6);
-    box-shadow: 0 0 12px 2px hsl(var(--primary) / 0.15);
-  }
-}
-
+/* Thinking pulse - static highlight, no animation (GPU perf) */
 .thinking-pulse {
-  animation: thinking-pulse 2s ease-in-out infinite;
+  border-color: hsl(var(--primary) / 0.5);
 }
 
 /* Gentle pulse animation */
@@ -706,7 +695,6 @@ body {
 
 .tool-running {
   border-color: hsl(var(--halo-glow));
-  animation: halo-pulse 1.5s ease-in-out infinite;
 }
 
 .tool-success {
@@ -902,7 +890,6 @@ body {
 
 /* Conversation history panel styles */
 .conversation-panel {
-  backdrop-filter: blur(8px);
 }
 
 /* Diff line styles */
@@ -1113,18 +1100,9 @@ body {
   animation: activity-entry-in 0.35s ease-out both;
 }
 
-/* Running node glow pulse */
-@keyframes timeline-node-pulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 hsl(var(--halo-success) / 0.4);
-  }
-  50% {
-    box-shadow: 0 0 8px 3px hsl(var(--halo-success) / 0.25);
-  }
-}
-
+/* Running node - static green dot, no animation (GPU perf) */
 .timeline-node-running {
-  animation: timeline-node-pulse 2s ease-in-out infinite;
+  box-shadow: 0 0 4px 1px hsl(var(--halo-success) / 0.3);
 }
 
 /* Running card ambient glow */

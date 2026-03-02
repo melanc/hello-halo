@@ -249,7 +249,7 @@ function TableView({
   return (
     <table className="w-full border-collapse text-sm">
       <thead className="sticky top-0 z-10">
-        <tr className="bg-secondary/80 backdrop-blur-sm">
+        <tr className="bg-secondary">
           {/* Row number header */}
           <th className="w-12 px-3 py-2 text-left text-xs font-medium text-muted-foreground border-b border-r border-border">
             #
@@ -299,7 +299,7 @@ function SourceView({ content, lineCount }: { content: string; lineCount: number
   return (
     <div className="flex min-h-full font-mono text-sm">
       {/* Line numbers */}
-      <div className="sticky left-0 flex-shrink-0 select-none bg-background/80 backdrop-blur-sm border-r border-border/50 text-right text-muted-foreground/40 pr-3 pl-4 py-4 leading-6">
+      <div className="sticky left-0 flex-shrink-0 select-none bg-background border-r border-border/50 text-right text-muted-foreground/40 pr-3 pl-4 py-4 leading-6">
         {Array.from({ length: lineCount }, (_, i) => (
           <div key={i + 1}>
             {i + 1}

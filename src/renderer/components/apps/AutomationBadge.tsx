@@ -58,7 +58,7 @@ export function AutomationBadge() {
       onClick={handleClick}
       className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-secondary/50 border-b border-border transition-colors"
     >
-      <span className="w-2 h-2 rounded-full bg-green-500/70 flex-shrink-0 animate-pulse" />
+      <span className="w-2 h-2 rounded-full bg-green-500/70 flex-shrink-0" />
       <span className="text-xs text-muted-foreground truncate flex-1 min-w-0">
         {runningApps.length === 1
           ? t('{{name}} running', { name: runningApps[0].spec.name })
