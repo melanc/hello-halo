@@ -919,11 +919,13 @@ export class BrowserContext implements BrowserContextInterface {
    * Evaluate JavaScript in the browser context
    */
   async evaluateScript<T = unknown>(script: string, args?: unknown[]): Promise<T> {
-    // Wrap script in a function call if args provided
-    let expression = script
+    // Always wrap script in a function call so arrow functions are invoked
+    let expression: string
     if (args && args.length > 0) {
       const argsStr = args.map(a => JSON.stringify(a)).join(', ')
       expression = `(${script})(${argsStr})`
+    } else {
+      expression = `(${script})()`
     }
 
     const response = await this.sendCDPCommand<{

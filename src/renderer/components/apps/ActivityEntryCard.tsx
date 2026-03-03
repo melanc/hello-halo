@@ -156,7 +156,10 @@ export function ActivityEntryCard({ entry, appId, isLast, animationDelay }: Acti
           <div className="space-y-1.5">
             <MarkdownRenderer content={content.summary} className="text-sm" />
 
-            {/* Structured data table (if present) */}
+            {/* Detailed data (if present) */}
+            {content.data != null && typeof content.data === 'string' && (
+              <MarkdownRenderer content={content.data} className="text-sm" />
+            )}
             {content.data != null && typeof content.data === 'object' && (
               <pre className="text-xs bg-secondary rounded-md p-2 overflow-x-auto text-muted-foreground">
                 {JSON.stringify(content.data, null, 2)}

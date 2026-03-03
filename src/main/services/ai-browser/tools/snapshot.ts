@@ -174,23 +174,22 @@ export const takeScreenshotTool: AIBrowserTool = {
  */
 export const evaluateScriptTool: AIBrowserTool = {
   name: 'browser_evaluate',
-  description: `Evaluate a JavaScript function inside the currently selected page. Returns the response as JSON
-so returned values have to JSON-serializable.`,
+  description: `Evaluate a JavaScript function inside the currently selected page. The function is always invoked automatically — pass an arrow function or async arrow function, and its return value will be returned as JSON. Returned values must be JSON-serializable (objects, arrays, strings, numbers, booleans). Functions, Promises (use async/await instead), and undefined are not serializable and will return {}.`,
   category: 'snapshot',
   inputSchema: {
     type: 'object',
     properties: {
       function: {
         type: 'string',
-        description: `A JavaScript function declaration to be executed by the tool in the currently selected page.
-Example without arguments: \`() => {
-  return document.title
+        description: `An arrow function expression to execute in the page. The tool calls it automatically — do NOT wrap in an IIFE.
+Example without arguments: \`() => document.title\` or \`() => {
+  return document.body.innerText.slice(0, 100)
 }\` or \`async () => {
-  return await fetch("example.com")
+  const r = await fetch('https://example.com/api')
+  return r.json()
 }\`.
-Example with arguments: \`(el) => {
-  return el.innerText;
-}\`
+Example with arguments (pass element UIDs via the args parameter): \`(el) => el.innerText\`.
+For fire-and-forget side effects, store results on \`window\` and retrieve in a follow-up call.
 `
       },
       args: {
