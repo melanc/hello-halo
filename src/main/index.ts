@@ -114,7 +114,6 @@ import { initAnalytics } from './services/analytics'
 import { registerProtocols } from './services/protocol.service'
 import { setMainWindow } from './services/window.service'
 import { initInstanceId, shutdownHealthSystem, onRendererCrash, onRendererUnresponsive } from './services/health'
-import { getBackgroundService } from './platform/background'
 
 let mainWindow: BrowserWindow | null = null
 let isAppQuitting = false
@@ -326,6 +325,16 @@ function createWindow(): void {
     recoverRenderer(`render-process-gone:${details.reason}`)
   })
 
+  // Close-to-tray: hide window instead of destroying (macOS + Windows only).
+  // Linux: allow normal close because system tray support is fragmented across DEs.
+  // Only allow actual close when the app is quitting (Cmd+Q, menu quit, tray quit).
+  mainWindow.on('close', (event) => {
+    if (!isAppQuitting && process.platform !== 'linux' && mainWindow && !mainWindow.isDestroyed()) {
+      event.preventDefault()
+      mainWindow.hide()
+    }
+  })
+
   mainWindow.on('closed', () => {
     setMainWindow(null)
     mainWindow = null
@@ -454,29 +463,10 @@ app.on('before-quit', () => {
 })
 
 app.on('window-all-closed', () => {
-  // If the user explicitly requested quit (Cmd+Q, menu quit, tray quit),
-  // always honour it — never let keep-alive block an intentional quit.
-  // before-quit sets isAppQuitting=true *synchronously* before windows close,
-  // so this check is race-free.
-  if (!isAppQuitting) {
-    // Check if the background service wants to keep the process alive
-    // (e.g., automation Apps are running in the background)
-    try {
-      const bgService = getBackgroundService()
-      if (bgService?.shouldKeepAlive()) {
-        console.log('[Main] All windows closed, but keep-alive reasons exist. Staying alive via tray.')
-        // On macOS, hide the dock icon when running in background
-        if (process.platform === 'darwin') {
-          app.dock?.hide()
-        }
-        return
-      }
-    } catch (err) {
-      // shouldKeepAlive() must never prevent quit — treat errors as "no keep-alive"
-      console.error('[Main] shouldKeepAlive() threw, proceeding with quit:', err)
-    }
-  }
-
+  // With close-to-tray, this event only fires during actual quit
+  // (isAppQuitting=true, so the close handler did not preventDefault).
+  // On non-macOS, ensure clean shutdown before exiting.
+  // On macOS, the quit sequence continues automatically from before-quit.
   if (process.platform !== 'darwin') {
     shutdownServicesWithTimeout(SHUTDOWN_TIMEOUT_MS)
       .catch(console.error)

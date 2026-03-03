@@ -12,7 +12,8 @@
  * The returned BackgroundService is the sole public API.
  */
 
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, dialog } from 'electron'
+import { getMainWindow } from '../../services/window.service'
 import { KeepAliveManager } from './keep-alive'
 import { TrayManager } from './tray'
 import { DaemonBrowserManager } from './daemon-browser'
@@ -63,9 +64,29 @@ export function initBackground(): BackgroundService {
         onGoOnline: () => service!.goOnline(),
         onGoOffline: () => service!.goOffline(),
         onQuit: () => {
-          // Clear all keep-alive reasons so the process can exit cleanly
-          keepAlive!.clearAll()
-          app.quit()
+          if (keepAlive!.shouldKeepAlive()) {
+            const reasons = keepAlive!.getActiveReasons()
+            dialog
+              .showMessageBox({
+                type: 'question',
+                buttons: ['Quit', 'Cancel'],
+                defaultId: 1,
+                cancelId: 1,
+                title: 'Quit Halo',
+                message: `There are ${reasons.length} active background task(s). Quitting will stop them.`,
+                detail:
+                  reasons.slice(0, 5).join('\n') +
+                  (reasons.length > 5 ? `\n... and ${reasons.length - 5} more` : '')
+              })
+              .then(({ response }) => {
+                if (response === 0) {
+                  keepAlive!.clearAll()
+                  app.quit()
+                }
+              })
+          } else {
+            app.quit()
+          }
         },
         getStatus: () => currentStatus,
         getActiveReasons: () => keepAlive!.getActiveReasons()
@@ -191,34 +212,29 @@ function notifyStatusChange(): void {
 }
 
 /**
- * Show the main window. Creates a new one if it was closed.
- * This is triggered by clicking "Show Halo" in the tray menu
- * or by clicking the tray icon on Windows.
+ * Show the main window, or create a new one if none exists.
+ * Triggered by tray "Show Halo" or tray icon click (Windows).
+ *
+ * Uses the authoritative window reference from window.service to avoid
+ * accidentally picking up the daemon browser or other internal windows.
  */
 function showMainWindow(): void {
-  const windows = BrowserWindow.getAllWindows()
+  const win = getMainWindow()
 
-  // Find a visible (non-daemon) window
-  const mainWindow = windows.find(w => !w.isDestroyed() && w.isVisible())
-    || windows.find(w => !w.isDestroyed())
-
-  if (mainWindow) {
-    if (!mainWindow.isVisible()) {
-      mainWindow.show()
+  if (win) {
+    if (!win.isVisible()) {
+      win.show()
     }
-    if (mainWindow.isMinimized()) {
-      mainWindow.restore()
+    if (win.isMinimized()) {
+      win.restore()
     }
-    mainWindow.focus()
+    win.focus()
 
-    // On macOS, also show in dock
     if (process.platform === 'darwin') {
       app.dock?.show()
     }
   } else {
-    // No existing window. On macOS, this triggers the 'activate' event
-    // which recreates the window via the handler in index.ts.
-    // On other platforms, emit 'activate' manually.
+    // No main window — emit 'activate' so index.ts recreates it
     app.emit('activate')
   }
 }

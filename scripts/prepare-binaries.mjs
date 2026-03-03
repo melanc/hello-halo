@@ -288,7 +288,7 @@ function installWatcher(platform) {
   const pkg = WATCHER_PACKAGES[platform]
   const pkgName = pkg.replace('@parcel/', '')
   const version = getWatcherVersion()
-  const registry = execSync('npm config get registry', { encoding: 'utf8' }).trim()
+  const registry = execSync('npm config get registry', { encoding: 'utf8' }).trim().replace(/\/+$/, '')
   const tarballUrl = `${registry}/@parcel/${pkgName}/-/${pkgName}-${version}.tgz`
   const destDir = path.join(PROJECT_ROOT, 'node_modules', pkg)
   const tmpTgz = path.join(PROJECT_ROOT, `node_modules/.${pkgName}.tgz`)

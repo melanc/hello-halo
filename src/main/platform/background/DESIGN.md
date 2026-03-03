@@ -38,26 +38,32 @@ stays forever, keeping the process alive. To mitigate this:
 This is strictly better than a simple `Set<string>` and protects against orphaned
 reasons without requiring heartbeat pings from callers.
 
-### 2.2 window-all-closed Integration
+### 2.2 Close-to-Tray
 
-The existing `index.ts` has:
-```typescript
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    shutdownServicesWithTimeout(...).finally(() => app.quit())
-  }
-})
-```
+**Design**: Close-to-tray on macOS and Windows; normal close (quit) on Linux.
 
-On macOS, `window-all-closed` does nothing (standard macOS behavior).
-On Windows/Linux, it quits immediately.
+Platform behaviour:
+- **macOS**: `close` → `preventDefault` + `hide`. Dock icon stays visible.
+- **Windows**: `close` → `preventDefault` + `hide`. System tray icon stays.
+- **Linux**: `close` proceeds normally → `window-all-closed` → shutdown + quit.
+  Linux system tray support is fragmented across DEs; hiding the window could
+  leave the app inaccessible on pure GNOME.
 
-**Change**: After background is initialized, `window-all-closed` must check
-`backgroundService.shouldKeepAlive()`. If true, do NOT quit. The process stays
-alive via the tray icon. If false on non-macOS, quit as before.
+Implementation in `index.ts`:
+- `mainWindow.on('close')` intercepts on macOS/Windows only
+  (`process.platform !== 'linux'`).
+- `window-all-closed` calls `shutdownServicesWithTimeout().finally(app.quit)`
+  on non-macOS. On macOS the quit sequence continues from `before-quit`.
 
-On macOS, the `app.on('activate')` handler already recreates the window,
-which is the correct behavior when the tray is active.
+**`shouldKeepAlive()` role**: No longer gates process survival. Used solely to
+show a confirmation dialog when the user clicks "Quit Halo" from the tray menu
+while background tasks are active.
+
+Window restoration paths (macOS/Windows):
+- Tray "Show Halo" → `showMainWindow()`
+- macOS dock click → `app.on('activate')`
+- Windows tray click → `showMainWindow()`
+- Second instance launch → `app.on('second-instance')`
 
 ### 2.3 V1 Single Shared BrowserWindow + Task Queue
 
@@ -182,7 +188,7 @@ tests/unit/platform/background/
 
 ## 5. Integration Points
 
-- `src/main/index.ts` -- Modify `window-all-closed` handler to check shouldKeepAlive()
+- `src/main/index.ts` -- `close` handler (close-to-tray) and `window-all-closed` handler
 - `src/main/bootstrap/extended.ts` -- Call `initBackground()` during extended init
 - `src/main/services/stealth/index.ts` -- Consumed (not modified)
 - `apps/runtime` (future) -- Will call registerKeepAliveReason, getDaemonBrowserWindow
