@@ -427,7 +427,7 @@ export function createSpace(input: { name: string; icon: string; customPath?: st
 /**
  * Delete a space. Removes from both memory and disk index.
  */
-export function deleteSpace(spaceId: string): boolean {
+export async function deleteSpace(spaceId: string): Promise<boolean> {
   const entry = getRegistry().get(spaceId)
   if (!entry || entry.isTemp) return false
 
@@ -440,9 +440,11 @@ export function deleteSpace(spaceId: string): boolean {
     // This must happen BEFORE deleting files to ensure proper cleanup
     const manager = getAppManager()
     if (manager) {
-      manager.deleteAppsInSpace(spaceId).catch(err => {
+      try {
+        await manager.deleteAppsInSpace(spaceId)
+      } catch (err) {
         console.error(`[Space] Failed to cleanup apps for space ${spaceId}:`, err)
-      })
+      }
     }
 
     if (isCentralized) {

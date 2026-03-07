@@ -70,7 +70,7 @@ export function registerSpaceHandlers(): void {
   // Delete a space
   ipcMain.handle('space:delete', async (_event, spaceId: string) => {
     try {
-      const result = deleteSpace(spaceId)
+      const result = await deleteSpace(spaceId)
       return { success: true, data: result }
     } catch (error: unknown) {
       const err = error as Error

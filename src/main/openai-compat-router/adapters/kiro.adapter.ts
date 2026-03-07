@@ -1325,14 +1325,7 @@ function estimateInputTokens(request: AnthropicRequest): number {
     toolDefTokens = countTokens(JSON.stringify(request.tools), request.model)
   }
 
-  const total = systemTokens + messageTokens + toolDefTokens
-  console.log(
-    `[KiroAdapter] Token breakdown: system=${systemTokens} messages=${messageTokens} ` +
-    `tools=${toolDefTokens} total=${total} ` +
-    `(msgs=${request.messages.length}, toolDefs=${request.tools?.length ?? 0})`
-  )
-
-  return total
+  return systemTokens + messageTokens + toolDefTokens
 }
 
 // ============================================================================

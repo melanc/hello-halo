@@ -18,6 +18,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
 import { getConfig, saveConfig as saveHaloConfig } from '../services/config.service'
 import { getAppManager } from '../apps/manager'
+import { AppAlreadyInstalledError } from '../apps/manager/errors'
 import { getAppRuntime } from '../apps/runtime'
 import type { AppSpec, SkillSpec } from '../apps/spec/schema'
 import type {
@@ -473,8 +474,7 @@ export async function installRequiredSkills(
         await manager.install(spaceId, bundledSpec, {})
         console.log(`[RegistryService] Installed bundled skill "${skillId}" for "${spec.name}"`)
       } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err)
-        if (msg.includes('already installed') || msg.includes('AlreadyInstalled')) {
+        if (err instanceof AppAlreadyInstalledError) {
           // Stale/orphaned record from a previous install — find it and re-sync
           try {
             const existing = manager.listApps({ spaceId, type: 'skill' })
@@ -500,7 +500,7 @@ export async function installRequiredSkills(
           }
           continue
         }
-        console.warn(`[RegistryService] Failed to install bundled skill "${skillId}": ${msg}`)
+        console.warn(`[RegistryService] Failed to install bundled skill "${skillId}": ${(err as Error).message}`)
       }
       continue
     }
@@ -510,8 +510,7 @@ export async function installRequiredSkills(
       await installFromStore(skillId, spaceId)
       console.log(`[RegistryService] Auto-installed required skill "${skillId}" for "${spec.name}"`)
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err)
-      if (msg.includes('already installed') || msg.includes('AlreadyInstalled')) {
+      if (err instanceof AppAlreadyInstalledError) {
         // Check if the existing record is uninstalled or needs file re-sync
         if (manager) {
           try {
@@ -539,7 +538,7 @@ export async function installRequiredSkills(
         }
         continue
       }
-      console.warn(`[RegistryService] Failed to auto-install required skill "${skillId}": ${msg}`)
+      console.warn(`[RegistryService] Failed to auto-install required skill "${skillId}": ${(err as Error).message}`)
     }
   }
 }
