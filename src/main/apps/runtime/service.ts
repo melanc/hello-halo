@@ -173,6 +173,13 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
     }
   }
 
+  // ── Helper: Insert + broadcast activity entry ──────
+  function emitActivityEntry(entry: ActivityEntry): void {
+    store.insertEntry(entry)
+    sendToRenderer('app:activity_entry:new', { appId: entry.appId, entry })
+    broadcastToAll('app:activity_entry:new', { appId: entry.appId, entry: entry as unknown as Record<string, unknown> })
+  }
+
   // ── Helper: Execute with concurrency control ────────
   async function executeWithConcurrency(
     app: InstalledApp,
@@ -218,6 +225,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
         store,
         memory,
         abortSignal: abortController.signal,
+        emitEntry: emitActivityEntry,
       })
 
       const runTag = result.runId.slice(0, 8)
@@ -248,12 +256,8 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
               },
             }
 
-            store.insertEntry(fallbackEntry)
+            emitActivityEntry(fallbackEntry)
             console.log(`[Runtime][${runTag}] Fallback activity entry created (AI did not call report_to_user)`)
-
-            // Broadcast to clients
-            broadcastToAll('app:activity_entry:new', { appId: app.id, entry: fallbackEntry as unknown as Record<string, unknown> })
-            sendToRenderer('app:activity_entry:new', { appId: app.id, entry: fallbackEntry })
           }
         } catch (fallbackErr) {
           console.error(`[Runtime][${runTag}] Failed to create fallback activity entry:`, fallbackErr)
@@ -422,11 +426,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
           },
         }
 
-        store.insertEntry(errorEntry)
-
-        // Broadcast the new error entry
-        broadcastToAll('app:activity_entry:new', { appId: app.id, entry: errorEntry as unknown as Record<string, unknown> })
-        sendToRenderer('app:activity_entry:new', { appId: app.id, entry: errorEntry })
+        emitActivityEntry(errorEntry)
 
         // 3. Transition app status: waiting_user → error
         try {

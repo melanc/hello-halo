@@ -373,4 +373,20 @@ export class AppManagerStore {
     const result = this.stmtDeleteById.run(appId)
     return result.changes > 0
   }
+
+  /**
+   * Delete all apps that have been uninstalled for longer than the given retention period.
+   * Returns the number of records deleted.
+   *
+   * @param retentionMs - Retention period in milliseconds (e.g., 30 days)
+   */
+  pruneUninstalledApps(retentionMs: number): number {
+    const cutoff = Date.now() - retentionMs
+    const stmt = this.db.prepare(`
+      DELETE FROM installed_apps
+      WHERE status = 'uninstalled' AND uninstalled_at IS NOT NULL AND uninstalled_at < ?
+    `)
+    const result = stmt.run(cutoff)
+    return result.changes
+  }
 }

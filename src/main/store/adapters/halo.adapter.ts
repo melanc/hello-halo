@@ -11,7 +11,7 @@
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 import { AppSpecSchema } from '../../apps/spec/schema'
-import type { AppSpec } from '../../apps/spec/schema'
+import type { AppSpec, SkillSpec } from '../../apps/spec/schema'
 import type { RegistrySource, RegistryIndex, RegistryEntry } from '../../../shared/store/store-types'
 import type { RegistryAdapter } from './types'
 
@@ -121,6 +121,76 @@ export class HaloAdapter implements RegistryAdapter {
     }
 
     return parsedSpec
+  }
+
+  /**
+   * Fetch bundled skill files for skills declared with `bundled: true`.
+   *
+   * Each skill's `files` array lists relative paths within `skills/{id}/`.
+   * Files are fetched directly via the registry's static URL — zero API calls,
+   * same pattern as fetchSpec() fetching spec.yaml.
+   *
+   * URL pattern: {source.url}/{entry.path}/skills/{skillId}/{filePath}
+   */
+  async fetchBundledSkills(
+    source: RegistrySource,
+    entry: RegistryEntry,
+    skills: Array<{ id: string; files?: string[] }>,
+  ): Promise<Map<string, SkillSpec>> {
+    const result = new Map<string, SkillSpec>()
+    const baseUrl = source.url.replace(/\/+$/, '')
+
+    for (const skill of skills) {
+      if (!skill.files || skill.files.length === 0) {
+        console.warn(`[HaloAdapter] Bundled skill "${skill.id}" has no files declared — skipping`)
+        continue
+      }
+
+      const skillBaseUrl = `${baseUrl}/${entry.path}/skills/${skill.id}`
+      const skill_files: Record<string, string> = {}
+
+      try {
+        // Download all declared files in parallel — static URLs, no API quota
+        await Promise.all(skill.files.map(async (filePath) => {
+          const url = `${skillBaseUrl}/${filePath}`
+          const res = await fetchWithTimeout(url, {
+            headers: { 'User-Agent': 'Halo-Store/1.0' },
+          })
+          if (!res.ok) {
+            console.warn(
+              `[HaloAdapter] Failed to fetch "${filePath}" for bundled skill "${skill.id}": HTTP ${res.status}`
+            )
+            return
+          }
+          skill_files[filePath] = await res.text()
+        }))
+
+        if (Object.keys(skill_files).length === 0) {
+          console.warn(`[HaloAdapter] No files downloaded for bundled skill "${skill.id}"`)
+          continue
+        }
+
+        const spec: SkillSpec = {
+          spec_version: '1',
+          name: skill.id,
+          type: 'skill',
+          version: '1.0',
+          description: `Bundled skill from ${entry.name}`,
+          skill_files,
+        }
+        result.set(skill.id, spec)
+        console.log(
+          `[HaloAdapter] Fetched bundled skill "${skill.id}" ` +
+          `(${Object.keys(skill_files).length} files: ${Object.keys(skill_files).join(', ')})`
+        )
+      } catch (err) {
+        console.warn(
+          `[HaloAdapter] Failed to fetch bundled skill "${skill.id}": ${(err as Error).message}`
+        )
+      }
+    }
+
+    return result
   }
 }
 

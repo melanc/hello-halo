@@ -19,6 +19,7 @@ import { join } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync, rmSync, renameSync } from 'fs'
 import { getHaloDir, getTempSpacePath, getSpacesDir } from './config.service'
 import { v4 as uuidv4 } from 'uuid'
+import { getAppManager } from '../apps/manager'
 
 // Re-export config helper for backward compatibility with existing imports
 export { getSpacesDir } from './config.service'
@@ -435,6 +436,15 @@ export function deleteSpace(spaceId: string): boolean {
   const isCentralized = spacePath.startsWith(spacesDir)
 
   try {
+    // Clean up all apps belonging to this space from the database
+    // This must happen BEFORE deleting files to ensure proper cleanup
+    const manager = getAppManager()
+    if (manager) {
+      manager.deleteAppsInSpace(spaceId).catch(err => {
+        console.error(`[Space] Failed to cleanup apps for space ${spaceId}:`, err)
+      })
+    }
+
     if (isCentralized) {
       // Centralized storage (new spaces + default spaces): delete entire folder
       rmSync(spacePath, { recursive: true, force: true })

@@ -178,6 +178,28 @@ export interface AppManagerService {
    */
   deleteApp(appId: string): Promise<void>
 
+  /**
+   * Delete all Apps belonging to a space (for space deletion cleanup).
+   *
+   * Hard-deletes all app records and purges their work directories.
+   * Called by space.service.ts when a space is being deleted.
+   *
+   * @param spaceId - The space ID whose apps should be deleted
+   * @returns Number of apps deleted
+   */
+  deleteAppsInSpace(spaceId: string): Promise<number>
+
+  /**
+   * Garbage collect old uninstalled apps.
+   *
+   * Permanently deletes apps that have been in 'uninstalled' status for longer
+   * than the retention period. Called during startup and periodically.
+   *
+   * @param retentionMs - Retention period in milliseconds (default: 30 days)
+   * @returns Number of apps pruned
+   */
+  pruneUninstalledApps(retentionMs?: number): number
+
   // ── Status Management ──────────────────────────
 
   /**

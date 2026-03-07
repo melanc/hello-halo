@@ -152,6 +152,7 @@ export type SkillDependency = string | {
   id: string
   reason?: string
   bundled?: boolean
+  files?: string[]
 }
 
 // ============================================

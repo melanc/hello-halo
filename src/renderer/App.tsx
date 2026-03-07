@@ -99,8 +99,8 @@ export default function App() {
   const { initialize: initializeOnboarding } = useOnboardingStore()
   const { isSearchOpen, closeSearch, isHighlightBarVisible, hideHighlightBar, goToPreviousResult, goToNextResult, openSearch } = useSearchStore()
 
-  // Apps system real-time event handlers
-  const { handleStatusChanged, handleNewActivityEntry, handleNewEscalation } = useAppsStore()
+  // Apps system real-time event handlers — accessed via getState() inside
+  // useEffect so the listener refs stay stable and never re-subscribe.
   const { setInitialAppId } = useAppsPageStore()
 
   // For search result navigation
@@ -312,19 +312,19 @@ export default function App() {
 
     const unsubStatus = api.onAppStatusChanged((data) => {
       const { appId, state } = data as { appId: string; state: unknown }
-      handleStatusChanged(appId, state as Parameters<typeof handleStatusChanged>[1])
+      useAppsStore.getState().handleStatusChanged(appId, state as any)
     })
 
     const unsubActivity = api.onAppActivityEntry((data) => {
       const { appId, entry } = data as { appId: string; entry: unknown }
-      handleNewActivityEntry(appId, entry as Parameters<typeof handleNewActivityEntry>[1])
+      useAppsStore.getState().handleNewActivityEntry(appId, entry as any)
     })
 
     const unsubEscalation = api.onAppEscalation((data) => {
       const { appId, entryId, question, choices } = data as {
         appId: string; entryId: string; question: string; choices: string[]
       }
-      handleNewEscalation(appId, entryId, question, choices)
+      useAppsStore.getState().handleNewEscalation(appId, entryId, question, choices)
     })
 
     // Deep navigation: notification click → navigate to specific App's Activity Thread
@@ -343,7 +343,7 @@ export default function App() {
       unsubEscalation()
       unsubNavigate()
     }
-  }, [handleStatusChanged, handleNewActivityEntry, handleNewEscalation, setInitialAppId, setView])
+  }, [setInitialAppId, setView])
 
   // Register in-app toast listener (notification:toast from main process)
   const showToast = useNotificationStore((s) => s.show)

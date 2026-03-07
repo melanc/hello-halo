@@ -3,7 +3,7 @@
  * Data-driven navigation items for the settings page
  */
 
-import { Bot, Palette, Settings, Globe, Info, Bell, Store, Code } from 'lucide-react'
+import { Bot, Palette, Settings, Globe, Info, Bell, Store, Code, Heart } from 'lucide-react'
 import type { SettingsNavItem } from './types'
 
 /**
@@ -48,6 +48,11 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
     labelKey: 'Remote Access',
     icon: Globe,
     desktopOnly: true
+  },
+  {
+    id: 'recommend',
+    labelKey: 'Recommend Halo',
+    icon: Heart
   },
   {
     id: 'about',

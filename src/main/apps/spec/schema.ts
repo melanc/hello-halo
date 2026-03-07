@@ -273,6 +273,8 @@ export const SkillDependencySchema = z.union([
     id: nonEmptyString,
     reason: z.string().optional(),
     bundled: z.boolean().optional(),
+    /** Relative file paths within skills/{id}/ (required when bundled: true) */
+    files: z.array(z.string()).optional(),
   })
 ])
 

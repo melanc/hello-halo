@@ -681,7 +681,7 @@ export function registerApiRoutes(app: Express): void {
     return runtime
   }
 
-  // GET /api/apps — list all installed Apps, optional ?spaceId=
+  // GET /api/apps — list all installed Apps, optional ?spaceId= and ?status=
   app.get('/api/apps', async (req: Request, res: Response) => {
     try {
       const manager = getManagerOrFail(res)
@@ -690,7 +690,14 @@ export function registerApiRoutes(app: Express): void {
       if (typeof req.query.spaceId === 'string' && req.query.spaceId) {
         filter.spaceId = req.query.spaceId
       }
-      const apps = manager.listApps(filter)
+      if (typeof req.query.status === 'string' && req.query.status) {
+        filter.status = req.query.status as AppListFilter['status']
+      }
+      let apps = manager.listApps(filter)
+      // By default, exclude uninstalled apps unless explicitly requested
+      if (!req.query.status) {
+        apps = apps.filter(app => app.status !== 'uninstalled')
+      }
       console.log('[HTTP] GET /api/apps: count=%d', apps.length)
       res.json({ success: true, data: apps })
     } catch (error) {

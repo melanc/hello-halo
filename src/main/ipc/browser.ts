@@ -5,8 +5,9 @@
  * Connects the renderer process to the BrowserView manager.
  */
 
-import { ipcMain, BrowserWindow, Menu, shell, MenuItemConstructorOptions } from 'electron'
+import { ipcMain, BrowserWindow, Menu, shell, nativeTheme, MenuItemConstructorOptions } from 'electron'
 import { browserViewManager, CHROME_USER_AGENT, type BrowserViewBounds } from '../services/browser-view.service'
+import { buildLoginLoadingPage, buildLoginErrorPage, loginPageBg } from '../services/browser-login-pages'
 
 /**
  * Browser context menu options from renderer
@@ -420,10 +421,18 @@ export function registerBrowserHandlers(mainWindow: BrowserWindow | null) {
    * Uses the same session partition as BrowserView ('persist:browser')
    * so cookies/auth state is shared with AI Browser automation.
    *
+   * Flow:
+   *   1. Create hidden window → load inline loading page (data: URL, ~instant)
+   *   2. ready-to-show fires immediately → show window with spinner
+   *   3. Navigate to real target URL; Chromium keeps the spinner visible
+   *      until the target page produces its first paint
+   *   4. On network failure → inline error page with Retry button
+   *
    * Production qualities:
    *   - Deduplicates: focuses existing window if same URL already open
-   *   - No white flash: show:false + ready-to-show
-   *   - Non-blocking: fire-and-forget loadURL, IPC returns immediately
+   *   - Instant feedback: loading spinner visible within milliseconds
+   *   - Graceful errors: inline error page with retry on load failure
+   *   - Non-blocking: IPC returns immediately
    */
   ipcMain.handle(
     'browser:open-login-window',
@@ -437,12 +446,16 @@ export function registerBrowserHandlers(mainWindow: BrowserWindow | null) {
           return { success: true }
         }
 
+        const isDark = nativeTheme.shouldUseDarkColors
+        const displayTitle = title ?? 'Login'
+
         const loginWindow = new BrowserWindow({
           width: 1024,
           height: 720,
-          title: title ?? 'Login',
+          title: displayTitle,
           autoHideMenuBar: true,
-          show: false, // Avoid white flash — reveal on ready-to-show
+          show: false,
+          backgroundColor: loginPageBg(isDark),
           webPreferences: {
             sandbox: true,
             contextIsolation: true,
@@ -453,20 +466,43 @@ export function registerBrowserHandlers(mainWindow: BrowserWindow | null) {
 
         loginWindow.webContents.setUserAgent(CHROME_USER_AGENT)
 
-        // Show window only when page is ready to render
+        // The inline loading page (data: URL) renders near-instantly, so
+        // ready-to-show fires within milliseconds. Once visible, we navigate
+        // to the real URL — Chromium keeps the old page painted until the
+        // new page's first contentful paint, so the spinner stays on screen.
         loginWindow.once('ready-to-show', () => {
+          if (loginWindow.isDestroyed()) return
           loginWindow.show()
           loginWindow.focus()
+
+          // Navigate to the real target URL
+          loginWindow.loadURL(url).catch((err: Error) => {
+            if (loginWindow.isDestroyed()) return
+            console.error('[Browser IPC] Login window target load error:', err.message)
+          })
         })
+
+        // Main-frame load failures → show inline error page with Retry
+        loginWindow.webContents.on(
+          'did-fail-load',
+          (_e, errorCode, errorDescription, validatedURL, isMainFrame) => {
+            if (!isMainFrame || errorCode === -3 /* ERR_ABORTED */ || loginWindow.isDestroyed()) return
+            // Never replace our own data: pages (prevents infinite loops)
+            if (validatedURL.startsWith('data:')) return
+            loginWindow.loadURL(
+              buildLoginErrorPage(validatedURL, errorDescription, isDark)
+            ).catch(() => {})
+          }
+        )
 
         // Register and clean up on close
         loginWindows.set(url, loginWindow)
         loginWindow.once('closed', () => loginWindows.delete(url))
 
-        // Fire-and-forget: don't block the IPC call waiting for page load
-        loginWindow.loadURL(url).catch((err: Error) => {
-          console.error('[Browser IPC] Login window load error:', err.message)
-        })
+        // Load inline loading page — data: URL triggers ready-to-show near-instantly
+        loginWindow.loadURL(
+          buildLoginLoadingPage(url, displayTitle, isDark)
+        ).catch(() => {})
 
         return { success: true }
       } catch (error) {

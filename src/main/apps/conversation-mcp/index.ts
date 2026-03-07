@@ -15,7 +15,7 @@ import { getAppManager } from '../manager'
 import { getAppRuntime } from '../runtime'
 import { ConcurrencyLimitError } from '../runtime/errors'
 import { validateAppSpec } from '../spec'
-import { installFromStore } from '../../store/registry.service'
+import { installFromStore, installRequiredSkills } from '../../store/registry.service'
 
 // ============================================
 // Helpers
@@ -72,7 +72,8 @@ function buildTools(spaceId: string) {
           return textResult(NOT_READY, true)
         }
 
-        const apps = manager.listApps({ spaceId })
+        // Filter out uninstalled apps - they should not be visible to the AI
+        const apps = manager.listApps({ spaceId }).filter(app => app.status !== 'uninstalled')
 
         if (apps.length === 0) {
           return textResult(`No automation apps installed in space ${spaceId}.`)
@@ -157,6 +158,9 @@ function buildTools(spaceId: string) {
 
         const appId = await manager.install(spaceId, validatedSpec, {})
 
+        // Auto-install required skills (non-fatal)
+        await installRequiredSkills(validatedSpec, spaceId)
+
         let activationWarning = ''
         const runtime = getAppRuntime()
         if (runtime) {
@@ -203,9 +207,15 @@ function buildTools(spaceId: string) {
           }
         }
 
-        await manager.uninstall(args.app_id)
+        // Soft-delete first (required by deleteApp)
+        if (app.status !== 'uninstalled') {
+          await manager.uninstall(args.app_id)
+        }
 
-        return textResult(`App ${args.app_id} deleted successfully.${deactivateWarning}`)
+        // Hard-delete: permanently removes DB record and work directory
+        await manager.deleteApp(args.app_id)
+
+        return textResult(`App ${args.app_id} permanently deleted.${deactivateWarning}`)
       } catch (e) {
         return textResult(`Error deleting app: ${(e as Error).message}`, true)
       }

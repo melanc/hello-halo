@@ -12,7 +12,7 @@ import { z } from 'zod'
 import { randomUUID } from 'crypto'
 import { tool, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk'
 import type { ActivityStore } from './store'
-import type { ActivityEntryType, ActivityEntryContent } from './types'
+import type { ActivityEntry, ActivityEntryType, ActivityEntryContent } from './types'
 import { broadcastToAll } from '../../http/websocket'
 import { sendToRenderer } from '../../services/window.service'
 import { notifyAppEvent } from '../../services/notification.service'
@@ -60,12 +60,14 @@ function textResult(text: string, isError = false) {
  * @param store          - ActivityStore for persisting entries
  * @param runContext     - The current run's identity
  * @param onEscalation  - Callback when an escalation is created
+ * @param emitEntry     - Insert + broadcast an activity entry (falls back to store.insertEntry)
  * @returns An SDK MCP server instance
  */
 export function createReportToolServer(
   store: ActivityStore,
   runContext: ReportToolContext,
-  onEscalation?: OnEscalation
+  onEscalation?: OnEscalation,
+  emitEntry?: (entry: ActivityEntry) => void
 ): SdkMcpServer {
   const reportTool = tool(
     'report_to_user',
@@ -148,26 +150,8 @@ export function createReportToolServer(
       if (input.question) content.question = input.question
       if (input.choices) content.choices = input.choices
 
-      // Persist the entry
-      try {
-        store.insertEntry({
-          id: entryId,
-          appId: runContext.appId,
-          runId: runContext.runId,
-          type: safeType as ActivityEntryType,
-          ts: now,
-          sessionKey: runContext.sessionKey,
-          content,
-        })
-      } catch (err) {
-        console.error('[Runtime] Failed to insert activity entry:', err)
-        return textResult(`Failed to save report: ${err instanceof Error ? err.message : String(err)}`, true)
-      }
-
-      console.log(`[Runtime][${runTag}] Activity entry created: type=${safeType}, app=${runContext.appId}, entry=${entryId}`)
-
-      // Broadcast the new activity entry to all connected remote clients
-      const entry = {
+      // Persist + broadcast the entry
+      const entry: ActivityEntry = {
         id: entryId,
         appId: runContext.appId,
         runId: runContext.runId,
@@ -176,8 +160,14 @@ export function createReportToolServer(
         sessionKey: runContext.sessionKey,
         content,
       }
-      broadcastToAll('app:activity_entry:new', { appId: runContext.appId, entry: entry as Record<string, unknown> })
-      sendToRenderer('app:activity_entry:new', { appId: runContext.appId, entry })
+      try {
+        emitEntry ? emitEntry(entry) : store.insertEntry(entry)
+      } catch (err) {
+        console.error('[Runtime] Failed to insert activity entry:', err)
+        return textResult(`Failed to save report: ${err instanceof Error ? err.message : String(err)}`, true)
+      }
+
+      console.log(`[Runtime][${runTag}] Activity entry created: type=${safeType}, app=${runContext.appId}, entry=${entryId}`)
 
       // Send system desktop notification based on notification level
       const level = runContext.notificationLevel ?? 'important'

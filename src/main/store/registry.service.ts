@@ -396,8 +396,152 @@ export async function installFromStore(
     }
   }
 
+  // Fetch bundled skill specs if the adapter supports it (e.g. HaloAdapter)
+  let bundledSkillSpecs: Map<string, SkillSpec> | undefined
+  if (specWithStore.type !== 'skill' && typeof adapter.fetchBundledSkills === 'function') {
+    const bundledDeps = (specWithStore.requires?.skills ?? [])
+      .filter((dep): dep is { id: string; bundled: true; files?: string[] } => typeof dep !== 'string' && dep.bundled === true)
+      .map(dep => ({ id: dep.id, files: dep.files }))
+
+    if (bundledDeps.length > 0) {
+      try {
+        bundledSkillSpecs = await adapter.fetchBundledSkills(registry, entry, bundledDeps)
+      } catch (err) {
+        console.warn(`[RegistryService] fetchBundledSkills failed (non-fatal): ${(err as Error).message}`)
+      }
+    }
+  }
+
+  // Auto-install required skills (non-fatal, skip for skill-type to prevent recursion)
+  if (specWithStore.type !== 'skill') {
+    await installRequiredSkills(specWithStore, spaceId, bundledSkillSpecs)
+  }
+
   console.log(`[RegistryService] Installed "${entry.name}" (${slug}) as ${appId} in space ${spaceId}`)
   return appId
+}
+
+// ============================================
+// Required Skills Auto-Install
+// ============================================
+
+/**
+ * Auto-install skills declared in `spec.requires.skills`.
+ *
+ * Called after the parent app is persisted and activated.
+ *
+ * Two install paths depending on the `bundled` flag:
+ *   - bundled: true  → install directly from the pre-fetched SkillSpec (no store lookup).
+ *                      The spec was fetched by the adapter from the package's `skills/` dir.
+ *   - bundled: false → install via `installFromStore()`, reusing the full store chain.
+ *
+ * Design decisions:
+ *   - Sequential install: avoids DB contention and keeps logs readable.
+ *   - Non-fatal: a missing or already-installed skill never fails the parent install.
+ *   - No recursion: `installFromStore()` guards with `type !== 'skill'`, so skills
+ *     that themselves declare `requires.skills` won't trigger another round.
+ */
+export async function installRequiredSkills(
+  spec: AppSpec,
+  spaceId: string | null,
+  bundledSkillSpecs?: Map<string, SkillSpec>,
+): Promise<void> {
+  const skills = spec.requires?.skills
+  if (!skills || skills.length === 0) return
+
+  const manager = getAppManager()
+
+  for (const dep of skills) {
+    const skillId = typeof dep === 'string' ? dep : dep.id
+    const isBundled = typeof dep !== 'string' && dep.bundled === true
+
+    if (isBundled) {
+      // Bundled skill: must come from the pre-fetched spec — never fall back to store
+      const bundledSpec = bundledSkillSpecs?.get(skillId)
+      if (!bundledSpec) {
+        console.warn(
+          `[RegistryService] Bundled skill "${skillId}" has no fetched spec — ` +
+          `ensure the registry adapter implements fetchBundledSkills()`
+        )
+        continue
+      }
+      if (!manager) {
+        console.warn(`[RegistryService] App Manager not available, cannot install bundled skill "${skillId}"`)
+        continue
+      }
+      try {
+        await manager.install(spaceId, bundledSpec, {})
+        console.log(`[RegistryService] Installed bundled skill "${skillId}" for "${spec.name}"`)
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        if (msg.includes('already installed') || msg.includes('AlreadyInstalled')) {
+          // Stale/orphaned record from a previous install — find it and re-sync
+          try {
+            const existing = manager.listApps({ spaceId, type: 'skill' })
+              .find(a => a.specId === skillId)
+
+            if (existing) {
+              // Update spec with fresh bundled content (also re-syncs files to disk)
+              manager.updateSpec(existing.id, bundledSpec as unknown as Record<string, unknown>)
+
+              if (existing.status === 'uninstalled') {
+                manager.reinstall(existing.id)
+                console.log(`[RegistryService] Reinstalled stale bundled skill "${skillId}" for "${spec.name}"`)
+              } else {
+                console.log(`[RegistryService] Re-synced bundled skill "${skillId}" for "${spec.name}"`)
+              }
+            } else {
+              console.warn(`[RegistryService] Bundled skill "${skillId}" reported as installed but not found in DB`)
+            }
+          } catch (syncErr) {
+            console.warn(
+              `[RegistryService] Failed to re-sync bundled skill "${skillId}": ${(syncErr as Error).message}`
+            )
+          }
+          continue
+        }
+        console.warn(`[RegistryService] Failed to install bundled skill "${skillId}": ${msg}`)
+      }
+      continue
+    }
+
+    // Non-bundled skill: install from store by slug
+    try {
+      await installFromStore(skillId, spaceId)
+      console.log(`[RegistryService] Auto-installed required skill "${skillId}" for "${spec.name}"`)
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      if (msg.includes('already installed') || msg.includes('AlreadyInstalled')) {
+        // Check if the existing record is uninstalled or needs file re-sync
+        if (manager) {
+          try {
+            const existing = manager.listApps({ spaceId, type: 'skill' })
+              .find(a => a.specId === skillId)
+
+            if (existing) {
+              if (existing.status === 'uninstalled') {
+                // Reinstall the uninstalled skill
+                manager.reinstall(existing.id)
+                console.log(`[RegistryService] Reinstalled uninstalled skill "${skillId}" for "${spec.name}"`)
+              } else {
+                console.log(`[RegistryService] Required skill "${skillId}" already installed and active, skipping`)
+              }
+            } else {
+              console.log(`[RegistryService] Required skill "${skillId}" already installed, skipping`)
+            }
+          } catch (syncErr) {
+            console.warn(
+              `[RegistryService] Failed to check/reinstall skill "${skillId}": ${(syncErr as Error).message}`
+            )
+          }
+        } else {
+          console.log(`[RegistryService] Required skill "${skillId}" already installed, skipping`)
+        }
+        continue
+      }
+      console.warn(`[RegistryService] Failed to auto-install required skill "${skillId}": ${msg}`)
+    }
+  }
 }
 
 // ============================================

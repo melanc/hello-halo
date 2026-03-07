@@ -23,7 +23,8 @@ import {
   RemoteAccessSection,
   AboutSection,
   NotificationChannelsSection,
-  RegistrySection
+  RegistrySection,
+  RecommendSection
 } from '../components/settings'
 
 export function SettingsPage() {
@@ -117,6 +118,9 @@ export function SettingsPage() {
               {!isRemoteMode && (
                 <RemoteAccessSection />
               )}
+
+              {/* Recommend Section */}
+              <RecommendSection />
 
               {/* About Section */}
               <AboutSection />

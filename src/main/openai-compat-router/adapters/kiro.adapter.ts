@@ -21,7 +21,7 @@ import type {
   AnthropicImageBlock
 } from '../types/anthropic'
 import type { BackendConfig } from '../types'
-import { estimateTokensByChars } from '../utils/token-counter'
+import { estimateTokensByChars, countTokens } from '../utils/token-counter'
 
 // ============================================================================
 // Constants
@@ -1262,58 +1262,77 @@ function generateMessageId(): string {
 /**
  * Estimate input tokens from an Anthropic-format request.
  *
- * Extracts text from system prompt, messages, and tool definitions,
- * then uses character-based estimation. Used as fallback when the
- * upstream API (Kiro) does not return real usage data.
+ * Counts the full request context: system prompt, all messages, and tool
+ * definitions — matching what Anthropic/OpenAI backends return as
+ * input_tokens/prompt_tokens. The UI uses this to display current context
+ * window usage ("已使用 / 限额").
  *
+ * Uses real tokenizer (countTokens) for accuracy matching other providers.
  * Per-message overhead (~4 tokens) accounts for role markers and formatting.
  */
 function estimateInputTokens(request: AnthropicRequest): number {
-  const parts: string[] = []
+  let systemTokens = 0
+  let messageTokens = 0
+  let toolDefTokens = 0
 
   // System prompt
+  const systemParts: string[] = []
   if (typeof request.system === 'string') {
-    parts.push(request.system)
+    systemParts.push(request.system)
   } else if (Array.isArray(request.system)) {
     for (const block of request.system) {
-      if (block.text) parts.push(block.text)
+      if (block.text) systemParts.push(block.text)
     }
+  }
+  if (systemParts.length > 0) {
+    systemTokens = countTokens(systemParts.join('\n'), request.model)
   }
 
   // Messages
+  const msgParts: string[] = []
   let messageOverhead = 0
   for (const msg of request.messages) {
     messageOverhead += 4  // role marker + formatting per message
     if (typeof msg.content === 'string') {
-      parts.push(msg.content)
+      msgParts.push(msg.content)
     } else if (Array.isArray(msg.content)) {
       for (const block of msg.content) {
         if ('text' in block && typeof block.text === 'string') {
-          parts.push(block.text)
+          msgParts.push(block.text)
         } else if ('thinking' in block && typeof block.thinking === 'string') {
-          parts.push(block.thinking)
+          msgParts.push(block.thinking)
         } else if (block.type === 'tool_use') {
-          parts.push(JSON.stringify((block as { input?: unknown }).input ?? {}))
+          msgParts.push(JSON.stringify((block as { input?: unknown }).input ?? {}))
         } else if (block.type === 'tool_result') {
           const tb = block as { content?: string | Array<{ type: string; text?: string }> }
           if (typeof tb.content === 'string') {
-            parts.push(tb.content)
+            msgParts.push(tb.content)
           } else if (Array.isArray(tb.content)) {
             for (const sub of tb.content) {
-              if (sub.text) parts.push(sub.text)
+              if (sub.text) msgParts.push(sub.text)
             }
           }
         }
       }
     }
   }
+  if (msgParts.length > 0) {
+    messageTokens = countTokens(msgParts.join('\n'), request.model) + messageOverhead
+  }
 
   // Tool definitions (JSON schemas — mostly ASCII)
   if (request.tools?.length) {
-    parts.push(JSON.stringify(request.tools))
+    toolDefTokens = countTokens(JSON.stringify(request.tools), request.model)
   }
 
-  return estimateTokensByChars(parts.join('\n')) + messageOverhead
+  const total = systemTokens + messageTokens + toolDefTokens
+  console.log(
+    `[KiroAdapter] Token breakdown: system=${systemTokens} messages=${messageTokens} ` +
+    `tools=${toolDefTokens} total=${total} ` +
+    `(msgs=${request.messages.length}, toolDefs=${request.tools?.length ?? 0})`
+  )
+
+  return total
 }
 
 // ============================================================================

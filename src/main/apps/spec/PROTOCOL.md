@@ -372,7 +372,8 @@ skills:
 |---|---|---|---|
 | `id` | `string` (non-empty) | **Yes** (object form) | Skill identifier. |
 | `reason` | `string` | No | Explanation of why this skill is needed. |
-| `bundled` | `boolean` | No | Whether provided as a bundled package (V2). |
+| `bundled` | `boolean` | No | Whether the skill files are co-located inside the package's `skills/{id}/` directory. When `true`, the runtime fetches files directly from the package instead of querying the store. |
+| `files` | `string[]` | No (required when `bundled: true`) | Relative file paths within the `skills/{id}/` directory. Supports nested paths (e.g. `lib/utils.js`). Used by the adapter to download files via static URLs at install time. |
 
 ---
 

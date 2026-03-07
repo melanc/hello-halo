@@ -53,6 +53,8 @@ export interface ExecuteRunOptions {
   memory: MemoryService
   /** Abort signal for cancellation */
   abortSignal?: AbortSignal
+  /** Insert an activity entry and broadcast it to renderer + remote clients */
+  emitEntry?: (entry: ActivityEntry) => void
 }
 
 /** Internal result from stream processing */
@@ -123,7 +125,7 @@ const SESSION_KEY_PREFIX = 'app-run'
  * @throws RunExecutionError on unrecoverable failure
  */
 export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResult> {
-  const { app, trigger, store, memory, abortSignal } = options
+  const { app, trigger, store, memory, abortSignal, emitEntry } = options
 
   // Guard: executeRun is only valid for automation apps.
   // This narrows app.spec to AutomationSpec for the rest of the function.
@@ -271,7 +273,8 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
       (entryId: string) => {
         escalationEntryId = entryId
         console.log(`[Runtime] Escalation created: entry=${entryId}, app=${app.id}`)
-      }
+      },
+      emitEntry
     )
 
     // Create halo-notify MCP server for AI autonomous notifications
@@ -462,7 +465,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
         },
       }
       try {
-        store.insertEntry(noReportEntry)
+        emitEntry ? emitEntry(noReportEntry) : store.insertEntry(noReportEntry)
       } catch (insertErr) {
         console.error('[Runtime] Failed to insert no-report error entry:', insertErr)
       }
@@ -534,7 +537,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
     }
 
     try {
-      store.insertEntry(errorEntry)
+      emitEntry ? emitEntry(errorEntry) : store.insertEntry(errorEntry)
     } catch (insertErr) {
       console.error('[Runtime] Failed to insert error activity entry:', insertErr)
     }

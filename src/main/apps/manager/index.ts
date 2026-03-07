@@ -25,6 +25,7 @@
  *   }
  */
 
+import { join } from 'path'
 import type { DatabaseManager } from '../../platform/store'
 import { getSpace } from '../../services/space.service'
 import { getHaloDir } from '../../services/config.service'
@@ -108,7 +109,11 @@ export async function initAppManager(
 
   const getSpacePath = (spaceId: string): string | null => {
     const space = getSpace(spaceId)
-    return space?.path ?? null
+    if (!space) return null
+    // For halo-temp, skills must go into artifacts/ — that's the Claude SDK workDir.
+    // For regular spaces, workingDir (if set) or path is the project root.
+    if (space.isTemp) return join(space.path, 'artifacts')
+    return space.workingDir || space.path
   }
 
   // Create the service with injected dependencies
@@ -119,6 +124,17 @@ export async function initAppManager(
   })
 
   managerInstance = service
+
+  // Garbage collect stale uninstalled apps on startup (async, non-blocking)
+  // Default retention: 30 days
+  try {
+    const pruned = service.pruneUninstalledApps()
+    if (pruned > 0) {
+      console.log(`[AppManager] Pruned ${pruned} stale uninstalled apps on startup`)
+    }
+  } catch (err) {
+    console.warn('[AppManager] Failed to prune uninstalled apps:', err)
+  }
 
   const duration = performance.now() - start
   console.log(`[AppManager] Initialized in ${duration.toFixed(1)}ms`)

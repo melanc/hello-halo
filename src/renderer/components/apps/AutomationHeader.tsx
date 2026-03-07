@@ -220,15 +220,13 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
                 <Play className="w-3.5 h-3.5" />
               </button>
             ) : (
-              !isWaiting && (
-                <button
-                  onClick={() => pauseApp(appId)}
-                  title={t('Pause')}
-                  className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
-                >
-                  <Pause className="w-3.5 h-3.5" />
-                </button>
-              )
+              <button
+                onClick={() => pauseApp(appId)}
+                title={t('Pause')}
+                className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary rounded-md transition-colors"
+              >
+                <Pause className="w-3.5 h-3.5" />
+              </button>
             )}
 
             {/* Browser */}

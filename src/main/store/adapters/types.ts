@@ -14,7 +14,7 @@
  */
 
 import type { RegistrySource, RegistryIndex, RegistryEntry, StoreQueryParams } from '../../../shared/store/store-types'
-import type { AppSpec } from '../../apps/spec/schema'
+import type { AppSpec, SkillSpec } from '../../apps/spec/schema'
 
 /** Result of a proxy query to a remote API source */
 export interface AdapterQueryResult {
@@ -53,4 +53,22 @@ export interface RegistryAdapter {
     entry: RegistryEntry,
     onProgress?: (filesComplete: number, filesTotal: number, currentFile: string) => void,
   ): Promise<AppSpec>
+
+  /**
+   * Fetch bundled skill files for skills declared with `bundled: true` in `requires.skills`.
+   *
+   * Only implemented by adapters whose package format supports co-located skill directories
+   * (e.g. HaloAdapter). Other adapters leave this unimplemented.
+   *
+   * Each skill entry includes its `files` list (declared in spec.yaml) so the adapter
+   * can fetch them directly via static URLs — no directory listing or API calls needed.
+   *
+   * @param skills - Bundled skill declarations with file lists
+   * @returns Map of skillId → SkillSpec with skill_files populated
+   */
+  fetchBundledSkills?(
+    source: RegistrySource,
+    entry: RegistryEntry,
+    skills: Array<{ id: string; files?: string[] }>,
+  ): Promise<Map<string, SkillSpec>>
 }

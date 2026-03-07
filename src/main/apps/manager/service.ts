@@ -233,6 +233,21 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       const specId = spec.name // Use spec name as the canonical spec identifier
       const existing = store.getBySpecAndSpace(specId, spaceId)
       if (existing) {
+        // If the existing record is uninstalled, reinstall it with the new spec
+        if (existing.status === 'uninstalled') {
+          // Update spec in case it changed
+          store.updateSpec(existing.id, spec)
+          // Update config if provided
+          if (userConfig) {
+            store.updateConfig(existing.id, userConfig)
+          }
+          // Reinstall (transitions from uninstalled -> active)
+          service.reinstall(existing.id)
+          console.log(
+            `[AppManager] Reinstalled previously uninstalled app '${spec.name}' (${existing.id})`
+          )
+          return existing.id
+        }
         throw new AppAlreadyInstalledError(specId, spaceId)
       }
 
@@ -320,6 +335,31 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       // Notify session-manager to invalidate affected sessions
       if (app.spec.type === 'mcp') {
         emitMcpChange(app.spaceId)
+      }
+
+      // Cascade-delete bundled skills when parent is uninstalled.
+      // Bundled skills exist solely as dependencies of this app. Removing
+      // them prevents stale DB records from blocking future reinstallation.
+      const skills = app.spec.requires?.skills
+      if (skills) {
+        for (const dep of skills) {
+          if (typeof dep === 'string' || !dep.bundled) continue
+
+          const skillApp = store.getBySpecAndSpace(dep.id, app.spaceId)
+          if (!skillApp) continue
+
+          // Remove skill files from filesystem
+          if (skillApp.spec.type === 'skill') {
+            removeSkillFromFilesystem(skillApp, getSpacePath)
+          }
+
+          // Hard-delete the DB record so reinstall gets a clean slate
+          store.delete(skillApp.id)
+
+          console.log(
+            `[AppManager] Cascade-deleted bundled skill "${dep.id}" (${skillApp.id})`
+          )
+        }
       }
 
       console.log(
@@ -569,12 +609,20 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
         }
       }
 
-      // Guard: reject if the same specId is already installed in the target scope.
-      // This covers both active and uninstalled records — the DB unique index also
-      // enforces this, but we prefer an explicit error before touching the filesystem.
+      // Guard: reject if the same specId is already installed (and active) in the target scope.
+      // Uninstalled records are ignored — moving an app to a scope with an uninstalled
+      // record of the same specId would first require hard-deleting that record, but
+      // that's an edge case we handle by failing gracefully rather than silently overwriting.
       const conflict = store.getBySpecAndSpace(app.specId, newSpaceId)
-      if (conflict) {
+      if (conflict && conflict.status !== 'uninstalled') {
         throw new AppAlreadyInstalledError(app.specId, newSpaceId)
+      }
+      // If there's an uninstalled conflict, hard-delete it first to make room
+      if (conflict && conflict.status === 'uninstalled') {
+        store.delete(conflict.id)
+        console.log(
+          `[AppManager] Removed stale uninstalled record '${conflict.specId}' (${conflict.id}) to make room for move`
+        )
       }
 
       const oldSpaceId = app.spaceId
@@ -692,6 +740,61 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
           statusChangeHandlers.splice(index, 1)
         }
       }
+    },
+
+    // ── Space Cleanup ────────────────────────
+
+    async deleteAppsInSpace(spaceId: string): Promise<number> {
+      // Get all apps in this space (including uninstalled)
+      const apps = store.list({ spaceId })
+      let deleted = 0
+
+      for (const app of apps) {
+        try {
+          // Remove skill files from filesystem
+          if (app.spec.type === 'skill') {
+            removeSkillFromFilesystem(app, getSpacePath)
+          }
+
+          // Purge the work directory
+          try {
+            const workDir = resolveWorkDir(app.id, spaceId)
+            if (existsSync(workDir)) {
+              rmSync(workDir, { recursive: true, force: true })
+            }
+          } catch (dirErr) {
+            console.warn(`[AppManager] Failed to purge work dir for ${app.id}:`, dirErr)
+          }
+
+          // Hard-delete the DB record
+          store.delete(app.id)
+          deleted++
+
+          console.log(`[AppManager] Deleted app ${app.id} (${app.spec.name}) from space ${spaceId}`)
+        } catch (err) {
+          console.error(`[AppManager] Failed to delete app ${app.id}:`, err)
+        }
+      }
+
+      if (deleted > 0) {
+        console.log(`[AppManager] Deleted ${deleted} apps from space ${spaceId}`)
+      }
+
+      return deleted
+    },
+
+    // ── Garbage Collection ───────────────────
+
+    pruneUninstalledApps(retentionMs?: number): number {
+      // Default retention: 30 days
+      const retention = retentionMs ?? 30 * 24 * 60 * 60 * 1000
+      const pruned = store.pruneUninstalledApps(retention)
+
+      if (pruned > 0) {
+        console.log(`[AppManager] Pruned ${pruned} stale uninstalled apps (retention: ${retention}ms)`)
+      }
+
+      return pruned
     },
   }
 
