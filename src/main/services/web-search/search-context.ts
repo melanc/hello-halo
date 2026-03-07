@@ -86,7 +86,7 @@ function generateViewId(): string {
  * executes the search, extracts results, and cleans up.
  */
 export class WebSearchContext {
-  private activeViewId: string | null = null
+  private activeViews = new Set<string>()
 
   /**
    * Execute a web search
@@ -162,7 +162,7 @@ export class WebSearchContext {
     timeout: number
   ): Promise<SearchResult[]> {
     const viewId = generateViewId()
-    this.activeViewId = viewId
+    this.activeViews.add(viewId)
 
     try {
       // Build search URL
@@ -319,15 +319,12 @@ export class WebSearchContext {
    * Clean up a BrowserView
    */
   private async cleanupView(viewId: string): Promise<void> {
+    if (!this.activeViews.delete(viewId)) return // already disposed
     try {
       browserViewManager.destroy(viewId)
       console.log(`[WebSearch] View cleaned up: ${viewId}`)
     } catch (error) {
       console.warn(`[WebSearch] Failed to cleanup view ${viewId}:`, (error as Error).message)
-    }
-
-    if (this.activeViewId === viewId) {
-      this.activeViewId = null
     }
   }
 
@@ -335,9 +332,15 @@ export class WebSearchContext {
    * Clean up all resources
    */
   async dispose(): Promise<void> {
-    if (this.activeViewId) {
-      await this.cleanupView(this.activeViewId)
+    for (const viewId of this.activeViews) {
+      try {
+        browserViewManager.destroy(viewId)
+        console.log(`[WebSearch] View cleaned up: ${viewId}`)
+      } catch (error) {
+        console.warn(`[WebSearch] Failed to cleanup view ${viewId}:`, (error as Error).message)
+      }
     }
+    this.activeViews.clear()
   }
 }
 

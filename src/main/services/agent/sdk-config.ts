@@ -79,6 +79,8 @@ export interface BaseSdkOptionsParams {
   mcpServers?: Record<string, any> | null
   /** Maximum tool call turns per message (from config) */
   maxTurns?: number
+  /** System prompt profile ('official' | 'halo') */
+  promptProfile?: 'official' | 'halo'
 }
 
 // ============================================
@@ -381,7 +383,7 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
       console.error(`[Agent][${conversationId}] CLI stderr:`, data)
     }),
     // Use Halo's custom system prompt instead of SDK's 'claude_code' preset
-    systemPrompt: buildSystemPrompt({ workDir, modelInfo: credentials.displayModel }),
+    systemPrompt: buildSystemPrompt({ workDir, modelInfo: credentials.displayModel, promptProfile: params.promptProfile }),
     maxTurns: params.maxTurns ?? 50,
     allowedTools: [...DEFAULT_ALLOWED_TOOLS],
     // Enable Skills loading from $CLAUDE_CONFIG_DIR/skills/ and <workspace>/.claude/skills/

@@ -56,7 +56,8 @@ export function convertAnthropicSystemToOpenAIChat(
   }
 
   if (Array.isArray(system) && system.length > 0) {
-    const textBlocks = system.filter((block) => block?.type === 'text' && block.text)
+    const textBlocks = system.filter((block) => block?.type === 'text' && block.text
+      && !block.text.startsWith('x-anthropic-'))
     if (textBlocks.length === 0) return null
 
     // If all blocks are plain text, return as content parts
@@ -204,7 +205,7 @@ export function convertAnthropicSystemToResponsesInput(
     sysText = system
   } else if (Array.isArray(system) && system.length > 0) {
     const textParts = system
-      .filter((b) => b?.type === 'text' && b.text)
+      .filter((b) => b?.type === 'text' && b.text && !b.text.startsWith('x-anthropic-'))
       .map((b) => b.text)
     sysText = textParts.join('\n')
   } else {

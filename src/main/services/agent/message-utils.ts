@@ -279,9 +279,13 @@ export function extractResultUsage(resultMsg: any, lastSingleUsage: ReturnType<t
   }
 
   // Use last API call usage (single) + cumulative cost
+  // Prefer result.usage (accumulated from message_delta, more accurate than message_start)
   if (lastSingleUsage) {
+    const resultUsage = resultMsg.usage as { output_tokens?: number, input_tokens?: number } | undefined
     return {
       ...lastSingleUsage,
+      inputTokens: resultUsage?.input_tokens || lastSingleUsage.inputTokens,
+      outputTokens: resultUsage?.output_tokens || lastSingleUsage.outputTokens,
       totalCostUsd: totalCostUsd || 0,
       contextWindow
     }

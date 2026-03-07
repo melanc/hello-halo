@@ -111,6 +111,7 @@ export interface SystemConfig {
 // Agent behavior configuration
 export interface AgentConfig {
   maxTurns: number;         // Maximum tool call turns per message
+  promptProfile?: 'official' | 'halo';  // System prompt profile
 }
 
 // Remote access configuration

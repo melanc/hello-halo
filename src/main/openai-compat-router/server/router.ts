@@ -91,8 +91,8 @@ export function createApp(options: RouterOptions = {}): Express {
 
   // Token counting endpoint
   app.post('/v1/messages/count_tokens', (req: Request, res: Response) => {
-    const { messages, system } = (req.body || {}) as { messages?: unknown; system?: unknown }
-    const result = handleCountTokensRequest(messages, system)
+    const { messages, system, model } = (req.body || {}) as { messages?: unknown; system?: unknown; model?: string }
+    const result = handleCountTokensRequest(messages, system, model)
     res.json(result)
   })
 

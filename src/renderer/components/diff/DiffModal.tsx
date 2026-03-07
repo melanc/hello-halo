@@ -114,7 +114,7 @@ export function DiffModal({
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-background/80 backdrop-blur-sm animate-fade-in"
-        onClick={onClose}
+        onMouseDown={onClose}
       />
 
       {/* Modal content */}

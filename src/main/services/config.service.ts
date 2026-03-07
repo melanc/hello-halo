@@ -324,6 +324,7 @@ interface HaloConfig {
   // Agent behavior configuration
   agent?: {
     maxTurns: number
+    promptProfile?: 'official' | 'halo'
   }
   remoteAccess: {
     enabled: boolean
@@ -457,7 +458,8 @@ const DEFAULT_CONFIG: HaloConfig = {
     autoLaunch: false
   },
   agent: {
-    maxTurns: 999
+    maxTurns: 999,
+    promptProfile: 'halo'
   },
   remoteAccess: {
     enabled: false,

@@ -112,7 +112,7 @@ export async function sendMessage(
   try {
     // Get API credentials and resolve for SDK use (inside try/catch so errors reach frontend)
     const credentials = await getApiCredentials(config)
-    console.log(`[Agent] sendMessage using: ${credentials.provider}, model: ${credentials.model}`)
+    console.log(`[Agent] sendMessage using: ${credentials.provider}, model: ${credentials.model}, prompt: ${config.agent?.promptProfile ?? 'halo'}`)
 
     // Resolve credentials for SDK (handles OpenAI compat router for non-Anthropic providers)
     const resolvedCredentials = await resolveCredentialsForSdk(credentials)
@@ -156,14 +156,15 @@ export async function sendMessage(
         stderrBuffer += data  // Accumulate for error reporting
       },
       mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : null,
-      maxTurns: config.agent?.maxTurns
+      maxTurns: config.agent?.maxTurns,
+      promptProfile: config.agent?.promptProfile
     })
 
     // Apply dynamic configurations (AI Browser, Thinking mode)
     // These are specific to sendMessage and not part of base options
     if (aiBrowserEnabled) {
       sdkOptions.systemPrompt = buildSystemPromptWithAIBrowser(
-        { workDir, modelInfo: resolvedCredentials.displayModel },
+        { workDir, modelInfo: resolvedCredentials.displayModel, promptProfile: config.agent?.promptProfile },
         AI_BROWSER_SYSTEM_PROMPT
       )
     }

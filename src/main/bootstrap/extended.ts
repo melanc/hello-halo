@@ -32,6 +32,7 @@ import { initializeSearchHandlers, cleanupSearchHandlers } from '../ipc/search'
 import { registerPerfHandlers } from '../ipc/perf'
 import { registerGitBashHandlers, initializeGitBashOnStartup } from '../ipc/git-bash'
 import { cleanupAllCaches } from '../services/artifact-cache.service'
+import { disposeSearchContext } from '../services/web-search'
 import { markExtendedServicesReady } from './state'
 import { getMainWindow, sendToRenderer } from '../services/window.service'
 import { initializeHealthSystem, setSessionCleanupFn } from '../services/health'
@@ -245,6 +246,9 @@ export async function cleanupExtendedServices(): Promise<void> {
 
   // AI Browser: Cleanup MCP server and browser context
   cleanupAIBrowserHandlers()
+
+  // Web Search: Dispose search context (cleanup any in-flight BrowserViews)
+  await disposeSearchContext().catch(err => console.error('[Bootstrap] WebSearch shutdown error:', err))
 
   // Overlay: Cleanup overlay BrowserView
   cleanupOverlayHandlers()

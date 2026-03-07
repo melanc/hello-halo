@@ -21,6 +21,7 @@ import type {
   AnthropicImageBlock
 } from '../types/anthropic'
 import type { BackendConfig } from '../types'
+import { estimateTokensByChars } from '../utils/token-counter'
 
 // ============================================================================
 // Constants
@@ -1255,6 +1256,67 @@ function generateMessageId(): string {
 }
 
 // ============================================================================
+// Input Token Estimation
+// ============================================================================
+
+/**
+ * Estimate input tokens from an Anthropic-format request.
+ *
+ * Extracts text from system prompt, messages, and tool definitions,
+ * then uses character-based estimation. Used as fallback when the
+ * upstream API (Kiro) does not return real usage data.
+ *
+ * Per-message overhead (~4 tokens) accounts for role markers and formatting.
+ */
+function estimateInputTokens(request: AnthropicRequest): number {
+  const parts: string[] = []
+
+  // System prompt
+  if (typeof request.system === 'string') {
+    parts.push(request.system)
+  } else if (Array.isArray(request.system)) {
+    for (const block of request.system) {
+      if (block.text) parts.push(block.text)
+    }
+  }
+
+  // Messages
+  let messageOverhead = 0
+  for (const msg of request.messages) {
+    messageOverhead += 4  // role marker + formatting per message
+    if (typeof msg.content === 'string') {
+      parts.push(msg.content)
+    } else if (Array.isArray(msg.content)) {
+      for (const block of msg.content) {
+        if ('text' in block && typeof block.text === 'string') {
+          parts.push(block.text)
+        } else if ('thinking' in block && typeof block.thinking === 'string') {
+          parts.push(block.thinking)
+        } else if (block.type === 'tool_use') {
+          parts.push(JSON.stringify((block as { input?: unknown }).input ?? {}))
+        } else if (block.type === 'tool_result') {
+          const tb = block as { content?: string | Array<{ type: string; text?: string }> }
+          if (typeof tb.content === 'string') {
+            parts.push(tb.content)
+          } else if (Array.isArray(tb.content)) {
+            for (const sub of tb.content) {
+              if (sub.text) parts.push(sub.text)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Tool definitions (JSON schemas — mostly ASCII)
+  if (request.tools?.length) {
+    parts.push(JSON.stringify(request.tools))
+  }
+
+  return estimateTokensByChars(parts.join('\n')) + messageOverhead
+}
+
+// ============================================================================
 // Kiro Stream → Anthropic SSE
 // ============================================================================
 
@@ -1277,7 +1339,8 @@ function generateMessageId(): string {
 async function streamKiroResponseAsAnthropicSSE(
   responseBody: ReadableStream<Uint8Array> | null,
   res: ExpressResponse,
-  model: string
+  model: string,
+  estimatedInputTokens: number
 ): Promise<void> {
   const msgId = generateMessageId()
 
@@ -1292,7 +1355,7 @@ async function streamKiroResponseAsAnthropicSSE(
       model,
       stop_reason: null,
       stop_sequence: null,
-      usage: { input_tokens: 0, output_tokens: 0 }
+      usage: { input_tokens: estimatedInputTokens, output_tokens: 0 }
     }
   })
 
@@ -1314,6 +1377,7 @@ async function streamKiroResponseAsAnthropicSSE(
   let textBlockOpen = false
   let blockIndex = 0
   let outputTokens = 0
+  let collectedText = ''
 
   const reader = responseBody.getReader()
   try {
@@ -1323,11 +1387,18 @@ async function streamKiroResponseAsAnthropicSSE(
 
       const events = parser.feed(Buffer.from(value))
       for (const event of events) {
-        if (event.type === 'content') {
+        if (event.type === 'usage') {
+          const u = event.data
+          if (typeof u === 'object' && u !== null) {
+            const usage = u as Record<string, number>
+            outputTokens = usage.outputTokens ?? usage.output_tokens ?? outputTokens
+          } else if (typeof u === 'number' && u > 0) {
+            outputTokens = u
+          }
+        } else if (event.type === 'content') {
           const text = event.data as string
           if (!text) continue
-
-          outputTokens += Math.ceil(text.length / 4) // rough estimate
+          collectedText += text
 
           // Parse thinking tags
           const { thinking, text: regularText, thinkingStarted, thinkingEnded } = thinkingParser.feed(text)
@@ -1408,6 +1479,11 @@ async function streamKiroResponseAsAnthropicSSE(
     reader.releaseLock()
   }
 
+  // Fall back to rough estimate if Kiro didn't emit a usage event
+  if (outputTokens === 0 && collectedText.length > 0) {
+    outputTokens = estimateTokensByChars(collectedText)
+  }
+
   // Flush any remaining buffered content from thinking parser
   const { thinking: finalThinking, text: finalText } = thinkingParser.flush()
 
@@ -1486,11 +1562,13 @@ async function streamKiroResponseAsAnthropicSSE(
 
 async function collectKiroResponse(
   responseBody: ReadableStream<Uint8Array> | null,
-  model: string
+  model: string,
+  estimatedInputTokens: number
 ): Promise<Record<string, unknown>> {
   const parser = new AwsEventStreamParser()
   const thinkingParser = new ThinkingTagParser()
   let fullText = ''
+  let outputTokens = 0
 
   if (responseBody) {
     const reader = responseBody.getReader()
@@ -1505,6 +1583,14 @@ async function collectKiroResponse(
             fullText += text
             // Feed to thinking parser to track state
             thinkingParser.feed(text)
+          } else if (event.type === 'usage') {
+            const u = event.data
+            if (typeof u === 'object' && u !== null) {
+              const usage = u as Record<string, number>
+              outputTokens = usage.outputTokens ?? usage.output_tokens ?? outputTokens
+            } else if (typeof u === 'number' && u > 0) {
+              outputTokens = u
+            }
           }
         }
       }
@@ -1547,7 +1633,10 @@ async function collectKiroResponse(
   }
 
   const stopReason = toolCalls.length > 0 ? 'tool_use' : 'end_turn'
-  const outputTokens = Math.ceil(fullText.length / 4)
+  // Fall back to rough estimate if Kiro didn't emit a usage event
+  if (outputTokens === 0 && fullText.length > 0) {
+    outputTokens = estimateTokensByChars(fullText)
+  }
 
   return {
     id: generateMessageId(),
@@ -1557,7 +1646,7 @@ async function collectKiroResponse(
     model,
     stop_reason: stopReason,
     stop_sequence: null,
-    usage: { input_tokens: 0, output_tokens: outputTokens }
+    usage: { input_tokens: estimatedInputTokens, output_tokens: outputTokens }
   }
 }
 
@@ -1686,6 +1775,8 @@ export async function handleKiroRequest(
       return sendKiroError(res, errorType, errorText || `HTTP ${upstreamResp.status}`)
     }
 
+    const inputTokens = estimateInputTokens(anthropicRequest)
+
     if (wantStream) {
       res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
       res.setHeader('Cache-Control', 'no-cache')
@@ -1699,7 +1790,7 @@ export async function handleKiroRequest(
       }
 
       try {
-        await streamKiroResponseAsAnthropicSSE(upstreamResp.body, res, anthropicRequest.model)
+        await streamKiroResponseAsAnthropicSSE(upstreamResp.body, res, anthropicRequest.model, inputTokens)
       } catch (err: unknown) {
         if (err instanceof Error && err.name !== 'AbortError') {
           console.error('[KiroAdapter] Stream error:', err.message)
@@ -1709,7 +1800,7 @@ export async function handleKiroRequest(
       }
     } else {
       try {
-        const response = await collectKiroResponse(upstreamResp.body, anthropicRequest.model)
+        const response = await collectKiroResponse(upstreamResp.body, anthropicRequest.model, inputTokens)
         res.json(response)
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Failed to collect response'

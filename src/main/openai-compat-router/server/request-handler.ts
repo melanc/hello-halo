@@ -28,6 +28,7 @@ import { withRequestQueue, generateQueueKey } from './request-queue'
 import { runInterceptors } from '../interceptors'
 import { applyProviderAdapter } from './provider-adapters'
 import { handleKiroRequest } from '../adapters/kiro.adapter'
+import { countTokens } from '../utils/token-counter'
 
 export interface RequestHandlerOptions {
   debug?: boolean
@@ -403,6 +404,7 @@ async function handleOpenAIConversion(
       console.log(`[RequestHandler] wire=${apiType} tools=${toolCount}`)
       console.log(`[RequestHandler] POST ${backendUrl} (stream=${wantStream ?? false})`)
 
+
       // Build headers: start with custom headers from config
       const requestHeaders: Record<string, string> = { ...(customHeaders || {}) }
 
@@ -545,20 +547,23 @@ export async function handleMessagesRequest(
 }
 
 /**
- * Handle token counting request (simple estimation)
+ * Handle token counting request using model-aware tokenizers.
+ *
+ * Uses @anthropic-ai/tokenizer for Claude, gpt-tokenizer for GPT models,
+ * and cl100k_base as fallback for other models (Qwen, DeepSeek, etc.).
  */
 export function handleCountTokensRequest(
   messages: unknown,
-  system: unknown
+  system: unknown,
+  model?: string
 ): { input_tokens: number } {
   let count = 0
 
-  // Rough estimation: 4 characters ≈ 1 token
   if (system) {
-    count += Math.ceil(JSON.stringify(system).length / 4)
+    count += countTokens(JSON.stringify(system), model)
   }
   if (messages) {
-    count += Math.ceil(JSON.stringify(messages).length / 4)
+    count += countTokens(JSON.stringify(messages), model)
   }
 
   return { input_tokens: count }
