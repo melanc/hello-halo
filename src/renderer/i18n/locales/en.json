@@ -170,7 +170,7 @@
   "Checking...": "Checking...",
   "Choose a digital human from the list on the left": "Choose a digital human from the list on the left",
   "Choose an app from the list on the left": "Choose an app from the list on the left",
-  "Choose the system prompt template used by the AI agent": "Choose the system prompt template used by the AI agent",
+  "Choose the system prompt template used by the claude code agent": "Choose the system prompt template used by the claude code agent",
   "Claude (Recommended)": "Claude (Recommended)",
   "Cleanup Actions": "Cleanup Actions",
   "Clear": "Clear",

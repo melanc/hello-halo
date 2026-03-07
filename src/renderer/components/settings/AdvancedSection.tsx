@@ -70,7 +70,7 @@ export function AdvancedSection({ config, setConfig }: AdvancedSectionProps) {
             <p className="font-medium">{t('System Prompt Profile')}</p>
           </div>
           <p className="text-sm text-muted-foreground mb-3">
-            {t('Choose the system prompt template used by the AI agent')}
+            {t('Choose the system prompt template used by the claude code agent')}
           </p>
 
           <div className="space-y-2">
