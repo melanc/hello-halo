@@ -1,6 +1,6 @@
 /**
  * About Section Component
- * Displays version info and update status
+ * Displays version info, update status, and resource links
  */
 
 import { useState, useEffect } from 'react'
@@ -10,6 +10,17 @@ import { api } from '../../api'
 import type { UpdateStatus } from './types'
 
 declare const __BUILD_TIME__: string
+
+const DOCS_URL = 'https://hello-halo.cc/docs/'
+const FEEDBACK_URL = 'https://github.com/openkursar/hello-halo/issues'
+
+const handleOpenLink = async (url: string) => {
+  try {
+    await api.openExternal(url)
+  } catch {
+    window.open(url, '_blank')
+  }
+}
 
 export function AboutSection() {
   const { t } = useTranslation()
@@ -86,9 +97,30 @@ export function AboutSection() {
             </button>
           </div>
         </div>
+
         <div className="flex justify-between">
           <span className="text-muted-foreground">{t('Build')}</span>
-          <span> Powered by Claude Code </span>
+          <span>Powered by Claude Code</span>
+        </div>
+
+        {/* Resource links */}
+        <div className="border-t border-border pt-3 flex justify-between items-center">
+          <span className="text-muted-foreground">{t('Help')}</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => handleOpenLink(DOCS_URL)}
+              className="text-xs text-primary hover:text-primary/80 transition-colors"
+            >
+              {t('Docs')}
+            </button>
+            <span className="text-muted-foreground/40 select-none">·</span>
+            <button
+              onClick={() => handleOpenLink(FEEDBACK_URL)}
+              className="text-xs text-primary hover:text-primary/80 transition-colors"
+            >
+              {t('Feedback')}
+            </button>
+          </div>
         </div>
       </div>
     </section>
