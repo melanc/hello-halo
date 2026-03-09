@@ -4,22 +4,23 @@
 
 # Halo
 
-### Open Source Cowork for Everyone
+### 7×24 小时桌面 AI Agent，人人可用
 
 
-Experience the full power of an AI Agent without touching the terminal. Halo brings a visual, cross-platform desktop experience to everyone—open source and free.
+7×24 小时指挥你的电脑，驱动 AI 浏览器自主完成任务，同时拥有友好的可视化界面与完整的文件管理能力。
 
-> **Our Philosophy:** Wrap complex technology into intuitive human interaction.
+写代码、写 PPT、做调查、写报告、部署服务器、整理桌面、操控浏览器……凡是 Agent 能力所及，一概支持。开源且免费。
 
+> **我们的理念：** 将复杂技术封装成符合直觉的人类交互。
 
 [![GitHub Stars](https://img.shields.io/github/stars/openkursar/hello-halo?style=social)](https://github.com/openkursar/hello-halo/stargazers)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-lightgrey.svg)](#installation)
+[![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20Windows%20%7C%20Linux%20%7C%20Web-lightgrey.svg)](#安装)
 [![Downloads](https://img.shields.io/github/downloads/openkursar/hello-halo/total.svg)](https://github.com/openkursar/hello-halo/releases)
 
-[Download](#installation) · [Documentation](#documentation) · [Contributing](#contributing)
+[下载](#安装) · [文档](#文档) · [参与贡献](#参与贡献)
 
- **[Español](./docs/README.es.md)** | **[Deutsch](./docs/README.de.md)** |**[中文](./docs/README.zh-CN.md)** |  **[Français](./docs/README.fr.md)** | **[日本語](./docs/README.ja.md)**
+**[English](./docs/README.en.md)** | **[繁體中文](./docs/README.zh-TW.md)** | **[Español](./docs/README.es.md)** | **[Deutsch](./docs/README.de.md)** | **[Français](./docs/README.fr.md)** | **[日本語](./docs/README.ja.md)**
 
 </div>
 
@@ -33,313 +34,309 @@ Experience the full power of an AI Agent without touching the terminal. Halo bri
 
 ---
 
-## Why Halo?
+## 为什么选择 Halo？
 
-**Claude Code is the most capable AI coding agent available.** But there's a problem:
+Halo 由 Claude Code 驱动，拥有与其同等强大的 Agent 能力。
 
-> **It's trapped in a terminal.**
+不同的是，Halo 将这份能力带出了终端 — 给它一个可视化的家，一个随时待命的界面，以及一套可以在后台 7×24 小时自主运转的数字人体系。
 
-For developers comfortable with CLI, that's fine. But for designers, PMs, students, and anyone who just wants AI to *do things* — the terminal is a wall.
-
-**Halo is the first to break down that wall.**
-
-We took 100% of Claude Code's Agent capabilities and wrapped them in a visual interface that anyone can use. Same power, zero friction.
-
-| | Claude Code CLI | Halo |
-|---|:---:|:---:|
-| Full Agent capabilities | ✅ | ✅ |
-| Visual interface | ❌ | ✅ |
-| One-click install | ❌ | ✅ |
-| Remote access from any device | ❌ | ✅ |
-| File preview & management | ❌ | ✅ |
-| Built-in AI Browser | ❌ | ✅ |
-
-> Think of it like this:
-> **Windows** turned DOS into visual desktops.
-> **Halo** turns Claude Code CLI into a visual AI companion.
+你不需要懂命令行，不需要配置环境，不需要盯着屏幕等待。下载、安装、运行，然后告诉它你想做什么。
 
 ---
 
-## Features
+## 功能特性
 
 <table>
 <tr>
 <td width="50%">
 
-### Real Agent Loop
-Not just chat. Halo can **actually do things** — write code, create files, run commands, and iterate until the task is done.
+### 真正的 Agent 循环
+不只是聊天。Halo 能**真正做事** — 写代码、创建文件、执行命令，持续迭代直到任务完成。
 
-### Space System
-Isolated workspaces keep your projects organized. Each Space has its own files, conversations, and context.
+### 空间系统
+隔离的工作空间让你的项目井井有条。每个空间都有独立的文件、对话和上下文。
 
-### Beautiful Artifact Rail
-See every file AI creates in real-time. Preview code, HTML, images — all without leaving the app.
+### 优雅的产物栏
+实时查看 AI 创建的每个文件。预览代码、HTML、图片 — 无需离开应用。
 
 </td>
 <td width="50%">
 
-### Remote Access
-Control your desktop Halo from your phone or any browser. Work from anywhere — even from a hospital bed (true story).
+### 远程访问
+从手机或任何浏览器控制你的桌面 Halo。随时随地工作 — 甚至在医院病床上（真实故事）。
 
-### AI Browser
-Let AI control a real embedded browser. Web scraping, form filling, testing — all automated.
+### AI 浏览器
+让 AI 控制真实的内嵌浏览器。网页抓取、表单填写、测试 — 全部自动化。
 
-### MCP Support
-Extend capabilities with Model Context Protocol. Compatible with Claude Desktop MCP servers.
+### MCP 支持
+通过 Model Context Protocol 扩展能力。兼容 Claude Desktop MCP 服务器。
 
 </td>
 </tr>
 </table>
 
-### And More...
+### 更多特性...
 
-- **Multi-provider Support** — Anthropic, OpenAI, DeepSeek, and any OpenAI-compatible API
-- **Real-time Thinking** — Watch AI's thought process as it works
-- **Tool Permissions** — Approve or auto-allow file/command operations
-- **Dark/Light Themes** — System-aware theming
-- **i18n Ready** — English, Chinese, Spanish (more coming)
-- **Auto Updates** — Stay current with one-click updates
-
----
-
-## Digital Humans
-
-Digital Humans are autonomous AI agents that work for you in the background — monitoring, summarizing, notifying, and acting — so you don't have to.
-
-Browse and install them directly from the **Halo Digital Human Store**, no setup required.
-
-> Think of them like apps on your phone, except they work *for* you automatically.
-
-### For Users — Install in seconds
-
-Open the Store in Halo, pick a Digital Human, configure a few fields, and it starts running. No code, no prompts, no manual effort.
-
-Examples of what Digital Humans can do for you:
-
-- Monitor prices and alert you when a deal drops
-- Deliver a daily news or market digest every morning
-- Watch your inbox and summarize what matters
-- Track social mentions of your brand or product
-- Run reports on a schedule and send them to your team
-
-### For Developers — Build and publish
-
-Want to contribute a Digital Human to the ecosystem? Write a `spec.yaml` and submit a PR to the [Digital Human Protocol (DHP)](https://github.com/openkursar/digital-human-protocol) registry — the open-source store and protocol behind Halo's Digital Humans.
-
-Your agent becomes available to all Halo users instantly after merge.
+- **Skills 技能** — 为 Agent 安装专属技能包，扩展任务边界
+- **多供应商支持** — Anthropic、OpenAI、DeepSeek，以及任何 OpenAI 兼容 API
+- **实时思考过程** — 观看 AI 的思考过程
+- **工具权限控制** — 批准或自动允许文件/命令操作
+- **深色/浅色主题** — 跟随系统主题
+- **多语言支持** — 英文、中文、西班牙语等
+- **自动更新** — 一键保持最新
 
 ---
 
-## Screenshots
+## 数字人
+
+数字人是在后台自主为你工作的 AI Agent — 持续监控、定时汇总、主动通知，无需你手动触发。
+
+在 **Halo 数字人商店**中一键安装，无需配置，即刻运行。
+
+> 把它想象成手机上的 App，区别是：它们主动为你工作。
+
+### 用户 — 几秒钟完成安装
+
+打开商店，选择数字人，填写几个配置项，它就开始运行了。无需写代码，无需写提示词。
+
+数字人能为你做什么：
+
+- 监控商品价格，降价时立即提醒你
+- 每天早晨推送新闻或市场摘要
+- 监控你的收件箱，摘要出真正重要的内容
+- 追踪你的品牌或产品的社交提及
+- 定时生成报告并发送给团队
+
+### 开发者 — 构建并发布
+
+想为生态贡献数字人？写一个 `spec.yaml`，向 [数字人协议 (DHP)](https://github.com/openkursar/digital-human-protocol) 仓库提交 PR — 这是 Halo 数字人商店背后的开源协议。
+
+合并后，你的 Agent 立即对所有 Halo 用户可用。
+
+---
+
+## 截图
 
 ![Chat Intro](./docs/assets/chat_intro.jpg)
 
 ![Chat Todo](./docs/assets/chat_todo.jpg)
 
 
-*Remote Access: Control Halo from anywhere*
+*远程访问：从任何地方控制 Halo*
 
 ![Remote Settings](./docs/assets/remote_setting.jpg)
 <p align="center">
-  <img src="./docs/assets/mobile_remote_access.jpg" width="45%" alt="Mobile Remote Access">
+  <img src="./docs/assets/mobile_remote_access.jpg" width="45%" alt="移动端远程访问">
   &nbsp;&nbsp;
-  <img src="./docs/assets/mobile_chat.jpg" width="45%" alt="Mobile Chat">
+  <img src="./docs/assets/mobile_chat.jpg" width="45%" alt="移动端聊天">
 </p>
 
-AI browser Video Demo 
+AI 浏览器视频演示
 
 https://github.com/user-attachments/assets/2d4d2f3e-d27c-44b0-8f1d-9059c8372003
 
 ---
 
-## Advanced Features Demo
+## 更多功能演示
 
-[![中文](https://img.shields.io/badge/点击播放-FB7299?style=for-the-badge&logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1jEZYBaEcy/)
-[![English](https://img.shields.io/badge/Watch_Video-FB7299?style=for-the-badge&logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1jEZYBaEcy/)
+[![📹 点击播放](https://img.shields.io/badge/📹_点击播放-FB7299?style=for-the-badge&logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1jEZYBaEcy/)
 
+---
 
-## Installation
+## 安装
 
-### Download (Recommended)
+### 下载（推荐）
 
-
-
-
-
-| Platform | Download | Requirements |
+| 平台 | 下载 | 要求 |
 |----------|----------|--------------|
-| **macOS** (Apple Silicon) | [Download .dmg](https://github.com/openkursar/hello-halo/releases/latest) | macOS 11+ |
-| **macOS** (Intel) | [Download .dmg](https://github.com/openkursar/hello-halo/releases/latest) | macOS 11+ |
-| **Windows** | [Download .exe](https://github.com/openkursar/hello-halo/releases/latest) | Windows 10+ |
-| **Linux** | [Download .AppImage](https://github.com/openkursar/hello-halo/releases/latest) | Ubuntu 20.04+ |
-| **Web** (PC/Mobile) | Enable Remote Access in desktop app | Any modern browser |
+| **macOS** (Apple Silicon) | [下载 .dmg](https://github.com/openkursar/hello-halo/releases/latest) | macOS 11+ |
+| **macOS** (Intel) | [下载 .dmg](https://github.com/openkursar/hello-halo/releases/latest) | macOS 11+ |
+| **Windows** | [下载 .exe](https://github.com/openkursar/hello-halo/releases/latest) | Windows 10+ |
+| **Linux** | [下载 .AppImage](https://github.com/openkursar/hello-halo/releases/latest) | Ubuntu 20.04+ |
+| **Web** (PC/移动端) | 在桌面应用中启用远程访问 | 任何现代浏览器 |
 
-**That's it.** Download, install, run. No Node.js. No npm. No terminal commands.
+**就这么简单。** 下载、安装、运行。不需要 Node.js，不需要 npm，不需要终端命令。
 
-### Build from Source
+### 从源码构建
 
-For developers who want to contribute or customize:
+想要贡献或自定义的开发者：
 
 ```bash
 git clone https://github.com/openkursar/hello-halo.git
 cd hello-halo
 npm install
-npm run prepare        # Download binary dependencies for your platform
+npm run prepare        # 下载当前平台的二进制依赖
 npm run dev
 ```
 
-> To build for all platforms, run `npm run prepare:all` first to download binaries for every target platform.
+> 打包所有平台的安装包前，请先运行 `npm run prepare:all` 下载全部平台的二进制依赖。
 
 ---
 
-## Quick Start
+## 快速开始
 
-1. **Launch Halo** and enter your API key (Anthropic recommended)
-2. **Start chatting** — try "Create a simple todo app with React"
-3. **Watch the magic** — see files appear in the Artifact Rail
-4. **Preview & iterate** — click any file to preview, ask for changes
+1. **启动 Halo** 并输入你的 API 密钥（推荐 Anthropic）
+2. **开始聊天** — 试试 "用 React 创建一个简单的待办事项应用"
+3. **见证魔法** — 看着文件在产物栏中出现
+4. **预览和迭代** — 点击任何文件预览，要求修改
 
-> **Pro tip:** For best results, use Claude Sonnet 4.5 or Opus 4.5 models.
+> **小技巧:** 为获得最佳效果，使用 Claude Sonnet 4.5 或 Opus 4.5 模型。
 
 ---
 
-## How It Works
+## 工作原理
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                          Halo Desktop                           │
+│                          Halo 桌面端                             │
 │  ┌─────────────┐    ┌─────────────┐    ┌───────────────────┐   │
-│  │   React UI  │◄──►│    Main     │◄──►│  Claude Code SDK  │   │
-│  │  (Renderer) │IPC │   Process   │    │   (Agent Loop)    │   │
+│  │   React UI  │◄──►│    主进程    │◄──►│  Claude Code SDK  │   │
+│  │  (渲染进程)  │IPC │   (Main)    │    │   (Agent 循环)    │   │
 │  └─────────────┘    └─────────────┘    └───────────────────┘   │
 │                            │                                    │
 │                            ▼                                    │
 │                    ┌───────────────┐                           │
-│                    │  Local Files  │                           │
-│                    │  ~/.halo/     │                           │
+│                    │   本地文件     │                           │
+│                    │   ~/.halo/    │                           │
 │                    └───────────────┘                           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-- **100% Local** — Your data never leaves your machine (except API calls)
-- **No Backend Required** — Pure desktop client, use your own API keys
-- **Real Agent Loop** — Tool execution, not just text generation
+- **100% 本地** — 你的数据永远不会离开你的电脑（除了 API 调用）
+- **无需后端** — 纯桌面客户端，使用你自己的 API 密钥
+- **真正的 Agent 循环** — 工具执行，而不只是文本生成
 
-> **Powered by [Claude Code](https://github.com/anthropics/claude-code)** — Thanks to Anthropic for building the most capable AI agent.
-
----
-
-## What People Are Building
-
-Halo isn't just for developers. We've seen:
-
-- **Finance teams** building full-stack apps from scratch — with zero coding experience
-- **Designers** prototyping interactive mockups
-- **Students** learning to code with AI as their pair programmer
-- **Developers** shipping features faster than ever
-
-The barrier isn't AI capability anymore. **It's accessibility.** Halo removes that barrier.
+> **由 [Claude Code](https://github.com/anthropics/claude-code) 驱动** — 感谢 Anthropic 构建了最强大的 AI Agent。
 
 ---
 
-## Roadmap
+## 用户在用 Halo 做什么
 
-- [x] Core Agent Loop with Claude Code SDK
-- [x] Space & Conversation management
-- [x] Artifact preview (Code, HTML, Images, Markdown)
-- [x] Remote Access (browser control)
-- [x] AI Browser (CDP-based)
-- [x] MCP Server support
-- [ ] Plugin system
-- [ ] Visual Git with AI-assisted review
-- [ ] AI-powered file search
+Halo 不只是给开发者用的。我们看到：
+
+- **金融团队** 从零开始构建全栈应用 — 完全没有编程经验
+- **内容创作者** 用 AI 自动调查、撰写、整理资料，一气呵成
+- **运营人员** 让数字人每天定时生成报告、监控竞品、汇总舆情
+- **设计师** 制作交互原型，快速验证创意
+- **学生** 以 AI 作为编程伙伴，边做边学
+- **开发者** 用 AI 浏览器自动化测试、抓取数据、部署服务器
+
+障碍不再是 AI 的能力，**而是可及性**。Halo 消除了这个障碍。
 
 ---
 
-## Contributing
+## 路线图
 
-Halo is open source because AI should be accessible to everyone.
+- [x] 基于 Claude Code SDK 的核心 Agent 循环
+- [x] 空间与对话管理
+- [x] 产物预览（代码、HTML、图片、Markdown）
+- [x] 远程访问（浏览器控制）
+- [x] AI 浏览器（基于 CDP）
+- [x] MCP 服务器支持
+- [x] Skills 技能系统
+- [x] 数字人与数字人商店
+- [ ] 插件系统
+- [ ] Git 可视化与 AI 辅助代码审查
+- [ ] AI 智能文件搜索
 
-We welcome contributions of all kinds:
+---
 
-- **Translations** — Help us reach more users (see `src/renderer/i18n/`)
-- **Bug reports** — Found something broken? Let us know
-- **Feature ideas** — What would make Halo better for you?
-- **Code contributions** — PRs welcome!
+## 参与贡献
+
+Halo 开源是因为 AI 应该人人可及。
+
+我们欢迎各种贡献：
+
+- **翻译** — 帮助我们触达更多用户（见 `src/renderer/i18n/`）
+- **Bug 报告** — 发现问题？告诉我们
+- **功能建议** — 什么能让 Halo 更好用？
+- **代码贡献** — 欢迎 PR！
 
 ```bash
-# Development setup
+# 开发环境设置
 git clone https://github.com/openkursar/hello-halo.git
 cd hello-halo
 npm install
-npm run prepare        # Download binary dependencies for your platform
+npm run prepare        # 下载当前平台的二进制依赖
 npm run dev
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+查看 [CONTRIBUTING.md](CONTRIBUTING.md) 了解详细指南。
 
 ---
 
-## Community
+## 社区
 
-- [GitHub Discussions](https://github.com/openkursar/hello-halo/discussions) — Questions & ideas
-- [Issues](https://github.com/openkursar/hello-halo/issues) — Bug reports & feature requests
+- [GitHub Discussions](https://github.com/openkursar/hello-halo/discussions) — 问题与想法
+- [Issues](https://github.com/openkursar/hello-halo/issues) — Bug 报告与功能请求
 
----
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/49f1040c-b858-4d43-841b-206310d3c33f" width="200" alt="微信群二维码">
+</p>
 
-## License
+<p align="center">
+  <em>如二维码过期，可加微信：go2halo 备注"Halo"，将邀请入群</em>
+</p>
 
-MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-## Inspired by Halo?
-
-If this project sparked an idea or helped you build something cool:
-
-- **Give us a star** — it helps others find Halo
-- **Share your story** — we love hearing what you built
-- **Link back to us** — e.g. `Inspired by [Halo](https://github.com/openkursar/hello-halo)`
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/500aa749-50d9-4587-986d-338b1ed899f1" width="200" alt="个人微信二维码">
+</p>
 
 ---
 
-## The Story Behind Halo
+## 许可证
 
-A few months ago, it started with a simple frustration: **I wanted to use Claude Code, but I was stuck in meetings all day.**
-
-During boring meetings (we've all been there), I thought: *What if I could control Claude Code on my home computer from my phone?*
-
-Then came another problem — my non-technical colleagues wanted to try Claude Code after seeing what it could do. But they got stuck at installation. *"What's npm? How do I install Node.js?"* Some spent days trying to figure it out.
-
-So I built Halo for myself and my friends:
-- **Visual interface** — no more staring at terminal output
-- **One-click install** — no Node.js, no npm, just download and run
-- **Remote access** — control from phone, tablet, or any browser
-
-The first version took a few hours. Everything after that? **100% built by Halo itself.** We've been using it daily for months.
-
-AI building AI. Now in everyone's hands.
+MIT 许可证 — 详见 [LICENSE](LICENSE)。
 
 ---
 
-## Contributors
+## 受到 Halo 的启发？
+
+如果本项目给了你灵感，或帮你构建了很酷的东西：
+
+- **给我们一个 Star** — 帮助更多人发现 Halo
+- **分享你的故事** — 我们很想知道你做了什么
+- **提及我们** — 例如 `Inspired by [Halo](https://github.com/openkursar/hello-halo)`
+
+---
+
+## Halo 背后的故事
+
+几个月前，一切始于一个简单的困扰：**我想用 Claude Code，但整天都在开会。**
+
+在无聊的会议中（我们都经历过），我想：*如果我能从手机控制家里电脑上的 Claude Code 呢？*
+
+然后又遇到另一个问题 — 我的非技术同事看到 Claude Code 能做什么后也想试试。但他们卡在了安装环节。*"什么是 npm？怎么安装 Node.js？"* 有些人花了好几天也没搞定。
+
+所以我为自己和朋友做了 Halo：
+- **可视化界面** — 不用再盯着终端输出
+- **一键安装** — 不需要 Node.js，不需要 npm，下载即用
+- **远程访问** — 从手机、平板或任何浏览器控制
+
+第一版只用了几个小时。之后的所有功能？**100% 由 Halo 自己构建。** 我们已经日常使用好几个月了。
+
+AI 构建 AI。现在人人可用。
+
+---
+
+## 贡献者
 
 <a href="https://github.com/openkursar/hello-halo/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=openkursar/hello-halo" />
 </a>
 
-Made with ❤️ by our contributors.
+由我们的贡献者用 ❤️ 打造。
 
 <div align="center">
 
-### Built by AI, for humans.
+### 由 AI 构建，为人类服务。
 
-If Halo helps you build something amazing, we'd love to hear about it.
+如果 Halo 帮你创造了精彩的东西，我们很想听听。
 
-**Star this repo** to help others discover Halo.
+**Star 这个仓库** 帮助更多人发现 Halo。
 
 [![Star History Chart](https://api.star-history.com/svg?repos=openkursar/hello-halo&type=Date)](https://star-history.com/#openkursar/hello-halo&Date)
 
-[⬆ Back to Top](#halo)
+[⬆ 返回顶部](#halo)
 
 </div>

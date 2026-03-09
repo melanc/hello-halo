@@ -4,10 +4,12 @@
 
 # Halo
 
-### Open Source Cowork for Everyone
+### Agente de IA de Escritorio 7×24 para Todos
 
 
-Experimenta todo el poder de un AI Agent sin tocar la terminal. Halo ofrece una experiencia de escritorio visual y multiplataforma para todos—open source y gratis.
+Controla tu computadora las 24 horas, impulsa un navegador de IA para completar tareas de forma autónoma, con una interfaz visual amigable y gestión completa de archivos.
+
+Escribe código, crea presentaciones, investiga, redacta informes, despliega servidores, organiza tu escritorio, automatiza navegadores — si un Agente puede hacerlo, Halo lo soporta. Open source y gratis.
 
 > **Nuestra filosofía:** Envolver tecnología compleja en interacción humana intuitiva.
 
@@ -18,7 +20,7 @@ Experimenta todo el poder de un AI Agent sin tocar la terminal. Halo ofrece una 
 
 [Descargar](#instalación) · [Documentación](#documentación) · [Contribuir](#contribuir)
 
-**[English](../README.md)** | **[简体中文](./README.zh-CN.md)** | **[繁體中文](./README.zh-TW.md)** | **[Deutsch](./README.de.md)** | **[Français](./README.fr.md)** | **[日本語](./README.ja.md)**
+**[简体中文](../README.md)** | **[English](./README.en.md)** | **[繁體中文](./README.zh-TW.md)** | **[Deutsch](./README.de.md)** | **[Français](./README.fr.md)** | **[日本語](./README.ja.md)**
 
 </div>
 
@@ -34,28 +36,11 @@ Experimenta todo el poder de un AI Agent sin tocar la terminal. Halo ofrece una 
 
 ## ¿Por qué Halo?
 
-**Claude Code es el agente de IA para programación más capaz disponible.** Pero hay un problema:
+Halo está impulsado por Claude Code y posee la misma y poderosa capacidad de Agente.
 
-> **Está atrapado en una terminal.**
+La diferencia: Halo saca esa capacidad del terminal — dándole un hogar visual, una interfaz siempre lista, y un sistema de Humanos Digitales que puede operar de forma autónoma en segundo plano 7×24.
 
-Para desarrolladores cómodos con CLI, está bien. Pero para diseñadores, PMs, estudiantes, y cualquiera que solo quiera que la IA *haga cosas* — la terminal es una barrera.
-
-**Halo es el primero en romper esa barrera.**
-
-Tomamos el 100% de las capacidades de Agent de Claude Code y las envolvimos en una interfaz visual que cualquiera puede usar. Mismo poder, cero fricción.
-
-| | Claude Code CLI | Halo |
-|---|:---:|:---:|
-| Capacidades completas de Agent | ✅ | ✅ |
-| Interfaz visual | ❌ | ✅ |
-| Instalación con un clic | ❌ | ✅ |
-| Acceso remoto desde cualquier dispositivo | ❌ | ✅ |
-| Vista previa y gestión de archivos | ❌ | ✅ |
-| Navegador IA integrado | ❌ | ✅ |
-
-> Piénsalo así:
-> **Windows** convirtió DOS en escritorios visuales.
-> **Halo** convierte Claude Code CLI en un compañero de IA visual.
+No necesitas conocer la línea de comandos, ni configurar entornos, ni quedarte mirando la pantalla esperando. Descarga, instala, ejecuta — y dile lo que quieres hacer.
 
 ---
 
@@ -65,7 +50,7 @@ Tomamos el 100% de las capacidades de Agent de Claude Code y las envolvimos en u
 <tr>
 <td width="50%">
 
-### Bucle de Agent Real
+### Bucle de Agente Real
 No solo chat. Halo puede **realmente hacer cosas** — escribir código, crear archivos, ejecutar comandos, e iterar hasta que la tarea esté hecha.
 
 ### Sistema de Espacios
@@ -92,12 +77,41 @@ Extiende capacidades con Model Context Protocol. Compatible con servidores MCP d
 
 ### Y Más...
 
+- **Skills** — Instala paquetes de habilidades para tu Agente y amplía sus capacidades
 - **Soporte Multi-proveedor** — Anthropic, OpenAI, DeepSeek, y cualquier API compatible con OpenAI
 - **Pensamiento en Tiempo Real** — Observa el proceso de pensamiento de la IA mientras trabaja
 - **Permisos de Herramientas** — Aprueba o permite automáticamente operaciones de archivos/comandos
 - **Temas Oscuro/Claro** — Tematización consciente del sistema
 - **i18n Listo** — Inglés, Chino, Español (más por venir)
 - **Actualizaciones Automáticas** — Mantente al día con actualizaciones de un clic
+
+---
+
+## Humanos Digitales
+
+Los Humanos Digitales son agentes de IA autónomos que trabajan para ti en segundo plano — monitoreando, resumiendo, notificando y actuando — para que no tengas que hacerlo.
+
+Búscalos e instálalos directamente desde la **Tienda de Humanos Digitales de Halo**, sin configuración requerida.
+
+> Piénsalos como apps en tu teléfono, excepto que trabajan *para* ti automáticamente.
+
+### Para Usuarios — Instala en segundos
+
+Abre la Tienda en Halo, elige un Humano Digital, configura algunos campos, y empieza a funcionar. Sin código, sin prompts, sin esfuerzo manual.
+
+Ejemplos de lo que los Humanos Digitales pueden hacer:
+
+- Monitorear precios y alertarte cuando baje una oferta
+- Enviar un resumen diario de noticias o mercado cada mañana
+- Vigilar tu bandeja de entrada y resumir lo que importa
+- Rastrear menciones sociales de tu marca o producto
+- Ejecutar informes en horario y enviarlos a tu equipo
+
+### Para Desarrolladores — Construye y publica
+
+¿Quieres contribuir un Humano Digital al ecosistema? Escribe un `spec.yaml` y envía un PR al registro del [Protocolo de Humanos Digitales (DHP)](https://github.com/openkursar/digital-human-protocol) — el protocolo y tienda open-source detrás de los Humanos Digitales de Halo.
+
+Tu agente queda disponible para todos los usuarios de Halo inmediatamente tras el merge.
 
 ---
 
@@ -151,6 +165,7 @@ Para desarrolladores que quieran contribuir o personalizar:
 git clone https://github.com/openkursar/hello-halo.git
 cd hello-halo
 npm install
+npm run prepare        # Descargar dependencias binarias para tu plataforma
 npm run dev
 ```
 
@@ -187,7 +202,7 @@ npm run dev
 
 - **100% Local** — Tus datos nunca salen de tu máquina (excepto llamadas API)
 - **Sin Backend Requerido** — Cliente de escritorio puro, usa tus propias claves API
-- **Bucle de Agent Real** — Ejecución de herramientas, no solo generación de texto
+- **Bucle de Agente Real** — Ejecución de herramientas, no solo generación de texto
 
 > **Powered by [Claude Code](https://github.com/anthropics/claude-code)** — Gracias a Anthropic por construir el agente de IA más capaz.
 
@@ -198,9 +213,11 @@ npm run dev
 Halo no es solo para desarrolladores. Hemos visto:
 
 - **Equipos de finanzas** construyendo apps full-stack desde cero — sin experiencia en programación
+- **Creadores de contenido** investigando, escribiendo y organizando con IA en un solo flujo
+- **Equipos de operaciones** usando Humanos Digitales para generar informes diarios, monitorear competidores y resumir tendencias
 - **Diseñadores** prototipando mockups interactivos
 - **Estudiantes** aprendiendo a programar con IA como su compañero de pair programming
-- **Desarrolladores** entregando funciones más rápido que nunca
+- **Desarrolladores** usando el Navegador IA para pruebas automatizadas, scraping y despliegue de servidores
 
 La barrera ya no es la capacidad de la IA. **Es la accesibilidad.** Halo elimina esa barrera.
 
@@ -208,12 +225,14 @@ La barrera ya no es la capacidad de la IA. **Es la accesibilidad.** Halo elimina
 
 ## Hoja de Ruta
 
-- [x] Bucle de Agent central con Claude Code SDK
+- [x] Bucle de Agente central con Claude Code SDK
 - [x] Gestión de Espacios y Conversaciones
 - [x] Vista previa de artefactos (Código, HTML, Imágenes, Markdown)
 - [x] Acceso Remoto (control por navegador)
 - [x] Navegador IA (basado en CDP)
 - [x] Soporte de servidor MCP
+- [x] Sistema de Skills
+- [x] Humanos Digitales y Tienda de Humanos Digitales
 - [ ] Sistema de plugins
 - [ ] Git visual con revisión asistida por IA
 - [ ] Búsqueda de archivos potenciada por IA
@@ -236,6 +255,7 @@ Damos la bienvenida a contribuciones de todo tipo:
 git clone https://github.com/openkursar/hello-halo.git
 cd hello-halo
 npm install
+npm run prepare        # Descargar dependencias binarias para tu plataforma
 npm run dev
 ```
 

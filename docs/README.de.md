@@ -4,10 +4,12 @@
 
 # Halo
 
-### Open Source Cowork for Everyone
+### 7×24 Desktop-KI-Agent für Alle
 
 
-Erlebe die volle Kraft eines AI Agents, ohne das Terminal zu berühren. Halo bietet allen eine visuelle, plattformübergreifende Desktop-Erfahrung—open source und kostenlos.
+Steuere deinen Computer rund um die Uhr, lass einen KI-Browser Aufgaben autonom erledigen — mit einer benutzerfreundlichen visuellen Oberfläche und vollständiger Dateiverwaltung.
+
+Code schreiben, Präsentationen erstellen, recherchieren, Berichte verfassen, Server deployen, Desktop organisieren, Browser automatisieren — wenn ein Agent es kann, unterstützt Halo es. Open Source und kostenlos.
 
 > **Unsere Philosophie:** Komplexe Technologie in intuitive menschliche Interaktion verpacken.
 
@@ -18,7 +20,7 @@ Erlebe die volle Kraft eines AI Agents, ohne das Terminal zu berühren. Halo bie
 
 [Download](#installation) · [Dokumentation](#dokumentation) · [Mitwirken](#mitwirken)
 
-**[English](../README.md)** | **[简体中文](./README.zh-CN.md)** | **[繁體中文](./README.zh-TW.md)** | **[Español](./README.es.md)** | **[Français](./README.fr.md)** | **[日本語](./README.ja.md)**
+**[简体中文](../README.md)** | **[English](./README.en.md)** | **[繁體中文](./README.zh-TW.md)** | **[Español](./README.es.md)** | **[Français](./README.fr.md)** | **[日本語](./README.ja.md)**
 
 </div>
 
@@ -34,28 +36,11 @@ Erlebe die volle Kraft eines AI Agents, ohne das Terminal zu berühren. Halo bie
 
 ## Warum Halo?
 
-**Claude Code ist der leistungsfähigste verfügbare KI-Programmieragent.** Aber es gibt ein Problem:
+Halo wird von Claude Code angetrieben und besitzt die gleiche leistungsstarke Agent-Fähigkeit.
 
-> **Er ist in einem Terminal gefangen.**
+Der Unterschied: Halo bringt diese Fähigkeit aus dem Terminal heraus — gibt ihr ein visuelles Zuhause, eine immer bereite Oberfläche und ein System von Digitalen Menschen, das 7×24 autonom im Hintergrund laufen kann.
 
-Für Entwickler, die sich mit CLI wohlfühlen, ist das in Ordnung. Aber für Designer, PMs, Studenten und alle, die einfach wollen, dass KI *Dinge erledigt* — das Terminal ist eine Hürde.
-
-**Halo ist der erste, der diese Hürde überwindet.**
-
-Wir haben 100% der Agent-Fähigkeiten von Claude Code genommen und sie in eine visuelle Oberfläche verpackt, die jeder nutzen kann. Gleiche Leistung, null Reibung.
-
-| | Claude Code CLI | Halo |
-|---|:---:|:---:|
-| Volle Agent-Fähigkeiten | ✅ | ✅ |
-| Visuelle Oberfläche | ❌ | ✅ |
-| Ein-Klick-Installation | ❌ | ✅ |
-| Fernzugriff von jedem Gerät | ❌ | ✅ |
-| Dateivorschau & Verwaltung | ❌ | ✅ |
-| Integrierter KI-Browser | ❌ | ✅ |
-
-> Stell es dir so vor:
-> **Windows** verwandelte DOS in visuelle Desktops.
-> **Halo** verwandelt Claude Code CLI in einen visuellen KI-Begleiter.
+Keine Kommandozeilen-Kenntnisse erforderlich. Keine Umgebungskonfiguration. Kein Warten vor dem Bildschirm. Herunterladen, installieren, ausführen — und sagen, was erledigt werden soll.
 
 ---
 
@@ -92,12 +77,41 @@ Erweitere Fähigkeiten mit Model Context Protocol. Kompatibel mit Claude Desktop
 
 ### Und Mehr...
 
+- **Skills** — Installiere Skill-Pakete für deinen Agenten und erweitere seine Möglichkeiten
 - **Multi-Anbieter-Unterstützung** — Anthropic, OpenAI, DeepSeek und jede OpenAI-kompatible API
 - **Echtzeit-Denken** — Beobachte den Denkprozess der KI während sie arbeitet
 - **Tool-Berechtigungen** — Genehmige oder erlaube automatisch Datei-/Befehlsoperationen
 - **Dunkel/Hell Themes** — Systemabhängige Thematisierung
 - **i18n Bereit** — Englisch, Chinesisch, Spanisch (mehr kommen)
 - **Auto-Updates** — Bleib aktuell mit Ein-Klick-Updates
+
+---
+
+## Digitale Menschen
+
+Digitale Menschen sind autonome KI-Agenten, die im Hintergrund für dich arbeiten — überwachen, zusammenfassen, benachrichtigen und handeln — damit du es nicht musst.
+
+Durchsuche und installiere sie direkt aus dem **Halo Digitale Menschen Store**, ohne Einrichtung erforderlich.
+
+> Stell sie dir wie Apps auf deinem Handy vor, außer dass sie automatisch *für* dich arbeiten.
+
+### Für Nutzer — In Sekunden installieren
+
+Öffne den Store in Halo, wähle einen Digitalen Menschen, konfiguriere ein paar Felder, und er fängt an zu laufen. Kein Code, keine Prompts, kein manueller Aufwand.
+
+Beispiele, was Digitale Menschen für dich tun können:
+
+- Preise überwachen und dich bei einem Deal benachrichtigen
+- Jeden Morgen eine tägliche Nachrichten- oder Marktzusammenfassung liefern
+- Deinen Posteingang beobachten und zusammenfassen, was wichtig ist
+- Soziale Erwähnungen deiner Marke oder deines Produkts verfolgen
+- Berichte nach Zeitplan erstellen und an dein Team senden
+
+### Für Entwickler — Bauen und veröffentlichen
+
+Möchtest du einen Digitalen Menschen zum Ökosystem beitragen? Schreibe eine `spec.yaml` und reiche einen PR beim [Digital Human Protocol (DHP)](https://github.com/openkursar/digital-human-protocol) Registry ein — das Open-Source-Protokoll hinter Halos Digitalen Menschen.
+
+Dein Agent steht allen Halo-Nutzern sofort nach dem Merge zur Verfügung.
 
 ---
 
@@ -151,6 +165,7 @@ Für Entwickler, die beitragen oder anpassen möchten:
 git clone https://github.com/openkursar/hello-halo.git
 cd hello-halo
 npm install
+npm run prepare        # Binäre Abhängigkeiten für deine Plattform herunterladen
 npm run dev
 ```
 
@@ -198,9 +213,11 @@ npm run dev
 Halo ist nicht nur für Entwickler. Wir haben gesehen:
 
 - **Finanzteams** bauen Full-Stack-Apps von Grund auf — ohne Programmiererfahrung
+- **Content-Ersteller** recherchieren, schreiben und organisieren mit KI in einem Fluss
+- **Operations-Teams** nutzen Digitale Menschen für tägliche Berichte, Wettbewerbsbeobachtung und Trendanalysen
 - **Designer** prototypen interaktive Mockups
 - **Studenten** lernen Programmieren mit KI als Pair-Programming-Partner
-- **Entwickler** liefern Features schneller als je zuvor
+- **Entwickler** nutzen den KI-Browser für automatisierte Tests, Scraping und Server-Deployments
 
 Die Hürde ist nicht mehr die KI-Fähigkeit. **Es ist die Zugänglichkeit.** Halo beseitigt diese Hürde.
 
@@ -214,6 +231,8 @@ Die Hürde ist nicht mehr die KI-Fähigkeit. **Es ist die Zugänglichkeit.** Hal
 - [x] Fernzugriff (Browser-Steuerung)
 - [x] KI-Browser (CDP-basiert)
 - [x] MCP-Server-Unterstützung
+- [x] Skills-System
+- [x] Digitale Menschen & Digitale Menschen Store
 - [ ] Plugin-System
 - [ ] Visuelles Git mit KI-gestützter Code-Review
 - [ ] KI-gestützte Dateisuche
@@ -236,6 +255,7 @@ Wir begrüßen Beiträge aller Art:
 git clone https://github.com/openkursar/hello-halo.git
 cd hello-halo
 npm install
+npm run prepare        # Binäre Abhängigkeiten für deine Plattform herunterladen
 npm run dev
 ```
 

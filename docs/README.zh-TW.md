@@ -4,10 +4,12 @@
 
 # Halo
 
-### Open Source Cowork for Everyone
+### 7×24 小時桌面 AI Agent，人人可用
 
 
-無需接觸終端機，即可體驗 AI Agent 的全部能力。Halo 為所有人帶來可視化、跨平台的桌面體驗 — 開源且免費。
+7×24 小時指揮你的電腦，驅動 AI 瀏覽器自主完成任務，同時擁有友好的可視化介面與完整的檔案管理能力。
+
+寫程式碼、寫 PPT、做調查、寫報告、部署伺服器、整理桌面、操控瀏覽器……凡是 Agent 能力所及，一概支援。開源且免費。
 
 > **我們的理念：** 將複雜技術封裝成符合直覺的人類互動。
 
@@ -18,7 +20,7 @@
 
 [下載](#安裝) · [文件](#文件) · [參與貢獻](#參與貢獻)
 
-**[English](../README.md)** | **[简体中文](./README.zh-CN.md)** | **[Español](./README.es.md)** | **[Deutsch](./README.de.md)** | **[Français](./README.fr.md)** | **[日本語](./README.ja.md)**
+**[简体中文](../README.md)** | **[English](./README.en.md)** | **[Español](./README.es.md)** | **[Deutsch](./README.de.md)** | **[Français](./README.fr.md)** | **[日本語](./README.ja.md)**
 
 </div>
 
@@ -34,28 +36,11 @@
 
 ## 為什麼選擇 Halo？
 
-**Claude Code 是目前最強大的 AI 程式設計助手。** 但有一個問題：
+Halo 由 Claude Code 驅動，擁有與其同等強大的 Agent 能力。
 
-> **它被困在終端機裡。**
+不同的是，Halo 將這份能力帶出了終端機 — 給它一個可視化的家，一個隨時待命的介面，以及一套可以在背景 7×24 小時自主運轉的數位人體系。
 
-對於熟悉命令列的開發者來說，這沒什麼。但對於設計師、產品經理、學生，以及所有希望 AI *幫忙做事* 的人來說，終端機是一道門檻。
-
-**Halo 是首個打破這道門檻的。**
-
-我們把 Claude Code 100% 的 Agent 能力，包裝進一個人人都能用的視覺化介面。同樣的能力，零摩擦。
-
-| | Claude Code CLI | Halo |
-|---|:---:|:---:|
-| 完整 Agent 能力 | ✅ | ✅ |
-| 視覺化介面 | ❌ | ✅ |
-| 一鍵安裝 | ❌ | ✅ |
-| 任意裝置遠端存取 | ❌ | ✅ |
-| 檔案預覽與管理 | ❌ | ✅ |
-| 內建 AI 瀏覽器 | ❌ | ✅ |
-
-> 可以這樣理解：
-> **Windows** 把 DOS 變成了視覺化桌面。
-> **Halo** 把 Claude Code CLI 變成了視覺化 AI 夥伴。
+你不需要懂命令列，不需要設定環境，不需要盯著螢幕等待。下載、安裝、執行，然後告訴它你想做什麼。
 
 ---
 
@@ -92,12 +77,41 @@
 
 ### 更多特性...
 
+- **Skills 技能** — 為 Agent 安裝專屬技能包，擴展任務邊界
 - **多供應商支援** — Anthropic、OpenAI、DeepSeek，以及任何 OpenAI 相容 API
 - **即時思考過程** — 觀看 AI 的思考過程
 - **工具權限控制** — 批准或自動允許檔案/命令操作
 - **深色/淺色主題** — 跟隨系統主題
 - **多語言支援** — 英文、中文、西班牙語等
 - **自動更新** — 一鍵保持最新
+
+---
+
+## 數位人
+
+數位人是在背景自主為你工作的 AI Agent — 持續監控、定時彙總、主動通知，無需你手動觸發。
+
+在 **Halo 數位人商店**中一鍵安裝，無需設定，即刻運行。
+
+> 把它想像成手機上的 App，差別是：它們主動為你工作。
+
+### 使用者 — 幾秒鐘完成安裝
+
+打開商店，選擇數位人，填寫幾個設定項，它就開始運行了。無需寫程式碼，無需撰寫提示詞。
+
+數位人能為你做什麼：
+
+- 監控商品價格，降價時立即提醒你
+- 每天早晨推送新聞或市場摘要
+- 監控你的收件匣，摘要出真正重要的內容
+- 追蹤你的品牌或產品的社群提及
+- 定時生成報告並傳送給團隊
+
+### 開發者 — 建構並發布
+
+想為生態貢獻數位人？撰寫一個 `spec.yaml`，向 [數位人協議 (DHP)](https://github.com/openkursar/digital-human-protocol) 倉庫提交 PR — 這是 Halo 數位人商店背後的開源協議。
+
+合併後，你的 Agent 立即對所有 Halo 使用者可用。
 
 ---
 
@@ -116,6 +130,16 @@
   &nbsp;&nbsp;
   <img src="./assets/mobile_chat.jpg" width="45%" alt="行動端聊天">
 </p>
+
+AI 瀏覽器視頻演示
+
+https://github.com/user-attachments/assets/2d4d2f3e-d27c-44b0-8f1d-9059c8372003
+
+---
+
+## 更多功能演示
+
+[![📹 點擊播放](https://img.shields.io/badge/📹_點擊播放-FB7299?style=for-the-badge&logo=bilibili&logoColor=white)](https://www.bilibili.com/video/BV1jEZYBaEcy/)
 
 ---
 
@@ -141,6 +165,7 @@
 git clone https://github.com/openkursar/hello-halo.git
 cd hello-halo
 npm install
+npm run prepare        # 下載當前平台的二進位依賴
 npm run dev
 ```
 
@@ -179,7 +204,7 @@ npm run dev
 - **無需後端** — 純桌面用戶端，使用你自己的 API 金鑰
 - **真正的 Agent 迴圈** — 工具執行，而不只是文字生成
 
-> **Powered by [Claude Code](https://github.com/anthropics/claude-code)** — 感謝 Anthropic 打造最強大的 AI Agent。
+> **由 [Claude Code](https://github.com/anthropics/claude-code) 驅動** — 感謝 Anthropic 打造最強大的 AI Agent。
 
 ---
 
@@ -188,9 +213,11 @@ npm run dev
 Halo 不只是給開發者用的。我們看到：
 
 - **金融團隊** 從零開始建構全端應用程式 — 完全沒有程式設計經驗
-- **設計師** 製作互動原型
-- **學生** 以 AI 作為程式設計夥伴學習程式設計
-- **開發者** 以前所未有的速度交付功能
+- **內容創作者** 用 AI 自動調查、撰寫、整理資料，一氣呵成
+- **營運人員** 讓數位人每天定時生成報告、監控競品、彙總輿情
+- **設計師** 製作互動原型，快速驗證創意
+- **學生** 以 AI 作為程式設計夥伴，邊做邊學
+- **開發者** 用 AI 瀏覽器自動化測試、擷取資料、部署伺服器
 
 障礙不再是 AI 的能力，**而是可及性**。Halo 消除了這個障礙。
 
@@ -204,6 +231,8 @@ Halo 不只是給開發者用的。我們看到：
 - [x] 遠端存取（瀏覽器控制）
 - [x] AI 瀏覽器（基於 CDP）
 - [x] MCP 伺服器支援
+- [x] Skills 技能系統
+- [x] 數位人與數位人商店
 - [ ] 外掛系統
 - [ ] Git 視覺化與 AI 輔助程式碼審查
 - [ ] AI 智慧檔案搜尋
@@ -226,6 +255,7 @@ Halo 開源是因為 AI 應該人人可及。
 git clone https://github.com/openkursar/hello-halo.git
 cd hello-halo
 npm install
+npm run prepare        # 下載當前平台的二進位依賴
 npm run dev
 ```
 
@@ -281,7 +311,7 @@ AI 建構 AI。現在人人可用。
   <img src="https://contrib.rocks/image?repo=openkursar/hello-halo" />
 </a>
 
-Made with ❤️ by our contributors.
+由我們的貢獻者用 ❤️ 打造。
 
 <div align="center">
 
