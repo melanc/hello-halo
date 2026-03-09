@@ -80,7 +80,6 @@ Extiende capacidades con Model Context Protocol. Compatible con servidores MCP d
 - **Skills** — Instala paquetes de habilidades para tu Agente y amplía sus capacidades
 - **Soporte Multi-proveedor** — Anthropic, OpenAI, DeepSeek, y cualquier API compatible con OpenAI
 - **Pensamiento en Tiempo Real** — Observa el proceso de pensamiento de la IA mientras trabaja
-- **Permisos de Herramientas** — Aprueba o permite automáticamente operaciones de archivos/comandos
 - **Temas Oscuro/Claro** — Tematización consciente del sistema
 - **i18n Listo** — Inglés, Chino, Español (más por venir)
 - **Actualizaciones Automáticas** — Mantente al día con actualizaciones de un clic
@@ -288,7 +287,7 @@ Si este proyecto despertó una idea o te ayudó a construir algo genial:
 
 ## La Historia Detrás de Halo
 
-Hace unos meses, comenzó con una simple frustración: **Quería usar Claude Code, pero estaba atrapado en reuniones todo el día.**
+En octubre de 2025, comenzó con una simple frustración: **Quería usar Claude Code, pero estaba atrapado en reuniones todo el día.**
 
 Durante reuniones aburridas (todos hemos estado ahí), pensé: *¿Y si pudiera controlar Claude Code en mi computadora de casa desde mi teléfono?*
 
@@ -299,7 +298,7 @@ Así que construí Halo para mí y mis amigos:
 - **Instalación con un clic** — sin Node.js, sin npm, solo descarga y ejecuta
 - **Acceso remoto** — controla desde teléfono, tablet, o cualquier navegador
 
-La primera versión tomó unas horas. ¿Todo después de eso? **100% construido por Halo mismo.** Lo hemos estado usando a diario durante meses.
+La primera versión tomó unas horas. ¿Todo después de eso? **100% construido por Halo mismo.** Desde entonces, lo hemos estado usando 7×24.
 
 IA construyendo IA. Ahora en las manos de todos.
 

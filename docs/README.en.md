@@ -80,7 +80,6 @@ Extend capabilities with Model Context Protocol. Compatible with Claude Desktop 
 - **Skills** — Install skill packs for your Agent to extend what it can do
 - **Multi-provider Support** — Anthropic, OpenAI, DeepSeek, and any OpenAI-compatible API
 - **Real-time Thinking** — Watch AI's thought process as it works
-- **Tool Permissions** — Approve or auto-allow file/command operations
 - **Dark/Light Themes** — System-aware theming
 - **i18n Ready** — English, Chinese, Spanish (more coming)
 - **Auto Updates** — Stay current with one-click updates
@@ -291,7 +290,7 @@ If this project sparked an idea or helped you build something cool:
 
 ## The Story Behind Halo
 
-A few months ago, it started with a simple frustration: **I wanted to use Claude Code, but I was stuck in meetings all day.**
+In October 2025, it started with a simple frustration: **I wanted to use Claude Code, but I was stuck in meetings all day.**
 
 During boring meetings (we've all been there), I thought: *What if I could control Claude Code on my home computer from my phone?*
 
@@ -302,7 +301,7 @@ So I built Halo for myself and my friends:
 - **One-click install** — no Node.js, no npm, just download and run
 - **Remote access** — control from phone, tablet, or any browser
 
-The first version took a few hours. Everything after that? **100% built by Halo itself.** We've been using it daily for months.
+The first version took a few hours. Everything after that? **100% built by Halo itself.** Since then, we've been using it 7×24.
 
 AI building AI. Now in everyone's hands.
 

@@ -80,7 +80,6 @@ Laissez l'IA contrôler un vrai navigateur intégré. Web scraping, remplissage 
 - **Skills** — Installez des packs de compétences pour votre Agent et étendez ses capacités
 - **Support Multi-fournisseurs** — Anthropic, OpenAI, DeepSeek, et toute API compatible OpenAI
 - **Réflexion en Temps Réel** — Observez le processus de réflexion de l'IA pendant qu'elle travaille
-- **Permissions d'Outils** — Approuvez ou autorisez automatiquement les opérations fichiers/commandes
 - **Thèmes Sombre/Clair** — Thématisation adaptée au système
 - **i18n Prêt** — Anglais, Chinois, Espagnol (plus à venir)
 - **Mises à Jour Auto** — Restez à jour en un clic
@@ -288,7 +287,7 @@ Si ce projet a éveillé une idée ou vous a aidé à construire quelque chose d
 
 ## L'Histoire Derrière Halo
 
-Il y a quelques mois, tout a commencé avec une simple frustration : **Je voulais utiliser Claude Code, mais j'étais coincé en réunions toute la journée.**
+En octobre 2025, tout a commencé avec une simple frustration : **Je voulais utiliser Claude Code, mais j'étais coincé en réunions toute la journée.**
 
 Pendant des réunions ennuyeuses (on y est tous passés), j'ai pensé : *Et si je pouvais contrôler Claude Code sur mon ordinateur à la maison depuis mon téléphone ?*
 
@@ -299,7 +298,7 @@ Alors j'ai construit Halo pour moi et mes amis :
 - **Installation en un clic** — pas de Node.js, pas de npm, juste télécharger et lancer
 - **Accès distant** — contrôle depuis téléphone, tablette, ou n'importe quel navigateur
 
-La première version a pris quelques heures. Tout après ça ? **100% construit par Halo lui-même.** On l'utilise quotidiennement depuis des mois.
+La première version a pris quelques heures. Tout après ça ? **100% construit par Halo lui-même.** Depuis lors, on l'utilise 7×24.
 
 L'IA qui construit l'IA. Maintenant entre les mains de tous.
 
