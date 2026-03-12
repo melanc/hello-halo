@@ -28,7 +28,7 @@ export interface HaloAPI {
   // Config
   getConfig: () => Promise<IpcResponse>
   setConfig: (updates: Record<string, unknown>) => Promise<IpcResponse>
-  validateApi: (apiKey: string, apiUrl: string, provider: string) => Promise<IpcResponse>
+  validateApi: (apiKey: string, apiUrl: string, provider: string, model?: string) => Promise<IpcResponse>
   fetchModels: (apiKey: string, apiUrl: string) => Promise<IpcResponse>
   refreshAISourcesConfig: () => Promise<IpcResponse>
 
@@ -178,6 +178,13 @@ export interface HaloAPI {
     language?: string
     mimeType: string
   }>>
+
+  // File operations
+  createArtifactFile: (spaceId: string, filePath: string, content?: string) => Promise<IpcResponse>
+  createArtifactFolder: (spaceId: string, folderPath: string) => Promise<IpcResponse>
+  deleteArtifact: (spaceId: string, targetPath: string) => Promise<IpcResponse>
+  renameArtifact: (spaceId: string, oldPath: string, newName: string) => Promise<IpcResponse>
+  moveArtifact: (spaceId: string, oldPath: string, newPath: string) => Promise<IpcResponse>
 
   // Onboarding
   writeOnboardingArtifact: (spaceId: string, filename: string, content: string) => Promise<IpcResponse>
@@ -394,13 +401,17 @@ interface IpcResponse<T = unknown> {
   error?: string
 }
 
-// Create event listener with cleanup
-function createEventListener(channel: string, callback: (data: unknown) => void): () => void {
+// Type-safe event listener creator
+// Accepts a typed callback and safely converts it to the IPC handler format
+function createEventListener<T = unknown>(
+  channel: string,
+  callback: (data: T) => void
+): () => void {
   console.log(`[Preload] Creating event listener for channel: ${channel}`)
 
   const handler = (_event: Electron.IpcRendererEvent, data: unknown): void => {
     console.log(`[Preload] Received event on channel: ${channel}`, data)
-    callback(data)
+    callback(data as T)
   }
 
   ipcRenderer.on(channel, handler)
@@ -421,7 +432,7 @@ const api: HaloAPI = {
   authRefreshToken: (sourceId) => ipcRenderer.invoke('auth:refresh-token', sourceId),
   authCheckToken: (sourceId) => ipcRenderer.invoke('auth:check-token', sourceId),
   authLogout: (sourceId) => ipcRenderer.invoke('auth:logout', sourceId),
-  onAuthLoginProgress: (callback) => createEventListener('auth:login-progress', callback as (data: unknown) => void),
+  onAuthLoginProgress: (callback) => createEventListener('auth:login-progress', callback),
 
   // Config
   getConfig: () => ipcRenderer.invoke('config:get'),
@@ -500,13 +511,20 @@ const api: HaloAPI = {
   listArtifactsTree: (spaceId) => ipcRenderer.invoke('artifact:list-tree', spaceId),
   loadArtifactChildren: (spaceId, dirPath) => ipcRenderer.invoke('artifact:load-children', spaceId, dirPath),
   initArtifactWatcher: (spaceId) => ipcRenderer.invoke('artifact:init-watcher', spaceId),
-  onArtifactChanged: (callback) => createEventListener('artifact:changed', callback as (data: unknown) => void),
-  onArtifactTreeUpdate: (callback) => createEventListener('artifact:tree-update', callback as (data: unknown) => void),
+  onArtifactChanged: (callback) => createEventListener('artifact:changed', callback),
+  onArtifactTreeUpdate: (callback) => createEventListener('artifact:tree-update', callback),
   openArtifact: (filePath) => ipcRenderer.invoke('artifact:open', filePath),
   showArtifactInFolder: (filePath) => ipcRenderer.invoke('artifact:show-in-folder', filePath),
   readArtifactContent: (filePath) => ipcRenderer.invoke('artifact:read-content', filePath),
   saveArtifactContent: (filePath, content) => ipcRenderer.invoke('artifact:save-content', filePath, content),
   detectFileType: (filePath) => ipcRenderer.invoke('artifact:detect-file-type', filePath),
+  
+  // File operations
+  createArtifactFile: (spaceId, filePath, content) => ipcRenderer.invoke('artifact:create-file', spaceId, filePath, content),
+  createArtifactFolder: (spaceId, folderPath) => ipcRenderer.invoke('artifact:create-folder', spaceId, folderPath),
+  deleteArtifact: (spaceId, targetPath) => ipcRenderer.invoke('artifact:delete', spaceId, targetPath),
+  renameArtifact: (spaceId, oldPath, newName) => ipcRenderer.invoke('artifact:rename', spaceId, oldPath, newName),
+  moveArtifact: (spaceId, oldPath, newPath) => ipcRenderer.invoke('artifact:move', spaceId, oldPath, newPath),
 
   // Onboarding
   writeOnboardingArtifact: (spaceId, filename, content) =>
@@ -536,7 +554,7 @@ const api: HaloAPI = {
   unmaximizeWindow: () => ipcRenderer.invoke('window:unmaximize'),
   isWindowMaximized: () => ipcRenderer.invoke('window:is-maximized'),
   toggleMaximizeWindow: () => ipcRenderer.invoke('window:toggle-maximize'),
-  onWindowMaximizeChange: (callback) => createEventListener('window:maximize-change', callback as (data: unknown) => void),
+  onWindowMaximizeChange: (callback) => createEventListener('window:maximize-change', callback),
 
   // Search
   search: (query, scope, conversationId, spaceId) =>
@@ -569,19 +587,19 @@ const api: HaloAPI = {
   toggleBrowserDevTools: (viewId) => ipcRenderer.invoke('browser:dev-tools', { viewId }),
   showBrowserContextMenu: (options) => ipcRenderer.invoke('browser:show-context-menu', options),
   onBrowserStateChange: (callback) => createEventListener('browser:state-change', callback),
-  onBrowserZoomChanged: (callback) => createEventListener('browser:zoom-changed', callback as (data: unknown) => void),
+  onBrowserZoomChanged: (callback) => createEventListener('browser:zoom-changed', callback),
 
   // Canvas Tab Menu (native Electron menu)
   showCanvasTabContextMenu: (options) => ipcRenderer.invoke('canvas:show-tab-context-menu', options),
-  onCanvasTabAction: (callback) => createEventListener('canvas:tab-action', callback as (data: unknown) => void),
+  onCanvasTabAction: (callback) => createEventListener('canvas:tab-action', callback),
 
   // AI Browser - active view change notification from main process
-  onAIBrowserActiveViewChanged: (callback) => createEventListener('ai-browser:active-view-changed', callback as (data: unknown) => void),
+  onAIBrowserActiveViewChanged: (callback) => createEventListener('ai-browser:active-view-changed', callback),
 
   // Overlay (for floating UI above BrowserView)
   showChatCapsuleOverlay: () => ipcRenderer.invoke('overlay:show-chat-capsule'),
   hideChatCapsuleOverlay: () => ipcRenderer.invoke('overlay:hide-chat-capsule'),
-  onCanvasExitMaximized: (callback) => createEventListener('canvas:exit-maximized', callback as (data: unknown) => void),
+  onCanvasExitMaximized: (callback) => createEventListener('canvas:exit-maximized', callback),
 
   // Performance Monitoring (Developer Tools)
   perfStart: (config) => ipcRenderer.invoke('perf:start', config),
@@ -619,7 +637,7 @@ const api: HaloAPI = {
 
   // Bootstrap lifecycle
   getBootstrapStatus: () => ipcRenderer.invoke('bootstrap:get-status'),
-  onBootstrapExtendedReady: (callback) => createEventListener('bootstrap:extended-ready', callback as (data: unknown) => void),
+  onBootstrapExtendedReady: (callback) => createEventListener('bootstrap:extended-ready', callback),
 
   // Health System
   getHealthStatus: () => ipcRenderer.invoke('health:get-status'),
@@ -704,7 +722,7 @@ const api: HaloAPI = {
   storeRemoveRegistry: (registryId) => ipcRenderer.invoke('store:remove-registry', registryId),
   storeToggleRegistry: (input) => ipcRenderer.invoke('store:toggle-registry', input),
   storeUpdateRegistryAdapterConfig: (input) => ipcRenderer.invoke('store:update-registry-adapter-config', input),
-  onStoreSyncStatusChanged: (callback) => createEventListener('store:sync-status-changed', callback as (data: unknown) => void),
+  onStoreSyncStatusChanged: (callback) => createEventListener('store:sync-status-changed', callback),
 
   // Notification (in-app toast)
   onNotificationToast: (callback) => createEventListener('notification:toast', callback),
@@ -762,7 +780,9 @@ const electronAPI = {
       ipcRenderer.on(channel, (_event, ...args) => callback(...args))
     },
     removeListener: (channel: string, callback: (...args: unknown[]) => void) => {
-      ipcRenderer.removeListener(channel, callback as (...args: unknown[]) => void)
+      // Store the wrapped handler to ensure proper removal
+      const handler = (_event: Electron.IpcRendererEvent, ...args: unknown[]) => callback(...args)
+      ipcRenderer.removeListener(channel, handler)
     },
     send: (channel: string, ...args: unknown[]) => {
       ipcRenderer.send(channel, ...args)

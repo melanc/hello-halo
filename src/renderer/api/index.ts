@@ -643,6 +643,48 @@ export const api = {
     return httpRequest('GET', `/api/artifacts/detect-type?path=${encodeURIComponent(filePath)}`)
   },
 
+  // ===== File Operations =====
+  
+  // Create file
+  createArtifactFile: async (spaceId: string, filePath: string, content: string = ''): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.createArtifactFile(spaceId, filePath, content)
+    }
+    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/file`, { path: filePath, content })
+  },
+
+  // Create folder
+  createArtifactFolder: async (spaceId: string, folderPath: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.createArtifactFolder(spaceId, folderPath)
+    }
+    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/folder`, { path: folderPath })
+  },
+
+  // Delete file or folder
+  deleteArtifact: async (spaceId: string, targetPath: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.deleteArtifact(spaceId, targetPath)
+    }
+    return httpRequest('DELETE', `/api/spaces/${spaceId}/artifacts`, { path: targetPath })
+  },
+
+  // Rename file or folder
+  renameArtifact: async (spaceId: string, oldPath: string, newName: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.renameArtifact(spaceId, oldPath, newName)
+    }
+    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/rename`, { oldPath, newName })
+  },
+
+  // Move file or folder
+  moveArtifact: async (spaceId: string, oldPath: string, newPath: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.moveArtifact(spaceId, oldPath, newPath)
+    }
+    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/move`, { oldPath, newPath })
+  },
+
   // ===== Onboarding =====
   writeOnboardingArtifact: async (
     spaceId: string,
