@@ -14,83 +14,158 @@
 2. **No hardcoded user text in renderer.** Use `t('English text')`.
    - Do not manually maintain locale JSON for normal changes.
    - Run `npm run i18n` before final handoff.
+   - Use English for all code comments.
 
 3. **Tailwind first.**
-   - Prefer utility classes.
-   - Only use CSS files for exceptions (animations, pseudo-elements, third-party overrides).
+   - Prefer utility classes for all styling.
+   - Only use CSS files for: `@keyframes` animations, complex pseudo-elements, nested selectors, third-party overrides.
+   - Do not create new CSS files unless these exceptions apply.
+   - Existing CSS files and their responsibilities:
+     - `globals.css` — Theme variables, @keyframes, base styles
+     - `syntax-theme.css` — highlight.js syntax colors
+     - `canvas-tabs.css` — VS Code style tab bar
+     - `browser-task-card.css` — AI Browser effects
 
-4. **No hardcoded colors.**
-   - Use theme tokens/classes (`bg-background`, `text-foreground`, `hsl(var(--...))`).
+4. **No hardcoded colors. Ever.**
+   - Use theme tokens/classes: `bg-background`, `text-foreground`, `border-border`, `hsl(var(--primary))`, `hsl(var(--muted-foreground))`
+   - Never use: `#ffffff`, `rgb(0,0,0)`, `bg-gray-100`, `text-white` (except on explicitly colored backgrounds like `bg-primary`)
+   - Do not use Tailwind palette colors (e.g. `bg-slate-100`, `bg-zinc-800`) as substitutes for theme tokens. Palette colors are fine for functional/semantic purposes (e.g. `bg-red-500` for error indicators).
+   ```tsx
+   /* Correct */
+   <div className="bg-background text-foreground border border-border">
+   <span className="text-muted-foreground">
+   <button className="bg-primary text-primary-foreground">
 
-5. **Respect layering and module boundaries.**
+   /* Wrong */
+   <div className="bg-white text-black border border-gray-200">
+   <span className="text-gray-500">
+   <button className="bg-blue-500 text-white">
+   ```
+
+5. **Responsive design is mandatory for every UI change.**
+   - Use Tailwind `sm:` breakpoint (640px) as mobile/desktop boundary.
+   - Write mobile-first: base classes for mobile, `sm:` prefix for desktop overrides.
+   - Prefer Tailwind responsive classes over JS detection (`useIsMobile` only when CSS alone cannot solve it).
+   - Test all UI at < 640px width.
+   ```tsx
+   /* Correct: mobile-first responsive */
+   <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+   <div className="w-full sm:w-80">
+   <div className="p-3 sm:p-6">
+   <div className="text-sm sm:text-base">
+   <nav className="hidden sm:flex">       {/* desktop only */}
+   <nav className="flex sm:hidden">        {/* mobile only */}
+
+   /* Wrong: desktop-only, breaks on mobile */
+   <div className="flex flex-row gap-4">
+   <div className="w-80">
+   <div className="p-6">
+   ```
+
+6. **Respect layering and module boundaries.**
    - Do not move business logic into IPC/HTTP/preload/renderer transport.
    - Keep orchestration in `apps/runtime` and infrastructure in `platform/*`.
 
-6. **Transport contract changes must be synchronized.**
+7. **Transport contract changes must be synchronized.**
    - IPC request APIs: update main handler + preload + renderer API.
    - Event channels: update sender + preload listener + renderer transport/API.
    - Remote-capable features: also align HTTP routes and WebSocket behavior.
+   - **Missing any sync file will cause events to silently not reach the renderer.**
 
-7. **Essential startup is protected.**
+8. **Essential startup is protected.**
    - New feature default = extended phase.
    - Only first-screen-critical handlers belong in essential init.
 
-8. **Schema/persistence changes require migrations.**
+9. **Schema/persistence changes require migrations.**
    - Add versioned migration in the owning module (`apps/*` or `platform/*`).
 
-9. **Tests are required for Apps/Platform changes.**
-   - Add/update tests under `tests/unit/apps/*` or `tests/unit/platform/*`.
+10. **Tests are required for Apps/Platform changes.**
+    - Add/update tests under `tests/unit/apps/*` or `tests/unit/platform/*`.
 
-10. **Never expose secrets.**
-   - No API keys/tokens in source, docs, logs, or fixtures.
+11. **Never expose secrets.**
+    - No API keys/tokens in source, docs, logs, or fixtures.
+
+12. **Production logging is required.**
+    - Log all process stages with timestamps and context information.
+    - Include error stack traces. Keep logging lightweight.
 
 ## 2) Fast Task Router
 
+### Backend / Apps / Platform
+
 | If you need to... | Start here | Usually also touch |
 |---|---|---|
-| Add/change App spec fields | `src/main/apps/spec/schema.ts` | `src/main/apps/spec/parse.ts`, `src/main/apps/spec/validate.ts`, `src/shared/apps/spec-types.ts`, `tests/unit/apps/spec/*` |
-| Change install/config/status lifecycle | `src/main/apps/manager/service.ts` | `src/main/apps/manager/store.ts`, `src/main/apps/manager/migrations.ts`, `tests/unit/apps/manager/manager.test.ts` |
-| Change execution/trigger/escalation/activity | `src/main/apps/runtime/service.ts` | `src/main/apps/runtime/execute.ts`, `src/main/apps/runtime/report-tool.ts`, `src/main/apps/runtime/store.ts`, `tests/unit/apps/runtime/runtime.test.ts` |
-| Change scheduling behavior | `src/main/platform/scheduler/index.ts` | `src/main/platform/scheduler/schedule.ts`, `src/main/platform/scheduler/store.ts`, `tests/unit/platform/scheduler/scheduler.test.ts` |
+| Add/change App spec fields | `src/main/apps/spec/schema.ts` | `spec/parse.ts`, `spec/validate.ts`, `src/shared/apps/spec-types.ts`, `tests/unit/apps/spec/*` |
+| Change install/config/status lifecycle | `src/main/apps/manager/service.ts` | `manager/store.ts`, `manager/migrations.ts`, `tests/unit/apps/manager/*` |
+| Change execution/trigger/escalation/activity | `src/main/apps/runtime/service.ts` | `runtime/execute.ts`, `runtime/report-tool.ts`, `runtime/store.ts`, `tests/unit/apps/runtime/*` |
+| Change scheduling behavior | `src/main/platform/scheduler/index.ts` | `scheduler/schedule.ts`, `scheduler/store.ts`, `tests/unit/platform/scheduler/*` |
 | Add event source/filter behavior | `src/main/platform/event/*` | `src/main/bootstrap/extended.ts` |
-| Change memory behavior/tools | `src/main/platform/memory/index.ts` | `src/main/platform/memory/tools.ts`, `src/main/platform/memory/prompt.ts`, `tests/unit/platform/memory/memory.test.ts` |
+| Change memory behavior/tools | `src/main/platform/memory/index.ts` | `memory/tools.ts`, `memory/prompt.ts`, `tests/unit/platform/memory/*` |
+
+### Renderer / UI
+
+| If you need to... | Start here | Usually also touch |
+|---|---|---|
+| Modify chat UI | `src/renderer/components/chat/ChatView.tsx` | `MessageList.tsx`, `MessageItem.tsx`, `InputArea.tsx`, `chat.store.ts` |
+| Modify Content Canvas | `src/renderer/components/canvas/ContentCanvas.tsx` | `CanvasTabs.tsx`, relevant viewer, `canvas.store.ts` |
+| Add/change settings section | `src/renderer/components/settings/` | `nav-config.ts`, `SettingsPage.tsx` |
+| Modify Apps UI | `src/renderer/pages/AppsPage.tsx` | `src/renderer/components/apps/*`, `apps.store.ts`, `apps-page.store.ts` |
+| Modify Store UI | `src/renderer/components/store/StoreView.tsx` | `StoreGrid.tsx`, `StoreCard.tsx`, `StoreDetail.tsx` |
+| Add a new page | `src/renderer/pages/` | `App.tsx` routing, `app.store.ts` (AppView type) |
+| Add a new Zustand store | `src/renderer/stores/` | Import in relevant components |
+| Add a new hook | `src/renderer/hooks/` | Import in relevant components |
+
+### Transport / IPC
+
+| If you need to... | Start here | Usually also touch |
+|---|---|---|
+| Add new IPC request API | `src/main/ipc/<module>.ts` | `src/preload/index.ts`, `src/renderer/api/index.ts`, HTTP route if remote-capable |
+| Add new real-time event | emitter in main domain service | `src/preload/index.ts`, `src/renderer/api/transport.ts` methodMap, `src/renderer/api/index.ts` |
 | Add App IPC APIs | `src/main/ipc/app.ts` | `src/preload/index.ts`, `src/renderer/api/index.ts` |
 | Add App HTTP APIs (remote) | `src/main/http/routes/index.ts` | `src/renderer/api/index.ts`, auth/WS flow as needed |
 | Add App real-time events | emitter in `src/main/apps/runtime/*` | `src/preload/index.ts`, `src/renderer/api/transport.ts`, `src/renderer/api/index.ts` |
-| Build/update Apps UI | `src/renderer/pages/AppsPage.tsx` | `src/renderer/components/apps/*`, `src/renderer/stores/apps*.ts`, i18n text via `t()` |
 
 ## 3) Common Checklists
 
 ### A) Add a new IPC request API
 
-- Add `ipcMain.handle(...)` in main (domain IPC module).
-- Expose typed method in `src/preload/index.ts` (interface + implementation).
-- Add unified call in `src/renderer/api/index.ts`.
-- If remote must support it, add matching HTTP route and non-Electron fallback.
-- Add/adjust unit tests for touched domain logic.
+1. Add `ipcMain.handle(...)` in main (domain IPC module).
+2. Expose typed method in `src/preload/index.ts` (interface + implementation).
+3. Add unified call in `src/renderer/api/index.ts`.
+4. If remote must support it, add matching HTTP route and non-Electron fallback.
+5. Add/adjust unit tests for touched domain logic.
 
 ### B) Add a new real-time event channel
 
-- Emit event from main domain (`sendToRenderer(...)` and/or `broadcastToAll(...)`).
-- Add preload listener (`createEventListener('channel', ...)`).
-- Add channel mapping in `src/renderer/api/transport.ts` `methodMap`.
-- Add API helper in `src/renderer/api/index.ts`.
-- Verify desktop and remote clients both receive the event when required.
+1. Emit event from main domain (`sendToRenderer(...)` and/or `broadcastToAll(...)`).
+2. Add preload listener (`createEventListener('channel', ...)`).
+3. Add channel mapping in `src/renderer/api/transport.ts` `methodMap`.
+4. Add API helper in `src/renderer/api/index.ts`.
+5. Verify desktop and remote clients both receive the event when required.
 
 ### C) Add a new persistent field (App/Platform)
 
-- Add migration with new version in owning module.
-- Update store read/write mapping and service-level types.
-- Keep backward compatibility defaults explicit.
-- Add migration-focused unit tests.
+1. Add migration with new version in owning module.
+2. Update store read/write mapping and service-level types.
+3. Keep backward compatibility defaults explicit.
+4. Add migration-focused unit tests.
 
 ### D) Add a new automation trigger path
 
-- Extend spec schema/type for trigger config.
-- Map trigger to scheduler or event-bus subscription in runtime activation.
-- Ensure run context is included for prompt building.
-- Emit activity entries and status updates for observability.
-- Add tests for activate/deactivate and execution paths.
+1. Extend spec schema/type for trigger config.
+2. Map trigger to scheduler or event-bus subscription in runtime activation.
+3. Ensure run context is included for prompt building.
+4. Emit activity entries and status updates for observability.
+5. Add tests for activate/deactivate and execution paths.
+
+### E) Add/modify a renderer component
+
+1. Use `t('English text')` for all user-visible strings.
+2. Use theme tokens only — no hardcoded colors.
+3. Write mobile-first responsive classes (base = mobile, `sm:` = desktop).
+4. Test at < 640px viewport width.
+5. If it affects Canvas layout, consider `useCanvasLifecycle` and `useLayoutPreferences` hooks.
+6. If it shows files/artifacts, handle Web mode limitations (no local file open).
 
 ## 4) Known Gaps You Must Account For
 
@@ -103,3 +178,4 @@
   - `npm run test:unit -- tests/unit/apps/runtime/runtime.test.ts`
 - Run `npm run i18n` when renderer text changed.
 - Confirm desktop path (IPC) and remote path (HTTP/WS) expectations for changed APIs.
+- Visually verify responsive behavior at mobile width (< 640px) for any UI changes.

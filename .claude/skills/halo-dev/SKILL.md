@@ -1,34 +1,37 @@
 ---
 name: halo-dev
-description: Essential project context for AI developers working on Halo. Must read before writing any code. Minimal onboarding skill for Halo hard rules, task routing, and fast implementation checklists.
+description: Essential project context for AI developers working on Halo. Must read before writing any code. Covers architecture, conventions, quality standards, and responsive design requirements.
 allowed-tools: Read, Write, Edit, Bash
 user-invocable: true
 ---
 
-# Halo Development Context v2
+# Halo Development Context v3
 
 ## Mandatory Entry (Read in Order)
 
-1. `CONTEXT.md` - what the product does and current implementation status.
-2. `ARCHITECTURE.md` - layer boundaries, init sequence, integration surfaces.
-3. `quick.md` - hard development rules and task-to-file fast routing.
+1. `CONTEXT.md` — Product vision, development principles (styling, responsive, security, i18n), and current state.
+2. `ARCHITECTURE.md` — Directory structure, data types, IPC channels, theme system, CSS rules, responsive design, layout modes, multi-platform, local storage, tech stack.
+3. `quick.md` — Hard development rules (with code examples), task-to-file routing, and checklists.
 
-Do not start implementation before reading these three files.
+**Do not start implementation before reading these three files.**
+
+All code changes **must** comply with the patterns, conventions, and structures described in these documents. This includes:
+- Responsive design (mobile-first, `sm:` breakpoint at 640px)
+- Theme system (CSS variables only, no hardcoded colors)
+- Tailwind-first styling (no unnecessary CSS files)
+- IPC channel synchronization (preload + transport + API)
+- i18n (`t('English text')` for all user-facing strings)
+- Production logging
+
+If a change conflicts with the documented architecture, update the architecture document first with justification, then proceed.
 
 ## Development Priority (Non-Negotiable)
 
 - **Modularity, quality, and maintainability come first.**
 - **Performance must not regress** (startup, runtime latency, memory).
+- **Responsive design is mandatory** — every UI change must work at mobile width (< 640px).
+- **No hardcoded colors** — use only CSS variable-based theme tokens.
 - If a quick fix conflicts with architecture quality, choose the maintainable modular solution and request explicit user approval before proceeding.
-
-## Why This Is Minimal
-
-- `SKILL.md`: workflow entry only
-- `CONTEXT.md`: product and scope
-- `ARCHITECTURE.md`: structure and dependency contracts
-- `quick.md`: rules + practical execution
-
-This avoids large documentation trees while keeping execution guidance explicit.
 
 ## Fast Navigation Policy
 
@@ -42,6 +45,10 @@ After the mandatory entry docs:
   - `src/main/http/routes/index.ts`
   - `src/preload/index.ts`
   - `src/renderer/api/index.ts`
+- For renderer changes, check:
+  - Existing component structure in `src/renderer/components/`
+  - Existing stores in `src/renderer/stores/`
+  - Existing hooks in `src/renderer/hooks/`
 
 ## Source of Truth Priority
 
@@ -50,7 +57,6 @@ When docs and code differ:
 1. Actual code in `src/**`
 2. Module design docs (`src/main/apps/*/DESIGN.md`, `src/main/platform/*/DESIGN.md`)
 3. `quick.md`, `ARCHITECTURE.md`, `CONTEXT.md`
-4. Historical notes in `CHANGELOG.md`
 
 ## Keeping These Documents Updated
 
@@ -62,6 +68,7 @@ After completing a development task, evaluate whether these documents need updat
 - Major refactoring that changes code organization
 - New architectural pattern or convention established
 - Core data type added or significantly changed
+- New component directory or page added
 
 **Do not update** for changes that don't affect architectural understanding:
 - Bug fixes
