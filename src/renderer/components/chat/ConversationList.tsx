@@ -131,6 +131,14 @@ export const ConversationList = memo(function ConversationList({
     setMenuPosition(null)
   }, [conversations])
 
+  // Focus and select all text when entering edit mode (only once on mount)
+  useEffect(() => {
+    if (editingId && editInputRef.current) {
+      editInputRef.current.focus()
+      editInputRef.current.select()
+    }
+  }, [editingId])
+
   // Format date
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr)
@@ -192,10 +200,7 @@ export const ConversationList = memo(function ConversationList({
       {editingId === conversation.id ? (
         <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <input
-            ref={(el) => {
-              editInputRef.current = el
-              if (el) { el.focus(); el.select() }
-            }}
+            ref={editInputRef}
             type="text"
             value={editingTitle}
             onChange={(e) => setEditingTitle(e.target.value)}
