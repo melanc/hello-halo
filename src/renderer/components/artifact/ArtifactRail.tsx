@@ -22,6 +22,7 @@ import { ChevronRight, FolderOpen, Monitor, LayoutGrid, FolderTree, X, Globe } f
 import { ONBOARDING_ARTIFACT_NAME } from '../onboarding/onboardingData'
 import { useTranslation } from '../../i18n'
 import { useIsMobile } from '../../hooks/useIsMobile'
+import { getBrowserHomepage } from '../../utils/browser-homepage'
 
 // Check if running in web mode
 const isWebMode = api.isRemoteMode()
@@ -52,8 +53,6 @@ function getInitialViewMode(): ArtifactViewMode {
   return (stored === 'tree' || stored === 'card') ? stored : 'tree'
 }
 
-// Default browser home URL
-const DEFAULT_BROWSER_URL = 'https://www.bing.com'
 
 function normalizeArtifactFromEvent(item: unknown, fallbackSpaceId: string): Artifact | null {
   if (!item || typeof item !== 'object') return null
@@ -323,7 +322,7 @@ export function ArtifactRail({
 
   // Handle opening browser - also collapse the rail to maximize browser area
   const handleOpenBrowser = useCallback(() => {
-    openUrl(DEFAULT_BROWSER_URL, 'Bing')
+    getBrowserHomepage().then(url => openUrl(url, t('Browser')))
     // Auto-collapse rail when opening browser to maximize viewing area
     if (isControlled) {
       onExpandedChange?.(false)

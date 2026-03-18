@@ -36,6 +36,7 @@ import { SyncService } from './sync.service'
 import { QueryService } from './query.service'
 import { STORE_CACHE_NAMESPACE, storeCacheMigrations } from './store-cache.schema'
 import { getAdapter } from './adapters'
+import { loadProductConfig } from '../services/ai-sources/auth-loader'
 
 // ============================================
 // Constants
@@ -983,27 +984,50 @@ function isBuiltinRegistry(registry: RegistrySource): boolean {
 function ensureBuiltinRegistries(): boolean {
   let changed = false
 
+  // Read product.json overrides once (loadProductConfig is singleton-cached).
+  // Enterprise builds use this to redirect the official registry
+  // to an internal mirror and/or force-disable unreachable public sources.
+  const productOverrides = loadProductConfig().registryOverrides ?? {}
+
   for (const builtin of BUILTIN_REGISTRIES) {
+    const override = productOverrides[builtin.id] ?? {}
+
+    // Merge: builtin defaults ← product.json override (only declared fields win)
+    const effective = {
+      ...builtin,
+      ...(override.url     !== undefined ? { url:     override.url     } : {}),
+      ...(override.name    !== undefined ? { name:    override.name    } : {}),
+      ...(override.enabled !== undefined ? { enabled: override.enabled } : {}),
+    }
+
     const existing = config.registries.find(r => r.id === builtin.id)
 
     if (existing) {
-      // Update immutable fields, preserve user-controlled fields
+      // Immutable fields (name, url, sourceType, isDefault, enabled when
+      // product.json declares an override) are enforced on every startup.
+      // User-controlled fields (adapterConfig) are always preserved.
       if (
-        existing.name !== builtin.name ||
-        existing.url !== builtin.url ||
-        existing.sourceType !== builtin.sourceType ||
-        existing.isDefault !== builtin.isDefault
+        existing.name       !== effective.name       ||
+        existing.url        !== effective.url        ||
+        existing.sourceType !== effective.sourceType ||
+        existing.isDefault  !== effective.isDefault  ||
+        // Only enforce `enabled` when product.json explicitly declares it;
+        // otherwise preserve the user's manual toggle from Settings.
+        (override.enabled !== undefined && existing.enabled !== effective.enabled)
       ) {
-        existing.name = builtin.name
-        existing.url = builtin.url
-        existing.sourceType = builtin.sourceType
-        existing.isDefault = builtin.isDefault
+        existing.name       = effective.name
+        existing.url        = effective.url
+        existing.sourceType = effective.sourceType
+        existing.isDefault  = effective.isDefault
+        if (override.enabled !== undefined) {
+          existing.enabled = effective.enabled
+        }
         changed = true
       }
-      // Preserve existing.enabled and existing.adapterConfig
+      // Preserve existing.adapterConfig (e.g. Smithery API key)
     } else {
-      // Insert missing builtin
-      config.registries.push({ ...builtin })
+      // Insert missing builtin with effective (merged) values
+      config.registries.push({ ...effective })
       changed = true
     }
   }

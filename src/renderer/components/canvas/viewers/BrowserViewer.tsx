@@ -41,13 +41,13 @@ import { canvasLifecycle, type TabState, type BrowserState } from '../../../serv
 import { useBrowserState } from '../../../hooks/useCanvasLifecycle'
 import { useAIBrowserStore } from '../../../stores/ai-browser.store'
 import { useTranslation } from '../../../i18n'
+import { getBrowserHomepage } from '../../../utils/browser-homepage'
 
 interface BrowserViewerProps {
   tab: TabState
 }
 
-// Default home page and search engine
-const DEFAULT_HOME_URL = 'https://www.bing.com'
+// Search engine URL (not policy-dependent)
 const SEARCH_ENGINE_URL = 'https://www.bing.com/search?q='
 
 /**
@@ -79,7 +79,7 @@ function isValidUrl(input: string): boolean {
 function inputToUrl(input: string): string {
   const trimmed = input.trim()
 
-  if (!trimmed) return DEFAULT_HOME_URL
+  if (!trimmed) return ''
 
   // Already a full URL
   if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('file://')) {
@@ -181,7 +181,8 @@ export function BrowserViewer({ tab }: BrowserViewerProps) {
     e.preventDefault()
     if (!tab.browserViewId) return
 
-    const url = inputToUrl(addressBarValue)
+    let url = inputToUrl(addressBarValue)
+    if (!url) url = await getBrowserHomepage()
     await api.navigateBrowserView(tab.browserViewId, url)
   }, [tab.browserViewId, addressBarValue])
 
@@ -209,7 +210,8 @@ export function BrowserViewer({ tab }: BrowserViewerProps) {
 
   const handleHome = useCallback(async () => {
     if (tab.browserViewId) {
-      await api.navigateBrowserView(tab.browserViewId, DEFAULT_HOME_URL)
+      const homepage = await getBrowserHomepage()
+      await api.navigateBrowserView(tab.browserViewId, homepage)
     }
   }, [tab.browserViewId])
 
@@ -457,15 +459,28 @@ export function BrowserViewer({ tab }: BrowserViewerProps) {
         className="flex-1 relative bg-white"
         style={{ minHeight: '200px' }}
       >
-        {/* Loading Overlay (only shown during initial load before BrowserView is ready) */}
-        {!tab.browserViewId && (
+        {/* Policy Block Overlay — shown whenever a browser policy error is active,
+            whether the BrowserView exists (navigate block) or not (create block).
+            The native BrowserView is kept offscreen by applyBounds() so this overlay is visible. */}
+        {tab.browserState?.blockedByPolicy ? (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-background">
+            <div className="flex flex-col items-center gap-3 text-center max-w-sm px-4">
+              <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center">
+                <Lock className="w-8 h-8 text-destructive" />
+              </div>
+              <h3 className="text-base font-semibold">{t('Access Restricted')}</h3>
+              <p className="text-sm text-muted-foreground">{tab.error}</p>
+            </div>
+          </div>
+        ) : !tab.browserViewId ? (
+          /* Loading Overlay (only shown during initial load before BrowserView is ready) */
           <div className="absolute inset-0 flex items-center justify-center bg-background">
             <div className="flex flex-col items-center gap-3">
               <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
               <p className="text-sm text-muted-foreground">{t('Opening...')}</p>
             </div>
           </div>
-        )}
+        ) : null}
 
         {/* The actual BrowserView is rendered by Electron main process */}
         {/* This div serves as the positioning target */}

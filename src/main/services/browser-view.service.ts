@@ -16,6 +16,7 @@
  */
 
 import { BrowserView, BrowserWindow } from 'electron'
+import { loadProductConfig } from './ai-sources/auth-loader'
 
 // ============================================
 // Types
@@ -32,6 +33,10 @@ export interface BrowserViewState {
   zoomLevel: number
   isDevToolsOpen: boolean
   error?: string
+  /** True when a navigation was blocked by browser policy. Used by renderer
+   *  to show the policy-block overlay and by applyBounds() to keep the
+   *  native BrowserView offscreen so the overlay is visible. */
+  blockedByPolicy?: boolean
 }
 
 export interface BrowserViewBounds {
@@ -57,6 +62,90 @@ export const CHROME_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
 
 // ============================================
+// Browser Policy Enforcement
+// ============================================
+
+/**
+ * Match a hostname against a domain pattern.
+ *
+ * Supported patterns:
+ * - "*.example.com" → matches "example.com" and any subdomain (e.g. "app.example.com")
+ * - "example.com"   → exact match only
+ */
+function matchDomainPattern(hostname: string, pattern: string): boolean {
+  const lowerHost = hostname.toLowerCase()
+  const lowerPattern = pattern.toLowerCase()
+
+  if (lowerPattern.startsWith('*.')) {
+    const baseDomain = lowerPattern.slice(2) // "example.com"
+    return lowerHost === baseDomain || lowerHost.endsWith('.' + baseDomain)
+  }
+
+  return lowerHost === lowerPattern
+}
+
+/**
+ * Check whether a URL is permitted by the browser policy from product.json.
+ *
+ * - No policy configured → always allowed (open-source default).
+ * - Non-HTTP(S) URLs (about:blank, file://, etc.) → always allowed.
+ * - Allowlist mode → URL must match at least one pattern.
+ * - Blocklist mode → URL must NOT match any pattern.
+ */
+function isUrlAllowedByPolicy(url: string): boolean {
+  const policy = loadProductConfig().browserPolicy
+  if (!policy || policy.mode === 'unrestricted') return true
+
+  // Always permit non-HTTP(S) URLs (about:blank, devtools, file, etc.)
+  let hostname: string
+  try {
+    const parsed = new URL(url)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return true
+    hostname = parsed.hostname
+  } catch {
+    // Malformed URL — let Chromium handle the error naturally
+    return true
+  }
+
+  if (policy.mode === 'allowlist') {
+    const patterns = policy.allowlist
+    if (!patterns || patterns.length === 0) return false // allowlist with no entries blocks everything
+    return patterns.some(p => matchDomainPattern(hostname, p))
+  }
+
+  if (policy.mode === 'blocklist') {
+    const patterns = policy.blocklist
+    if (!patterns || patterns.length === 0) return true // blocklist with no entries blocks nothing
+    return !patterns.some(p => matchDomainPattern(hostname, p))
+  }
+
+  return true
+}
+
+/** Build a short error string for state.error. */
+function buildBlockedMessage(url: string): string {
+  try {
+    const { hostname } = new URL(url)
+    return `Navigation to "${hostname}" blocked by browser policy`
+  } catch {
+    return 'Navigation blocked by browser policy'
+  }
+}
+
+/**
+ * Get the default homepage URL for new browser tabs.
+ *
+ * - No browser policy → 'https://www.bing.com' (standard default)
+ * - Policy with explicit homepage → that URL
+ * - Policy without homepage → 'about:blank' (let user type an allowed URL)
+ */
+export function getDefaultBrowserHomepage(): string {
+  const policy = loadProductConfig().browserPolicy
+  if (!policy || policy.mode === 'unrestricted') return 'https://www.bing.com'
+  return policy.homepage || 'about:blank'
+}
+
+// ============================================
 // BrowserView Manager
 // ============================================
 
@@ -65,6 +154,9 @@ class BrowserViewManager {
   private states: Map<string, BrowserViewState> = new Map()
   private mainWindow: BrowserWindow | null = null
   private activeViewId: string | null = null
+
+  // Last visible bounds per view — used to restore position after policy-block hide.
+  private lastBounds: Map<string, BrowserViewBounds> = new Map()
 
   // Hidden offscreen window that hosts AI automation BrowserViews.
   // Isolates AI view lifecycle from the user-visible mainWindow so that
@@ -133,6 +225,15 @@ class BrowserViewManager {
     const isOffscreen = options?.offscreen ?? false
     console.log(`[BrowserView] >>> create() called - viewId: ${viewId}, url: ${url}, offscreen: ${isOffscreen}`)
 
+    // Browser policy check — reject BEFORE creating any BrowserView.
+    // The IPC handler returns { success: false, error } which the renderer
+    // handles by showing a React error component (no BrowserView involved).
+    if (url && !isUrlAllowedByPolicy(url)) {
+      const msg = buildBlockedMessage(url)
+      console.log(`[BrowserView] ${msg}`)
+      throw new Error(msg)
+    }
+
     // Don't create duplicate views
     if (this.views.has(viewId)) {
       console.log(`[BrowserView] View already exists, returning existing state`)
@@ -189,11 +290,13 @@ class BrowserViewManager {
     }
 
     // Initialize state
+    // Only set isLoading for real HTTP(S) URLs — about:blank / file: / etc. load instantly
+    const needsLoading = !!url && (url.startsWith('http://') || url.startsWith('https://'))
     const state: BrowserViewState = {
       id: viewId,
       url: url || 'about:blank',
       title: 'New Tab',
-      isLoading: !!url,
+      isLoading: needsLoading,
       canGoBack: false,
       canGoForward: false,
       zoomLevel: 1,
@@ -209,6 +312,8 @@ class BrowserViewManager {
     console.log(`[BrowserView] Events bound`)
 
     // Navigate to initial URL
+    // (Policy check already happened at the top of create() — if we reach
+    // here the URL is allowed or absent.)
     if (url) {
       try {
         console.log(`[BrowserView] Loading URL: ${url}`)
@@ -272,7 +377,7 @@ class BrowserViewManager {
     this.mainWindow.addBrowserView(view)
     console.log(`[BrowserView] BrowserView added to window`)
 
-    // Set bounds with integer values
+    // Set bounds with integer values (respects policy-block state)
     const intBounds = {
       x: Math.round(bounds.x),
       y: Math.round(bounds.y),
@@ -280,7 +385,7 @@ class BrowserViewManager {
       height: Math.round(bounds.height),
     }
     console.log(`[BrowserView] Setting bounds:`, intBounds)
-    view.setBounds(intBounds)
+    this.applyBounds(viewId, intBounds)
 
     // Auto-resize with window (only width and height, not position)
     view.setAutoResize({
@@ -329,12 +434,13 @@ class BrowserViewManager {
     const view = this.views.get(viewId)
     if (!view) return false
 
-    view.setBounds({
+    const intBounds = {
       x: Math.round(bounds.x),
       y: Math.round(bounds.y),
       width: Math.round(bounds.width),
       height: Math.round(bounds.height),
-    })
+    }
+    this.applyBounds(viewId, intBounds)
 
     return true
   }
@@ -360,6 +466,18 @@ class BrowserViewManager {
         // Treat as search query
         url = `https://www.google.com/search?q=${encodeURIComponent(url)}`
       }
+    }
+
+    // Browser policy check
+    if (!isUrlAllowedByPolicy(url)) {
+      console.log(`[BrowserView] Navigation blocked by browser policy: ${url}`)
+      this.updateState(viewId, {
+        error: buildBlockedMessage(url),
+        blockedByPolicy: true,
+        isLoading: false,
+      })
+      this.emitStateChangeImmediate(viewId)
+      return false
     }
 
     try {
@@ -536,6 +654,7 @@ class BrowserViewManager {
     // Clean up maps
     this.views.delete(viewId)
     this.states.delete(viewId)
+    this.lastBounds.delete(viewId)
     this.offscreenViewIds.delete(viewId)
 
     if (this.activeViewId === viewId) {
@@ -579,6 +698,7 @@ class BrowserViewManager {
         url,
         isLoading: true,
         error: undefined,
+        blockedByPolicy: false,
       })
       // Use immediate emit for navigation start - user needs to see loading indicator
       this.emitStateChangeImmediate(viewId)
@@ -591,6 +711,7 @@ class BrowserViewManager {
         canGoBack: wc.canGoBack(),
         canGoForward: wc.canGoForward(),
         error: undefined,
+        blockedByPolicy: false,
       })
       // Use immediate emit for load finish - user needs to see content immediately
       this.emitStateChangeImmediate(viewId)
@@ -636,29 +757,84 @@ class BrowserViewManager {
       this.emitStateChange(viewId) // debounced
     })
 
-    // Handle new window requests - open in same view
+    // Handle new window requests - open in same view (with policy check)
     wc.setWindowOpenHandler(({ url }) => {
-      // Load in current view instead of opening new window
-      wc.loadURL(url)
+      if (isUrlAllowedByPolicy(url)) {
+        wc.loadURL(url)
+      } else {
+        console.log(`[BrowserView] window.open blocked by browser policy: ${url}`)
+        this.updateState(viewId, { error: buildBlockedMessage(url), blockedByPolicy: true })
+        this.emitStateChangeImmediate(viewId)
+      }
       return { action: 'deny' }
     })
 
-    // Handle external protocol links
+    // Handle external protocol links & browser policy
     wc.on('will-navigate', (event, url) => {
-      // Allow http/https/file protocols, block others (like javascript:, data:, etc.)
+      // Block non-standard protocols (javascript:, data:, etc.)
       if (!url.startsWith('http://') && !url.startsWith('https://') && !url.startsWith('file://')) {
         event.preventDefault()
+        return
+      }
+      // Browser policy check for page-initiated navigations
+      if (!isUrlAllowedByPolicy(url)) {
+        event.preventDefault()
+        console.log(`[BrowserView] will-navigate blocked by browser policy: ${url}`)
+        this.updateState(viewId, { error: buildBlockedMessage(url), blockedByPolicy: true })
+        this.emitStateChangeImmediate(viewId)
+      }
+    })
+
+    // Block server-side redirects (301/302) to disallowed domains
+    wc.on('will-redirect', (event, url) => {
+      if (!isUrlAllowedByPolicy(url)) {
+        event.preventDefault()
+        console.log(`[BrowserView] will-redirect blocked by browser policy: ${url}`)
+        this.updateState(viewId, { error: buildBlockedMessage(url), blockedByPolicy: true, isLoading: false })
+        this.emitStateChangeImmediate(viewId)
       }
     })
   }
 
   /**
-   * Update state
+   * Update state.
+   *
+   * When blockedByPolicy transitions, applyBounds() is called to move the
+   * BrowserView offscreen (blocked) or restore it to visible bounds (unblocked).
+   * This is the ONLY place that sets blockedByPolicy — all policy-block callers
+   * set error + blockedByPolicy together via this method.
    */
   private updateState(viewId: string, updates: Partial<BrowserViewState>) {
     const state = this.states.get(viewId)
-    if (state) {
-      Object.assign(state, updates)
+    if (!state) return
+
+    const wasPolicyBlocked = !!state.blockedByPolicy
+    Object.assign(state, updates)
+
+    // On policy-block transition, re-apply bounds to move view offscreen or restore it
+    if (wasPolicyBlocked !== !!state.blockedByPolicy) {
+      const bounds = this.lastBounds.get(viewId)
+      if (bounds && !this.offscreenViewIds.has(viewId)) {
+        this.applyBounds(viewId, bounds)
+      }
+    }
+  }
+
+  /**
+   * Single exit point for setBounds — arbitrates between tab-switch visibility
+   * and policy-block visibility. Always records lastBounds for later restore.
+   */
+  private applyBounds(viewId: string, bounds: BrowserViewBounds) {
+    const view = this.views.get(viewId)
+    const state = this.states.get(viewId)
+    if (!view) return
+
+    this.lastBounds.set(viewId, bounds)
+
+    if (state?.blockedByPolicy) {
+      view.setBounds({ x: -10000, y: -10000, width: 0, height: 0 })
+    } else {
+      view.setBounds(bounds)
     }
   }
 
@@ -727,6 +903,7 @@ class BrowserViewManager {
     }
     this.views.delete(viewId)
     this.states.delete(viewId)
+    this.lastBounds.delete(viewId)
     this.offscreenViewIds.delete(viewId)
     if (this.activeViewId === viewId) {
       this.activeViewId = null

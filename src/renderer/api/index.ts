@@ -841,6 +841,14 @@ export const api = {
   // ===== Browser (Embedded Browser for Content Canvas) =====
   // Note: Browser features only available in desktop app (not remote mode)
 
+  getBrowserHomepage: async (): Promise<string> => {
+    if (isElectron()) {
+      const result = await window.halo.getBrowserHomepage()
+      if (result.success) return result.data as string
+    }
+    return 'https://www.bing.com'
+  },
+
   createBrowserView: async (viewId: string, url?: string): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.createBrowserView(viewId, url)

@@ -78,6 +78,32 @@
           }
         }
       }
+    },
+    "browserPolicy": {
+      "type": "object",
+      "description": "Browser network access policy. Controls which domains the embedded browser can navigate to. Omit for unrestricted access (default).",
+      "properties": {
+        "mode": {
+          "type": "string",
+          "enum": ["allowlist", "blocklist", "unrestricted"],
+          "description": "Policy mode: allowlist = only listed domains allowed, blocklist = listed domains blocked, unrestricted = no restrictions"
+        },
+        "allowlist": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Domain patterns to allow (e.g. \"*.example.com\", \"intranet.corp.com\"). Used when mode is \"allowlist\"."
+        },
+        "blocklist": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Domain patterns to block. Used when mode is \"blocklist\"."
+        },
+        "homepage": {
+          "type": "string",
+          "description": "Default homepage URL for new browser tabs. Falls back to about:blank when policy is active but homepage is not set."
+        }
+      },
+      "required": ["mode"]
     }
   },
   "additionalProperties": false

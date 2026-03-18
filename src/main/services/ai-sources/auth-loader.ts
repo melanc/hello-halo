@@ -59,6 +59,45 @@ export interface UpdateConfig {
 }
 
 /**
+ * Browser network access policy (enterprise feature).
+ *
+ * Controls which domains the embedded browser is allowed to navigate to.
+ * When not configured, the browser is unrestricted (default for open-source).
+ *
+ * - "allowlist": only domains matching the patterns are permitted.
+ * - "blocklist": all domains except those matching the patterns are permitted.
+ * - "unrestricted": no restrictions (explicit opt-out, same as omitting the field).
+ */
+export interface BrowserPolicy {
+  /** Policy mode */
+  mode: 'allowlist' | 'blocklist' | 'unrestricted'
+  /** Domain patterns for allowlist mode (e.g. "*.weoa.com", "example.com") */
+  allowlist?: string[]
+  /** Domain patterns for blocklist mode */
+  blocklist?: string[]
+  /** Default homepage URL for new browser tabs (defaults to about:blank when policy is active) */
+  homepage?: string
+}
+
+/**
+ * Per-registry override entry in product.json.
+ *
+ * Allows enterprise/custom builds to override specific built-in registry
+ * properties without touching source code. Only declared fields are applied;
+ * omitted fields retain their built-in defaults.
+ *
+ * - `url`     — replace the registry endpoint (e.g. point to an internal mirror)
+ * - `name`    — replace the display name shown in the Store UI
+ * - `enabled` — force-enable or force-disable the registry on every startup;
+ *               overrides the user's manual toggle in Settings
+ */
+export interface RegistryOverride {
+  url?: string
+  name?: string
+  enabled?: boolean
+}
+
+/**
  * Product configuration from product.json
  */
 export interface ProductConfig {
@@ -67,6 +106,27 @@ export interface ProductConfig {
   authProviders: AuthProviderConfig[]
   /** Update configuration (optional, defaults to GitHub if not specified) */
   updateConfig?: UpdateConfig
+  /** Browser network access policy (optional, unrestricted when omitted) */
+  browserPolicy?: BrowserPolicy
+  /**
+   * Built-in registry overrides (optional, enterprise/custom builds only).
+   *
+   * Keys are built-in registry IDs ('official', 'mcp-official', 'smithery',
+   * 'claude-skills'). Each entry is merged on top of the built-in defaults
+   * during `ensureBuiltinRegistries()` on every startup, making the values
+   * immutable from the user's perspective (same semantics as `url`/`name`).
+   *
+   * Example (product.enterprise.json):
+   * ```json
+   * "registryOverrides": {
+   *   "official":      { "url": "http://10.x.x.x:18081", "name": "Enterprise Registry" },
+   *   "mcp-official":  { "enabled": false },
+   *   "smithery":      { "enabled": false },
+   *   "claude-skills": { "enabled": false }
+   * }
+   * ```
+   */
+  registryOverrides?: Record<string, RegistryOverride>
 }
 
 /**

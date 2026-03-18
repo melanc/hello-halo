@@ -52,6 +52,8 @@ export interface BrowserState {
   canGoForward: boolean
   favicon?: string
   zoomLevel?: number
+  error?: string
+  blockedByPolicy?: boolean
 }
 
 export interface TabState {
@@ -360,6 +362,8 @@ class CanvasLifecycle {
             canGoForward: event.state.canGoForward,
             favicon: event.state.favicon,
             zoomLevel: event.state.zoomLevel,
+            error: event.state.error,
+            blockedByPolicy: event.state.blockedByPolicy,
           }
 
           // Update URL and title if changed
@@ -374,6 +378,9 @@ class CanvasLifecycle {
           if (event.state.isLoading !== undefined) {
             tab.isLoading = event.state.isLoading
           }
+
+          // Sync error to tab level (e.g. browser policy block during navigation)
+          tab.error = event.state.error
 
           // Notify listeners
           this.notifyTabsChange()
@@ -575,11 +582,13 @@ class CanvasLifecycle {
    * Open a URL in embedded browser
    */
   async openUrl(url: string, title?: string): Promise<string> {
-    // Check if URL is already open
-    for (const [tabId, tab] of this.tabs) {
-      if (tab.type === 'browser' && tab.url === url) {
-        await this.switchTab(tabId)
-        return tabId
+    // Check if URL is already open (skip dedup for about:blank — new tabs)
+    if (url !== 'about:blank') {
+      for (const [tabId, tab] of this.tabs) {
+        if (tab.type === 'browser' && tab.url === url) {
+          await this.switchTab(tabId)
+          return tabId
+        }
       }
     }
 
@@ -594,6 +603,8 @@ class CanvasLifecycle {
     }
 
     // Create browser tab
+    // Only show loading for real HTTP(S) URLs — about:blank / file: load instantly
+    const needsLoading = url.startsWith('http://') || url.startsWith('https://')
     const tabId = generateTabId()
     const tab: TabState = {
       id: tabId,
@@ -601,9 +612,9 @@ class CanvasLifecycle {
       title: displayTitle,
       url,
       isDirty: false,
-      isLoading: true,
+      isLoading: needsLoading,
       browserState: {
-        isLoading: true,
+        isLoading: needsLoading,
         canGoBack: false,
         canGoForward: false,
       },
