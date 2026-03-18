@@ -38,11 +38,13 @@
     <script>
       var _hmt = _hmt || [];
       (function() {
-        // Skip Baidu Analytics in remote access mode to prevent leaking sensitive info (token, URL)
-        // Detection: Electron env has nodeIntegration or preload-injected APIs, remote browsers don't
+        // Skip Baidu Analytics in remote access / Capacitor mode to prevent leaking sensitive info
+        // Detection: Electron env has nodeIntegration or preload-injected APIs
+        // Capacitor has window.Capacitor; remote browsers have neither
         var isElectron = typeof process !== 'undefined' || navigator.userAgent.includes('Electron');
-        if (!isElectron) {
-          console.log('[Analytics] Remote mode detected, Baidu Analytics disabled for security');
+        var isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+        if (!isElectron || isCapacitor) {
+          console.log('[Analytics] Non-desktop mode detected, Baidu Analytics disabled');
           return;
         }
         var hm = document.createElement("script");

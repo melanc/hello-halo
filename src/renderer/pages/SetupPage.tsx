@@ -1,15 +1,15 @@
 /**
- * SetupFlow - Multi-source login flow
+ * SetupPage - Multi-source login flow
  * Handles the first-time setup with OAuth providers or Custom API
  * Dynamically supports any provider configured in product.json
  */
 
 import { useState, useEffect } from 'react'
-import { useAppStore } from '../../stores/app.store'
-import { api } from '../../api'
-import { LoginSelector } from './LoginSelector'
-import { ApiSetup } from './ApiSetup'
-import { useTranslation } from '../../i18n'
+import { useAppStore } from '../stores/app.store'
+import { api } from '../api'
+import { LoginSelector } from '../components/setup/LoginSelector'
+import { ApiSetup } from '../components/setup/ApiSetup'
+import { useTranslation } from '../i18n'
 import { Loader2 } from 'lucide-react'
 
 type SetupStep = 'select' | 'oauth-waiting' | 'custom'
@@ -20,7 +20,7 @@ interface DeviceCodeInfo {
   verificationUri: string
 }
 
-export function SetupFlow() {
+export function SetupPage() {
   const { t } = useTranslation()
   const { setView, setConfig } = useAppStore()
   const [step, setStep] = useState<SetupStep>('select')
@@ -75,7 +75,7 @@ export function SetupFlow() {
 
       setView('home')
     } catch (err) {
-      console.error(`[SetupFlow] ${providerType} login error:`, err)
+      console.error(`[SetupPage] ${providerType} login error:`, err)
       setError(err instanceof Error ? err.message : 'Login failed')
       setStep('select')
       setCurrentProvider(null)

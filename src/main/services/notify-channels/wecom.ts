@@ -7,6 +7,7 @@
  * API docs: https://developer.work.weixin.qq.com/document/
  */
 
+import { proxyFetch } from '../proxy-fetch'
 import type { WecomChannelConfig, NotificationPayload, NotifySendResult } from '../../../shared/types/notification-channels'
 import { TokenManager, withTokenRetry } from './token-manager'
 
@@ -21,7 +22,7 @@ function getTokenManager(config: WecomChannelConfig): TokenManager {
   if (!manager) {
     manager = new TokenManager('WeCom', async () => {
       const url = `${WECOM_API_BASE}/gettoken?corpid=${encodeURIComponent(config.corpId)}&corpsecret=${encodeURIComponent(config.secret)}`
-      const res = await fetch(url)
+      const res = await proxyFetch(url)
       const data = await res.json() as { errcode: number; errmsg: string; access_token: string; expires_in: number }
       if (data.errcode !== 0) {
         throw new Error(`WeCom gettoken failed: ${data.errcode} ${data.errmsg}`)
@@ -73,7 +74,7 @@ export async function sendWecom(
 
     const result = await withTokenRetry(manager, async (token) => {
       const url = `${WECOM_API_BASE}/message/send?access_token=${token}`
-      const res = await fetch(url, {
+      const res = await proxyFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

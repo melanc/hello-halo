@@ -33,6 +33,7 @@ import { UninstalledDetailView } from '../components/apps/UninstalledDetailView'
 import { StoreView } from '../components/store/StoreView'
 import { useTranslation, getCurrentLanguage } from '../i18n'
 import { resolveSpecI18n } from '../utils/spec-i18n'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { api } from '../api'
 import { ChevronLeft, ChevronRight, Settings } from 'lucide-react'
 
@@ -56,6 +57,8 @@ export function AppsPage() {
     setInitialAppId,
     setShowInstallDialog,
   } = useAppsPageStore()
+
+  const isMobile = useIsMobile()
 
   const [showManualAddDialog, setShowManualAddDialog] = useState(false)
   const [showSkillInstallDialog, setShowSkillInstallDialog] = useState(false)
@@ -113,8 +116,10 @@ export function AppsPage() {
     }
   }, [currentTab, clearSelection])
 
-  // Auto-select first app for the current tab if nothing selected
+  // Auto-select first app for the current tab if nothing selected (desktop only —
+  // on mobile the user should see the full-width list first and tap to select)
   useEffect(() => {
+    if (isMobile) return
     if (currentTab === 'store') return
     if (!selectedAppId && appsForCurrentTab.length > 0) {
       const activeApps = appsForCurrentTab.filter(a => a.status !== 'uninstalled')
@@ -122,7 +127,7 @@ export function AppsPage() {
       const firstApp = waitingApp ?? activeApps[0] ?? appsForCurrentTab[0]
       selectApp(firstApp.id, firstApp.status === 'uninstalled' ? 'uninstalled' : firstApp.spec.type)
     }
-  }, [appsForCurrentTab, selectedAppId, selectApp, currentTab])
+  }, [appsForCurrentTab, selectedAppId, selectApp, currentTab, isMobile])
 
   // Resolve the selected app (for breadcrumb and detail panel)
   const selectedApp = useMemo(
@@ -228,7 +233,7 @@ export function AppsPage() {
       />
 
       {/* Tab bar */}
-      <div className="flex items-center gap-1 px-4 py-2 border-b border-border flex-shrink-0">
+      <div className="flex items-center gap-1 px-3 sm:px-4 py-2 border-b border-border flex-shrink-0 overflow-x-auto">
         <button
           onClick={() => setCurrentTab('my-digital-humans')}
           className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
@@ -264,8 +269,8 @@ export function AppsPage() {
       {/* Content area */}
       {currentTab === 'store' ? (
         <StoreView />
-      ) : (
-        /* Split layout: left sidebar + right detail (shared by both tabs) */
+      ) : !isMobile ? (
+        /* ── Desktop: split layout — left sidebar + right detail (unchanged) ── */
         <div className="flex-1 flex overflow-hidden">
           {/* Left: App list (fixed 240px width) */}
           <div className="w-60 flex-shrink-0 border-r border-border flex flex-col overflow-hidden">
@@ -321,6 +326,74 @@ export function AppsPage() {
               {renderDetail()}
             </div>
           </div>
+        </div>
+      ) : (
+        /* ── Mobile: list OR detail (push navigation) ── */
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {selectedAppId ? (
+            <>
+              {/* Back button */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b border-border flex-shrink-0">
+                <button
+                  onClick={clearSelection}
+                  className="flex items-center gap-1 text-sm text-primary"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                  {t('Back')}
+                </button>
+              </div>
+
+              {/* Session detail breadcrumb */}
+              {isSessionDetail && selectedApp && (
+                <SessionBreadcrumb
+                  appName={selectedAppName ?? ''}
+                  runId={(detailView as { runId: string }).runId}
+                  onBack={() => openActivityThread(selectedApp.id)}
+                />
+              )}
+
+              {/* Automation header */}
+              {!isSessionDetail && !isUninstalledDetail && selectedApp?.spec.type === 'automation' && (
+                <>
+                  <AutomationHeader appId={selectedAppId} spaceName={selectedApp?.spaceId ? spaceMap[selectedApp.spaceId] : t('Global')} />
+                  {showLoginNotice && resolvedSpec?.browser_login && detailView?.type === 'activity-thread' && (
+                    <LoginNoticeBar
+                      browserLogin={resolvedSpec.browser_login}
+                      onDismiss={() => {
+                        if (selectedAppId) {
+                          updateAppOverrides(selectedAppId, { loginNoticeDismissed: true })
+                        }
+                      }}
+                      onOpenBrowser={(url, label) => {
+                        api.openLoginWindow(url, label)
+                      }}
+                    />
+                  )}
+                </>
+              )}
+
+              {/* Detail content */}
+              <div className={`flex-1 ${isAppChat ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+                {renderDetail()}
+              </div>
+            </>
+          ) : (
+            /* No selection: full-width list */
+            currentTab === 'my-apps' ? (
+              <AppList
+                mode="apps"
+                onInstall={() => setCurrentTab('store')}
+                onManualAdd={() => setShowManualAddDialog(true)}
+                spaceMap={spaceMap}
+              />
+            ) : (
+              <AppList
+                mode="automation"
+                onInstall={() => setShowInstallDialog(true)}
+                spaceMap={spaceMap}
+              />
+            )
+          )}
         </div>
       )}
 

@@ -21,6 +21,9 @@ import { BrowserView, BrowserWindow } from 'electron'
 // Types
 // ============================================
 
+/** Device emulation mode for a browser view */
+export type DeviceMode = 'pc' | 'h5'
+
 export interface BrowserViewState {
   id: string
   url: string
@@ -31,6 +34,7 @@ export interface BrowserViewState {
   canGoForward: boolean
   zoomLevel: number
   isDevToolsOpen: boolean
+  deviceMode: DeviceMode
   error?: string
 }
 
@@ -46,15 +50,48 @@ export interface BrowserViewCreateOptions {
    *  main window. Used by AI automation to isolate view lifecycle from the
    *  user-visible browser. Defaults to false. */
   offscreen?: boolean
+  /** Initial device emulation mode. Defaults to 'pc'. */
+  deviceMode?: DeviceMode
 }
 
 // ============================================
 // Constants
 // ============================================
 
-// Chrome User-Agent to avoid detection as Electron app
+// Desktop Chrome User-Agent to avoid detection as Electron app
 export const CHROME_USER_AGENT =
   'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+
+// Mobile (H5) User-Agent — iPhone Safari is the safest default for Chinese H5 pages.
+// Most domestic H5 sites (including WeChat-embedded pages) are tested against iOS Safari.
+export const H5_USER_AGENT =
+  'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'
+
+/**
+ * Logical viewport width for H5 mode (iPhone 16 Pro Max points).
+ * Exported so the renderer can position the visual frame to match.
+ */
+export const H5_VIEWPORT_WIDTH = 430
+
+/** H5 (mobile) emulation — iPhone 16 Pro Max (430×932 pt, 3× scale) */
+export const H5_DEVICE_METRICS = {
+  width: 430,
+  height: 0,          // 0 = auto: let the actual BrowserView height determine window.innerHeight
+  deviceScaleFactor: 3,
+  mobile: true,
+  screenWidth: 430,
+  screenHeight: 932,  // Physical screen height for CSS media queries
+}
+
+/** PC (desktop) emulation parameters — resets any prior mobile override */
+export const PC_DEVICE_METRICS = {
+  width: 1280,
+  height: 720,
+  deviceScaleFactor: 1,
+  mobile: false,
+  screenWidth: 1280,
+  screenHeight: 720,
+}
 
 // ============================================
 // BrowserView Manager
@@ -131,7 +168,8 @@ class BrowserViewManager {
    */
   async create(viewId: string, url?: string, options?: BrowserViewCreateOptions): Promise<BrowserViewState> {
     const isOffscreen = options?.offscreen ?? false
-    console.log(`[BrowserView] >>> create() called - viewId: ${viewId}, url: ${url}, offscreen: ${isOffscreen}`)
+    const deviceMode: DeviceMode = options?.deviceMode ?? 'pc'
+    console.log(`[BrowserView] >>> create() called - viewId: ${viewId}, url: ${url}, offscreen: ${isOffscreen}, deviceMode: ${deviceMode}`)
 
     // Don't create duplicate views
     if (this.views.has(viewId)) {
@@ -156,8 +194,8 @@ class BrowserViewManager {
     })
     console.log(`[BrowserView] BrowserView instance created`)
 
-    // Set Chrome User-Agent to avoid detection
-    view.webContents.setUserAgent(CHROME_USER_AGENT)
+    // Set User-Agent based on device mode
+    view.webContents.setUserAgent(deviceMode === 'h5' ? H5_USER_AGENT : CHROME_USER_AGENT)
 
     // Set background color to white (standard web)
     view.setBackgroundColor('#ffffff')
@@ -198,6 +236,7 @@ class BrowserViewManager {
       canGoForward: false,
       zoomLevel: 1,
       isDevToolsOpen: false,
+      deviceMode,
     }
 
     this.views.set(viewId, view)
@@ -207,6 +246,12 @@ class BrowserViewManager {
     // Bind events
     this.bindEvents(viewId, view)
     console.log(`[BrowserView] Events bound`)
+
+    // NOTE: CDP device emulation (viewport/touch) is applied in bindEvents
+    // after did-finish-load, not here. The WebContents debugger cannot be
+    // attached before the first navigation completes.
+    // UA is already set via setUserAgent() above — this handles server-side
+    // UA detection without needing CDP.
 
     // Navigate to initial URL
     if (url) {
@@ -273,12 +318,7 @@ class BrowserViewManager {
     console.log(`[BrowserView] BrowserView added to window`)
 
     // Set bounds with integer values
-    const intBounds = {
-      x: Math.round(bounds.x),
-      y: Math.round(bounds.y),
-      width: Math.round(bounds.width),
-      height: Math.round(bounds.height),
-    }
+    const intBounds = this.resolveBounds(viewId, bounds)
     console.log(`[BrowserView] Setting bounds:`, intBounds)
     view.setBounds(intBounds)
 
@@ -329,12 +369,7 @@ class BrowserViewManager {
     const view = this.views.get(viewId)
     if (!view) return false
 
-    view.setBounds({
-      x: Math.round(bounds.x),
-      y: Math.round(bounds.y),
-      width: Math.round(bounds.width),
-      height: Math.round(bounds.height),
-    })
+    view.setBounds(this.resolveBounds(viewId, bounds))
 
     return true
   }
@@ -594,6 +629,17 @@ class BrowserViewManager {
       })
       // Use immediate emit for load finish - user needs to see content immediately
       this.emitStateChangeImmediate(viewId)
+
+      // Apply CDP device emulation after page load — the debugger can only be
+      // safely attached once the WebContents has a live renderer process.
+      // UA is already set via setUserAgent(); this call handles viewport,
+      // touch events and CSS media features for H5 mode.
+      const state = this.states.get(viewId)
+      if (state?.deviceMode === 'h5') {
+        this.applyDeviceMode(viewId, 'h5').catch(err => {
+          console.warn(`[BrowserView] did-finish-load applyDeviceMode failed:`, err)
+        })
+      }
     })
 
     // Navigation failed - immediate emit
@@ -716,6 +762,41 @@ class BrowserViewManager {
   // ============================================
 
   /**
+   * Resolve the actual integer bounds to apply to a BrowserView.
+   *
+   * In H5 mode the view is constrained to H5_VIEWPORT_WIDTH pixels and
+   * centered horizontally within the container bounds passed from the renderer.
+   * In PC mode the view fills the container exactly.
+   *
+   * This is the single source of truth for H5 positioning, called from both
+   * show() and resize() so layout stays consistent across all code paths.
+   */
+  private resolveBounds(viewId: string, containerBounds: BrowserViewBounds): {
+    x: number; y: number; width: number; height: number
+  } {
+    const state = this.states.get(viewId)
+    const isH5 = state?.deviceMode === 'h5'
+
+    if (isH5) {
+      const phoneWidth = Math.min(H5_VIEWPORT_WIDTH, Math.round(containerBounds.width))
+      const centeredX = Math.round(containerBounds.x + (containerBounds.width - phoneWidth) / 2)
+      return {
+        x: centeredX,
+        y: Math.round(containerBounds.y),
+        width: phoneWidth,
+        height: Math.round(containerBounds.height),
+      }
+    }
+
+    return {
+      x: Math.round(containerBounds.x),
+      y: Math.round(containerBounds.y),
+      width: Math.round(containerBounds.width),
+      height: Math.round(containerBounds.height),
+    }
+  }
+
+  /**
    * Remove a stale view entry whose native object has been destroyed.
    * Called defensively when we detect a destroyed webContents.
    */
@@ -770,6 +851,105 @@ class BrowserViewManager {
     if (!this.views.has(viewId)) return false
     this.activeViewId = viewId
     return true
+  }
+
+  /**
+   * Switch device emulation mode for a view.
+   *
+   * Applies the full set of CDP commands required to faithfully reproduce what
+   * Chrome DevTools' "Toggle Device Toolbar" does:
+   *   - Emulation.setDeviceMetricsOverride (viewport + mobile flag)
+   *   - WebContents.setUserAgent          (UA string)
+   *   - Emulation.setTouchEmulationEnabled
+   *   - Emulation.setEmitTouchEventsForMouse
+   *   - Emulation.setEmulatedMedia        (hover:none / pointer:coarse for h5)
+   *
+   * Then reloads the page so the server sees the new UA on the next request
+   * and the renderer starts fresh with the correct viewport.
+   */
+  async setDeviceMode(viewId: string, mode: DeviceMode): Promise<boolean> {
+    const view = this.views.get(viewId)
+    const state = this.states.get(viewId)
+    if (!view || !state) return false
+
+    console.log(`[BrowserView] setDeviceMode: viewId=${viewId}, mode=${mode}`)
+
+    try {
+      // 1. Switch UA on the webContents object (affects subsequent navigations
+      //    at the Electron level, independent of CDP).
+      view.webContents.setUserAgent(mode === 'h5' ? H5_USER_AGENT : CHROME_USER_AGENT)
+
+      // 2. Apply full CDP emulation set
+      await this.applyDeviceMode(viewId, mode)
+
+      // 3. Persist mode in state and notify renderer
+      state.deviceMode = mode
+      this.emitStateChangeImmediate(viewId)
+
+      // 4. Reload so the server receives the new UA and the page re-renders
+      //    with the correct viewport from the very first paint.
+      view.webContents.reload()
+
+      console.log(`[BrowserView] setDeviceMode success: viewId=${viewId}, mode=${mode}`)
+      return true
+    } catch (error) {
+      console.error(`[BrowserView] setDeviceMode failed:`, error)
+      return false
+    }
+  }
+
+  /**
+   * Apply all CDP commands for a device mode to the active debugger session.
+   * Called both on view creation and on mode switch.
+   * Does NOT reload — callers decide whether a reload is needed.
+   */
+  private async applyDeviceMode(viewId: string, mode: DeviceMode): Promise<void> {
+    const view = this.views.get(viewId)
+    if (!view) return
+
+    const wc = view.webContents
+    const isH5 = mode === 'h5'
+    const metrics = isH5 ? H5_DEVICE_METRICS : PC_DEVICE_METRICS
+
+    try {
+      // Attach debugger if not already attached
+      if (!wc.debugger.isAttached()) {
+        wc.debugger.attach('1.3')
+      }
+
+      // Viewport + mobile rendering flag
+      await wc.debugger.sendCommand('Emulation.setDeviceMetricsOverride', metrics)
+
+      // Touch events
+      await wc.debugger.sendCommand('Emulation.setTouchEmulationEnabled', {
+        enabled: isH5,
+        maxTouchPoints: isH5 ? 5 : 0,
+      })
+      await wc.debugger.sendCommand('Emulation.setEmitTouchEventsForMouse', {
+        enabled: isH5,
+        configuration: isH5 ? 'mobile' : 'desktop',
+      })
+
+      // CSS media features — hover and pointer must be set explicitly;
+      // they are NOT automatically updated by setDeviceMetricsOverride.
+      await wc.debugger.sendCommand('Emulation.setEmulatedMedia', {
+        features: isH5
+          ? [
+              { name: 'hover', value: 'none' },
+              { name: 'pointer', value: 'coarse' },
+            ]
+          : [
+              { name: 'hover', value: 'hover' },
+              { name: 'pointer', value: 'fine' },
+            ],
+      })
+
+      console.log(`[BrowserView] applyDeviceMode CDP commands sent: viewId=${viewId}, mode=${mode}`)
+    } catch (error) {
+      // CDP errors are non-fatal at creation time (debugger may not be ready yet
+      // for brand-new views — the navigation itself will still use the correct UA).
+      console.warn(`[BrowserView] applyDeviceMode CDP warning (non-fatal): viewId=${viewId}`, error)
+    }
   }
 }
 

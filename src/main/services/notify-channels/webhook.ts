@@ -5,6 +5,7 @@
  * Supports optional HMAC-SHA256 signing for verification.
  */
 
+import { proxyFetch } from '../proxy-fetch'
 import { createHmac } from 'crypto'
 import type { WebhookChannelConfig, NotificationPayload, NotifySendResult } from '../../../shared/types/notification-channels'
 
@@ -44,7 +45,7 @@ export async function sendWebhook(
 
     const method = config.method || 'POST'
 
-    const res = await fetch(config.url, {
+    const res = await proxyFetch(config.url, {
       method,
       headers,
       body,

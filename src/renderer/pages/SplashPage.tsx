@@ -1,12 +1,12 @@
 /**
- * Splash Screen - Brand display on startup
+ * Splash Page - Brand display on startup
  */
 
 import { useEffect, useState } from 'react'
-import { HaloLogo } from '../brand/HaloLogo'
-import { useTranslation } from '../../i18n'
+import { HaloLogo } from '../components/brand/HaloLogo'
+import { useTranslation } from '../i18n'
 
-export function SplashScreen() {
+export function SplashPage() {
   const { t } = useTranslation()
   const [animate, setAnimate] = useState(false)
 

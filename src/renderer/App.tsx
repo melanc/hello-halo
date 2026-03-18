@@ -2,7 +2,7 @@
  * Halo - Main App Component
  */
 
-import { useEffect, useRef, Suspense, lazy } from 'react'
+import { useEffect, useRef, useState, useCallback, Suspense, lazy } from 'react'
 import { useAppStore } from './stores/app.store'
 import { useChatStore } from './stores/chat.store'
 import { useOnboardingStore } from './stores/onboarding.store'
@@ -12,9 +12,15 @@ import { useSpaceStore } from './stores/space.store'
 import { useSearchStore } from './stores/search.store'
 import { useAppsStore } from './stores/apps.store'
 import { useAppsPageStore } from './stores/apps-page.store'
-import { SplashScreen } from './components/splash/SplashScreen'
-import { SetupFlow } from './components/setup/SetupFlow'
-import { GitBashSetup } from './components/setup/GitBashSetup'
+import { SplashPage } from './pages/SplashPage'
+import { SetupPage } from './pages/SetupPage'
+import { GitBashSetupPage } from './pages/GitBashSetupPage'
+import { ServerConnectPage } from './pages/ServerConnectPage'
+import type { ServerAddedInfo } from './pages/ServerConnectPage'
+import { ServerListPage } from './pages/ServerListPage'
+import { useServerStore } from './stores/server.store'
+import type { ServerEntry } from './stores/server.store'
+import { clearPendingServerUrl, setAuthToken } from './api/transport'
 import { SearchPanel } from './components/search/SearchPanel'
 import { SearchHighlightBar } from './components/search/SearchHighlightBar'
 import { OnboardingOverlay } from './components/onboarding'
@@ -22,6 +28,8 @@ import { UpdateNotification } from './components/updater/UpdateNotification'
 import { NotificationToast } from './components/notification/NotificationToast'
 import { useNotificationStore } from './stores/notification.store'
 import { api } from './api'
+import { isCapacitor } from './api/transport'
+import type { WsConnectionState } from './api/transport'
 import { useTranslation } from './i18n'
 import type { AgentEventBase, Thought, ToolCall, HaloConfig, AgentErrorType, Question } from './types'
 import type { SessionInitInfo } from './types/slash-command'
@@ -112,6 +120,29 @@ export default function App() {
   // - Push: Listen for event (normal startup flow)
   // - Timeout: Fallback protection if something goes wrong
   useEffect(() => {
+    // Capacitor mode: skip Electron bootstrap flow entirely.
+    // Initialization is triggered after the user selects a server from the list.
+    if (isCapacitor()) {
+      const savedUrl = api.restoreServerUrl()
+      const hasToken = api.isAuthenticated()
+      if (savedUrl && hasToken) {
+        // Has saved connection — try to initialize immediately
+        console.log('[App] Capacitor: saved connection found, initializing...')
+        initialize().then(() => initializeOnboarding())
+      } else {
+        // No saved connection — check if we have servers in the list
+        const { servers } = useServerStore.getState()
+        if (servers.length > 0) {
+          console.log('[App] Capacitor: servers exist but no active, showing server list')
+          setView('serverList')
+        } else {
+          console.log('[App] Capacitor: no servers, showing ServerConnect')
+          setView('serverConnect')
+        }
+      }
+      return
+    }
+
     let initialized = false
     const startTime = Date.now()
     console.log('[App] Mounted, initializing with Pull+Push pattern...')
@@ -170,7 +201,7 @@ export default function App() {
       unsubscribe()
       clearTimeout(fallbackTimeout)
     }
-  }, [initialize, initializeOnboarding, completeDeferredGitBashCheck])
+  }, [initialize, initializeOnboarding, completeDeferredGitBashCheck, setView])
 
   // Theme switching
   useEffect(() => {
@@ -187,13 +218,165 @@ export default function App() {
     }
   }, [config?.appearance?.theme])
 
-  // Connect WebSocket for remote mode
+  // WebSocket connection state for reconnection banner
+  const [wsState, setWsState] = useState<WsConnectionState>('connected')
+
+  // Connect WebSocket for remote / Capacitor mode
   useEffect(() => {
-    if (api.isRemoteMode()) {
-      console.log('[App] Remote mode detected, connecting WebSocket...')
+    if (api.isRemoteMode() || api.isCapacitorMode()) {
+      console.log('[App] Remote/Capacitor mode detected, connecting WebSocket...')
       api.connectWebSocket()
     }
   }, [])
+
+  // Track WebSocket connection state for reconnection banner (remote/Capacitor only)
+  useEffect(() => {
+    if (!api.isRemoteMode() && !api.isCapacitorMode()) return
+    const unsub = api.onWsStateChange((state: WsConnectionState) => {
+      setWsState(state)
+    })
+    return unsub
+  }, [])
+
+  // (Capacitor auto-connect logic is merged into the main init useEffect above)
+
+  // Capacitor: listen for auth-expired DOM events (from transport.ts 401 handler)
+  useEffect(() => {
+    if (!isCapacitor()) return
+
+    const handleAuthExpired = () => {
+      console.log('[App] Auth expired, navigating to server list')
+      api.disconnectWebSocket()
+      useServerStore.getState().clearActive()
+      const { servers } = useServerStore.getState()
+      setView(servers.length > 0 ? 'serverList' : 'serverConnect')
+    }
+
+    window.addEventListener('halo:auth-expired', handleAuthExpired)
+    return () => window.removeEventListener('halo:auth-expired', handleAuthExpired)
+  }, [setView])
+
+  // Capacitor: notification bridge — push local notifications when app is backgrounded
+  useEffect(() => {
+    if (!isCapacitor()) return
+
+    // Dynamically import Capacitor local notifications (tree-shaken in non-Capacitor builds)
+    let cleanups: (() => void)[] = []
+
+    import('@capacitor/local-notifications').then(({ LocalNotifications }) => {
+      // Request notification permission
+      LocalNotifications.requestPermissions().then(perm => {
+        console.log('[App] Notification permission:', perm.display)
+      })
+
+      // Bridge: when WebSocket events arrive and app is hidden, fire local notification
+      const notifyChannels = ['agent:complete', 'app:status_changed', 'app:escalation:new']
+      for (const channel of notifyChannels) {
+        const unsub = api.onEvent(channel, (data: unknown) => {
+          if (!document.hidden) return // Only notify when app is backgrounded
+
+          const event = data as Record<string, unknown>
+          let title = 'Halo'
+          let body = ''
+
+          if (channel === 'agent:complete') {
+            title = 'Task Complete'
+            body = 'Your AI task has finished.'
+          } else if (channel === 'app:status_changed') {
+            const status = (event.state as Record<string, unknown>)?.status
+            if (status === 'completed') {
+              title = 'App Complete'
+              body = 'A digital human has finished running.'
+            } else {
+              return // Don't notify for other status changes
+            }
+          } else if (channel === 'app:escalation:new') {
+            title = 'Action Required'
+            body = (event.question as string) || 'A digital human needs your input.'
+          }
+
+          LocalNotifications.schedule({
+            notifications: [{
+              id: Date.now(),
+              title,
+              body,
+              schedule: { at: new Date() }
+            }]
+          }).catch(err => {
+            console.warn('[App] Failed to schedule notification:', err)
+          })
+        })
+        cleanups.push(unsub)
+      }
+    }).catch(err => {
+      console.warn('[App] LocalNotifications not available:', err)
+    })
+
+    return () => {
+      for (const fn of cleanups) fn()
+    }
+  }, [])
+
+  // Capacitor: handle Android back button
+  useEffect(() => {
+    if (!isCapacitor()) return
+
+    import('@capacitor/app').then(({ App: CapApp }) => {
+      const listener = CapApp.addListener('backButton', () => {
+        const currentView = useAppStore.getState().view
+        if (currentView === 'settings' || currentView === 'apps') {
+          useAppStore.getState().goBack()
+        } else if (currentView === 'serverConnect') {
+          // Back from add-server → server list (if we have servers)
+          const { servers } = useServerStore.getState()
+          if (servers.length > 0) {
+            useAppStore.getState().setView('serverList')
+          }
+        }
+        // On home/space/serverList: don't exit — Android will minimize the app
+      })
+
+      return () => {
+        listener.then(l => l.remove())
+      }
+    }).catch(() => {})
+  }, [])
+
+  // Handle new server added from ServerConnect (Capacitor)
+  const handleServerAdded = useCallback(async (info: ServerAddedInfo) => {
+    console.log(`[App] Server added: ${info.name} (${info.url})`)
+    // Persist to server store
+    const entry = useServerStore.getState().addServer({
+      name: info.name,
+      url: info.url,
+      token: info.token,
+    })
+    // Clear the pending URL now that it's persisted
+    clearPendingServerUrl()
+    // Sync auth token
+    setAuthToken(info.token)
+    // Initialize the app
+    await initialize()
+    await initializeOnboarding()
+  }, [initialize, initializeOnboarding])
+
+  // Handle server selected from ServerList (Capacitor)
+  const handleServerSelected = useCallback(async (server: ServerEntry) => {
+    console.log(`[App] Server selected: ${server.name} (${server.url})`)
+    await initialize()
+    await initializeOnboarding()
+  }, [initialize, initializeOnboarding])
+
+  // Handle "Add Device" from ServerList (Capacitor)
+  const handleAddServer = useCallback(() => {
+    setView('serverConnect')
+  }, [setView])
+
+  // Handle back from ServerConnect to ServerList (Capacitor)
+  const handleServerConnectBack = useCallback(() => {
+    api.clearServerUrl() // Clear pending URL
+    setView('serverList')
+  }, [setView])
 
   // Initialize AI Browser IPC listeners for active view sync
   useEffect(() => {
@@ -547,16 +730,37 @@ export default function App() {
     }
   }
 
+  // Show reconnection banner for remote/Capacitor modes
+  const showReconnectBanner = (api.isRemoteMode() || api.isCapacitorMode())
+    && wsState !== 'connected'
+    && view !== 'serverConnect'
+    && view !== 'serverList'
+    && view !== 'splash'
+
   // Render based on current view
   // Heavy pages (HomePage, SpacePage, SettingsPage) are lazy-loaded for better initial performance
   const renderView = () => {
     switch (view) {
       case 'splash':
-        return <SplashScreen />
+        return <SplashPage />
       case 'gitBashSetup':
-        return <GitBashSetup onComplete={handleGitBashSetupComplete} />
+        return <GitBashSetupPage onComplete={handleGitBashSetupComplete} />
       case 'setup':
-        return <SetupFlow />
+        return <SetupPage />
+      case 'serverConnect':
+        return (
+          <ServerConnectPage
+            onServerAdded={handleServerAdded}
+            onBack={useServerStore.getState().servers.length > 0 ? handleServerConnectBack : undefined}
+          />
+        )
+      case 'serverList':
+        return (
+          <ServerListPage
+            onServerSelected={handleServerSelected}
+            onAddServer={handleAddServer}
+          />
+        )
       case 'home':
         return (
           <Suspense fallback={<PageLoader />}>
@@ -582,12 +786,21 @@ export default function App() {
           </Suspense>
         )
       default:
-        return <SplashScreen />
+        return <SplashPage />
     }
   }
 
   return (
     <div className="h-full w-full overflow-hidden bg-background">
+      {/* WebSocket reconnection banner */}
+      {showReconnectBanner && (
+        <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 py-1.5 bg-halo-warning/90 text-sm font-medium animate-slide-down safe-area-top"
+          style={{ paddingTop: 'max(6px, var(--sat))' }}
+        >
+          <div className="w-3 h-3 border-2 border-foreground/60 border-t-foreground rounded-full animate-spin" />
+          <span className="text-foreground">{t('Reconnecting...')}</span>
+        </div>
+      )}
       {renderView()}
       {/* Search panel - full screen edit mode */}
       <SearchPanel isOpen={isSearchOpen} onClose={closeSearch} />

@@ -52,6 +52,7 @@ export interface BrowserState {
   canGoForward: boolean
   favicon?: string
   zoomLevel?: number
+  deviceMode?: 'pc' | 'h5'
 }
 
 export interface TabState {
@@ -360,6 +361,7 @@ class CanvasLifecycle {
             canGoForward: event.state.canGoForward,
             favicon: event.state.favicon,
             zoomLevel: event.state.zoomLevel,
+            deviceMode: event.state.deviceMode,
           }
 
           // Update URL and title if changed

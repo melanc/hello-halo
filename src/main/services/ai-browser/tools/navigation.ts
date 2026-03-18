@@ -9,6 +9,7 @@ import { z } from 'zod'
 import { tool } from '@anthropic-ai/claude-agent-sdk'
 import type { BrowserContext } from '../context'
 import { browserViewManager } from '../../browser-view.service'
+import { type DeviceMode } from '../../browser-view.service'
 import { textResult, NAV_TIMEOUT } from './helpers'
 
 export function buildNavigationTools(ctx: BrowserContext) {
@@ -56,19 +57,24 @@ const browser_select_page = tool(
 
 const browser_new_page = tool(
   'browser_new_page',
-  'Creates a new page',
+  'Creates a new browser page and navigates to a URL. Use device="h5" only when the user explicitly requests mobile view, or when the target site is known to be mobile-only (e.g. food delivery apps like Meituan, WeChat-specific pages). Default is PC mode.',
   {
     url: z.string().describe('URL to load in a new page.'),
+    device: z.enum(['pc', 'h5']).optional().describe('Device mode: "pc" (default) for desktop, "h5" for mobile (iPhone UA, 390×844 viewport). Use h5 only when mobile view is needed.'),
     timeout: z.number().int().optional().describe('Maximum wait time in milliseconds. If set to 0, the default timeout will be used.')
   },
   async (args) => {
     const timeout = (args.timeout && args.timeout > 0) ? args.timeout : NAV_TIMEOUT
+    const deviceMode: DeviceMode = args.device ?? 'pc'
 
     try {
       const viewId = `ai-browser-${Date.now()}`
       // Scoped (automation) contexts use the offscreen host window to isolate
       // view lifecycle from the user's mainWindow.
-      await browserViewManager.create(viewId, args.url, { offscreen: ctx.isScoped })
+      await browserViewManager.create(viewId, args.url, {
+        offscreen: ctx.isScoped,
+        deviceMode,
+      })
       ctx.trackView(viewId)
       ctx.setActiveViewId(viewId)
 
@@ -76,7 +82,8 @@ const browser_new_page = tool(
       await ctx.waitForNavigation(timeout)
 
       const finalState = browserViewManager.getState(viewId)
-      return textResult(`Created new page: ${finalState?.title || 'Untitled'} - ${finalState?.url || args.url}`)
+      const modeLabel = deviceMode === 'h5' ? ' [H5 mobile mode]' : ''
+      return textResult(`Created new page${modeLabel}: ${finalState?.title || 'Untitled'} - ${finalState?.url || args.url}`)
     } catch (error) {
       return textResult(`Failed to create new page: ${(error as Error).message}`, true)
     }

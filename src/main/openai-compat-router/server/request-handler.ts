@@ -23,6 +23,7 @@ import {
   streamOpenAIChatToAnthropic,
   streamOpenAIResponsesToAnthropic
 } from '../stream'
+import { proxyFetch } from '../../services/proxy-fetch'
 import { getApiTypeFromUrl, isValidEndpointUrl, getEndpointUrlError, shouldForceStream } from './api-type'
 import { withRequestQueue, generateQueueKey } from './request-queue'
 import { runInterceptors } from '../interceptors'
@@ -170,7 +171,7 @@ async function fetchUpstream(
       headers['Authorization'] = `Bearer ${apiKey}`
     }
 
-    return await fetch(targetUrl, {
+    return await proxyFetch(targetUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(body),
@@ -206,10 +207,15 @@ async function fetchAnthropicUpstream(
   }, timeoutMs)
 
   try {
+    const hasAuthHeader = Object.keys(customHeaders || {}).some(
+      k => k.toLowerCase() === 'authorization'
+    )
     const headers: Record<string, string> = {
       ...(sdkHeaders || {}),
       ...(customHeaders || {}),
-      'x-api-key': apiKey,
+      // Skip x-api-key when the provider already injected an Authorization header
+      // (e.g. GitHub Copilot uses Bearer token instead of x-api-key)
+      ...(!hasAuthHeader && { 'x-api-key': apiKey }),
     }
 
     // Deduplicate content-type: sdkHeaders (lowercase from Express) and customHeaders
@@ -227,7 +233,7 @@ async function fetchAnthropicUpstream(
     }
     headers['content-type'] = contentTypeValue || 'application/json'
 
-    return await fetch(targetUrl, {
+    return await proxyFetch(targetUrl, {
       method: 'POST',
       headers,
       body: Buffer.isBuffer(bodyOrBuffer) ? bodyOrBuffer : JSON.stringify(bodyOrBuffer),

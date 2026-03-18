@@ -7,9 +7,9 @@
  * - Navigation controls (back, forward, reload)
  * - Address bar with smart URL/search detection (Bing search)
  * - Loading indicators
- * - Screenshot capture (for AI vision)
+ * - PC / H5 device mode toggle (viewport + UA + touch emulation via CDP)
  * - AI operation indicator when AI is controlling the browser
- * - Native context menu for zoom and DevTools (uses Electron Menu)
+ * - Native context menu for screenshot, zoom and DevTools (uses Electron Menu)
  * - Page zoom controls via native menu
  *
  * The actual browser rendering is done by Electron's BrowserView in the main
@@ -29,12 +29,13 @@ import {
   Home,
   Lock,
   Unlock,
-  Camera,
   Globe,
   ExternalLink,
   Bot,
   MoreVertical,
   Search,
+  Smartphone,
+  Monitor,
 } from 'lucide-react'
 import { api } from '../../../api'
 import { canvasLifecycle, type TabState, type BrowserState } from '../../../services/canvas-lifecycle'
@@ -213,14 +214,12 @@ export function BrowserViewer({ tab }: BrowserViewerProps) {
     }
   }, [tab.browserViewId])
 
-  const handleCapture = useCallback(async () => {
+  const handleToggleDeviceMode = useCallback(async () => {
     if (!tab.browserViewId) return
-
-    const result = await api.captureBrowserView(tab.browserViewId)
-    if (result.success && result.data) {
-      console.log('[BrowserViewer] Screenshot captured')
-    }
-  }, [tab.browserViewId])
+    const currentMode = browserState.deviceMode ?? 'pc'
+    const nextMode = currentMode === 'pc' ? 'h5' : 'pc'
+    await api.setBrowserDeviceMode(tab.browserViewId, nextMode)
+  }, [tab.browserViewId, browserState.deviceMode])
 
   const handleOpenExternal = useCallback(async () => {
     // For PDF, open with system default app; for browser, open URL in external browser
@@ -419,16 +418,29 @@ export function BrowserViewer({ tab }: BrowserViewerProps) {
             </div>
           </form>
 
-          {/* Tool Buttons - Screenshot and External outside, More for native menu */}
+          {/* Tool Buttons - Device mode toggle, External, More */}
           <div className="flex items-center gap-0.5">
-            {/* Screenshot button */}
-            <button
-              onClick={handleCapture}
-              className="p-1.5 rounded hover:bg-secondary transition-colors"
-              title={t('Screenshot')}
-            >
-              <Camera className="w-4 h-4 text-muted-foreground" />
-            </button>
+            {/* PC / H5 device mode toggle */}
+            {(() => {
+              const isH5 = (browserState.deviceMode ?? 'pc') === 'h5'
+              return (
+                <button
+                  onClick={handleToggleDeviceMode}
+                  className={`p-1.5 rounded transition-colors ${
+                    isH5
+                      ? 'text-primary bg-primary/10 hover:bg-primary/20'
+                      : 'text-muted-foreground hover:bg-secondary'
+                  }`}
+                  title={isH5 ? t('Switch to PC mode') : t('Switch to H5 mobile mode')}
+                >
+                  {isH5 ? (
+                    <Smartphone className="w-4 h-4" />
+                  ) : (
+                    <Monitor className="w-4 h-4" />
+                  )}
+                </button>
+              )
+            })()}
 
             {/* Open external button */}
             <button
@@ -439,11 +451,11 @@ export function BrowserViewer({ tab }: BrowserViewerProps) {
               <ExternalLink className="w-4 h-4 text-muted-foreground" />
             </button>
 
-            {/* More menu button - triggers native Electron menu */}
+            {/* More menu button - native Electron menu (screenshot, zoom, dev tools) */}
             <button
               onClick={handleShowMenu}
               className="p-1.5 rounded hover:bg-secondary transition-colors"
-              title={t('More options (zoom, developer tools)')}
+              title={t('More options (screenshot, zoom, developer tools)')}
             >
               <MoreVertical className="w-4 h-4 text-muted-foreground" />
             </button>

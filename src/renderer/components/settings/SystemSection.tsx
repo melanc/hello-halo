@@ -6,7 +6,7 @@
 import { useState, useEffect } from 'react'
 import {
   FolderOpen, Activity, Loader2, AlertTriangle, CheckCircle,
-  XOctagon, ChevronRight, Copy, FileText, RotateCcw, RefreshCw
+  XOctagon, ChevronRight, Copy, FileText, RotateCcw, RefreshCw, Save
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { api } from '../../api'
@@ -24,6 +24,11 @@ export function SystemSection({ config, setConfig }: SystemSectionProps) {
   // System settings state
   const [autoLaunch, setAutoLaunch] = useState(config?.system?.autoLaunch || false)
   const [taskCompleteNotify, setTaskCompleteNotify] = useState(config?.notifications?.taskComplete || false)
+
+  // Proxy settings state
+  const [proxyInput, setProxyInput] = useState(config?.network?.proxy || '')
+  const [proxyError, setProxyError] = useState<string | null>(null)
+  const [proxySaved, setProxySaved] = useState(false)
   // Health diagnostics state
   const [isRunningDiagnostics, setIsRunningDiagnostics] = useState(false)
   const [diagnosticsExpanded, setDiagnosticsExpanded] = useState(false)
@@ -158,6 +163,40 @@ export function SystemSection({ config, setConfig }: SystemSectionProps) {
     }
   }
 
+  // Handle proxy save
+  const handleProxySave = async () => {
+    const value = proxyInput.trim()
+
+    // Validate URL format if non-empty
+    if (value) {
+      try {
+        const u = new URL(value)
+        const supported = ['http:', 'https:', 'socks4:', 'socks5:']
+        if (!supported.includes(u.protocol)) {
+          setProxyError(t('Unsupported protocol. Use http://, https://, socks4://, or socks5://'))
+          return
+        }
+        if (!u.hostname) {
+          setProxyError(t('Invalid proxy URL'))
+          return
+        }
+      } catch {
+        setProxyError(t('Invalid proxy URL. Example: http://127.0.0.1:1087'))
+        return
+      }
+    }
+
+    setProxyError(null)
+    try {
+      await api.setConfig({ network: { proxy: value || undefined } })
+      setProxySaved(true)
+      setTimeout(() => setProxySaved(false), 2000)
+    } catch (error) {
+      console.error('[SystemSection] Failed to save proxy:', error)
+      setProxyError(t('Failed to save'))
+    }
+  }
+
   // Get health status color and icon
   const getHealthStatusStyle = (status: string) => {
     switch (status) {
@@ -269,6 +308,46 @@ export function SystemSection({ config, setConfig }: SystemSectionProps) {
                 />
               </div>
             </label>
+          </div>
+
+          {/* Proxy */}
+          <div className="pt-4 border-t border-border">
+            <div className="flex-1 mb-3">
+              <p className="font-medium">{t('Proxy')}</p>
+              <p className="text-sm text-muted-foreground">
+                {t('Override system proxy. Leave empty to auto-detect from system settings.')}
+              </p>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <input
+                type="text"
+                value={proxyInput}
+                onChange={(e) => {
+                  setProxyInput(e.target.value)
+                  setProxyError(null)
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleProxySave()}
+                placeholder="http://127.0.0.1:1087"
+                className="flex-1 px-3 py-1.5 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 font-mono"
+              />
+              <button
+                onClick={handleProxySave}
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 text-sm bg-primary/10 text-primary hover:bg-primary/20 rounded-lg transition-colors shrink-0"
+              >
+                {proxySaved ? (
+                  <CheckCircle className="w-3.5 h-3.5" />
+                ) : (
+                  <Save className="w-3.5 h-3.5" />
+                )}
+                {proxySaved ? t('Saved') : t('Save')}
+              </button>
+            </div>
+            {proxyError && (
+              <p className="mt-1.5 text-xs text-destructive">{proxyError}</p>
+            )}
+            <p className="mt-1.5 text-xs text-muted-foreground">
+              {t('Supports http://, https://, socks4://, socks5://')}
+            </p>
           </div>
 
           {/* Open Log Folder */}

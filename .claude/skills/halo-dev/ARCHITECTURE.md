@@ -78,17 +78,31 @@ src/
 └── renderer/                          # React Frontend
     ├── App.tsx, main.tsx
     ├── api/                           # Unified API adapter (IPC or HTTP transport)
-    ├── pages/                         # HomePage, SpacePage, SettingsPage, AppsPage
-    ├── components/                    # UI components by domain:
+    ├── pages/                         # **All full-screen views** (one file per renderView case):
+    │   │                              #   Convention: every case in App.tsx renderView()
+    │   │                              #   must correspond to a file in pages/.
+    │   ├── HomePage.tsx               #   Main conversation view
+    │   ├── SpacePage.tsx              #   Space/project view
+    │   ├── SettingsPage.tsx           #   App settings
+    │   ├── AppsPage.tsx              #   Digital humans management
+    │   ├── SplashPage.tsx             #   Startup splash screen
+    │   ├── SetupPage.tsx              #   First-time login flow
+    │   ├── GitBashSetupPage.tsx       #   Windows Git Bash installer
+    │   ├── ServerConnectPage.tsx      #   Capacitor: add/connect to server
+    │   └── ServerListPage.tsx         #   Capacitor: multi-server list
+    ├── components/                    # UI sub-components by domain (NOT full-screen views):
     │   ├── apps/                      #   Apps management
     │   ├── canvas/                    #   Content Canvas + viewers/
     │   ├── chat/                      #   Chat stream + tool-result/
     │   ├── layout/                    #   Header, ModelSelector, SpaceSelector, etc.
     │   ├── settings/                  #   Settings sections
+    │   ├── setup/                     #   Sub-components: LoginSelector, ApiSetup, ServerConnect
     │   ├── store/                     #   App Store UI
-    │   ├── diff/, search/, pulse/, setup/, onboarding/, artifact/, ...
+    │   ├── diff/, search/, pulse/, onboarding/, artifact/, ...
     │   └── (no separate ui/ dir — uses Tailwind directly)
-    ├── stores/                        # Zustand (11 stores)
+    ├── stores/                        # Zustand (12 stores)
+    │   ├── server.store.ts            #   Multi-server list for Capacitor (ServerEntry[])
+    │   └── ...                        #   app, chat, space, search, apps, perf, etc.
     ├── hooks/                         # useIsMobile, useCanvasLifecycle, useLayoutPreferences, etc.
     ├── types/index.ts                 # All shared renderer types (~740 lines)
     ├── lib/                           # utils (cn()), codemirror, highlight, perf
@@ -156,14 +170,14 @@ When adding a new IPC channel, update these files in sync:
 
 ```
 Renderer (UI)
-  → api adapter (IPC in Electron, HTTP in Web)
+  → api adapter (IPC in Electron, HTTP in Web/Capacitor)
   → Main Process (controllers/services)
   → Agent Loop (@anthropic-ai/claude-code)
-  → Events (IPC or WebSocket for remote)
+  → Events (IPC or WebSocket for remote/Capacitor)
   → UI Update
 ```
 
-### Multi-Platform
+### Multi-Platform (Three Modes)
 
 ```
 ┌──────────────────────────────────────────────────────────┐
@@ -177,14 +191,35 @@ Renderer (UI)
 │                                  └──────────────────┘    │
 └──────────────────────────────────────────────────────────┘
                            ▲
-                           │ HTTP/WS
-                           ▼
-┌──────────────────────────────────────────────────────────┐
-│                  Remote Web Client                        │
-│  Same React App                                          │
-│  api adapter: isElectron() ? IPC : HTTP                  │
-└──────────────────────────────────────────────────────────┘
+                           │ HTTP/WS (data only)
+                  ┌────────┴────────┐
+                  ▼                 ▼
+┌─────────────────────────┐  ┌────────────────────────────┐
+│  Remote Web Client      │  │  Capacitor App (Mobile)    │
+│  Same React App         │  │  Same React App            │
+│  origin = server URL    │  │  Local assets (offline)    │
+│  isRemoteClient() = ✓   │  │  Server URL = user config  │
+└─────────────────────────┘  │  isCapacitor() = ✓         │
+                             │  + Native: Notifications,  │
+                             │    Camera, Preferences     │
+                             └────────────────────────────┘
 ```
+
+### Transport Layer (src/renderer/api/transport.ts)
+
+Three-mode detection:
+
+```typescript
+isElectron():      'halo' in window                    → IPC
+isCapacitor():     Capacitor.isNativePlatform()        → HTTP (configured URL)
+isRemoteClient():  neither                             → HTTP (window.origin)
+```
+
+Capacitor-specific functions:
+- `setServerUrl()` / `getServerUrl()` / `restoreServerUrl()` / `clearServerUrl()` — persist user-configured server address
+- 401 handler dispatches `halo:auth-expired` DOM event (no page reload)
+- WebSocket uses exponential backoff (1s→2s→4s→...→30s cap)
+- `onWsStateChange()` — connection state events for UI reconnection banner
 
 ### API Adapter Pattern
 
@@ -193,30 +228,43 @@ Renderer (UI)
 export const api = {
   getConfig: async () => {
     if (isElectron()) return window.halo.getConfig()  // IPC
-    return httpRequest('GET', '/api/config')           // HTTP
+    return httpRequest('GET', '/api/config')           // HTTP (remote + Capacitor)
   }
 }
 ```
 
-### Authentication (Remote)
+### Authentication (Remote & Capacitor)
 
 1. Server generates 6-digit PIN on start
 2. User enters PIN on login page → receives Token
 3. Token stored in localStorage
 4. All API requests include `Authorization: Bearer <token>`
-5. On 401, auto-clear token and redirect to login
+5. On 401: Remote reloads page; Capacitor dispatches `halo:auth-expired` → server list
 
-### WebSocket Events (Remote)
+### Capacitor Mobile App
+
+- **Build**: `vite.config.mobile.ts` → `dist-mobile/` → Capacitor syncs to `android/`
+- **Entry point**: Same `src/renderer/` SPA, electron-log stubbed via alias
+- **Multi-server management**: `server.store.ts` stores a list of `ServerEntry[]` (id, name, url, token)
+  - `ServerListPage` shows all saved servers with online/offline status
+  - `ServerConnectPage` handles the add-server flow (URL input + QR scan + access code)
+  - Switching servers: disconnect WS → set active → reconnect + reinitialize
+- **Notifications**: WebSocket events → `@capacitor/local-notifications` when `document.hidden`
+- **Android back button**: navigates back from settings/apps/serverConnect, no-op on home/serverList
+- **Scripts**: `npm run build:mobile`, `npm run cap:sync`, `npm run cap:run:android`
+
+### WebSocket Events (Remote & Capacitor)
 
 - Subscribe: `{ type: 'subscribe', payload: { conversationId } }`
 - Receive: `{ type: 'event', channel: 'agent:thought', data: {...} }`
 
-### Web Mode Limitations
+### Web/Capacitor Mode Limitations
 
-Some features are disabled in web mode:
+Some features are disabled in non-Electron modes:
 - Open file/folder (cannot access local filesystem)
 - Artifact click-to-open → shows "Please open in desktop client" hint
-- If a feature supports Web mode, handle the corresponding adapter and interface properly
+- Browser views / embedded browser (desktop only)
+- If a feature supports Web/Capacitor mode, handle the corresponding adapter and interface properly
 
 ## 8) Service Inter-Communication
 

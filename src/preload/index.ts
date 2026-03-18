@@ -240,6 +240,7 @@ export interface HaloAPI {
   executeBrowserJS: (viewId: string, code: string) => Promise<IpcResponse>
   setBrowserZoom: (viewId: string, level: number) => Promise<IpcResponse>
   toggleBrowserDevTools: (viewId: string) => Promise<IpcResponse>
+  setBrowserDeviceMode: (viewId: string, mode: 'pc' | 'h5') => Promise<IpcResponse>
   showBrowserContextMenu: (options: { viewId: string; url?: string; zoomLevel: number }) => Promise<IpcResponse>
   onBrowserStateChange: (callback: (data: unknown) => void) => () => void
   onBrowserZoomChanged: (callback: (data: { viewId: string; zoomLevel: number }) => void) => () => void
@@ -567,6 +568,7 @@ const api: HaloAPI = {
   executeBrowserJS: (viewId, code) => ipcRenderer.invoke('browser:execute-js', { viewId, code }),
   setBrowserZoom: (viewId, level) => ipcRenderer.invoke('browser:zoom', { viewId, level }),
   toggleBrowserDevTools: (viewId) => ipcRenderer.invoke('browser:dev-tools', { viewId }),
+  setBrowserDeviceMode: (viewId, mode) => ipcRenderer.invoke('browser:set-device-mode', { viewId, mode }),
   showBrowserContextMenu: (options) => ipcRenderer.invoke('browser:show-context-menu', options),
   onBrowserStateChange: (callback) => createEventListener('browser:state-change', callback),
   onBrowserZoomChanged: (callback) => createEventListener('browser:zoom-changed', callback as (data: unknown) => void),

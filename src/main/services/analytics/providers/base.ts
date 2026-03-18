@@ -5,6 +5,7 @@
  * Provides common functionality: retry, timeout, error handling
  */
 
+import { proxyFetch } from '../../proxy-fetch'
 import type { AnalyticsEvent, AnalyticsProvider, UserContext } from '../types'
 
 /**
@@ -69,7 +70,7 @@ export abstract class BaseProvider implements AnalyticsProvider {
     const timeoutId = setTimeout(() => controller.abort(), this.options.timeout)
 
     try {
-      const response = await fetch(url, {
+      const response = await proxyFetch(url, {
         ...options,
         signal: controller.signal
       })

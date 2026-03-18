@@ -102,7 +102,7 @@ export function StoreHeader() {
       </div>
 
       {/* Type filter tabs */}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 overflow-x-auto">
         {TYPE_FILTERS.map(tf => (
           <button
             key={String(tf.id)}

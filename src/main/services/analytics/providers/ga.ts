@@ -13,6 +13,7 @@
  * 3. Create API Secret: Admin → Data Streams → Select stream → Measurement Protocol API secrets → Create
  */
 
+import { proxyFetch } from '../../proxy-fetch'
 import { BaseProvider, BaseProviderOptions } from './base'
 import type { AnalyticsEvent, UserContext } from '../types'
 
@@ -224,7 +225,7 @@ export class GAProvider extends BaseProvider {
     const url = `${this.debugEndpoint}?measurement_id=${this.measurementId}&api_secret=${this.apiSecret}`
 
     try {
-      const response = await fetch(url, {
+      const response = await proxyFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

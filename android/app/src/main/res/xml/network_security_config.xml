@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Network Security Config for Halo Mobile.
+  Allows cleartext HTTP traffic to LAN addresses (192.168.*, 10.*, 172.16-31.*)
+  and localhost, which is required for connecting to the Halo desktop server
+  over a local network without TLS.
+  All other traffic uses HTTPS by default.
+-->
+<network-security-config>
+    <!-- Allow cleartext for local/private networks -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain includeSubdomains="true">10.0.0.0</domain>
+        <domain includeSubdomains="true">172.16.0.0</domain>
+        <domain includeSubdomains="true">192.168.0.0</domain>
+    </domain-config>
+
+    <!-- Default: cleartext permitted (user may connect via any address) -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

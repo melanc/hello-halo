@@ -112,7 +112,7 @@ You can now control Halo's embedded real browser. All browser tools are provided
 ### Available Tools (prefix: mcp__ai-browser__)
 
 **Navigation:**
-- \`browser_new_page\` - Create new page and navigate to URL
+- \`browser_new_page\` - Create new page and navigate to URL. Supports optional \`device\` param ("pc" | "h5"). **Default is "pc". Only use "h5" when the user explicitly asks for mobile view, or when the site is known to be mobile-only (e.g. Meituan, WeChat mini-program pages, sites that redirect desktop to mobile).**
 - \`browser_navigate\` - Navigate to URL or execute back/forward/reload
 - \`browser_list_pages\` - List all open pages
 - \`browser_select_page\` - Select active page

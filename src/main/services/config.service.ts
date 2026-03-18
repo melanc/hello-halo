@@ -299,6 +299,30 @@ export function onApiConfigChange(handler: ApiConfigChangeHandler): () => void {
   }
 }
 
+// ============================================================================
+// Network config change subscribers
+// Notified synchronously when network.proxy is saved, so proxy-fetch can keep
+// an in-memory cache instead of reading config.json on every request.
+// ============================================================================
+
+type NetworkConfigChangeHandler = (proxy: string | undefined) => void
+const networkConfigChangeHandlers: NetworkConfigChangeHandler[] = []
+
+/**
+ * Register a callback to be notified when network config (proxy) changes.
+ * Called synchronously inside saveConfig so the cache is hot before the
+ * next proxyFetch() call.
+ *
+ * @returns Unsubscribe function
+ */
+export function onNetworkConfigChange(handler: NetworkConfigChangeHandler): () => void {
+  networkConfigChangeHandlers.push(handler)
+  return () => {
+    const idx = networkConfigChangeHandlers.indexOf(handler)
+    if (idx >= 0) networkConfigChangeHandlers.splice(idx, 1)
+  }
+}
+
 // Types (shared with renderer)
 interface HaloConfig {
   api: {
@@ -346,6 +370,39 @@ interface HaloConfig {
     sidebarWidth?: number
     artifactRailWidth?: number
   }
+  // GitHub Copilot configuration (identity + simulation parameters)
+  copilot?: {
+    /** Persistent device identity (generated once, never rotated) */
+    identity?: {
+      /** 64-char lowercase hex — sent as vscode-machineid */
+      machineId: string
+      /** UUID v4 — sent as editor-device-id */
+      deviceId: string
+    }
+    /** ID rotation simulation parameters.
+     *
+     *  Safe partial config rules:
+     *    - Set only idReuseMin OR only idReuseMax → fixed count (both treated as that value).
+     *    - Omit idReuseHighMin → auto-computed as midpoint of [min, max].
+     *    - idReuseHighMin outside [min, max] → clamped automatically.
+     *    - idReuseHighWeight outside [0, 1] → clamped automatically.
+     *    - idReuseMin > idReuseMax → swapped automatically.
+     */
+    simulation?: {
+      /** Minimum reuse count per ID set (default: 10). Set equal to idReuseMax for a fixed count. */
+      idReuseMin?: number
+      /** Maximum reuse count per ID set (default: 20). Set equal to idReuseMin for a fixed count. */
+      idReuseMax?: number
+      /** High-range start point — [idReuseHighMin, idReuseMax] is the high-probability range.
+       *  Omit to auto-compute as midpoint of [idReuseMin, idReuseMax]. */
+      idReuseHighMin?: number
+      /** Probability of landing in the high range, clamped to [0, 1] (default: 0.6). */
+      idReuseHighWeight?: number
+      /** Maximum wall-clock age of a single ID cycle in minutes (default: 15).
+       *  The cycle rotates when this limit is reached, regardless of use count. */
+      idMaxAgeMinutes?: number
+    }
+  }
   // Git Bash configuration (Windows only)
   gitBash?: {
     installed: boolean
@@ -363,6 +420,10 @@ interface HaloConfig {
     }>
     cacheTtlMs: number
     autoCheckUpdates: boolean
+  }
+  // Network configuration (proxy, etc.)
+  network?: {
+    proxy?: string  // Manual proxy URL. Empty string or undefined = use system proxy.
   }
 }
 
@@ -769,6 +830,16 @@ export function getConfig(): HaloConfig {
     const content = readFileSync(configPath, 'utf-8')
     const parsed = JSON.parse(content)
     const aiSources = normalizeAiSources(parsed)
+
+    // Migrate legacy copilotIdentity → copilot.identity (one-time)
+    if (parsed.copilotIdentity && !parsed.copilot?.identity) {
+      parsed.copilot = { ...parsed.copilot, identity: parsed.copilotIdentity }
+      delete parsed.copilotIdentity
+      try {
+        writeFileSync(configPath, JSON.stringify(parsed, null, 2))
+      } catch { /* non-fatal */ }
+    }
+
     // Deep merge to ensure all nested defaults are applied
     return {
       ...DEFAULT_CONFIG,
@@ -785,7 +856,9 @@ export function getConfig(): HaloConfig {
       // analytics: keep as-is (managed by analytics.service.ts)
       analytics: parsed.analytics,
       // layout: keep persisted values (panel sizes and visibility)
-      layout: parsed.layout
+      layout: parsed.layout,
+      // copilot: keep as-is (identity + simulation)
+      copilot: parsed.copilot
     }
   } catch (error) {
     console.error('Failed to read config:', error)
@@ -833,6 +906,23 @@ export function saveConfig(config: Partial<HaloConfig>): HaloConfig {
   // layout: shallow merge (panel sizes and visibility)
   if (config.layout !== undefined) {
     newConfig.layout = { ...currentConfig.layout, ...config.layout }
+  }
+  // copilot: shallow merge (identity + simulation)
+  if (config.copilot !== undefined) {
+    newConfig.copilot = { ...currentConfig.copilot, ...config.copilot }
+  }
+  // network: shallow merge (proxy, future fields)
+  if (config.network !== undefined) {
+    newConfig.network = { ...currentConfig.network, ...config.network }
+    // Notify synchronously — proxy-fetch updates its in-memory cache immediately
+    if (networkConfigChangeHandlers.length > 0) {
+      const proxy = newConfig.network?.proxy
+      networkConfigChangeHandlers.forEach(handler => {
+        try { handler(proxy) } catch (e) {
+          console.error('[Config] Error in network config change handler:', e)
+        }
+      })
+    }
   }
 
   const configPath = getConfigPath()

@@ -696,11 +696,18 @@ class AISourceManager {
   }
 
   /**
-   * Refresh configuration for a specific source
+   * Refresh configuration for a specific source.
+   *
+   * Delegates to the provider's refreshConfig() to fetch the latest model
+   * list from the remote API, then merges the result back into stored config.
+   *
+   * Only non-sensitive fields (availableModels, model, updatedAt) are written;
+   * encrypted tokens on disk are never touched.
    */
   async refreshSourceConfig(sourceId: string): Promise<ProviderResult<void>> {
     await this.ensureInitialized()
 
+    // Decrypted config is needed so providers can make authenticated API calls
     const aiSources = this.getDecryptedAiSources()
     const source = aiSources.sources.find(s => s.id === sourceId)
 
@@ -708,7 +715,60 @@ class AISourceManager {
       return { success: false, error: 'Source not found' }
     }
 
-    // For now, just return success - individual providers can implement refresh logic
+    const provider = this.providers.get(source.provider)
+    if (!provider?.refreshConfig) {
+      // Provider does not support refresh — not an error
+      return { success: true }
+    }
+
+    // Build legacy config format that all providers consume
+    const legacyConfig = this.buildLegacyOAuthConfig(source)
+
+    console.log(`[AISourceManager] Refreshing source "${source.name}" (${source.provider})`)
+
+    const result = await provider.refreshConfig(legacyConfig)
+
+    if (!result.success || !result.data) {
+      console.warn(`[AISourceManager] Refresh failed for "${source.name}":`, result.error)
+      return { success: false, error: result.error || 'Refresh failed' }
+    }
+
+    // Provider returns { [providerType]: { availableModels, modelNames, model, ... } }
+    const providerData = (result.data as Record<string, any>)[source.provider]
+    if (!providerData) {
+      return { success: true } // No updates from provider
+    }
+
+    // Convert provider's string[] + modelNames to v2 ModelOption[]
+    const modelIds: string[] = providerData.availableModels || []
+    const modelNames: Record<string, string> = providerData.modelNames || {}
+    const models: ModelOption[] = modelIds.map(id => ({
+      id,
+      name: modelNames[id] || id
+    }))
+
+    // Read fresh config from disk to avoid overwriting concurrent token rotations
+    const freshAiSources = this.getAiSourcesConfig()
+    const now = new Date().toISOString()
+
+    const updatedSources = freshAiSources.sources.map(s => {
+      if (s.id !== sourceId) return s
+      return {
+        ...s,
+        availableModels: models.length > 0 ? models : s.availableModels,
+        model: providerData.model || s.model,
+        updatedAt: now
+      }
+    })
+
+    saveConfig({
+      aiSources: {
+        ...freshAiSources,
+        sources: updatedSources
+      }
+    } as any)
+
+    console.log(`[AISourceManager] Refreshed "${source.name}": ${models.length} models, model: ${providerData.model || '(unchanged)'}`)
     return { success: true }
   }
 

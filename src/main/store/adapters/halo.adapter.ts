@@ -8,6 +8,7 @@
  * This is the default adapter used when sourceType is absent or 'halo'.
  */
 
+import { proxyFetch } from '../../services/proxy-fetch'
 import { parse as parseYaml } from 'yaml'
 import { z } from 'zod'
 import { AppSpecSchema } from '../../apps/spec/schema'
@@ -216,7 +217,7 @@ export async function fetchWithTimeout(url: string, init?: RequestInit): Promise
 
   const timeout = setTimeout(() => controller.abort(new Error(`Fetch timeout after ${FETCH_TIMEOUT_MS}ms: ${url}`)), FETCH_TIMEOUT_MS)
   try {
-    const response = await fetch(url, { ...init, signal: controller.signal })
+    const response = await proxyFetch(url, { ...init, signal: controller.signal })
     // Return a wrapper that keeps the abort controller alive during body consumption
     return new Proxy(response, {
       get(target, prop, receiver) {

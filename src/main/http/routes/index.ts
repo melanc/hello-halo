@@ -150,6 +150,18 @@ export function registerApiRoutes(app: Express): void {
     res.json(result)
   })
 
+  app.post('/api/config/refresh-ai-sources', async (_req: Request, res: Response) => {
+    try {
+      const manager = getAISourceManager()
+      await manager.refreshAllConfigs()
+      const config = getServiceConfig()
+      res.json({ success: true, data: config })
+    } catch (error) {
+      console.error('[HTTP] refresh-ai-sources failed:', (error as Error).message)
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
   // ===== AI Sources CRUD Routes (atomic operations) =====
   // These routes read from disk before writing, ensuring rotating tokens are never overwritten.
 

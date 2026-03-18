@@ -314,7 +314,7 @@ interface BrowserLoginPopoverProps {
 
 function BrowserLoginPopover({ entries, onOpen, t }: BrowserLoginPopoverProps) {
   return (
-    <div className="absolute right-0 top-full mt-1 z-50 min-w-[200px] max-w-[280px] bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+    <div className="absolute right-0 top-full mt-1 z-50 min-w-[180px] max-w-[calc(100vw-2rem)] sm:max-w-[280px] bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
       <div className="px-3 py-2 border-b border-border">
         <span className="text-xs font-medium text-foreground">{t('Browser')}</span>
       </div>

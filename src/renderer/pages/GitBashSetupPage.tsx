@@ -1,5 +1,5 @@
 /**
- * GitBashSetup - Windows-only initialization UI for Git Bash dependency
+ * GitBashSetupPage - Windows-only initialization UI for Git Bash dependency
  *
  * Displays when Git Bash is not detected on Windows, offering:
  * - Auto download and install (recommended)
@@ -7,9 +7,9 @@
  */
 
 import { useState } from 'react'
-import { HaloLogo } from '../brand/HaloLogo'
+import { HaloLogo } from '../components/brand/HaloLogo'
 import { Loader2, Check, AlertTriangle, X, Download, ExternalLink } from 'lucide-react'
-import { useTranslation } from '../../i18n'
+import { useTranslation } from '../i18n'
 
 interface DownloadProgress {
   phase: 'downloading' | 'extracting' | 'configuring' | 'done' | 'error'
@@ -18,13 +18,13 @@ interface DownloadProgress {
   error?: string
 }
 
-interface GitBashSetupProps {
+interface GitBashSetupPageProps {
   onComplete: (installed: boolean) => void
 }
 
 type Phase = 'choice' | 'downloading' | 'extracting' | 'configuring' | 'done' | 'error' | 'skipped'
 
-export function GitBashSetup({ onComplete }: GitBashSetupProps) {
+export function GitBashSetupPage({ onComplete }: GitBashSetupPageProps) {
   const { t } = useTranslation()
   const [phase, setPhase] = useState<Phase>('choice')
   const [progress, setProgress] = useState(0)

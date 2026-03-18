@@ -34,6 +34,19 @@ scripts/deploy_local_*.sh
 # Website (landing page, managed separately)
 website/
 
+# Capacitor mobile build output
+dist-mobile/
+
+# Android build artifacts (Gradle caches, APKs)
+android/app/src/main/assets/public/*
+android/app/build/
+android/.gradle/
+android/build/
+android/capacitor-cordova-android-plugins/build/
+android/local.properties
+*.apk
+*.keystore
+
 # OS files
 .DS_Store
 RELEASE_NOTES.md

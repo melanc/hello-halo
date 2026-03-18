@@ -1,9 +1,12 @@
 /**
- * Setup Components - Application initialization UI
+ * Setup Components - Sub-components used by setup pages.
+ *
+ * Full-screen page components live in src/renderer/pages/.
+ * This barrel only exports sub-components and shared types.
  */
 
-export { GitBashSetup } from './GitBashSetup'
 export { GitBashWarningBanner } from './GitBashWarningBanner'
 export { LoginSelector } from './LoginSelector'
 export { ApiSetup } from './ApiSetup'
-export { SetupFlow } from './SetupFlow'
+export { ServerConnect } from './ServerConnect'
+export type { ServerAddedInfo } from './ServerConnect'

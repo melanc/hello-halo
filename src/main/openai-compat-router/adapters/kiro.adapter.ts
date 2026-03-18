@@ -11,6 +11,7 @@
  * match exactly, or Kiro will ban the account.
  */
 
+import { proxyFetch } from '../../services/proxy-fetch'
 import * as crypto from 'crypto'
 import type { Response as ExpressResponse } from 'express'
 import type {
@@ -1761,7 +1762,7 @@ export async function handleKiroRequest(
   }, timeoutMs)
 
   try {
-    const upstreamResp = await fetch(backendUrl, {
+    const upstreamResp = await proxyFetch(backendUrl, {
       method: 'POST',
       headers: requestHeaders,
       body: JSON.stringify(payload),

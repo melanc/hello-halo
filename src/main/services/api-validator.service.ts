@@ -12,6 +12,7 @@
  * Uses the same SDK pattern as the agent module (session-manager.ts)
  */
 
+import { proxyFetch } from './proxy-fetch'
 import { unstable_v2_createSession } from '@anthropic-ai/claude-agent-sdk'
 import { app } from 'electron'
 import path from 'path'
@@ -64,7 +65,7 @@ export async function fetchModelsFromApi(params: FetchModelsParams): Promise<Fet
 
   console.log('[API Validator] Fetching models from:', modelsUrl)
 
-  const response = await fetch(modelsUrl, {
+  const response = await proxyFetch(modelsUrl, {
     method: 'GET',
     headers: {
       'Authorization': `Bearer ${apiKey}`,

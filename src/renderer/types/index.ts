@@ -191,6 +191,11 @@ export interface LayoutConfig {
   artifactRailWidth?: number;     // Artifact rail panel width (px)
 }
 
+// Network configuration
+export interface NetworkConfig {
+  proxy?: string;  // Manual proxy URL (e.g. http://host:port, socks5://host:port). Empty = use system proxy.
+}
+
 export interface HaloConfig {
   api: ApiConfig;  // Legacy, kept for backward compatibility
   aiSources: AISourcesConfig;  // v2 format: { version: 2, currentId, sources: [] }
@@ -204,6 +209,7 @@ export interface HaloConfig {
   agent?: AgentConfig;  // Agent behavior settings
   layout?: LayoutConfig;  // Global layout preferences (panel sizes and visibility)
   chat?: ChatConfig;  // Chat behavior preferences
+  network?: NetworkConfig;  // Network settings (proxy, etc.)
   isFirstLaunch: boolean;
 }
 
@@ -598,7 +604,7 @@ export type AgentEvent =
 // App State Types
 // ============================================
 
-export type AppView = 'splash' | 'gitBashSetup' | 'setup' | 'home' | 'space' | 'settings' | 'apps';
+export type AppView = 'splash' | 'gitBashSetup' | 'setup' | 'home' | 'space' | 'settings' | 'apps' | 'serverConnect' | 'serverList';
 
 export interface AppState {
   view: AppView;

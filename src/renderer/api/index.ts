@@ -5,6 +5,7 @@
 
 import {
   isElectron,
+  isCapacitor,
   httpRequest,
   onEvent,
   connectWebSocket,
@@ -13,7 +14,13 @@ import {
   unsubscribeFromConversation,
   setAuthToken,
   clearAuthToken,
-  getAuthToken
+  getAuthToken,
+  setServerUrl,
+  getServerUrl,
+  restoreServerUrl,
+  clearServerUrl,
+  clearPendingServerUrl,
+  onWsStateChange
 } from './transport'
 import type {
   HealthStatusResponse,
@@ -38,6 +45,7 @@ interface ApiResponse<T = unknown> {
 export const api = {
   // ===== Authentication (remote only) =====
   isRemoteMode: () => !isElectron(),
+  isCapacitorMode: () => isCapacitor(),
   isAuthenticated: () => !!getAuthToken(),
 
   login: async (token: string): Promise<ApiResponse> => {
@@ -832,11 +840,20 @@ export const api = {
   onRemoteStatusChange: (callback: (data: unknown) => void) =>
     onEvent('remote:status-change', callback),
 
+  // ===== Server URL Management (Capacitor) =====
+  setServerUrl,
+  getServerUrl,
+  restoreServerUrl,
+  clearServerUrl,
+  clearPendingServerUrl,
+
   // ===== WebSocket Control =====
   connectWebSocket,
   disconnectWebSocket,
   subscribeToConversation,
   unsubscribeFromConversation,
+  onWsStateChange,
+  onEvent,
 
   // ===== Browser (Embedded Browser for Content Canvas) =====
   // Note: Browser features only available in desktop app (not remote mode)
@@ -948,6 +965,13 @@ export const api = {
   toggleBrowserDevTools: async (viewId: string): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.toggleBrowserDevTools(viewId)
+    }
+    return { success: false, error: 'Browser views only available in desktop app' }
+  },
+
+  setBrowserDeviceMode: async (viewId: string, mode: 'pc' | 'h5'): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.setBrowserDeviceMode(viewId, mode)
     }
     return { success: false, error: 'Browser views only available in desktop app' }
   },

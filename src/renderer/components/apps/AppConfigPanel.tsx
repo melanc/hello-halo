@@ -845,7 +845,7 @@ function YamlTab({ app, appId, t }: YamlTabProps) {
           <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
         </div>
       }>
-        <div className="border border-border rounded-lg overflow-hidden" style={{ height: '60vh', minHeight: '320px' }}>
+        <div className="border border-border rounded-lg overflow-hidden h-[45vh] sm:h-[60vh] min-h-[280px] sm:min-h-[320px]">
           <CodeMirrorEditor
             content={yamlContent}
             language="yaml"

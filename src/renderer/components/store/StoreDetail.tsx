@@ -202,7 +202,7 @@ export function StoreDetail() {
 
         <div className="p-6 space-y-6 max-w-3xl">
           {/* Header: Icon + Name + Version + Author */}
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
             <div className="flex items-start gap-3 min-w-0">
               {entry.icon && (
                 <span className="text-3xl flex-shrink-0">{entry.icon}</span>
@@ -227,7 +227,7 @@ export function StoreDetail() {
             </div>
 
             {/* Install / Installed / Update button */}
-            <div className="flex-shrink-0 flex flex-col items-end gap-1">
+            <div className="flex-shrink-0 flex flex-col items-start sm:items-end gap-1">
               {!isBundlePackage ? (
                 <button
                   disabled
@@ -429,7 +429,7 @@ export function StoreDetail() {
                   >
                     <Globe className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
                     <span className="text-sm text-foreground">{entry.label}</span>
-                    <span className="text-xs text-muted-foreground ml-auto truncate max-w-[200px]">{entry.url}</span>
+                    <span className="text-xs text-muted-foreground ml-auto truncate max-w-[120px] sm:max-w-[200px]">{entry.url}</span>
                   </div>
                 ))}
               </div>
@@ -481,7 +481,7 @@ export function StoreDetail() {
           )}
 
           {/* Metadata footer */}
-          <div className="flex items-center gap-4 pt-2 border-t border-border text-xs text-muted-foreground">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 pt-2 border-t border-border text-xs text-muted-foreground">
             <span>{t('Format')}: {entry.format}</span>
             {entry.min_app_version && (
               <span>{t('Min version')}: {entry.min_app_version}</span>

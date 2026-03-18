@@ -27,8 +27,8 @@ export function EmptyState({ hasApps, onInstall, variant = 'automation' }: Empty
     ? t('Select an app to view details')
     : t('Select a digital human to view details')
   const selectHint = isApps
-    ? t('Choose an app from the list on the left')
-    : t('Choose a digital human from the list on the left')
+    ? t('Choose an app to view details')
+    : t('Choose a digital human to view details')
   const emptyTitle = isApps
     ? t('No apps installed yet')
     : t('No digital humans yet')

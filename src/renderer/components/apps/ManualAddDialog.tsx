@@ -46,7 +46,7 @@ export function ManualAddDialog({ onClose, onSkillAdd }: ManualAddDialogProps) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onMouseDown={onClose}>
       <div
-        className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-lg max-h-[80vh] overflow-y-auto"
+        className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-lg mx-4 max-h-[80vh] overflow-y-auto"
         onMouseDown={e => e.stopPropagation()}
       >
         {/* Header */}

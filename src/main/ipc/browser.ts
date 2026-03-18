@@ -5,8 +5,8 @@
  * Connects the renderer process to the BrowserView manager.
  */
 
-import { ipcMain, BrowserWindow, Menu, shell, nativeTheme, MenuItemConstructorOptions } from 'electron'
-import { browserViewManager, CHROME_USER_AGENT, type BrowserViewBounds } from '../services/browser-view.service'
+import { ipcMain, BrowserWindow, Menu, clipboard, nativeImage, shell, nativeTheme, MenuItemConstructorOptions } from 'electron'
+import { browserViewManager, CHROME_USER_AGENT, type BrowserViewBounds, type DeviceMode } from '../services/browser-view.service'
 import { buildLoginLoadingPage, buildLoginErrorPage, loginPageBg } from '../services/browser-login-pages'
 
 /**
@@ -101,6 +101,24 @@ export function registerBrowserHandlers(mainWindow: BrowserWindow | null) {
       return { success: false, error: (error as Error).message }
     }
   })
+
+  /**
+   * Switch device emulation mode (pc | h5) for a BrowserView.
+   * Applies full CDP emulation and reloads the page.
+   */
+  ipcMain.handle(
+    'browser:set-device-mode',
+    async (_event, { viewId, mode }: { viewId: string; mode: DeviceMode }) => {
+      console.log(`[Browser IPC] browser:set-device-mode - viewId: ${viewId}, mode: ${mode}`)
+      try {
+        const result = await browserViewManager.setDeviceMode(viewId, mode)
+        return { success: result }
+      } catch (error) {
+        console.error('[Browser IPC] Set device mode failed:', error)
+        return { success: false, error: (error as Error).message }
+      }
+    }
+  )
 
   /**
    * Resize a BrowserView
@@ -312,6 +330,24 @@ export function registerBrowserHandlers(mainWindow: BrowserWindow | null) {
         {
           label: 'Zoom',
           submenu: zoomSubmenu
+        },
+        { type: 'separator' },
+        {
+          label: 'Screenshot',
+          accelerator: 'CmdOrCtrl+Shift+S',
+          click: async () => {
+            try {
+              const dataUrl = await browserViewManager.capture(viewId)
+              if (dataUrl) {
+                // Strip data URL prefix and convert to NativeImage for clipboard
+                const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, '')
+                const img = nativeImage.createFromBuffer(Buffer.from(base64, 'base64'))
+                clipboard.writeImage(img)
+              }
+            } catch (err) {
+              console.error('[Browser IPC] Screenshot to clipboard failed:', err)
+            }
+          }
         },
         { type: 'separator' },
         {

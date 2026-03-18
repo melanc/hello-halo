@@ -1,48 +1,170 @@
 /**
  * Transport Layer - Abstracts IPC vs HTTP communication
- * Automatically selects the appropriate transport based on environment
+ *
+ * Three modes:
+ * 1. Electron  — window.halo exists → IPC
+ * 2. Capacitor — Capacitor.isNativePlatform() → HTTP to user-configured server
+ * 3. Remote    — neither → HTTP to window.location.origin
  */
 
-// Detect if running in Electron (has window.halo via preload)
+// ---------------------------------------------------------------------------
+// Platform detection
+// ---------------------------------------------------------------------------
+
+/** Detect if running in Electron (has window.halo via preload) */
 export function isElectron(): boolean {
   return typeof window !== 'undefined' && 'halo' in window
 }
 
-// Detect if running as remote web client
+/** Detect if running inside a Capacitor native shell */
+export function isCapacitor(): boolean {
+  // Compile-time flag set by vite.config.mobile.ts (most reliable)
+  if (typeof __CAPACITOR__ !== 'undefined' && __CAPACITOR__) return true
+  // Runtime detection via Capacitor bridge injection
+  if (typeof window === 'undefined') return false
+  try {
+    const cap = (window as any).Capacitor
+    return cap?.isNativePlatform?.() === true
+  } catch {
+    return false
+  }
+}
+
+// Declare compile-time global
+declare const __CAPACITOR__: boolean | undefined
+
+/** Detect if running as remote web client (browser tab) */
 export function isRemoteClient(): boolean {
-  return !isElectron()
+  return !isElectron() && !isCapacitor()
 }
 
-// Get the remote server URL (for remote clients)
-export function getRemoteServerUrl(): string {
-  // In remote mode, use the current origin
-  return window.location.origin
+// ---------------------------------------------------------------------------
+// Server URL management (Capacitor mode)
+//
+// In multi-server mode, the active server URL and token are read from
+// useServerStore. These functions provide a backward-compatible interface
+// for the rest of the transport layer and for ServerConnect (which sets
+// a temporary URL before the server is persisted to the store).
+// ---------------------------------------------------------------------------
+
+/** Temporary server URL set during the ServerConnect flow (before store persistence) */
+let _pendingServerUrl: string | null = null
+
+/**
+ * Set the remote server URL (Capacitor mode).
+ * Called by ServerConnect during the connection flow.
+ * The URL is held in memory until the server is added to the store.
+ */
+export function setServerUrl(url: string): void {
+  const normalized = url.replace(/\/+$/, '') // strip trailing slashes
+  console.log(`[Transport] Server URL set: ${normalized}`)
+  _pendingServerUrl = normalized
 }
 
-// Get stored auth token
-export function getAuthToken(): string | null {
-  if (typeof localStorage !== 'undefined') {
-    return localStorage.getItem('halo_remote_token')
-  }
-  return null
-}
-
-// Set auth token
-export function setAuthToken(token: string): void {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.setItem('halo_remote_token', token)
-  }
-}
-
-// Clear auth token
-export function clearAuthToken(): void {
-  if (typeof localStorage !== 'undefined') {
-    localStorage.removeItem('halo_remote_token')
+/**
+ * Read the active server URL.
+ * Priority: pending URL (during connect flow) > server store active > null
+ */
+export function getServerUrl(): string | null {
+  if (_pendingServerUrl) return _pendingServerUrl
+  try {
+    // Read from server store (lazy import to avoid circular deps)
+    const { useServerStore } = require('../stores/server.store')
+    const active = useServerStore.getState().getActive()
+    return active?.url ?? null
+  } catch {
+    return null
   }
 }
 
 /**
- * HTTP Transport - Makes API calls to remote server
+ * Restore server URL from the server store (called on app start).
+ * Also syncs the auth token from the active server entry.
+ */
+export function restoreServerUrl(): string | null {
+  try {
+    const { useServerStore } = require('../stores/server.store')
+    useServerStore.getState().hydrate()
+    const active = useServerStore.getState().getActive()
+    if (active) {
+      console.log(`[Transport] Restored server: ${active.name} (${active.url})`)
+      // Sync auth token from store entry to localStorage (for httpRequest headers)
+      setAuthToken(active.token)
+      return active.url
+    }
+  } catch (e) {
+    console.warn('[Transport] Failed to restore server from store:', e)
+  }
+  return null
+}
+
+/** Clear pending server URL (e.g. when cancelling connect flow). */
+export function clearServerUrl(): void {
+  console.log('[Transport] Server URL cleared')
+  _pendingServerUrl = null
+}
+
+/** Clear the pending URL after it has been persisted to the store. */
+export function clearPendingServerUrl(): void {
+  _pendingServerUrl = null
+}
+
+// ---------------------------------------------------------------------------
+// Server URL resolution
+// ---------------------------------------------------------------------------
+
+/**
+ * Get the base URL for HTTP requests.
+ * - Capacitor: user-configured server address
+ * - Remote: current browser origin
+ * - Electron: not used (IPC)
+ */
+export function getRemoteServerUrl(): string {
+  if (isCapacitor()) {
+    const url = getServerUrl()
+    if (!url) {
+      console.warn('[Transport] Capacitor mode but no server URL configured')
+      return ''
+    }
+    return url
+  }
+  return window.location.origin
+}
+
+// ---------------------------------------------------------------------------
+// Auth token management
+// ---------------------------------------------------------------------------
+
+/** Get stored auth token */
+export function getAuthToken(): string | null {
+  try {
+    return localStorage.getItem('halo_remote_token')
+  } catch {
+    return null
+  }
+}
+
+/** Set auth token */
+export function setAuthToken(token: string): void {
+  try {
+    localStorage.setItem('halo_remote_token', token)
+  } catch { /* ignore */ }
+}
+
+/** Clear auth token */
+export function clearAuthToken(): void {
+  try {
+    localStorage.removeItem('halo_remote_token')
+  } catch { /* ignore */ }
+}
+
+// ---------------------------------------------------------------------------
+// HTTP Transport
+// ---------------------------------------------------------------------------
+
+/**
+ * HTTP Transport - Makes API calls to remote server.
+ * Used by both Capacitor and Remote browser modes.
  */
 export async function httpRequest<T>(
   method: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH',
@@ -50,8 +172,13 @@ export async function httpRequest<T>(
   body?: Record<string, unknown>
 ): Promise<{ success: boolean; data?: T; error?: string }> {
   const token = getAuthToken()
-  const url = `${getRemoteServerUrl()}${path}`
+  const baseUrl = getRemoteServerUrl()
 
+  if (!baseUrl) {
+    return { success: false, error: 'Server URL not configured' }
+  }
+
+  const url = `${baseUrl}${path}`
   console.log(`[HTTP] ${method} ${path} - token: ${token ? 'present' : 'missing'}`)
 
   try {
@@ -64,14 +191,21 @@ export async function httpRequest<T>(
       body: body ? JSON.stringify(body) : undefined
     })
 
-    // Handle 401 - token expired or invalid, redirect to login
+    // Handle 401 - token expired or invalid
     if (response.status === 401) {
-      console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized, clearing token and redirecting to login`)
+      console.warn(`[HTTP] ${method} ${path} - 401 Unauthorized`)
       clearAuthToken()
-      // Clear the auth cookie
-      document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-      // Reload page - server will show login page
-      window.location.reload()
+
+      if (isCapacitor()) {
+        // In Capacitor: dispatch DOM event so App.tsx can navigate to ServerConnect
+        // Do NOT reload — there is no server-rendered login page
+        window.dispatchEvent(new CustomEvent('halo:auth-expired'))
+      } else {
+        // Remote browser: reload → server shows login page
+        document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+        window.location.reload()
+      }
+
       return { success: false, error: 'Token expired, please login again' }
     }
 
@@ -92,15 +226,37 @@ export async function httpRequest<T>(
   }
 }
 
-/**
- * WebSocket connection for real-time events (remote mode)
- */
+// ---------------------------------------------------------------------------
+// WebSocket with exponential backoff
+// ---------------------------------------------------------------------------
+
 let wsConnection: WebSocket | null = null
 let wsReconnectTimer: ReturnType<typeof setTimeout> | null = null
+let wsReconnectAttempt = 0
+const WS_BACKOFF_BASE_MS = 1000
+const WS_BACKOFF_MAX_MS = 30000
 const wsEventListeners = new Map<string, Set<(data: unknown) => void>>()
 
+/** WebSocket connection state event (for UI reconnection banner) */
+export type WsConnectionState = 'connected' | 'disconnected' | 'connecting'
+
+const wsStateListeners = new Set<(state: WsConnectionState) => void>()
+
+/** Subscribe to WebSocket connection state changes */
+export function onWsStateChange(cb: (state: WsConnectionState) => void): () => void {
+  wsStateListeners.add(cb)
+  return () => { wsStateListeners.delete(cb) }
+}
+
+function emitWsState(state: WsConnectionState) {
+  for (const cb of wsStateListeners) {
+    try { cb(state) } catch { /* ignore */ }
+  }
+}
+
 export function connectWebSocket(): void {
-  if (!isRemoteClient()) return
+  // Works in both remote-browser and Capacitor modes
+  if (isElectron()) return
   if (wsConnection?.readyState === WebSocket.OPEN) return
 
   const token = getAuthToken()
@@ -109,13 +265,22 @@ export function connectWebSocket(): void {
     return
   }
 
-  const wsUrl = `${getRemoteServerUrl().replace('http', 'ws')}/ws`
-  console.log('[WS] Connecting to:', wsUrl)
+  const baseUrl = getRemoteServerUrl()
+  if (!baseUrl) {
+    console.warn('[WS] No server URL configured, cannot connect')
+    return
+  }
+
+  const wsUrl = `${baseUrl.replace(/^http/, 'ws')}/ws`
+  console.log(`[WS] Connecting to: ${wsUrl} (attempt: ${wsReconnectAttempt})`)
+  emitWsState('connecting')
 
   wsConnection = new WebSocket(wsUrl)
 
   wsConnection.onopen = () => {
     console.log('[WS] Connected')
+    wsReconnectAttempt = 0 // reset backoff on success
+    emitWsState('connected')
     // Authenticate
     wsConnection?.send(JSON.stringify({ type: 'auth', payload: { token } }))
   }
@@ -146,10 +311,17 @@ export function connectWebSocket(): void {
   wsConnection.onclose = () => {
     console.log('[WS] Disconnected')
     wsConnection = null
+    emitWsState('disconnected')
 
-    // Attempt to reconnect after 3 seconds
-    if (isRemoteClient() && getAuthToken()) {
-      wsReconnectTimer = setTimeout(connectWebSocket, 3000)
+    // Exponential backoff reconnection
+    if (!isElectron() && getAuthToken()) {
+      wsReconnectAttempt++
+      const delay = Math.min(
+        WS_BACKOFF_BASE_MS * Math.pow(2, wsReconnectAttempt - 1),
+        WS_BACKOFF_MAX_MS
+      )
+      console.log(`[WS] Reconnecting in ${delay}ms (attempt: ${wsReconnectAttempt})`)
+      wsReconnectTimer = setTimeout(connectWebSocket, delay)
     }
   }
 
@@ -159,6 +331,8 @@ export function connectWebSocket(): void {
 }
 
 export function disconnectWebSocket(): void {
+  wsReconnectAttempt = 0
+
   if (wsReconnectTimer) {
     clearTimeout(wsReconnectTimer)
     wsReconnectTimer = null
@@ -168,6 +342,8 @@ export function disconnectWebSocket(): void {
     wsConnection.close()
     wsConnection = null
   }
+
+  emitWsState('disconnected')
 }
 
 export function subscribeToConversation(conversationId: string): void {
@@ -192,8 +368,12 @@ export function unsubscribeFromConversation(conversationId: string): void {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Event listener registry
+// ---------------------------------------------------------------------------
+
 /**
- * Register event listener (works for both IPC and WebSocket)
+ * Register event listener (works for IPC, WebSocket, or Capacitor WS)
  */
 export function onEvent(channel: string, callback: (data: unknown) => void): () => void {
   if (isElectron()) {
@@ -232,7 +412,7 @@ export function onEvent(channel: string, callback: (data: unknown) => void): () 
 
     return () => {}
   } else {
-    // Use WebSocket in remote mode
+    // Use WebSocket in remote / Capacitor mode
     if (!wsEventListeners.has(channel)) {
       wsEventListeners.set(channel, new Set())
     }

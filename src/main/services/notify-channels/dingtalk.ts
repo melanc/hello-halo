@@ -7,6 +7,7 @@
  * API docs: https://open.dingtalk.com/document/
  */
 
+import { proxyFetch } from '../proxy-fetch'
 import type { DingtalkChannelConfig, NotificationPayload, NotifySendResult } from '../../../shared/types/notification-channels'
 import { TokenManager, withTokenRetry } from './token-manager'
 
@@ -21,7 +22,7 @@ function getTokenManager(config: DingtalkChannelConfig): TokenManager {
   if (!manager) {
     manager = new TokenManager('DingTalk', async () => {
       const url = `${DINGTALK_API_BASE}/gettoken?appkey=${encodeURIComponent(config.appKey)}&appsecret=${encodeURIComponent(config.appSecret)}`
-      const res = await fetch(url)
+      const res = await proxyFetch(url)
       const data = await res.json() as { errcode: number; errmsg: string; access_token: string; expires_in: number }
       if (data.errcode !== 0) {
         throw new Error(`DingTalk gettoken failed: ${data.errcode} ${data.errmsg}`)
@@ -87,7 +88,7 @@ async function sendWorkNotification(
 
     const result = await withTokenRetry(manager, async (token) => {
       const url = `${DINGTALK_API_BASE}/topapi/message/corpconversation/asyncsend_v2?access_token=${token}`
-      const res = await fetch(url, {
+      const res = await proxyFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -144,7 +145,7 @@ async function sendToGroupChat(
 
     const result = await withTokenRetry(manager, async (token) => {
       const url = `${DINGTALK_API_BASE}/chat/send?access_token=${token}`
-      const res = await fetch(url, {
+      const res = await proxyFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),

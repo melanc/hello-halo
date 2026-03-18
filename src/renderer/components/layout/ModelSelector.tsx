@@ -7,7 +7,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react'
-import { ChevronDown, Plus, Sparkles, X, Check } from 'lucide-react'
+import { ChevronDown, Plus, Sparkles, X, Check, RefreshCw } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { api } from '../../api'
 import {
@@ -29,6 +29,7 @@ export function ModelSelector() {
   const { config, setConfig, setView } = useAppStore()
   const [isOpen, setIsOpen] = useState(false)
   const [isAnimatingOut, setIsAnimatingOut] = useState(false)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // State for expanded sections (accordion)
@@ -143,6 +144,27 @@ export function ModelSelector() {
     setView('settings')
   }
 
+  // Refresh model lists for all sources from remote APIs
+  const handleRefreshModels = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (isRefreshing) return
+
+    setIsRefreshing(true)
+    try {
+      const result = await api.refreshAISourcesConfig()
+      if (result.success && result.data) {
+        setConfig({ ...config, aiSources: (result.data as any).aiSources as AISourcesConfig })
+        console.log('[ModelSelector] Models refreshed successfully')
+      } else {
+        console.warn('[ModelSelector] Refresh failed:', result.error)
+      }
+    } catch (error) {
+      console.error('[ModelSelector] Failed to refresh models:', error)
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
   // Get available models for a source
   const getModelsForSource = (source: AISource): ModelOption[] => {
     // If source has its own available models (user fetched or configured), use them
@@ -234,7 +256,7 @@ export function ModelSelector() {
         )
       })}
 
-      {/* Add source button */}
+      {/* Footer: Add/Manage source + Refresh */}
       {aiSources.sources.length === 0 ? (
         <button
           onClick={handleAddSource}
@@ -244,13 +266,23 @@ export function ModelSelector() {
           {t('Add AI Provider')}
         </button>
       ) : (
-        <button
-          onClick={handleAddSource}
-          className="w-full px-3 py-2 text-left text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors flex items-center gap-2"
-        >
-          <Plus className="w-3 h-3" />
-          {t('Manage AI Provider')}
-        </button>
+        <div className="flex items-center justify-between px-3 py-2">
+          <button
+            onClick={handleAddSource}
+            className="text-left text-xs text-muted-foreground hover:text-foreground transition-colors flex items-center gap-2"
+          >
+            <Plus className="w-3 h-3" />
+            {t('Manage AI Provider')}
+          </button>
+          <button
+            onClick={handleRefreshModels}
+            disabled={isRefreshing}
+            className="p-1 text-muted-foreground hover:text-foreground transition-colors rounded disabled:opacity-50"
+            title={t('Refresh Models')}
+          >
+            <RefreshCw className={`w-3 h-3 ${isRefreshing ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       )}
     </>
   )

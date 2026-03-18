@@ -8,6 +8,7 @@
  * API docs: https://open.feishu.cn/document/
  */
 
+import { proxyFetch } from '../proxy-fetch'
 import type { FeishuChannelConfig, NotificationPayload, NotifySendResult } from '../../../shared/types/notification-channels'
 import { TokenManager } from './token-manager'
 
@@ -22,7 +23,7 @@ function getTokenManager(config: FeishuChannelConfig): TokenManager {
   if (!manager) {
     manager = new TokenManager('Feishu', async () => {
       const url = `${FEISHU_API_BASE}/auth/v3/tenant_access_token/internal`
-      const res = await fetch(url, {
+      const res = await proxyFetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -98,7 +99,7 @@ export async function sendFeishu(
     })
 
     const url = `${FEISHU_API_BASE}/im/v1/messages?receive_id_type=${receiveIdType}`
-    const res = await fetch(url, {
+    const res = await proxyFetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -123,7 +124,7 @@ export async function sendFeishu(
       manager.invalidate()
       const freshToken = await manager.getToken()
 
-      const retryRes = await fetch(url, {
+      const retryRes = await proxyFetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
