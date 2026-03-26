@@ -98,6 +98,37 @@ export interface WebhookChannelConfig {
 }
 
 // ============================================
+// WeCom Intelligent Bot (企业微信智能机器人)
+// ============================================
+// Independent from WecomChannelConfig (self-built app for push notifications).
+// This config is for the bidirectional WebSocket-based intelligent bot protocol
+// that allows digital humans to receive and reply to messages via WeCom.
+
+/** WeCom Intelligent Bot (企业微信智能机器人) configuration */
+export interface WecomBotConfig {
+  enabled: boolean
+  /** Bot ID from WeCom admin console (aib-xxx format) */
+  botId: string
+  /** Bot secret from WeCom admin console */
+  secret: string
+  /** WebSocket URL (default: wss://openws.work.weixin.qq.com) */
+  wsUrl?: string
+}
+
+// ============================================
+// IM Channels Config (Global)
+// ============================================
+
+/**
+ * Global IM channel configuration.
+ * Shared across all IM adapters (WeCom Bot, Feishu Bot, DingTalk Bot, etc.).
+ */
+export interface ImChannelsConfig {
+  /** Default digital human (App) ID for routing inbound IM messages */
+  defaultAppId?: string
+}
+
+// ============================================
 // Aggregate Config
 // ============================================
 

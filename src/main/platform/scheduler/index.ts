@@ -102,7 +102,13 @@ export async function initScheduler(deps: SchedulerDeps): Promise<SchedulerServi
       let nextRunAtMs: number
       try {
         const next = computeNextRun(input.schedule, anchorMs, now)
-        nextRunAtMs = next ?? 0
+        if (next === undefined) {
+          throw new Error(
+            `Schedule produces no future run times. ` +
+            `Verify the cron expression or schedule configuration.`
+          )
+        }
+        nextRunAtMs = next
       } catch (err) {
         throw new Error(
           `Failed to compute initial run time for job "${input.name}": ${err instanceof Error ? err.message : String(err)}`

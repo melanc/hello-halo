@@ -98,6 +98,10 @@ const browser_run = tool(
     let scriptContent: string
     try {
       scriptContent = fs.readFileSync(resolved, 'utf-8').trim()
+      // Strip trailing semicolons — the file is wrapped as (script)(args) by
+      // evaluateScript, so a trailing `;` would produce `(...;)(args)` which
+      // is a SyntaxError.  This is a common AI-generation mistake.
+      scriptContent = scriptContent.replace(/;+\s*$/, '')
     } catch (error) {
       return textResult(`Failed to read file: ${(error as Error).message}`, true)
     }

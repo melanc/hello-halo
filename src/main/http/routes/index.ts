@@ -28,10 +28,11 @@ import {
 import { getTempSpacePath, getSpacesDir, getConfig as getServiceConfig } from '../../services/config.service'
 import { getSpace, getAllSpacePaths } from '../../services/space.service'
 import { getAppManager } from '../../apps/manager'
-import { getAppRuntime, sendAppChatMessage, stopAppChat, isAppChatGenerating, loadAppChatMessages, getAppChatSessionState, getAppChatConversationId } from '../../apps/runtime'
+import { getAppRuntime, getWecomBotSource, sendAppChatMessage, stopAppChat, isAppChatGenerating, loadAppChatMessages, getAppChatSessionState, getAppChatConversationId } from '../../apps/runtime'
 import type { AppListFilter, UninstallOptions } from '../../apps/manager'
 import type { ActivityQueryOptions, EscalationResponse, AppChatRequest } from '../../apps/runtime'
 import { readSessionMessages } from '../../apps/runtime/session-store'
+import { getImSessionRegistry } from '../../apps/runtime/im-session-registry'
 import { broadcastToAll } from '../websocket'
 import * as appController from '../../controllers/app.controller'
 import type { AppErrorCode } from '../../controllers/app.controller'
@@ -651,6 +652,129 @@ export function registerApiRoutes(app: Express): void {
     }
   })
 
+  // ===== WeCom Bot Routes (企业微信智能机器人) =====
+
+  // GET /api/wecom-bot/status — get connection status
+  app.get('/api/wecom-bot/status', async (req: Request, res: Response) => {
+    try {
+      const source = getWecomBotSource()
+      const config = getServiceConfig().wecomBot
+      res.json({
+        success: true,
+        data: {
+          configured: !!(config?.botId && config?.secret),
+          enabled: config?.enabled ?? false,
+          connected: source?.isConnected() ?? false,
+        }
+      })
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // POST /api/wecom-bot/reconnect — reconnect with current config
+  app.post('/api/wecom-bot/reconnect', async (req: Request, res: Response) => {
+    try {
+      const source = getWecomBotSource()
+      if (!source) {
+        res.status(503).json({ success: false, error: 'WecomBotSource not initialized' })
+        return
+      }
+      source.reconnectWithConfig()
+      res.json({ success: true })
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // ===== IM Sessions Routes =====
+
+  // GET /api/im-sessions — list IM sessions, optional ?appId= filter
+  app.get('/api/im-sessions', async (req: Request, res: Response) => {
+    try {
+      const registry = getImSessionRegistry()
+      if (!registry) {
+        res.json({ success: true, data: [] })
+        return
+      }
+      const appId = typeof req.query.appId === 'string' ? req.query.appId : undefined
+      const sessions = appId ? registry.getAllSessions(appId) : registry.listAll()
+      res.json({ success: true, data: sessions })
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // POST /api/im-sessions/set-proactive — set proactive flag for a session
+  app.post('/api/im-sessions/set-proactive', async (req: Request, res: Response) => {
+    try {
+      const registry = getImSessionRegistry()
+      if (!registry) {
+        res.status(503).json({ success: false, error: 'IM session registry not initialized' })
+        return
+      }
+      const { appId, channel, chatId, proactive } = req.body as {
+        appId: string
+        channel: string
+        chatId: string
+        proactive: boolean
+      }
+      const updated = registry.setProactive(appId, channel, chatId, proactive)
+      if (!updated) {
+        res.status(404).json({ success: false, error: 'Session not found' })
+        return
+      }
+      res.json({ success: true })
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // POST /api/im-sessions/remove — remove a session from the registry
+  app.post('/api/im-sessions/remove', async (req: Request, res: Response) => {
+    try {
+      const registry = getImSessionRegistry()
+      if (!registry) {
+        res.status(503).json({ success: false, error: 'IM session registry not initialized' })
+        return
+      }
+      const { appId, channel, chatId } = req.body as {
+        appId: string
+        channel: string
+        chatId: string
+      }
+      const removed = registry.removeSession(appId, channel, chatId)
+      res.json({ success: true, data: { removed } })
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // POST /api/im-sessions/set-custom-name — set custom display name for a session
+  app.post('/api/im-sessions/set-custom-name', async (req: Request, res: Response) => {
+    try {
+      const registry = getImSessionRegistry()
+      if (!registry) {
+        res.status(503).json({ success: false, error: 'IM session registry not initialized' })
+        return
+      }
+      const { appId, channel, chatId, name } = req.body as {
+        appId: string
+        channel: string
+        chatId: string
+        name: string
+      }
+      const updated = registry.setCustomName(appId, channel, chatId, name)
+      if (!updated) {
+        res.status(404).json({ success: false, error: 'Session not found' })
+        return
+      }
+      res.json({ success: true })
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
   // ===== System Routes =====
   app.get('/api/system/version', async (req: Request, res: Response) => {
     try {
@@ -1082,7 +1206,7 @@ export function registerApiRoutes(app: Express): void {
       // Hot-sync scheduler job so the new frequency takes effect immediately
       const runtime = getAppRuntime()
       if (runtime) {
-        runtime.syncAppSchedule(appId)
+        runtime.syncAppSubscriptions(appId)
       }
 
       res.json({ success: true })
@@ -1104,15 +1228,13 @@ export function registerApiRoutes(app: Express): void {
       const specPatch = req.body as Record<string, unknown>
       manager.updateSpec(appId, specPatch)
 
-      // Reactivate runtime if subscriptions changed
+      // Hot-sync subscriptions if subscriptions changed.
+      // Uses syncAppSubscriptions() instead of deactivate/activate to avoid
+      // aborting any currently running execution for this app.
       if (specPatch.subscriptions) {
         const runtime = getAppRuntime()
-        const appData = manager.getApp(appId)
-        if (runtime && appData?.status === 'active') {
-          await runtime.deactivate(appId).catch(() => {})
-          await runtime.activate(appId).catch((err: Error) => {
-            console.warn('[HTTP] PATCH /api/apps/:appId/spec -- reactivation failed (non-fatal): %s', err.message)
-          })
+        if (runtime) {
+          runtime.syncAppSubscriptions(appId)
         }
       }
 

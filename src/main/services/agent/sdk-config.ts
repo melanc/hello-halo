@@ -11,7 +11,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs'
 import { app } from 'electron'
 import { ensureOpenAICompatRouter, encodeBackendConfig } from '../../openai-compat-router'
 import type { ApiCredentials } from './types'
-import { inferOpenAIWireApi } from './helpers'
+import { inferOpenAIWireApi, credentialsToBackendConfig } from './helpers'
 import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt'
 import { createCanUseTool } from './permission-handler'
 
@@ -125,15 +125,7 @@ export async function resolveCredentialsForSdk(
     const apiType = credentials.apiType
       || (credentials.provider === 'oauth' ? 'chat_completions' : inferOpenAIWireApi(credentials.baseUrl))
 
-    anthropicApiKey = encodeBackendConfig({
-      url: credentials.baseUrl,
-      key: credentials.apiKey,
-      model: credentials.model,
-      headers: credentials.customHeaders,
-      apiType,
-      forceStream: credentials.forceStream,
-      filterContent: credentials.filterContent
-    })
+    anthropicApiKey = encodeBackendConfig(credentialsToBackendConfig(credentials, { apiType }))
 
     // Pass a fake Claude model to CC for normal request handling
     sdkModel = 'claude-sonnet-4-20250514'
@@ -159,15 +151,9 @@ async function resolveAnthropicPassthrough(
   const router = await ensureOpenAICompatRouter({ debug: false })
   const configUrl = credentials.baseUrl.replace(/\/+$/, '') + '/v1/messages'
 
-  const anthropicApiKey = encodeBackendConfig({
-    url: configUrl,
-    key: credentials.apiKey,
-    model: credentials.model,
-    headers: credentials.customHeaders,
-    apiType: 'anthropic_passthrough',
-    forceStream: credentials.forceStream,
-    filterContent: credentials.filterContent
-  })
+  const anthropicApiKey = encodeBackendConfig(
+    credentialsToBackendConfig(credentials, { url: configUrl, apiType: 'anthropic_passthrough' })
+  )
 
   console.log(`[SDK Config] Anthropic passthrough: routing via ${router.baseUrl}`)
 

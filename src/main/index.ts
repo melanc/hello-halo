@@ -60,6 +60,19 @@ if (process.platform === 'win32') {
 // This prevents websites from detecting the app as an automated browser
 app.commandLine.appendSwitch('disable-blink-features', 'AutomationControlled')
 
+// Per-variant data isolation: Override Electron userData path based on product.json dataFolderName.
+// Must be called before app.whenReady() and requestSingleInstanceLock() so that
+// each build variant (e.g. Halo vs Halo-Enterprise) uses its own userData directory.
+// This isolates cookies, sessions, localStorage, Claude SDK config, etc.
+import { getDataFolderName, DEFAULT_DATA_FOLDER_NAME, loadProductConfig } from './services/ai-sources/auth-loader'
+import { join as joinPath } from 'path'
+const dataFolderName = getDataFolderName()
+if (dataFolderName !== DEFAULT_DATA_FOLDER_NAME) {
+  const appDataPath = app.getPath('appData')
+  app.setPath('userData', joinPath(appDataPath, dataFolderName))
+  console.log(`[Main] userData isolated to: ${joinPath(appDataPath, dataFolderName)}`)
+}
+
 // Single instance lock: Prevent multiple instances of the application
 // Must be called before app.whenReady()
 // Skip in development mode and E2E tests to allow multiple instances
@@ -97,6 +110,34 @@ app.on('second-instance', () => {
   if (process.platform === 'darwin') {
     app.dock?.show()
   }
+})
+
+// Trust certificates for domains explicitly listed in browserPolicy.allowlist.
+// Only fires when Chromium has already rejected a certificate (self-signed, private CA, etc.).
+// Normal HTTPS requests with valid certificates are unaffected (zero overhead).
+app.on('certificate-error', (event, _webContents, url, _error, _certificate, callback) => {
+  const policy = loadProductConfig().browserPolicy
+  if (policy?.mode === 'allowlist' && policy.allowlist) {
+    try {
+      const h = new URL(url).hostname.toLowerCase()
+      const trusted = policy.allowlist.some(p => {
+        const lp = p.toLowerCase()
+        if (lp.startsWith('*.')) {
+          const base = lp.slice(2)
+          return h === base || h.endsWith('.' + base)
+        }
+        return h === lp
+      })
+      if (trusted) {
+        event.preventDefault()
+        callback(true)
+        return
+      }
+    } catch {
+      // Malformed URL — reject
+    }
+  }
+  callback(false)
 })
 
 import { join } from 'path'

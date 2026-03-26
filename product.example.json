@@ -1,6 +1,7 @@
 {
   "$schema": "./product.schema.json",
   "name": "Halo",
+  "dataFolderName": "halo",
   "version": "1.0.0",
   "updateConfig": {
     "provider": "github",

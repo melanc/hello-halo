@@ -386,7 +386,8 @@ async function handleOpenAIConversion(
   options: RequestHandlerOptions
 ): Promise<void> {
   const { debug = false, timeoutMs = DEFAULT_TIMEOUT_MS } = options
-  const { url: backendUrl, key: apiKey, model, headers: customHeaders, apiType: configApiType } = config
+  const { url: backendUrl, key: apiKey, model, headers: customHeaders, apiType: configApiType, adapterId } = config
+  console.log(`[RequestHandler] adapterId: ${adapterId || 'none'}`)
 
   // Validate URL has valid endpoint suffix
   if (!isValidEndpointUrl(backendUrl)) {
@@ -435,9 +436,10 @@ async function handleOpenAIConversion(
       const adapter = applyProviderAdapter(
         backendUrl,
         openaiRequest as Record<string, unknown>,
-        requestHeaders
+        requestHeaders,
+        adapterId
       )
-      if (adapter && debug) {
+      if (adapter) {
         console.log(`[RequestHandler] Applied provider adapter: ${adapter.name}`)
       }
 
@@ -466,7 +468,7 @@ async function handleOpenAIConversion(
             : convertAnthropicToOpenAIChat({ ...anthropicRequest, stream: true }).request
 
           // Re-apply provider adapter to retry request (reuse same headers)
-          applyProviderAdapter(backendUrl, retryRequest as Record<string, unknown>, requestHeaders)
+          applyProviderAdapter(backendUrl, retryRequest as Record<string, unknown>, requestHeaders, adapterId)
 
           upstreamResp = await fetchUpstream(backendUrl, apiKey, retryRequest, timeoutMs, undefined, requestHeaders)
 

@@ -437,25 +437,11 @@ function buildTools(spaceId: string) {
           return textResult(`Update failed: ${(e as Error).message}`, true)
         }
 
-        // Reactivate runtime if subscriptions changed (new schedule needs re-registration)
-        if (runtime && userChangedSubscriptions) {
-          // Full subscriptions change may affect event router subscriptions,
-          // so a full deactivate/activate cycle is needed
-          try {
-            await runtime.deactivate(args.app_id)
-            if (app.status === 'active') {
-              await runtime.activate(args.app_id)
-            }
-          } catch (e) {
-            return textResult(
-              `App spec updated, but runtime reactivation failed: ${(e as Error).message}. ` +
-              'The app may need to be paused and resumed manually.'
-            )
-          }
-        } else if (runtime && frequencyShorthand) {
-          // Frequency-only change: hot-sync scheduler jobs without
-          // interrupting running executions
-          runtime.syncAppSchedule(args.app_id)
+        // Hot-sync subscriptions if subscriptions or frequency changed.
+        // Uses syncAppSubscriptions() instead of deactivate/activate to avoid
+        // aborting any currently running execution for this app.
+        if (runtime && (userChangedSubscriptions || frequencyShorthand)) {
+          runtime.syncAppSubscriptions(args.app_id)
         }
 
         // Build summary of what changed

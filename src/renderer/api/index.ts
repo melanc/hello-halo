@@ -806,6 +806,51 @@ export const api = {
     return httpRequest('POST', '/api/notify-channels/clear-cache')
   },
 
+  // ===== WeCom Bot (企业微信智能机器人) =====
+  getWecomBotStatus: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.getWecomBotStatus()
+    }
+    return httpRequest('GET', '/api/wecom-bot/status')
+  },
+
+  reconnectWecomBot: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.reconnectWecomBot()
+    }
+    return httpRequest('POST', '/api/wecom-bot/reconnect')
+  },
+
+  // ===== IM Sessions (会话管理) =====
+  imSessionsList: async (appId?: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.imSessionsList(appId)
+    }
+    const path = appId ? `/api/im-sessions/${appId}` : '/api/im-sessions'
+    return httpRequest('GET', path)
+  },
+
+  imSessionsSetProactive: async (input: { appId: string; channel: string; chatId: string; proactive: boolean }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.imSessionsSetProactive(input)
+    }
+    return httpRequest('POST', '/api/im-sessions/set-proactive', input)
+  },
+
+  imSessionsRemove: async (input: { appId: string; channel: string; chatId: string }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.imSessionsRemove(input)
+    }
+    return httpRequest('POST', '/api/im-sessions/remove', input)
+  },
+
+  imSessionsSetCustomName: async (input: { appId: string; channel: string; chatId: string; name: string }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.imSessionsSetCustomName(input)
+    }
+    return httpRequest('POST', '/api/im-sessions/set-custom-name', input)
+  },
+
   // ===== Event Listeners =====
   onAgentMessage: (callback: (data: unknown) => void) =>
     onEvent('agent:message', callback),

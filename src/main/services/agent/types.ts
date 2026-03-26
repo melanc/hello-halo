@@ -27,6 +27,8 @@ export interface ApiCredentials {
   forceStream?: boolean
   /** Filter sensitive content from messages (e.g., GitHub URLs) */
   filterContent?: boolean
+  /** Provider adapter ID for request/response transformations */
+  adapterId?: string
 }
 
 // ============================================

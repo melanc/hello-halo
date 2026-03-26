@@ -12,6 +12,12 @@
       "type": "string",
       "description": "Product name"
     },
+    "dataFolderName": {
+      "type": "string",
+      "description": "Data folder name for per-variant isolation. Controls both the Halo config directory (~/.{dataFolderName}/) and Electron userData directory. Defaults to 'halo' when omitted.",
+      "pattern": "^[a-z][a-z0-9-]*$",
+      "examples": ["halo", "halo-enterprise"]
+    },
     "version": {
       "type": "string",
       "description": "Product version"

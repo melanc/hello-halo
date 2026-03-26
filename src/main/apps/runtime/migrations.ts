@@ -57,4 +57,11 @@ export const migrations: Migration[] = [
       `)
     },
   },
+  {
+    version: 3,
+    description: 'Add session_id column for escalation context recovery',
+    up(db) {
+      db.exec(`ALTER TABLE automation_runs ADD COLUMN session_id TEXT`)
+    },
+  },
 ]

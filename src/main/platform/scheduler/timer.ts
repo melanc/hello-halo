@@ -462,12 +462,33 @@ export class SchedulerTimer {
             job.nextRunAtMs = newNext
             job.updatedAt = nowMs
             this.store.updateJob(job)
+          } else {
+            // Schedule produces no future run times -- disable to prevent infinite catch-up
+            console.warn(
+              `[Scheduler] Disabling job "${job.name}" (${job.id}): ` +
+              `schedule produces no future run times. Fix the cron expression or schedule config.`
+            )
+            job.enabled = false
+            job.status = 'disabled'
+            job.nextRunAtMs = 0
+            job.updatedAt = nowMs
+            this.store.updateJob(job)
           }
         } catch (err) {
           console.error(
             `[Scheduler] Failed to recompute next run for job "${job.name}" (${job.id}):`,
             err
           )
+          // Disable to prevent infinite catch-up on invalid schedule
+          console.warn(
+            `[Scheduler] Disabling job "${job.name}" (${job.id}) due to schedule computation error. ` +
+            `Fix the cron expression or schedule config.`
+          )
+          job.enabled = false
+          job.status = 'disabled'
+          job.nextRunAtMs = 0
+          job.updatedAt = nowMs
+          this.store.updateJob(job)
         }
       }
     }

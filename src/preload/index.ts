@@ -325,6 +325,16 @@ export interface HaloAPI {
   testNotificationChannel: (channelType: string) => Promise<IpcResponse>
   clearNotificationChannelCache: () => Promise<IpcResponse>
 
+  // WeCom Bot (企业微信智能机器人)
+  getWecomBotStatus: () => Promise<IpcResponse>
+  reconnectWecomBot: () => Promise<IpcResponse>
+
+  // IM Sessions (会话管理)
+  imSessionsList: (appId?: string) => Promise<IpcResponse>
+  imSessionsSetProactive: (input: { appId: string; channel: string; chatId: string; proactive: boolean }) => Promise<IpcResponse>
+  imSessionsRemove: (input: { appId: string; channel: string; chatId: string }) => Promise<IpcResponse>
+  imSessionsSetCustomName: (input: { appId: string; channel: string; chatId: string; name: string }) => Promise<IpcResponse>
+
   // Apps Management
   appList: (filter?: { spaceId?: string; status?: string; type?: string }) => Promise<IpcResponse>
   appGet: (appId: string) => Promise<IpcResponse>
@@ -635,6 +645,16 @@ const api: HaloAPI = {
   // Notification Channels
   testNotificationChannel: (channelType: string) => ipcRenderer.invoke('notify-channels:test', channelType),
   clearNotificationChannelCache: () => ipcRenderer.invoke('notify-channels:clear-cache'),
+
+  // WeCom Bot (企业微信智能机器人)
+  getWecomBotStatus: () => ipcRenderer.invoke('wecom-bot:status'),
+  reconnectWecomBot: () => ipcRenderer.invoke('wecom-bot:reconnect'),
+
+  // IM Sessions (会话管理)
+  imSessionsList: (appId) => ipcRenderer.invoke('im-sessions:list', appId),
+  imSessionsSetProactive: (input) => ipcRenderer.invoke('im-sessions:set-proactive', input),
+  imSessionsRemove: (input) => ipcRenderer.invoke('im-sessions:remove', input),
+  imSessionsSetCustomName: (input) => ipcRenderer.invoke('im-sessions:set-custom-name', input),
 
   // Apps Management
   appList: (filter) => ipcRenderer.invoke('app:list', filter),

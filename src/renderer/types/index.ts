@@ -201,6 +201,8 @@ export interface HaloConfig {
   mcpServers: McpServersConfig;  // MCP servers configuration
   notifications?: NotificationConfig;  // Notification preferences
   notificationChannels?: NotificationChannelsConfig;  // External notification channels
+  wecomBot?: import('../../../shared/types/notification-channels').WecomBotConfig;  // WeCom Intelligent Bot
+  imChannels?: import('../../../shared/types/notification-channels').ImChannelsConfig;  // Global IM channel config
   agent?: AgentConfig;  // Agent behavior settings
   layout?: LayoutConfig;  // Global layout preferences (panel sizes and visibility)
   chat?: ChatConfig;  // Chat behavior preferences

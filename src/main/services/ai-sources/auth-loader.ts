@@ -103,6 +103,12 @@ export interface RegistryOverride {
 export interface ProductConfig {
   name: string
   version: string
+  /**
+   * Data folder name for per-variant isolation (e.g. 'halo', 'halo-enterprise').
+   * Controls both the Halo config directory (~/.{dataFolderName}/) and
+   * Electron userData directory. Defaults to 'halo' when omitted.
+   */
+  dataFolderName?: string
   authProviders: AuthProviderConfig[]
   /** Update configuration (optional, defaults to GitHub if not specified) */
   updateConfig?: UpdateConfig
@@ -192,6 +198,18 @@ export function loadProductConfig(): ProductConfig {
   }
 
   return productConfig
+}
+
+/** Default data folder name when product.json omits dataFolderName */
+export const DEFAULT_DATA_FOLDER_NAME = 'halo'
+
+/**
+ * Get the data folder name from product.json configuration.
+ * Returns the configured dataFolderName or 'halo' as default.
+ * Safe to call at any point after Electron app module is available.
+ */
+export function getDataFolderName(): string {
+  return loadProductConfig().dataFolderName || DEFAULT_DATA_FOLDER_NAME
 }
 
 /**

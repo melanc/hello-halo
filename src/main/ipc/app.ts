@@ -394,7 +394,7 @@ export function registerAppHandlers(): void {
         // without interrupting any running execution
         const runtime = getAppRuntime()
         if (runtime) {
-          runtime.syncAppSchedule(input.appId)
+          runtime.syncAppSubscriptions(input.appId)
         }
 
         return { success: true }
@@ -433,15 +433,13 @@ export function registerAppHandlers(): void {
         if (!r.success) return r
         r.manager.updateSpec(input.appId, input.specPatch)
 
-        // Reactivate runtime if subscriptions changed
+        // Hot-sync subscriptions if subscriptions changed.
+        // Uses syncAppSubscriptions() instead of deactivate/activate to avoid
+        // aborting any currently running execution for this app.
         if (input.specPatch.subscriptions) {
           const runtime = getAppRuntime()
-          const app = r.manager.getApp(input.appId)
-          if (runtime && app?.status === 'active') {
-            await runtime.deactivate(input.appId).catch(() => {})
-            await runtime.activate(input.appId).catch(err => {
-              console.warn(`[AppIPC] app:update-spec -- reactivation failed (non-fatal): ${err}`)
-            })
+          if (runtime) {
+            runtime.syncAppSubscriptions(input.appId)
           }
         }
 

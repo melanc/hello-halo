@@ -27,11 +27,13 @@ import type {
 } from './types'
 import { RunExecutionError } from './errors'
 import { buildAppSystemPrompt, buildInitialMessage } from './prompt'
+import { mergeConfigWithDefaults } from './config-defaults'
 import { createReportToolServer } from './report-tool'
 import type { ReportToolContext } from './report-tool'
 import { createNotifyToolServer } from './notify-tool'
 import { getApiCredentials, getApiCredentialsForSource, getHeadlessElectronPath, getWorkingDir, getMcpServersForRequires } from '../../services/agent/helpers'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from '../../services/agent/sdk-config'
+import { getOrCreateV2Session } from '../../services/agent/session-manager'
 import { createAIBrowserMcpServer, createScopedBrowserContext } from '../../services/ai-browser'
 import { getConfig } from '../../services/config.service'
 import { getSpace } from '../../services/space.service'
@@ -67,6 +69,8 @@ interface StreamResult {
   aiReportedError: boolean
   /** Whether the AI called report_to_user during this stream cycle */
   reportToolCalled: boolean
+  /** V2 session ID captured from the system init message (for escalation recovery) */
+  sessionId?: string
 }
 
 // ============================================
@@ -194,6 +198,10 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
     const memoryInstructions = memory.getPromptInstructions()
     const usesAIBrowser = resolvePermission(app, 'ai-browser')
 
+    // ── Merge config_schema defaults into userConfig ─────
+    //    Ensures defaults are available even if the user never opened the config panel.
+    const mergedConfig = mergeConfigWithDefaults(app.userConfig, app.spec.config_schema)
+
     console.log(
       `[Runtime][${runTag}] Memory scope: type=${memoryScope.type}, spaceId=${memoryScope.spaceId}, ` +
       `appId=${memoryScope.appId}, hasMemoryInstructions=${memoryInstructions.length > 0}`
@@ -203,7 +211,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
       appSpec: app.spec,
       memoryInstructions,
       triggerContext: trigger.description,
-      userConfig: app.userConfig,
+      userConfig: mergedConfig,
       usesAIBrowser,
       workDir,
       modelInfo: resolvedCreds.displayModel,
@@ -235,7 +243,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
 
     const initialMessage = buildInitialMessage({
       triggerContext: trigger.description,
-      userConfig: app.userConfig,
+      userConfig: mergedConfig,
       appName: app.spec.name,
       memorySnapshot,
     })
@@ -329,6 +337,8 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
     sdkOptions.maxTurns = MAX_TURNS
     // Automation runs don't need token-level streaming
     sdkOptions.includePartialMessages = false
+    // Enable extended thinking for automation runs (same as interactive chat)
+    sdkOptions.maxThinkingTokens = 10240
 
     const mcpServerNames = sdkOptions.mcpServers ? Object.keys(sdkOptions.mcpServers) : []
     console.log(
@@ -336,7 +346,24 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
       `promptLen=${systemPrompt.length}, maxTurns=${MAX_TURNS}, ` +
       `mcpServers=[${mcpServerNames.join(', ')}], aiBrowser=${usesAIBrowser}`
     )
-    session = await unstable_v2_createSession(sdkOptions as any)
+
+    // Escalation followup: restore previous session via getOrCreateV2Session
+    // to recover full conversation context (reasoning, tool calls, intermediate results).
+    // Normal runs: create a fresh session directly.
+    const resumeSessionId = trigger.escalation?.sessionId
+    if (trigger.type === 'escalation_followup' && resumeSessionId) {
+      console.log(`[Runtime][${runTag}] Restoring session for escalation followup: ${resumeSessionId}`)
+      session = await getOrCreateV2Session(
+        app.spaceId!,
+        sessionKey,
+        sdkOptions,
+        resumeSessionId,
+        undefined,
+        workDir
+      )
+    } else {
+      session = await unstable_v2_createSession(sdkOptions as any)
+    }
     console.log(`[Runtime][${runTag}] V2 session created, sending initial message`)
 
     // ── 5b. Open session writer for "View process" ────────
@@ -398,6 +425,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
         totalTokens: streamResult.totalTokens + nextResult.totalTokens,
         aiReportedError: nextResult.aiReportedError,
         reportToolCalled: nextResult.reportToolCalled,
+        sessionId: streamResult.sessionId || nextResult.sessionId,
       }
     }
 
@@ -445,6 +473,14 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
       durationMs,
       tokensUsed: streamResult.totalTokens || undefined,
     })
+
+    // Save session ID for escalation context recovery.
+    // When the user responds, the follow-up run will use this sessionId
+    // to restore the full conversation context via getOrCreateV2Session.
+    if (finalStatus === 'waiting_user' && streamResult.sessionId) {
+      store.updateRunSessionId(runId, streamResult.sessionId)
+      console.log(`[Runtime][${runTag}] Session ID saved for escalation recovery: ${streamResult.sessionId}`)
+    }
 
     // Insert an error activity entry when AI never called report_to_user,
     // so the failure is visible in the Activity Thread.
@@ -567,13 +603,20 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
     }
   } finally {
     // ── 8. Close session ────────────────────────────────────
-    if (session) {
+    // On escalation, keep the session alive so the follow-up run can
+    // potentially reuse the in-memory process (fast path). The session
+    // process will be reclaimed by the OS when Electron exits, or die
+    // naturally when idle. Disk-persisted history ensures recovery
+    // regardless of process state.
+    if (session && !escalationEntryId) {
       try {
         session.close()
         console.log(`[Runtime][${runTag}] Session closed`)
       } catch (closeErr) {
         console.error(`[Runtime] Failed to close session: run=${runId}:`, closeErr)
       }
+    } else if (session && escalationEntryId) {
+      console.log(`[Runtime][${runTag}] Session kept alive for escalation context recovery`)
     }
 
     // ── 9. Destroy scoped browser context (cleans up owned views) ──
@@ -738,6 +781,10 @@ async function processStream(
         if (sdkMessage.subtype === 'init') {
           const tools = sdkMessage.tools || []
           const mcpInfo = sdkMessage.mcp_servers || []
+          // Capture session ID for escalation context recovery
+          if (sdkMessage.session_id) {
+            result.sessionId = sdkMessage.session_id
+          }
           console.log(
             `[Runtime][${tag}] Session initialized: ${sdkMessage.session_id || 'unknown'}\n` +
             `  tools: [${tools.join(', ')}]\n` +

@@ -7,6 +7,7 @@ import { dirname, join } from 'path'
 import { homedir } from 'os'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs'
 import { v4 as uuidv4 } from 'uuid'
+import { getDataFolderName } from './ai-sources/auth-loader'
 
 // Import analytics config type
 import type { AnalyticsConfig } from './analytics/types'
@@ -338,6 +339,11 @@ interface HaloConfig {
   isFirstLaunch: boolean
   // External notification channels (email, WeCom, DingTalk, Feishu, webhook)
   notificationChannels?: import('../../shared/types/notification-channels').NotificationChannelsConfig
+  // WeCom Intelligent Bot (企业微信智能机器人) — bidirectional WebSocket chat
+  // Independent from notificationChannels.wecom (self-built app for push only)
+  wecomBot?: import('../../shared/types/notification-channels').WecomBotConfig
+  // Global IM channel configuration (default digital human routing, etc.)
+  imChannels?: import('../../shared/types/notification-channels').ImChannelsConfig
   // Analytics configuration (auto-generated on first launch)
   analytics?: AnalyticsConfig
   // Global layout preferences (panel sizes and visibility)
@@ -413,8 +419,10 @@ export function getHaloDir(): string {
     return join(homedir(), '.halo-dev')
   }
 
-  // 3. Production: use default directory
-  return join(homedir(), '.halo')
+  // 3. Production: use dataFolderName from product.json for per-variant isolation
+  //    e.g. 'halo' → ~/.halo/, 'halo-enterprise' → ~/.halo-enterprise/
+  const folderName = getDataFolderName()
+  return join(homedir(), `.${folderName}`)
 }
 
 export function getConfigPath(): string {

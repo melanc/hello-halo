@@ -27,6 +27,8 @@ export interface TriggerContext {
   escalation?: {
     originalQuestion: string
     userResponse: EscalationResponse
+    /** V2 session ID from the escalation run, used to restore conversation context */
+    sessionId?: string
   }
 }
 
@@ -69,6 +71,8 @@ export interface AutomationRun {
   durationMs?: number
   tokensUsed?: number
   errorMessage?: string
+  /** V2 session ID for escalation context recovery */
+  sessionId?: string
 }
 
 // ============================================
@@ -194,6 +198,10 @@ export interface AppRuntimeDeps {
   memory: import('../../platform/memory').MemoryService
   background: import('../../platform/background').BackgroundService
   getSpacePath: (spaceId: string) => string | null
+  /** IM session registry for proactive push routing (null if not initialized) */
+  imSessionRegistry?: import('./im-session-registry').ImSessionRegistry | null
+  /** Resolve a channel adapter by channel identifier (e.g., 'wecom-bot') */
+  getChannelAdapter?: (channel: string) => import('../../../shared/types/im-channel').ImChannelAdapter | null
 }
 
 // ============================================
@@ -223,13 +231,16 @@ export interface AppRuntimeService {
   deactivate(appId: string): Promise<void>
 
   /**
-   * Hot-sync scheduler jobs for an activated App without interrupting
-   * running executions. Re-reads the App's current config/overrides and
-   * updates (remove + re-add) any scheduler jobs whose schedule has changed.
+   * Hot-sync all subscriptions (scheduler jobs + event-router listeners)
+   * for an activated App **without interrupting running executions**.
+   *
+   * Re-reads the App's current spec and:
+   *   - updates (remove + re-add) any scheduler jobs whose schedule changed
+   *   - tears down old event-router listeners and registers new ones
    *
    * No-op if the App is not currently activated.
    */
-  syncAppSchedule(appId: string): void
+  syncAppSubscriptions(appId: string): void
 
   // ── Execution ───────────────────────────────
 

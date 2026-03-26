@@ -37,6 +37,7 @@ Ensure the code is suitable for an internationalized, open-source project:
 - **Comments in English** to align with open-source conventions.
 - **No pinyin naming** for variables, functions, or identifiers. Use meaningful English names.
 - **No internal/private information** such as internal IP addresses, intranet domains, personal emails, phone numbers, API keys, or secrets.
+- **No specific company or brand names** in code, comments, or commit messages — this includes but is not limited to Microsoft, Google, Tencent, Alibaba, Apple, Meta, Amazon, Baidu, ByteDance, etc. Use generic terms instead (e.g., "cloud provider", "search engine", "platform").
 
 ### 3. Generate Commit Message
 

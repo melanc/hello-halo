@@ -1,6 +1,6 @@
 ---
 name: halo-dev
-description: Essential project context for AI developers working on Halo. Must read before writing any code. Covers architecture, conventions, quality standards, and responsive design requirements.
+description: important!!! Must read before writing/editing any code, and follow it. Covers architecture, conventions, quality standards, and responsive design requirements.
 allowed-tools: Read, Write, Edit, Bash
 user-invocable: true
 ---

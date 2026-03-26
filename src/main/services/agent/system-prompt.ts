@@ -12,6 +12,7 @@
  */
 
 import os from 'os'
+import { getDataFolderName } from '../ai-sources/auth-loader'
 
 // ============================================
 // Constants
@@ -216,7 +217,7 @@ Today's date: {{TODAY}}
 
 # Halo Directory Structure
 Halo uses custom directories separate from Claude Code's defaults (NOT ~/.claude/):
-- Halo config: ~/.halo/ (stores spaces, settings, app data)
+- Halo config: {{HALO_DIR}} (stores spaces, settings, app data)
 - Claude SDK config: {{CLAUDE_CONFIG_DIR}} (Halo's isolated Claude config)
 - Global skills: {{CLAUDE_CONFIG_DIR}}/skills/<skill-name>/SKILL.md
 - Space-scoped skills: <space-path>/.claude/skills/<skill-name>/SKILL.md
@@ -379,7 +380,7 @@ Today's date: {{TODAY}}
 
 # Halo Directory Structure
 Halo uses custom directories separate from Claude Code's defaults (NOT ~/.claude/):
-- Halo config: ~/.halo/ (stores spaces, settings, app data)
+- Halo config: {{HALO_DIR}} (stores spaces, settings, app data)
 - Claude SDK config: {{CLAUDE_CONFIG_DIR}} (Halo's isolated Claude config)
 - Global skills: {{CLAUDE_CONFIG_DIR}}/skills/<skill-name>/SKILL.md
 - Space-scoped skills: <space-path>/.claude/skills/<skill-name>/SKILL.md
@@ -402,16 +403,22 @@ function applyTemplateVariables(template: string, ctx: SystemPromptContext): str
   const isGitRepo = ctx.isGitRepo !== undefined ? (ctx.isGitRepo ? 'Yes' : 'No') : 'No'
   const modelInfo = ctx.modelInfo ? `You are powered by ${ctx.modelInfo}.` : ''
 
-  // Compute Claude config directory based on platform (Electron's userData + /claude-config)
+  // Compute paths based on dataFolderName from product.json for per-variant isolation
+  const folderName = getDataFolderName()
+  const home = os.homedir()
+
+  // Halo config directory (e.g. ~/.halo/ or ~/.halo-enterprise/)
+  const haloDir = `${home}/.${folderName}/`
+
+  // Claude config directory based on platform (Electron's userData + /claude-config)
   let claudeConfigDir = ctx.claudeConfigDir
   if (!claudeConfigDir) {
-    const home = os.homedir()
     if (process.platform === 'darwin') {
-      claudeConfigDir = `${home}/Library/Application Support/halo/claude-config`
+      claudeConfigDir = `${home}/Library/Application Support/${folderName}/claude-config`
     } else if (process.platform === 'win32') {
-      claudeConfigDir = `${process.env.APPDATA || home + '/AppData/Roaming'}/halo/claude-config`
+      claudeConfigDir = `${process.env.APPDATA || home + '/AppData/Roaming'}/${folderName}/claude-config`
     } else {
-      claudeConfigDir = `${home}/.config/halo/claude-config`
+      claudeConfigDir = `${home}/.config/${folderName}/claude-config`
     }
   }
 
@@ -423,6 +430,7 @@ function applyTemplateVariables(template: string, ctx: SystemPromptContext): str
     .replace('{{OS_VERSION}}', osVersion)
     .replace('{{TODAY}}', today)
     .replace('{{MODEL_INFO}}', modelInfo)
+    .replace(/\{\{HALO_DIR\}\}/g, haloDir)
     .replace(/\{\{CLAUDE_CONFIG_DIR\}\}/g, claudeConfigDir)
 }
 

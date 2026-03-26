@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
-import { Save, RotateCcw, Unplug, Loader2, FileCode, Settings, Code, AlertTriangle, Globe, Bell, Download, ExternalLink, FolderOpen, Wrench } from 'lucide-react'
+import { Save, RotateCcw, Unplug, Loader2, FileCode, Settings, Code, AlertTriangle, Globe, Bell, Download, ExternalLink, FolderOpen, Wrench, Send } from 'lucide-react'
 import { stringify as stringifyYaml, parse as parseYaml } from 'yaml'
 import { useAppsStore } from '../../stores/apps.store'
 import { useTranslation, getCurrentLanguage } from '../../i18n'
@@ -24,6 +24,7 @@ import { resolvePermission } from '../../../shared/apps/app-types'
 import { resolveSpecI18n } from '../../utils/spec-i18n'
 import { api } from '../../api'
 import { AppModelSelector } from './AppModelSelector'
+import { AppNotifyChannelsSection } from './AppNotifyChannelsSection'
 import { appTypeLabel } from './appTypeUtils'
 
 // Lazy-load CodeMirrorEditor to keep initial bundle small
@@ -307,6 +308,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
   const specSystemPromptValue = isAutomation ? app.spec.system_prompt : ''
   const specSubscriptions = isAutomation ? (app.spec.subscriptions ?? []) : []
   const specRecommendedModel = isAutomation ? app.spec.recommended_model : undefined
+  const specNotifyChannels = isAutomation ? (app.spec.output?.notify?.channels ?? []) : []
 
   // ── Spec fields (name, description, system_prompt) ──
   const [specName, setSpecName] = useState(app.spec.name)
@@ -543,7 +545,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
         <div className="space-y-2">
           <div className="flex items-center gap-1.5">
             <Bell className="w-3.5 h-3.5 text-muted-foreground" />
-            <span className="text-sm text-foreground">{t('Notifications')}</span>
+            <span className="text-sm text-foreground">{t('System Notifications')}</span>
           </div>
           <div className="flex flex-wrap gap-1.5">
             {([
@@ -577,6 +579,24 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
           </p>
         </div>
       </div>
+
+      {/* ── Notification Methods (channel selector) ── */}
+      {isAutomation && (
+        <div className="space-y-4">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1.5">
+            <Send className="w-3.5 h-3.5" />
+            {t('Message Channels')}
+          </h3>
+          <p className="text-xs text-muted-foreground -mt-2">
+            {t('Select channels for this digital human to send notifications through')}
+          </p>
+          <AppNotifyChannelsSection
+            appId={appId}
+            selectedChannels={specNotifyChannels}
+            appName={app.spec.name}
+          />
+        </div>
+      )}
 
       {/* ── User Configuration Fields ── */}
       {hasConfig && (

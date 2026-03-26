@@ -33,6 +33,7 @@ interface RunRow {
   duration_ms: number | null
   tokens_used: number | null
   error_message: string | null
+  session_id: string | null
 }
 
 interface EntryRow {
@@ -63,6 +64,7 @@ function rowToRun(row: RunRow): AutomationRun {
     durationMs: row.duration_ms ?? undefined,
     tokensUsed: row.tokens_used ?? undefined,
     errorMessage: row.error_message ?? undefined,
+    sessionId: row.session_id ?? undefined,
   }
 }
 
@@ -114,6 +116,7 @@ export class ActivityStore {
   private readonly stmtGetRunningRunForApp: Database.Statement
   private readonly stmtGetLatestRunForApp: Database.Statement
   private readonly stmtGetEntriesForRun: Database.Statement
+  private readonly stmtUpdateRunSessionId: Database.Statement
 
   constructor(db: Database.Database) {
     this.db = db
@@ -194,6 +197,10 @@ export class ActivityStore {
     this.stmtGetEntriesForRun = db.prepare(`
       SELECT * FROM activity_entries WHERE run_id = ? ORDER BY ts DESC
     `)
+
+    this.stmtUpdateRunSessionId = db.prepare(`
+      UPDATE automation_runs SET session_id = ? WHERE run_id = ?
+    `)
   }
 
   // ── Run Operations ────────────────────────────
@@ -264,6 +271,11 @@ export class ActivityStore {
   getLatestRunForApp(appId: string): AutomationRun | null {
     const row = this.stmtGetLatestRunForApp.get(appId) as RunRow | undefined
     return row ? rowToRun(row) : null
+  }
+
+  /** Save V2 session ID on a run (for escalation context recovery) */
+  updateRunSessionId(runId: string, sessionId: string): void {
+    this.stmtUpdateRunSessionId.run(sessionId, runId)
   }
 
   // ── Entry Operations ──────────────────────────

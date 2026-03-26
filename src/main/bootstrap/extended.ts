@@ -47,6 +47,8 @@ import { initAppManager, shutdownAppManager } from '../apps/manager'
 import { initAppRuntime, shutdownAppRuntime } from '../apps/runtime'
 import { registerAppHandlers } from '../ipc/app'
 import { registerNotificationChannelHandlers } from '../ipc/notification-channels'
+import { registerWecomBotHandlers } from '../ipc/wecom-bot'
+import { registerImSessionHandlers } from '../ipc/im-sessions'
 import { registerStoreHandlers } from '../ipc/store'
 import { initRegistryService, shutdownRegistryService } from '../store'
 
@@ -171,6 +173,12 @@ export function initializeExtendedServices(): void {
 
   // Notification channel IPC handlers (notify-channels:test, etc.)
   registerNotificationChannelHandlers()
+
+  // WeCom Bot IPC handlers (wecom-bot:status, wecom-bot:reconnect)
+  registerWecomBotHandlers()
+
+  // IM Session IPC handlers (im-sessions:list, im-sessions:set-proactive)
+  registerImSessionHandlers()
 
   // Store: IPC handlers for App Store registry operations
   registerStoreHandlers()
