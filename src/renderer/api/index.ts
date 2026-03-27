@@ -1532,6 +1532,13 @@ export const api = {
     return { success: false, error: 'Not supported outside Electron' }
   },
 
+  appClearMemory: async (appId: string): Promise<ApiResponse<{ filesRemoved: number }>> => {
+    if (isElectron()) {
+      return window.halo.appClearMemory(appId)
+    }
+    return httpRequest('POST', `/api/apps/${appId}/clear-memory`)
+  },
+
   appMoveSpace: async (appId: string, newSpaceId: string | null): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.appMoveSpace({ appId, newSpaceId })

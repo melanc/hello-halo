@@ -92,6 +92,7 @@ describe('AppManager', () => {
     const deps: AppManagerDeps = {
       store,
       getSpacePath: (spaceId: string) => spacePaths[spaceId] ?? null,
+      getAppDataPath: (spaceId: string) => spacePaths[spaceId] ?? null,
       getGlobalAppDir: () => globalDir,
     }
 
@@ -831,8 +832,57 @@ describe('AppManager', () => {
   })
 
   // ===========================================================================
-  // Events
+  // clearAppMemory
   // ===========================================================================
+
+  describe('clearAppMemory', () => {
+    it('should delete memory.md and return file count', async () => {
+      const { writeFileSync, mkdirSync } = require('fs')
+      const appId = await service.install(TEST_SPACE_ID, createTestSpec())
+      const workDir = service.getAppWorkDir(appId)
+
+      // Create memory.md
+      writeFileSync(join(workDir, 'memory.md'), '# now\n## State\n- runs: 5\n')
+
+      const removed = service.clearAppMemory(appId)
+
+      expect(removed).toBe(1)
+      expect(existsSync(join(workDir, 'memory.md'))).toBe(false)
+    })
+
+    it('should delete run files under memory/ and runs/ and return total count', async () => {
+      const { writeFileSync, mkdirSync } = require('fs')
+      const appId = await service.install(TEST_SPACE_ID, createTestSpec())
+      const workDir = service.getAppWorkDir(appId)
+      const runDir = join(workDir, 'memory', 'run')
+      const runsDir = join(workDir, 'runs')
+
+      mkdirSync(runDir, { recursive: true })
+      mkdirSync(runsDir, { recursive: true })
+      writeFileSync(join(workDir, 'memory.md'), '# now\n')
+      writeFileSync(join(runDir, '2026-01-01-0000-run.md'), 'run summary 1')
+      writeFileSync(join(runDir, '2026-01-02-0000-run.md'), 'run summary 2')
+      writeFileSync(join(runsDir, 'run-1.json'), '{}')
+      writeFileSync(join(runsDir, 'run-2.json'), '{}')
+
+      const removed = service.clearAppMemory(appId)
+
+      expect(removed).toBe(5) // memory.md + 2 memory/run files + 2 runs/ files
+      expect(existsSync(join(workDir, 'memory.md'))).toBe(false)
+      expect(existsSync(join(workDir, 'memory'))).toBe(true) // dir preserved
+      expect(existsSync(join(workDir, 'runs'))).toBe(true)   // dir preserved
+    })
+
+    it('should return 0 when no memory files exist', async () => {
+      const appId = await service.install(TEST_SPACE_ID, createTestSpec())
+      const removed = service.clearAppMemory(appId)
+      expect(removed).toBe(0)
+    })
+
+    it('should throw AppNotFoundError for non-existent App', () => {
+      expect(() => service.clearAppMemory('non-existent')).toThrow(AppNotFoundError)
+    })
+  })
 
   describe('onAppStatusChange', () => {
     it('should notify handler on status change', async () => {

@@ -362,6 +362,7 @@ export interface HaloAPI {
   appOpenSkillFolder: (appId: string) => Promise<IpcResponse>
   appGetDataPath: (appId: string) => Promise<IpcResponse<{ path: string }>>
   appOpenDataFolder: (appId: string) => Promise<IpcResponse>
+  appClearMemory: (appId: string) => Promise<IpcResponse<{ filesRemoved: number }>>
   appMoveSpace: (input: { appId: string; newSpaceId: string | null }) => Promise<IpcResponse>
 
   // App Chat
@@ -683,6 +684,7 @@ const api: HaloAPI = {
   appOpenSkillFolder: (appId) => ipcRenderer.invoke('app:open-skill-folder', appId),
   appGetDataPath: (appId) => ipcRenderer.invoke('app:get-data-path', appId),
   appOpenDataFolder: (appId) => ipcRenderer.invoke('app:open-data-folder', appId),
+  appClearMemory: (appId) => ipcRenderer.invoke('app:clear-memory', appId),
   appMoveSpace: (input) => ipcRenderer.invoke('app:move-space', input),
 
   // App Chat

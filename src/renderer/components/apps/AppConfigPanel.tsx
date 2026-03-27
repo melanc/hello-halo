@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useCallback, lazy, Suspense } from 'react'
-import { Save, RotateCcw, Unplug, Loader2, FileCode, Settings, Code, AlertTriangle, Globe, Bell, Download, ExternalLink, FolderOpen, Wrench, Send } from 'lucide-react'
+import { Save, RotateCcw, Unplug, Loader2, FileCode, Settings, Code, AlertTriangle, Globe, Bell, Download, ExternalLink, FolderOpen, Wrench, Send, Trash2 } from 'lucide-react'
 import { stringify as stringifyYaml, parse as parseYaml } from 'yaml'
 import { useAppsStore } from '../../stores/apps.store'
 import { useTranslation, getCurrentLanguage } from '../../i18n'
@@ -938,6 +938,8 @@ export function AppConfigPanel({ appId, spaceName }: AppConfigPanelProps) {
 
   const [activeTab, setActiveTab] = useState<ConfigTab>('settings')
   const [showUninstallConfirm, setShowUninstallConfirm] = useState(false)
+  const [showClearMemoryConfirm, setShowClearMemoryConfirm] = useState(false)
+  const [clearingMemory, setClearingMemory] = useState(false)
 
   if (!app) return null
 
@@ -996,7 +998,47 @@ export function AppConfigPanel({ appId, spaceName }: AppConfigPanelProps) {
         <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           {t('Danger zone')}
         </h3>
-        {showUninstallConfirm ? (
+
+        {showClearMemoryConfirm ? (
+          <div className="p-3 border border-orange-400/30 rounded-lg space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-orange-400 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-muted-foreground">
+                {t('This will permanently delete all memory files (memory.md and run history). The app will start fresh on its next run.')}
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={async () => {
+                  setClearingMemory(true)
+                  try {
+                    const res = await api.appClearMemory(appId)
+                    if (!res.success) {
+                      console.error('[AppConfigPanel] clearAppMemory failed:', res.error)
+                    }
+                  } catch (err) {
+                    console.error('[AppConfigPanel] clearAppMemory error:', err)
+                  } finally {
+                    setClearingMemory(false)
+                    setShowClearMemoryConfirm(false)
+                  }
+                }}
+                disabled={clearingMemory}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-orange-400 hover:text-orange-300 border border-orange-400/30 hover:border-orange-400/60 rounded-lg transition-colors disabled:opacity-50"
+              >
+                {clearingMemory ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                {t('Confirm Clear')}
+              </button>
+              <button
+                onClick={() => setShowClearMemoryConfirm(false)}
+                disabled={clearingMemory}
+                className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground rounded-lg transition-colors disabled:opacity-50"
+              >
+                {t('Cancel')}
+              </button>
+            </div>
+          </div>
+        ) : showUninstallConfirm ? (
           <div className="p-3 border border-red-400/30 rounded-lg space-y-2">
             <div className="flex items-start gap-2">
               <AlertTriangle className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" />
@@ -1023,13 +1065,22 @@ export function AppConfigPanel({ appId, spaceName }: AppConfigPanelProps) {
             </div>
           </div>
         ) : (
-          <button
-            onClick={() => setShowUninstallConfirm(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-400 hover:text-red-300 border border-red-400/30 hover:border-red-400/60 rounded-lg transition-colors"
-          >
-            <Unplug className="w-4 h-4" />
-            {t('Uninstall')}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowClearMemoryConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-orange-400 hover:text-orange-300 border border-orange-400/30 hover:border-orange-400/60 rounded-lg transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+              {t('Clear Memory')}
+            </button>
+            <button
+              onClick={() => setShowUninstallConfirm(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-red-400 hover:text-red-300 border border-red-400/30 hover:border-red-400/60 rounded-lg transition-colors"
+            >
+              <Unplug className="w-4 h-4" />
+              {t('Uninstall')}
+            </button>
+          </div>
         )}
       </div>
     </div>

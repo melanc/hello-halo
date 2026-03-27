@@ -1002,7 +1002,26 @@ export function registerApiRoutes(app: Express): void {
     }
   })
 
-  // DELETE /api/apps/:appId/permanent — permanently delete an uninstalled App
+  // POST /api/apps/:appId/clear-memory — delete all memory files for an App
+  app.post('/api/apps/:appId/clear-memory', async (req: Request, res: Response) => {
+    try {
+      const { appId } = req.params
+      if (!appId) {
+        res.status(400).json({ success: false, error: 'Missing appId' })
+        return
+      }
+      const manager = getManagerOrFail(res)
+      if (!manager) return
+
+      const filesRemoved = manager.clearAppMemory(appId)
+      console.log('[HTTP] POST /api/apps/%s/clear-memory: filesRemoved=%d', appId, filesRemoved)
+      res.json({ success: true, data: { filesRemoved } })
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // DELETE /api/apps/:appId/permanent — permanently delete an App and all its data
   app.delete('/api/apps/:appId/permanent', async (req: Request, res: Response) => {
     try {
       const { appId } = req.params

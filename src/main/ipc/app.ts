@@ -757,6 +757,30 @@ export function registerAppHandlers(): void {
     }
   )
 
+  // ── app:clear-memory ────────────────────────────────────────────────────
+  ipcMain.handle(
+    'app:clear-memory',
+    async (_event, appId: string) => {
+      try {
+        const r = requireManager()
+        if (!r.success) return r
+
+        const app = r.manager.getApp(appId)
+        if (!app) {
+          return { success: false, error: 'App not found' }
+        }
+
+        const filesRemoved = r.manager.clearAppMemory(appId)
+        console.log(`[AppIPC] app:clear-memory: appId=${appId}, filesRemoved=${filesRemoved}`)
+        return { success: true, data: { filesRemoved } }
+      } catch (error: unknown) {
+        const err = error as Error
+        console.error('[AppIPC] app:clear-memory error:', err.message)
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
   // ── app:move-space ─────────────────────────────────────────────────────
   ipcMain.handle(
     'app:move-space',

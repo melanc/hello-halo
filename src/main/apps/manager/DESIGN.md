@@ -188,6 +188,7 @@ interface AppManagerService {
   getApp(appId: string): InstalledApp | null
   listApps(filter?: AppListFilter): InstalledApp[]
   getAppWorkDir(appId: string): string
+  clearAppMemory(appId: string): number
   grantPermission(appId: string, permission: string): void
   revokePermission(appId: string, permission: string): void
   onAppStatusChange(handler: StatusChangeHandler): Unsubscribe

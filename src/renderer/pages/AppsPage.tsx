@@ -345,6 +345,7 @@ export function AppsPage() {
           onClose={() => setShowSkillInstallDialog(false)}
         />
       )}
+
     </div>
   )
 }
