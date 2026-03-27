@@ -64,6 +64,22 @@ describe('validateAppSpec - minimal valid specs', () => {
     expect(result.mcp_server!.command).toBe('npx')
   })
 
+  it('should accept MCP headers for HTTP transports', () => {
+    const result = validateAppSpec({
+      ...minimalMcpSpec,
+      mcp_server: {
+        transport: 'streamable-http',
+        command: 'https://example.com/mcp',
+        headers: {
+          Authorization: 'Bearer token',
+        },
+      },
+    })
+    expect(result.mcp_server?.headers).toEqual({
+      Authorization: 'Bearer token',
+    })
+  })
+
   it('should accept minimal Skill spec', () => {
     const result = validateAppSpec(minimalSkillSpec)
     expect(result.type).toBe('skill')

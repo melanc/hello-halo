@@ -41,70 +41,60 @@ export function isRemoteClient(): boolean {
 // ---------------------------------------------------------------------------
 // Server URL management (Capacitor mode)
 //
-// In multi-server mode, the active server URL and token are read from
-// useServerStore. These functions provide a backward-compatible interface
-// for the rest of the transport layer and for ServerConnect (which sets
-// a temporary URL before the server is persisted to the store).
+// _activeServerUrl is set by server.store via setActiveServerUrl() whenever
+// the active server changes (hydrate / setActive / addServer / clearActive).
+// _pendingServerUrl is a temporary override during the ServerConnect flow,
+// before the server entry is persisted to the store.
 // ---------------------------------------------------------------------------
+
+/** Active server URL pushed from server.store (one-way: store → transport) */
+let _activeServerUrl: string | null = null
 
 /** Temporary server URL set during the ServerConnect flow (before store persistence) */
 let _pendingServerUrl: string | null = null
 
 /**
- * Set the remote server URL (Capacitor mode).
- * Called by ServerConnect during the connection flow.
- * The URL is held in memory until the server is added to the store.
+ * Called by server.store whenever the active server changes.
+ * This is the ONLY way transport learns about the active server URL.
+ */
+export function setActiveServerUrl(url: string | null): void {
+  _activeServerUrl = url
+  console.log(`[Transport] Active server URL: ${url ?? 'none'}`)
+}
+
+/**
+ * Set a temporary server URL during the ServerConnect flow.
+ * Overrides _activeServerUrl until clearPendingServerUrl() is called.
  */
 export function setServerUrl(url: string): void {
-  const normalized = url.replace(/\/+$/, '') // strip trailing slashes
-  console.log(`[Transport] Server URL set: ${normalized}`)
+  const normalized = url.replace(/\/+$/, '')
+  console.log(`[Transport] Pending server URL: ${normalized}`)
   _pendingServerUrl = normalized
 }
 
 /**
  * Read the active server URL.
- * Priority: pending URL (during connect flow) > server store active > null
+ * Priority: pending URL (during connect flow) > active server URL
  */
 export function getServerUrl(): string | null {
-  if (_pendingServerUrl) return _pendingServerUrl
-  try {
-    // Read from server store (lazy import to avoid circular deps)
-    const { useServerStore } = require('../stores/server.store')
-    const active = useServerStore.getState().getActive()
-    return active?.url ?? null
-  } catch {
-    return null
-  }
+  return _pendingServerUrl ?? _activeServerUrl
 }
 
 /**
- * Restore server URL from the server store (called on app start).
- * Also syncs the auth token from the active server entry.
+ * Returns the active server URL (after hydration by server.store).
+ * Hydration must be triggered by the caller (App.tsx) before this is called.
  */
 export function restoreServerUrl(): string | null {
-  try {
-    const { useServerStore } = require('../stores/server.store')
-    useServerStore.getState().hydrate()
-    const active = useServerStore.getState().getActive()
-    if (active) {
-      console.log(`[Transport] Restored server: ${active.name} (${active.url})`)
-      // Sync auth token from store entry to localStorage (for httpRequest headers)
-      setAuthToken(active.token)
-      return active.url
-    }
-  } catch (e) {
-    console.warn('[Transport] Failed to restore server from store:', e)
-  }
-  return null
+  return _activeServerUrl
 }
 
 /** Clear pending server URL (e.g. when cancelling connect flow). */
 export function clearServerUrl(): void {
-  console.log('[Transport] Server URL cleared')
+  console.log('[Transport] Pending server URL cleared')
   _pendingServerUrl = null
 }
 
-/** Clear the pending URL after it has been persisted to the store. */
+/** Clear pending URL after it has been persisted to the store. */
 export function clearPendingServerUrl(): void {
   _pendingServerUrl = null
 }

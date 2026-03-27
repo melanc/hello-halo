@@ -19,6 +19,7 @@ export interface HaloAPI {
   authGetProviders: () => Promise<IpcResponse>
   authGetBuiltinProviders: () => Promise<IpcResponse>
   authStartLogin: (providerType: string) => Promise<IpcResponse>
+  authOpenLoginWindow: (providerType: string, loginUrl: string, redirectUri: string) => Promise<IpcResponse>
   authCompleteLogin: (providerType: string, state: string) => Promise<IpcResponse>
   authRefreshToken: (sourceId: string) => Promise<IpcResponse>
   authCheckToken: (sourceId: string) => Promise<IpcResponse>
@@ -418,6 +419,7 @@ const api: HaloAPI = {
   authGetProviders: () => ipcRenderer.invoke('auth:get-providers'),
   authGetBuiltinProviders: () => ipcRenderer.invoke('auth:get-builtin-providers'),
   authStartLogin: (providerType) => ipcRenderer.invoke('auth:start-login', providerType),
+  authOpenLoginWindow: (providerType, loginUrl, redirectUri) => ipcRenderer.invoke('auth:open-login-window', providerType, loginUrl, redirectUri),
   authCompleteLogin: (providerType, state) => ipcRenderer.invoke('auth:complete-login', providerType, state),
   authRefreshToken: (sourceId) => ipcRenderer.invoke('auth:refresh-token', sourceId),
   authCheckToken: (sourceId) => ipcRenderer.invoke('auth:check-token', sourceId),

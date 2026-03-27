@@ -125,11 +125,18 @@ interface ServerListPageProps {
   onAddServer: () => void
 }
 
+/** Pending deletion — drives the custom confirm dialog */
+interface DeleteConfirm {
+  id: string
+  name: string
+}
+
 export function ServerListPage({ onServerSelected, onAddServer }: ServerListPageProps) {
   const { t } = useTranslation()
   const { servers, removeServer, setActive } = useServerStore()
   const [statusMap, setStatusMap] = useState<Record<string, ServerStatus>>({})
   const [connectingId, setConnectingId] = useState<string | null>(null)
+  const [deleteConfirm, setDeleteConfirm] = useState<DeleteConfirm | null>(null)
 
   // Check server status on mount
   useEffect(() => {
@@ -144,7 +151,7 @@ export function ServerListPage({ onServerSelected, onAddServer }: ServerListPage
       await Promise.all(
         servers.map(async (server) => {
           try {
-            const response = await fetch(`${server.url}/api/health`, {
+            const response = await fetch(`${server.url}/api/remote/status`, {
               method: 'GET',
               signal: AbortSignal.timeout(5000)
             })
@@ -174,33 +181,41 @@ export function ServerListPage({ onServerSelected, onAddServer }: ServerListPage
 
     console.log(`[ServerList] Connecting to: ${server.name} (${server.url})`)
 
-    // Set as active in store
-    setActive(server.id)
+    try {
+      // Set as active in store
+      setActive(server.id)
 
-    // Set auth token for HTTP requests
-    setAuthToken(server.token)
+      // Set auth token for HTTP requests
+      setAuthToken(server.token)
 
-    // Disconnect existing WebSocket if any
-    api.disconnectWebSocket()
+      // Disconnect existing WebSocket if any
+      api.disconnectWebSocket()
 
-    // Connect WebSocket to the selected server
-    api.connectWebSocket()
+      // Connect WebSocket to the selected server
+      api.connectWebSocket()
 
-    // Notify parent to proceed with initialization
-    onServerSelected(server)
+      // Notify parent to proceed with initialization
+      onServerSelected(server)
+    } finally {
+      // Always clear the overlay so the user can retry if navigation throws
+      // or the parent keeps the component mounted.
+      setConnectingId(null)
+    }
   }, [connectingId, setActive, onServerSelected])
 
-  // Handle delete with confirmation
+  // Open the custom confirm dialog instead of relying on window.confirm()
   const handleDelete = useCallback((id: string) => {
     const server = servers.find(s => s.id === id)
     if (!server) return
+    setDeleteConfirm({ id: server.id, name: server.name })
+  }, [servers])
 
-    // Simple confirmation (on mobile, native confirm is fine)
-    if (window.confirm(t('Remove this device?') + `\n${server.name}`)) {
-      removeServer(id)
-      console.log(`[ServerList] Deleted server: ${server.name}`)
-    }
-  }, [servers, removeServer, t])
+  const confirmDelete = useCallback(() => {
+    if (!deleteConfirm) return
+    removeServer(deleteConfirm.id)
+    console.log(`[ServerList] Deleted server: ${deleteConfirm.name}`)
+    setDeleteConfirm(null)
+  }, [deleteConfirm, removeServer])
 
   return (
     <div className="h-full w-full flex flex-col bg-background">
@@ -266,6 +281,34 @@ export function ServerListPage({ onServerSelected, onAddServer }: ServerListPage
             <p className="text-sm text-foreground font-medium">
               {t('Connecting...')}
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* Delete confirmation dialog */}
+      {deleteConfirm && (
+        <div className="absolute inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 px-6">
+          <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 shadow-xl">
+            <h3 className="text-base font-semibold text-foreground">
+              {t('Remove this device?')}
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1 truncate">
+              {deleteConfirm.name}
+            </p>
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="flex-1 py-2.5 rounded-xl border border-border text-foreground text-sm font-medium active:scale-[0.98] transition-transform"
+              >
+                {t('Cancel')}
+              </button>
+              <button
+                onClick={confirmDelete}
+                className="flex-1 py-2.5 rounded-xl bg-destructive text-destructive-foreground text-sm font-medium active:scale-[0.98] transition-transform"
+              >
+                {t('Remove')}
+              </button>
+            </div>
           </div>
         </div>
       )}

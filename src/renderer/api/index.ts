@@ -81,6 +81,14 @@ export const api = {
     return httpRequest('POST', '/api/auth/start-login', { providerType })
   },
 
+  authOpenLoginWindow: async (providerType: string, loginUrl: string, redirectUri: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.authOpenLoginWindow(providerType, loginUrl, redirectUri)
+    }
+    // Web mode: not supported, fall back to completing with URL
+    return { success: false, error: 'Login window not supported in web mode' }
+  },
+
   authCompleteLogin: async (providerType: string, state: string): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.halo.authCompleteLogin(providerType, state)
@@ -1440,7 +1448,13 @@ export const api = {
     if (isElectron()) {
       return window.halo.appUpdateOverrides({ appId, overrides })
     }
-    return httpRequest('PATCH', `/api/apps/${appId}/overrides`, overrides)
+    // JSON serialization strips `undefined` values. Convert them to `null` so the server
+    // can apply JSON Merge Patch semantics (null = delete key, e.g. reset model to global).
+    const patch: Record<string, unknown> = {}
+    for (const [key, value] of Object.entries(overrides)) {
+      patch[key] = value === undefined ? null : value
+    }
+    return httpRequest('PATCH', `/api/apps/${appId}/overrides`, patch)
   },
 
   appUpdateSpec: async (appId: string, specPatch: Record<string, unknown>): Promise<ApiResponse> => {

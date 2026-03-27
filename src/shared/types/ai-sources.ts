@@ -54,6 +54,7 @@ export type AuthType = 'api-key' | 'oauth'
  * - openai: OpenAI Compatible API (supports any OpenAI-compatible endpoint)
  * - deepseek: DeepSeek API
  * - github-copilot: GitHub Copilot OAuth
+ * - claude: Claude.ai OAuth (Claude Pro/Max subscription)
  */
 export type BuiltinProviderId =
   | 'anthropic'
@@ -76,6 +77,7 @@ export type BuiltinProviderId =
   | 'fireworks'
   | 'xai'
   | 'github-copilot'
+  | 'claude'
 
 /**
  * Provider ID (built-in + future extensions)

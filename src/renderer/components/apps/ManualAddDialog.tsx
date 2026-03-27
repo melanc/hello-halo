@@ -10,11 +10,18 @@
  *   - Skill: name, content (markdown)
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import { X, Server, BookOpen, ChevronLeft, Plus, Settings2, Code, AlertCircle } from 'lucide-react'
 import { useAppsStore } from '../../stores/apps.store'
 import { useSpaceStore } from '../../stores/space.store'
 import { useTranslation } from '../../i18n'
+import type { McpServerConfig } from '../../../shared/apps/spec-types'
+import {
+  internalMcpServerToJsonConfig,
+  keyValueLinesToRecord,
+  mcpJsonConfigToInternal,
+  recordToKeyValueLines,
+} from '../../utils/mcpConfigCompat'
 
 const GLOBAL_SCOPE = '__global__'
 
@@ -135,23 +142,41 @@ interface FormProps {
 
 type McpTransport = 'stdio' | 'sse' | 'streamable-http'
 type EditMode = 'visual' | 'json'
+const MANUAL_MCP_VERSION = '1.0'
+const MANUAL_MCP_AUTHOR = 'manual'
 
-function buildMcpSpec(name: string, transport: McpTransport, command: string, args: string[], envText: string) {
-  const parsedEnv: Record<string, string> = {}
-  for (const line of envText.split('\n')) {
-    const eq = line.indexOf('=')
-    if (eq > 0) parsedEnv[line.slice(0, eq).trim()] = line.slice(eq + 1).trim()
-  }
+function buildMcpServer(
+  transport: McpTransport,
+  command: string,
+  args: string[],
+  envText: string,
+  headersText: string
+): McpServerConfig {
   return {
+    transport,
+    command: command.trim(),
+    ...(transport === 'stdio' && args.filter(a => a.trim()).length > 0 ? { args: args.filter(a => a.trim()) } : {}),
+    ...(keyValueLinesToRecord(envText) ? { env: keyValueLinesToRecord(envText)! } : {}),
+    ...(transport !== 'stdio' && keyValueLinesToRecord(headersText) ? { headers: keyValueLinesToRecord(headersText)! } : {}),
+  }
+}
+
+function buildMcpSpec(
+  name: string,
+  transport: McpTransport,
+  command: string,
+  args: string[],
+  envText: string,
+  headersText: string
+) {
+  return {
+    spec_version: '1',
     name: name.trim(),
+    version: MANUAL_MCP_VERSION,
+    author: MANUAL_MCP_AUTHOR,
     type: 'mcp' as const,
     description: `MCP Server: ${name.trim()}`,
-    mcp_server: {
-      transport,
-      command: command.trim(),
-      ...(transport === 'stdio' && args.filter(a => a.trim()).length > 0 ? { args: args.filter(a => a.trim()) } : {}),
-      ...(Object.keys(parsedEnv).length > 0 ? { env: parsedEnv } : {}),
-    },
+    mcp_server: buildMcpServer(transport, command, args, envText, headersText),
   }
 }
 
@@ -176,6 +201,7 @@ function McpForm({ onClose, installApp, loadApps }: FormProps) {
   const [command, setCommand] = useState('')
   const [args, setArgs] = useState<string[]>([])
   const [envText, setEnvText] = useState('')
+  const [headersText, setHeadersText] = useState('')
 
   // JSON fields
   const [jsonName, setJsonName] = useState('')
@@ -185,39 +211,32 @@ function McpForm({ onClose, installApp, loadApps }: FormProps) {
   const [error, setError] = useState<string | null>(null)
   const [installing, setInstalling] = useState(false)
 
-  // Sync visual → JSON when switching to JSON mode
-  useEffect(() => {
-    if (editMode === 'json') {
-      const mcpServer: Record<string, any> = { command: command.trim() }
-      if (transport !== 'stdio') mcpServer.transport = transport
-      const filteredArgs = args.filter(a => a.trim())
-      if (transport === 'stdio' && filteredArgs.length > 0) mcpServer.args = filteredArgs
-      const env: Record<string, string> = {}
-      for (const line of envText.split('\n')) {
-        const eq = line.indexOf('=')
-        if (eq > 0) env[line.slice(0, eq).trim()] = line.slice(eq + 1).trim()
-      }
-      if (Object.keys(env).length > 0) mcpServer.env = env
-      setJsonText(JSON.stringify(mcpServer, null, 2))
-      if (!jsonName && name) setJsonName(name)
-    }
-  }, [editMode])
+  const switchToJsonMode = useCallback(() => {
+    const mcpServer = buildMcpServer(transport, command, args, envText, headersText)
+    setJsonText(JSON.stringify(internalMcpServerToJsonConfig(mcpServer), null, 2))
+    if (!jsonName && name) setJsonName(name)
+    setJsonError(null)
+    setEditMode('json')
+  }, [args, command, envText, headersText, jsonName, name, transport])
 
   // Parse JSON → sync back to visual fields
   const handleJsonChange = useCallback((text: string) => {
     setJsonText(text)
     try {
       const parsed = JSON.parse(text)
-      if (!parsed.command) { setJsonError(t('command is required')); return }
-      setJsonError(null)
-      setCommand(parsed.command || '')
-      setTransport(parsed.transport ?? 'stdio')
-      setArgs(parsed.args ?? [])
-      if (parsed.env) {
-        setEnvText(Object.entries(parsed.env as Record<string, string>).map(([k, v]) => `${k}=${v}`).join('\n'))
+      const result = mcpJsonConfigToInternal(parsed)
+      if (result.error) {
+        setJsonError(t(result.error))
+        return
       }
+      setJsonError(null)
+      setCommand(result.data?.command ?? '')
+      setTransport(result.data?.transport ?? 'stdio')
+      setArgs(result.data?.args ?? [])
+      setEnvText(recordToKeyValueLines(result.data?.env))
+      setHeadersText(recordToKeyValueLines(result.data?.headers))
     } catch (e) {
-      setJsonError((e as Error).message)
+      setJsonError(t('Invalid JSON: {{message}}', { message: (e as Error).message }))
     }
   }, [t])
 
@@ -231,20 +250,27 @@ function McpForm({ onClose, installApp, loadApps }: FormProps) {
     if (editMode === 'json') {
       try {
         const parsed = JSON.parse(jsonText)
-        if (!parsed.command) { setError(t('command is required')); return }
+        const result = mcpJsonConfigToInternal(parsed)
+        if (result.error || !result.data) {
+          setError(t(result.error ?? 'Invalid MCP configuration'))
+          return
+        }
         spec = {
+          spec_version: '1',
           name: effectiveName,
+          version: MANUAL_MCP_VERSION,
+          author: MANUAL_MCP_AUTHOR,
           type: 'mcp' as const,
           description: `MCP Server: ${effectiveName}`,
-          mcp_server: parsed,
+          mcp_server: result.data,
         }
       } catch (e) {
-        setError(e instanceof Error ? e.message : t('Invalid JSON'))
+        setError(t('Invalid JSON: {{message}}', { message: e instanceof Error ? e.message : String(e) }))
         return
       }
     } else {
       if (!command.trim()) { setError(t('Command or URL is required')); return }
-      spec = buildMcpSpec(effectiveName, transport, command, args, envText)
+      spec = buildMcpSpec(effectiveName, transport, command, args, envText, headersText)
     }
 
     setError(null)
@@ -263,7 +289,7 @@ function McpForm({ onClose, installApp, loadApps }: FormProps) {
     } finally {
       setInstalling(false)
     }
-  }, [editMode, name, jsonName, jsonText, command, transport, args, envText, selectedSpaceId, installApp, loadApps, onClose, t])
+  }, [args, command, editMode, envText, headersText, installApp, jsonName, jsonText, loadApps, name, onClose, selectedSpaceId, t, transport])
 
   const addArg = () => setArgs(prev => [...prev, ''])
   const updateArg = (i: number, v: string) => setArgs(prev => { const n = [...prev]; n[i] = v; return n })
@@ -283,7 +309,7 @@ function McpForm({ onClose, installApp, loadApps }: FormProps) {
           {t('Visual')}
         </button>
         <button
-          onClick={() => setEditMode('json')}
+          onClick={switchToJsonMode}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
             editMode === 'json' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
           }`}
@@ -341,7 +367,7 @@ function McpForm({ onClose, installApp, loadApps }: FormProps) {
             {/* Command / URL */}
             <div>
               <label className="block text-sm font-medium mb-1">
-                {isUrl ? 'URL' : t('Command')}
+                {isUrl ? t('URL') : t('Command')}
               </label>
               <input
                 type="text"
@@ -400,6 +426,23 @@ function McpForm({ onClose, installApp, loadApps }: FormProps) {
                 className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none transition-colors"
               />
             </div>
+
+            {isUrl && (
+              <div>
+                <label className="block text-sm font-medium mb-1">
+                  {t('Headers')}{' '}
+                  <span className="font-normal text-muted-foreground">(KEY=VALUE, {t('one per line')})</span>
+                </label>
+                <textarea
+                  value={headersText}
+                  onChange={e => setHeadersText(e.target.value)}
+                  rows={3}
+                  spellCheck={false}
+                  placeholder={t('Authorization=Bearer <token>')}
+                  className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg font-mono focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none transition-colors"
+                />
+              </div>
+            )}
           </>
         ) : (
           /* JSON mode */

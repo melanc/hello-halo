@@ -543,8 +543,18 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
 
     updateOverrides(appId: string, partial: Partial<InstalledApp['userOverrides']>): void {
       const app = requireApp(appId)
-      const merged = { ...app.userOverrides, ...partial }
-      store.updateOverrides(appId, merged)
+      // JSON Merge Patch semantics: null or undefined removes the key.
+      // This ensures both the IPC path (undefined via structured clone) and the
+      // HTTP path (null via JSON serialization) correctly clear optional fields.
+      const merged: Record<string, unknown> = { ...app.userOverrides }
+      for (const [key, value] of Object.entries(partial as Record<string, unknown>)) {
+        if (value == null) {
+          delete merged[key]
+        } else {
+          merged[key] = value
+        }
+      }
+      store.updateOverrides(appId, merged as InstalledApp['userOverrides'])
     },
 
     updateSpec(appId: string, specPatch: Record<string, unknown>): void {

@@ -123,6 +123,8 @@ export default function App() {
     // Capacitor mode: skip Electron bootstrap flow entirely.
     // Initialization is triggered after the user selects a server from the list.
     if (isCapacitor()) {
+      // Hydrate server store first — this pushes active URL + token to transport
+      useServerStore.getState().hydrate()
       const savedUrl = api.restoreServerUrl()
       const hasToken = api.isAuthenticated()
       if (savedUrl && hasToken) {
@@ -321,8 +323,16 @@ export default function App() {
   useEffect(() => {
     if (!isCapacitor()) return
 
+    // `cancelled` guards the race where cleanup fires before the dynamic
+    // import resolves.  `removeListener` holds the teardown once resolved,
+    // so the useEffect cleanup can call it synchronously.
+    let cancelled = false
+    let removeListener: (() => void) | null = null
+
     import('@capacitor/app').then(({ App: CapApp }) => {
-      const listener = CapApp.addListener('backButton', () => {
+      if (cancelled) return
+
+      const listenerPromise = CapApp.addListener('backButton', () => {
         const currentView = useAppStore.getState().view
         if (currentView === 'settings' || currentView === 'apps') {
           useAppStore.getState().goBack()
@@ -336,10 +346,13 @@ export default function App() {
         // On home/space/serverList: don't exit — Android will minimize the app
       })
 
-      return () => {
-        listener.then(l => l.remove())
-      }
+      removeListener = () => { listenerPromise.then(l => l.remove()) }
     }).catch(() => {})
+
+    return () => {
+      cancelled = true
+      removeListener?.()
+    }
   }, [])
 
   // Handle new server added from ServerConnect (Capacitor)

@@ -10,14 +10,25 @@ import { api } from '../api'
 import { LoginSelector } from '../components/setup/LoginSelector'
 import { ApiSetup } from '../components/setup/ApiSetup'
 import { useTranslation } from '../i18n'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Brain, ExternalLink, Copy, Check } from 'lucide-react'
 
-type SetupStep = 'select' | 'oauth-waiting' | 'custom'
+type SetupStep = 'select' | 'oauth-waiting' | 'claude-login' | 'custom'
 
 /** Device code info for display in UI */
 interface DeviceCodeInfo {
   userCode: string
   verificationUri: string
+}
+
+/** Claude OAuth login dialog state */
+interface ClaudeLoginState {
+  loginUrl: string
+  state: string
+  manualCode: string
+  autoLoginInProgress: boolean
+  error: string | null
+  copied: boolean
+  submitting: boolean
 }
 
 export function SetupPage() {
@@ -29,6 +40,7 @@ export function SetupPage() {
   const [loginStatus, setLoginStatus] = useState<string>('')
   const [error, setError] = useState<string | null>(null)
   const [deviceCodeInfo, setDeviceCodeInfo] = useState<DeviceCodeInfo | null>(null)
+  const [claudeLogin, setClaudeLogin] = useState<ClaudeLoginState | null>(null)
 
   // Handle OAuth provider login (generic)
   const handleSelectProvider = async (providerType: string) => {
@@ -45,13 +57,28 @@ export function SetupPage() {
         throw new Error(result.error || 'Failed to start login')
       }
 
-      const { state, userCode, verificationUri } = result.data as {
+      const { loginUrl, state, userCode, verificationUri } = result.data as {
         loginUrl: string
         state: string
         userCode?: string
         verificationUri?: string
       }
       setOauthState(state)
+
+      // ── Claude OAuth: show dual-mode login dialog ──────────────────────
+      if (providerType === 'claude' && loginUrl && !userCode) {
+        setStep('claude-login')
+        setClaudeLogin({
+          loginUrl,
+          state,
+          manualCode: '',
+          autoLoginInProgress: false,
+          error: null,
+          copied: false,
+          submitting: false
+        })
+        return
+      }
 
       // If device code flow, show user code and verification URL
       if (userCode && verificationUri) {
@@ -79,6 +106,87 @@ export function SetupPage() {
       setError(err instanceof Error ? err.message : 'Login failed')
       setStep('select')
       setCurrentProvider(null)
+    }
+  }
+
+  // ── Claude: "Direct Login" button handler ────────────────────────────
+  const handleClaudeDirectLogin = async () => {
+    if (!claudeLogin) return
+    setClaudeLogin(prev => prev ? { ...prev, autoLoginInProgress: true, error: null } : null)
+
+    try {
+      const redirectUri = 'https://console.anthropic.com/oauth/code/callback'
+      const windowResult = await api.authOpenLoginWindow('claude', claudeLogin.loginUrl, redirectUri)
+
+      if (!windowResult.success) {
+        const errMsg = windowResult.error || 'Login failed'
+        if (errMsg === 'Login window closed') {
+          setClaudeLogin(prev => prev ? { ...prev, autoLoginInProgress: false } : null)
+          return
+        }
+        setClaudeLogin(prev => prev ? { ...prev, autoLoginInProgress: false, error: errMsg } : null)
+        return
+      }
+
+      // Success! Reload config and go to home
+      const configResult = await api.getConfig()
+      if (configResult.success && configResult.data) {
+        setConfig(configResult.data as any)
+      }
+      setClaudeLogin(null)
+      setView('home')
+    } catch (err) {
+      setClaudeLogin(prev => prev ? {
+        ...prev,
+        autoLoginInProgress: false,
+        error: err instanceof Error ? err.message : 'Login failed'
+      } : null)
+    }
+  }
+
+  // ── Claude: "Submit Code" button handler ─────────────────────────────
+  const handleClaudeManualLogin = async () => {
+    if (!claudeLogin || !claudeLogin.manualCode.trim()) return
+    setClaudeLogin(prev => prev ? { ...prev, submitting: true, error: null } : null)
+
+    try {
+      const completeResult = await api.authCompleteLogin('claude', claudeLogin.manualCode.trim())
+      if (!completeResult.success) {
+        setClaudeLogin(prev => prev ? {
+          ...prev,
+          submitting: false,
+          error: completeResult.error || t('Login failed')
+        } : null)
+        return
+      }
+
+      // Success! Reload config and go to home
+      const configResult = await api.getConfig()
+      if (configResult.success && configResult.data) {
+        setConfig(configResult.data as any)
+      }
+      setClaudeLogin(null)
+      setView('home')
+    } catch (err) {
+      setClaudeLogin(prev => prev ? {
+        ...prev,
+        submitting: false,
+        error: err instanceof Error ? err.message : 'Login failed'
+      } : null)
+    }
+  }
+
+  // ── Claude: Copy URL to clipboard ────────────────────────────────────
+  const handleClaudeCopyUrl = async () => {
+    if (!claudeLogin) return
+    try {
+      await navigator.clipboard.writeText(claudeLogin.loginUrl)
+      setClaudeLogin(prev => prev ? { ...prev, copied: true } : null)
+      setTimeout(() => {
+        setClaudeLogin(prev => prev ? { ...prev, copied: false } : null)
+      }, 2000)
+    } catch {
+      // Fallback: text is already selectable in the URL display
     }
   }
 
@@ -113,6 +221,165 @@ export function SetupPage() {
         onSelectProvider={handleSelectProvider}
         onSelectCustom={handleSelectCustom}
       />
+    )
+  }
+
+  if (step === 'claude-login' && claudeLogin) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center bg-background p-8">
+        {/* Header with Logo */}
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-20 h-20 rounded-full border-2 border-primary/60 flex items-center justify-center halo-glow">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-primary/30 to-transparent" />
+          </div>
+          <h1 className="mt-4 text-3xl font-light tracking-wide">Halo</h1>
+        </div>
+
+        {/* Claude Login Card */}
+        <div className="w-full max-w-md space-y-5">
+          {/* Header */}
+          <div className="flex items-center gap-3 justify-center">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center"
+                 style={{ backgroundColor: 'rgba(217, 119, 87, 0.15)' }}>
+              <Brain size={20} style={{ color: '#d97757' }} />
+            </div>
+            <div>
+              <h2 className="font-medium text-foreground">{t('Claude Login')}</h2>
+              <p className="text-xs text-muted-foreground">{t('Choose a login method')}</p>
+            </div>
+          </div>
+
+          {/* Error display */}
+          {claudeLogin.error && (
+            <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
+              <p className="text-sm text-destructive">{claudeLogin.error}</p>
+            </div>
+          )}
+
+          {/* Option 1: Direct Login */}
+          <div className="p-4 bg-card border border-border rounded-xl space-y-3">
+            <h4 className="text-sm font-medium text-foreground">
+              {t('Option 1: Direct Login')}
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              {t('Requires access to claude.ai (with proxy or direct connection)')}
+            </p>
+            <button
+              onClick={handleClaudeDirectLogin}
+              disabled={claudeLogin.autoLoginInProgress || claudeLogin.submitting}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5
+                       bg-[#d97757] hover:bg-[#c5684a] disabled:opacity-50
+                       text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              {claudeLogin.autoLoginInProgress ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {t('Logging in...')}
+                </>
+              ) : (
+                <>
+                  <ExternalLink size={16} />
+                  {t('Open Login Window')}
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-xs text-muted-foreground">{t('or')}</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+
+          {/* Option 2: Manual Code Paste (partner-assisted) */}
+          <div className="p-4 bg-card border border-border rounded-xl space-y-3">
+            <h4 className="text-sm font-medium text-foreground">
+              {t('Option 2: Partner-Assisted Login')}
+            </h4>
+            <p className="text-xs text-muted-foreground">
+              {t('Copy the link below and send it to your service provider')}
+            </p>
+
+            {/* URL display with copy button */}
+            <div className="flex items-center gap-2">
+              <div className="flex-1 p-2.5 bg-muted/50 rounded-md border border-border
+                            font-mono text-xs text-muted-foreground break-all select-all overflow-hidden max-h-16 overflow-y-auto">
+                {claudeLogin.loginUrl}
+              </div>
+              <button
+                onClick={handleClaudeCopyUrl}
+                className="shrink-0 flex items-center gap-1 px-3 py-2.5 text-sm
+                         bg-muted/50 hover:bg-muted
+                         border border-border rounded-md transition-colors"
+                title={t('Copy link')}
+              >
+                <Copy size={14} className={claudeLogin.copied ? 'text-green-500' : 'text-muted-foreground'} />
+                <span className={`text-xs ${claudeLogin.copied ? 'text-green-500' : 'text-muted-foreground'}`}>
+                  {claudeLogin.copied ? t('Copied') : t('Copy')}
+                </span>
+              </button>
+            </div>
+
+            {/* Manual code input */}
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground">
+                {t('Paste the authorization code from your service provider')}
+              </p>
+              <input
+                type="text"
+                value={claudeLogin.manualCode}
+                onChange={(e) => setClaudeLogin(prev => prev ? { ...prev, manualCode: e.target.value } : null)}
+                placeholder={t('Paste authorization code here')}
+                className="w-full px-3 py-2.5 bg-background border border-border rounded-md
+                         text-sm text-foreground placeholder:text-muted-foreground
+                         focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/30
+                         font-mono"
+                disabled={claudeLogin.submitting}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && claudeLogin.manualCode.trim()) {
+                    handleClaudeManualLogin()
+                  }
+                }}
+              />
+            </div>
+
+            {/* Submit button */}
+            <button
+              onClick={handleClaudeManualLogin}
+              disabled={!claudeLogin.manualCode.trim() || claudeLogin.submitting || claudeLogin.autoLoginInProgress}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5
+                       bg-primary hover:bg-primary/90 disabled:opacity-50
+                       text-white rounded-lg transition-colors text-sm font-medium"
+            >
+              {claudeLogin.submitting ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  {t('Verifying...')}
+                </>
+              ) : (
+                <>
+                  <Check size={16} />
+                  {t('Complete Login')}
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Cancel button */}
+          <button
+            onClick={() => {
+              setClaudeLogin(null)
+              setStep('select')
+              setCurrentProvider(null)
+            }}
+            disabled={claudeLogin.autoLoginInProgress || claudeLogin.submitting}
+            className="w-full px-4 py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {t('Cancel')}
+          </button>
+        </div>
+      </div>
     )
   }
 

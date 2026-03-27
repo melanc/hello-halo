@@ -249,6 +249,20 @@ config_schema:
     placeholder: "postgresql://user:pass@localhost/db"
 `
 
+const remoteHttpMcpYaml = `
+name: "Remote HTTP MCP"
+version: "1.2.0"
+author: community
+description: "Remote MCP server over HTTP"
+type: mcp
+
+mcp_server:
+  transport: streamable-http
+  command: https://example.com/mcp
+  headers:
+    Authorization: Bearer test-token
+`
+
 describe('parseAndValidateAppSpec - MCP app example', () => {
   it('should fully parse and validate the PostgreSQL MCP spec', () => {
     const spec = parseAndValidateAppSpec(postgresMcpYaml)
@@ -260,6 +274,17 @@ describe('parseAndValidateAppSpec - MCP app example', () => {
     expect(spec.mcp_server!.args).toEqual(['-y', '@modelcontextprotocol/server-postgres'])
     expect(spec.mcp_server!.env).toEqual({ DATABASE_URL: '{{config.database_url}}' })
     expect(spec.config_schema).toHaveLength(1)
+  })
+
+  it('should parse MCP headers for remote transports', () => {
+    const spec = parseAndValidateAppSpec(remoteHttpMcpYaml)
+
+    expect(spec.type).toBe('mcp')
+    expect(spec.mcp_server?.transport).toBe('streamable-http')
+    expect(spec.mcp_server?.command).toBe('https://example.com/mcp')
+    expect(spec.mcp_server?.headers).toEqual({
+      Authorization: 'Bearer test-token',
+    })
   })
 })
 

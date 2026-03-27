@@ -164,6 +164,7 @@ export interface McpServerConfig {
   command: string
   args?: string[]
   env?: Record<string, string>
+  headers?: Record<string, string>
   cwd?: string
 }
 

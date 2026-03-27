@@ -233,6 +233,8 @@ export const McpServerConfigSchema = z.object({
   args: z.array(z.string()).optional(),
   /** Environment variables */
   env: z.record(z.string(), z.string()).optional(),
+  /** HTTP/SSE request headers */
+  headers: z.record(z.string(), z.string()).optional(),
   /** Working directory */
   cwd: z.string().optional()
 })

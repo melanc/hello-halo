@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react'
-import { Globe, ChevronDown, ChevronRight, MessageSquare, Wrench, Key, Cloud, Server, Shield, Lock, Zap, LogIn, User, Github, type LucideIcon } from 'lucide-react'
+import { Globe, ChevronDown, ChevronRight, MessageSquare, Wrench, Key, Cloud, Server, Shield, Lock, Zap, LogIn, User, Github, Brain, type LucideIcon } from 'lucide-react'
 import { useTranslation, setLanguage, getCurrentLanguage, SUPPORTED_LOCALES, type LocaleCode } from '../../i18n'
 import { api } from '../../api'
 import { resolveLocalizedText, type LocalizedText } from '../../../shared/types'
@@ -47,7 +47,8 @@ const iconMap: Record<string, LucideIcon> = {
   'zap': Zap,
   'message-square': MessageSquare,
   'wrench': Wrench,
-  'github': Github
+  'github': Github,
+  'brain': Brain
 }
 
 /**

@@ -291,7 +291,27 @@ async function handleAnthropicPassthrough(
   const { url: backendUrl, key: apiKey, model, headers: customHeaders } = config
 
   // Append SDK query string to upstream URL (e.g., ?beta=true)
-  const targetUrl = queryString ? `${backendUrl}?${queryString}` : backendUrl
+  // Deduplicate: skip SDK params already present in backendUrl
+  let targetUrl = backendUrl
+  if (queryString) {
+    try {
+      const backendUrlObj = new URL(backendUrl)
+      const sdkParams = new URLSearchParams(queryString)
+      // Remove params that already exist in the backend URL
+      for (const [key] of backendUrlObj.searchParams) {
+        sdkParams.delete(key)
+      }
+      const remaining = sdkParams.toString()
+      if (remaining) {
+        const separator = backendUrl.includes('?') ? '&' : '?'
+        targetUrl = `${backendUrl}${separator}${remaining}`
+      }
+    } catch {
+      // Fallback: append as-is if URL parsing fails
+      const separator = backendUrl.includes('?') ? '&' : '?'
+      targetUrl = `${backendUrl}${separator}${queryString}`
+    }
+  }
 
   // Override model if specified in config
   // This mutates the parsed object, so rawBody can't be used

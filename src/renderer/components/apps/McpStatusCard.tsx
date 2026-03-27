@@ -19,6 +19,12 @@ import { useAppStore } from '../../stores/app.store'
 import { AppStatusDot } from './AppStatusDot'
 import { useTranslation, getCurrentLanguage } from '../../i18n'
 import { resolveSpecI18n } from '../../utils/spec-i18n'
+import {
+  internalMcpServerToJsonConfig,
+  keyValueLinesToRecord,
+  mcpJsonConfigToInternal,
+  recordToKeyValueLines,
+} from '../../utils/mcpConfigCompat'
 import type { AppStatus } from '../../../shared/apps/app-types'
 import type { McpSpec, McpServerConfig } from '../../../shared/apps/spec-types'
 
@@ -35,6 +41,7 @@ interface EditableConfig {
   command: string   // command (stdio) or URL (sse / streamable-http)
   args: string[]    // only used for stdio
   envText: string   // KEY=VALUE lines
+  headersText: string // KEY=VALUE lines for http/sse headers
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────
@@ -54,38 +61,19 @@ function mcpServerToEditable(mcpServer: McpServerConfig): EditableConfig {
   const transport: Transport = mcpServer.transport ?? 'stdio'
   const command = mcpServer.command ?? ''
   const args: string[] = mcpServer.args ?? []
-  const env: Record<string, string> = mcpServer.env ?? {}
-  const envText = Object.entries(env).map(([k, v]) => `${k}=${v}`).join('\n')
-  return { transport, command, args, envText }
+  const envText = recordToKeyValueLines(mcpServer.env)
+  const headersText = recordToKeyValueLines(mcpServer.headers)
+  return { transport, command, args, envText, headersText }
 }
 
-function editableToMcpServer(edit: EditableConfig): Record<string, unknown> {
-  const env: Record<string, string> = {}
-  for (const line of edit.envText.split('\n')) {
-    const eq = line.indexOf('=')
-    if (eq > 0) {
-      env[line.slice(0, eq).trim()] = line.slice(eq + 1).trim()
-    }
-  }
-  const result: Record<string, unknown> = {
+function editableToMcpServer(edit: EditableConfig): McpServerConfig {
+  return {
     transport: edit.transport,
     command: edit.command.trim(),
+    ...(edit.transport === 'stdio' && edit.args.length > 0 ? { args: edit.args.filter(a => a.trim()) } : {}),
+    ...(keyValueLinesToRecord(edit.envText) ? { env: keyValueLinesToRecord(edit.envText)! } : {}),
+    ...(edit.transport !== 'stdio' && keyValueLinesToRecord(edit.headersText) ? { headers: keyValueLinesToRecord(edit.headersText)! } : {}),
   }
-  if (edit.transport === 'stdio' && edit.args.length > 0) {
-    result.args = edit.args.filter(a => a.trim())
-  }
-  if (Object.keys(env).length > 0) {
-    result.env = env
-  }
-  return result
-}
-
-function validateMcpServer(cfg: Record<string, unknown>): string | null {
-  if (!cfg || typeof cfg !== 'object') return 'Invalid configuration'
-  if (!cfg.command || typeof cfg.command !== 'string' || !cfg.command.trim()) {
-    return 'command is required'
-  }
-  return null
 }
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -150,7 +138,7 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
   // Edit state
   const [isEditing, setIsEditing] = useState(false)
   const [editMode, setEditMode] = useState<'visual' | 'json'>('visual')
-  const [editConfig, setEditConfig] = useState<EditableConfig>({ transport: 'stdio', command: '', args: [], envText: '' })
+  const [editConfig, setEditConfig] = useState<EditableConfig>({ transport: 'stdio', command: '', args: [], envText: '', headersText: '' })
   const [jsonText, setJsonText] = useState('')
   const [jsonError, setJsonError] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
@@ -191,7 +179,7 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
     if (!mcpServer) return
     const cfg = mcpServerToEditable(mcpServer)
     setEditConfig(cfg)
-    setJsonText(JSON.stringify(mcpServer, null, 2))
+    setJsonText(JSON.stringify(internalMcpServerToJsonConfig(mcpServer), null, 2))
     setJsonError(null)
     setHasChanges(false)
     setSaveError(null)
@@ -209,7 +197,7 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
   const updateField = useCallback((field: keyof EditableConfig, value: any) => {
     setEditConfig(prev => {
       const next = { ...prev, [field]: value }
-      setJsonText(JSON.stringify(editableToMcpServer(next), null, 2))
+      setJsonText(JSON.stringify(internalMcpServerToJsonConfig(editableToMcpServer(next)), null, 2))
       setHasChanges(true)
       return next
     })
@@ -219,7 +207,7 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
   const handleTransportChange = useCallback((transport: Transport) => {
     setEditConfig(prev => {
       const next = { ...prev, transport, args: transport === 'stdio' ? prev.args : [] }
-      setJsonText(JSON.stringify(editableToMcpServer(next), null, 2))
+      setJsonText(JSON.stringify(internalMcpServerToJsonConfig(editableToMcpServer(next)), null, 2))
       setHasChanges(true)
       return next
     })
@@ -231,39 +219,43 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
     setHasChanges(true)
     try {
       const parsed = JSON.parse(text)
-      const err = validateMcpServer(parsed)
-      if (err) { setJsonError(err); return }
+      const result = mcpJsonConfigToInternal(parsed)
+      if (result.error) {
+        setJsonError(t(result.error))
+        return
+      }
       setJsonError(null)
-      // Sync back to visual state
-      setEditConfig(mcpServerToEditable(parsed))
+      setEditConfig(mcpServerToEditable(result.data!))
     } catch (e) {
-      setJsonError((e as Error).message)
+      setJsonError(t('Invalid JSON: {{message}}', { message: (e as Error).message }))
     }
-  }, [])
+  }, [t])
 
   // Switch modes — sync JSON → visual and visual → JSON
   const switchMode = (mode: 'visual' | 'json') => {
     if (mode === 'json' && !jsonError) {
-      // Re-serialise from visual state so JSON is up to date
-      setJsonText(JSON.stringify(editableToMcpServer(editConfig), null, 2))
+      setJsonText(JSON.stringify(internalMcpServerToJsonConfig(editableToMcpServer(editConfig)), null, 2))
     }
     setEditMode(mode)
   }
 
   const handleSave = async () => {
-    let serverConfig: Record<string, unknown>
+    let serverConfig: McpServerConfig
     if (editMode === 'json') {
       try {
-        serverConfig = JSON.parse(jsonText)
+        const result = mcpJsonConfigToInternal(JSON.parse(jsonText))
+        if (result.error || !result.data) {
+          setJsonError(t(result.error ?? 'Invalid MCP configuration'))
+          return
+        }
+        serverConfig = result.data
       } catch (e) {
-        setJsonError((e as Error).message)
+        setJsonError(t('Invalid JSON: {{message}}', { message: (e as Error).message }))
         return
       }
     } else {
       serverConfig = editableToMcpServer(editConfig)
     }
-    const err = validateMcpServer(serverConfig)
-    if (err) { setJsonError(err); return }
 
     setIsSaving(true)
     setSaveError(null)
@@ -297,6 +289,7 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
 
   // Env display (masked values for security)
   const envEntries = mcpServer?.env ? Object.entries(mcpServer.env) : []
+  const headerEntries = mcpServer?.headers ? Object.entries(mcpServer.headers) : []
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-5">
@@ -381,12 +374,12 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
                 <span className="text-muted-foreground w-20 flex-shrink-0">{t('Transport')}</span>
                 <span className="text-foreground">{mcpServer.transport ?? 'stdio'}</span>
               </div>
-              <div className="flex gap-2">
-                <span className="text-muted-foreground w-20 flex-shrink-0">
-                  {(mcpServer.transport === 'sse' || mcpServer.transport === 'streamable-http') ? 'URL' : t('Command')}
-                </span>
-                <span className="text-foreground break-all">{mcpServer.command}</span>
-              </div>
+                <div className="flex gap-2">
+                  <span className="text-muted-foreground w-20 flex-shrink-0">
+                    {(mcpServer.transport === 'sse' || mcpServer.transport === 'streamable-http') ? t('URL') : t('Command')}
+                  </span>
+                  <span className="text-foreground break-all">{mcpServer.command}</span>
+                </div>
               {mcpServer.args && (mcpServer.args as string[]).length > 0 && (
                 <div className="flex gap-2">
                   <span className="text-muted-foreground w-20 flex-shrink-0">{t('Args')}</span>
@@ -398,6 +391,18 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
                   <span className="text-muted-foreground w-20 flex-shrink-0">ENV</span>
                   <div className="space-y-0.5">
                     {envEntries.map(([k]) => (
+                      <div key={k} className="text-foreground">
+                        {k}=<span className="text-muted-foreground">{'•'.repeat(8)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {headerEntries.length > 0 && (
+                <div className="flex gap-2">
+                  <span className="text-muted-foreground w-20 flex-shrink-0">{t('Headers')}</span>
+                  <div className="space-y-0.5">
+                    {headerEntries.map(([k]) => (
                       <div key={k} className="text-foreground">
                         {k}=<span className="text-muted-foreground">{'•'.repeat(8)}</span>
                       </div>
@@ -461,9 +466,9 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
 
                     {/* Command / URL */}
                     <div>
-                      <label className="block text-sm font-medium text-muted-foreground mb-1">
-                        {editConfig.transport === 'stdio' ? t('Command') : 'URL'}
-                      </label>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">
+                          {editConfig.transport === 'stdio' ? t('Command') : t('URL')}
+                        </label>
                       <input
                         type="text"
                         value={editConfig.command}
@@ -502,6 +507,23 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
                         className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground text-sm font-mono focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-colors"
                       />
                     </div>
+
+                    {editConfig.transport !== 'stdio' && (
+                      <div>
+                        <label className="block text-sm font-medium text-muted-foreground mb-1">
+                          {t('Headers')}{' '}
+                          <span className="font-normal text-muted-foreground/70">(KEY=VALUE, {t('one per line')})</span>
+                        </label>
+                        <textarea
+                          value={editConfig.headersText}
+                          onChange={e => updateField('headersText', e.target.value)}
+                          rows={3}
+                          spellCheck={false}
+                          placeholder={t('Authorization=Bearer <token>')}
+                          className="w-full px-3 py-2 border border-border rounded-lg bg-input text-foreground text-sm font-mono focus:ring-2 focus:ring-primary focus:border-transparent resize-none transition-colors"
+                        />
+                      </div>
+                    )}
                   </div>
                 ) : (
                   /* JSON mode */

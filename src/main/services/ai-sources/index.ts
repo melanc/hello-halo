@@ -24,3 +24,4 @@ export {
 // Built-in Providers
 export { getCustomProvider, CustomAISourceProvider } from './providers/custom.provider'
 export { getGitHubCopilotProvider, GitHubCopilotProvider } from './providers/github-copilot.provider'
+export { getClaudeProvider, ClaudeProvider } from './providers/claude.provider'

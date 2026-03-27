@@ -70,7 +70,9 @@ export function ChatHistoryPanel() {
   const [panelPosition, setPanelPosition] = useState({ top: 0, left: 0 })
   const panelRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const editContainerRef = useRef<HTMLDivElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
+  const focusedEditingIdRef = useRef<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Calculate panel position when expanded (desktop only)
@@ -127,6 +129,21 @@ export function ChatHistoryPanel() {
     document.addEventListener('click', handleClickOutside)
     return () => document.removeEventListener('click', handleClickOutside)
   }, [menuOpenId])
+
+  useEffect(() => {
+    if (!editingId) {
+      focusedEditingIdRef.current = null
+    }
+  }, [editingId])
+
+  const attachEditInputRef = useCallback((input: HTMLInputElement | null) => {
+    editInputRef.current = input
+    if (!input || !editingId || focusedEditingIdRef.current === editingId) return
+
+    focusedEditingIdRef.current = editingId
+    input.focus()
+    input.select()
+  }, [editingId])
 
   const handleClose = () => {
     // Cancel any editing and close dropdown menu
@@ -191,6 +208,14 @@ export function ChatHistoryPanel() {
     }
   }
 
+  const handleEditBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const nextTarget = e.relatedTarget
+    if (nextTarget instanceof Node && editContainerRef.current?.contains(nextTarget)) {
+      return
+    }
+    handleSaveEdit()
+  }
+
   // Render a single conversation item (used by Virtuoso)
   const renderHistoryItem = useCallback((_index: number, conv: ConversationMeta) => (
     <div
@@ -211,17 +236,14 @@ export function ChatHistoryPanel() {
         <div className="flex-1 min-w-0">
           {/* Title / Preview - with edit mode */}
           {editingId === conv.id ? (
-            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+            <div ref={editContainerRef} className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <input
-                ref={(el) => {
-                  editInputRef.current = el
-                  if (el) { el.focus(); el.select() }
-                }}
+                ref={attachEditInputRef}
                 type="text"
                 value={editingTitle}
                 onChange={(e) => setEditingTitle(e.target.value)}
                 onKeyDown={handleEditKeyDown}
-                onBlur={handleSaveEdit}
+                onBlur={handleEditBlur}
                 className="flex-1 text-sm font-medium bg-input border border-border rounded px-2 py-1 focus:outline-none focus:border-primary"
                 placeholder={t('Enter conversation title...')}
               />

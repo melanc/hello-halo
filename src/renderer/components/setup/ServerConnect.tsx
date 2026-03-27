@@ -44,10 +44,14 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
 
   const scannerRef = useRef<any>(null)
   const scannerContainerRef = useRef<HTMLDivElement>(null)
+  // Tracks whether the component is still mounted; prevents setState calls
+  // on an already-unmounted component after async QR operations complete.
+  const mountedRef = useRef(true)
 
   // Cleanup QR scanner on unmount
   useEffect(() => {
     return () => {
+      mountedRef.current = false
       stopScanner()
     }
   }, [])
@@ -75,24 +79,20 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
     }
   }
 
-  // Try to fetch server name from /api/health endpoint
+  // Try to reach the server and derive a display name from its URL
   const fetchServerName = async (url: string): Promise<string> => {
     try {
-      const response = await fetch(`${url}/api/health`, {
+      // Use the public status endpoint (no auth required) just to confirm reachability.
+      // The status response does not include a server name, so we always fall through
+      // to the URL-based fallback below.
+      await fetch(`${url}/api/remote/status`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(5000)
       })
-      if (response.ok) {
-        const data = await response.json()
-        // Use hostname or name from health response if available
-        if (data.name) return data.name
-        if (data.hostname) return data.hostname
-      }
     } catch {
       // Ignore — we'll use IP/hostname from URL as fallback
     }
-    // Fallback: extract host from URL
+    // Derive display name from URL host
     try {
       const parsed = new URL(url)
       return parsed.hostname
@@ -122,10 +122,9 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
     console.log(`[ServerConnect] Checking server: ${url}`)
 
     try {
-      // Test connectivity by hitting the health endpoint
-      const response = await fetch(`${url}/api/health`, {
+      // Test connectivity via the public status endpoint (no auth required)
+      const response = await fetch(`${url}/api/remote/status`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json' },
         signal: AbortSignal.timeout(10000)
       })
 
@@ -133,17 +132,8 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
         console.log('[ServerConnect] Server reachable, proceeding to auth')
         api.setServerUrl(url)
 
-        // Try to get server name from response
-        try {
-          const data = await response.json()
-          if (data.name || data.hostname) {
-            setServerName(data.name || data.hostname)
-          } else {
-            setServerName(new URL(url).hostname)
-          }
-        } catch {
-          setServerName(new URL(url).hostname)
-        }
+        // Status endpoint does not expose a server name; derive it from the URL host
+        setServerName(new URL(url).hostname)
 
         setStep('auth')
       } else {
@@ -280,8 +270,9 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
     setServerUrl(url)
     api.setServerUrl(url)
 
-    // Fetch server name
+    // Fetch server name — guard every post-await setState against unmount
     const name = await fetchServerName(url)
+    if (!mountedRef.current) return
     setServerName(name)
 
     if (code) {
@@ -292,6 +283,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
 
       try {
         const result = await api.login(code)
+        if (!mountedRef.current) return
         if (result.success) {
           console.log('[ServerConnect] QR auth successful')
           completeConnection(url, code, name)
@@ -300,6 +292,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
           setIsConnecting(false)
         }
       } catch {
+        if (!mountedRef.current) return
         setError(t('Authentication failed'))
         setIsConnecting(false)
       }

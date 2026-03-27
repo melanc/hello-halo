@@ -28,6 +28,7 @@
 import { session } from 'electron'
 import https from 'node:https'
 import http from 'node:http'
+import zlib from 'node:zlib'
 import { ProxyAgent } from 'proxy-agent'
 import { getConfig, onNetworkConfigChange } from './config.service'
 
@@ -265,20 +266,48 @@ function makeRequest(
         }
       }
 
-      // Stream response body so SSE / large responses work correctly
-      const stream = new ReadableStream({
-        start(controller) {
-          res.on('data', (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)))
-          res.on('end', () => controller.close())
-          res.on('error', (err) => controller.error(err))
-        },
-        cancel() {
-          res.destroy()
-        },
-      })
+      // Auto-decompress gzip/deflate/br responses (node:http doesn't do this)
+      // This makes proxied requests behave like globalThis.fetch (undici)
+      const contentEncoding = res.headers['content-encoding']?.toLowerCase()
+      let bodySource: NodeJS.ReadableStream = res
+      if (contentEncoding === 'gzip' || contentEncoding === 'x-gzip') {
+        bodySource = res.pipe(zlib.createGunzip())
+        responseHeaders.delete('content-encoding')
+        responseHeaders.delete('content-length') // length no longer valid after decompression
+      } else if (contentEncoding === 'deflate') {
+        bodySource = res.pipe(zlib.createInflate())
+        responseHeaders.delete('content-encoding')
+        responseHeaders.delete('content-length')
+      } else if (contentEncoding === 'br') {
+        bodySource = res.pipe(zlib.createBrotliDecompress())
+        responseHeaders.delete('content-encoding')
+        responseHeaders.delete('content-length')
+      }
 
-      resolve(new Response(stream, {
-        status: res.statusCode ?? 200,
+      const statusCode = res.statusCode ?? 200
+      // 101, 204, 205, 304 are null body statuses per Fetch spec —
+      // Response constructor throws if body is non-null for these.
+      const nullBodyStatus = [101, 204, 205, 304].includes(statusCode)
+
+      let body: ReadableStream | null = null
+      if (!nullBodyStatus) {
+        // Stream response body so SSE / large responses work correctly
+        body = new ReadableStream({
+          start(controller) {
+            bodySource.on('data', (chunk: Buffer) => controller.enqueue(new Uint8Array(chunk)))
+            bodySource.on('end', () => controller.close())
+            bodySource.on('error', (err) => controller.error(err))
+          },
+          cancel() {
+            res.destroy()
+          },
+        })
+      } else {
+        res.resume()
+      }
+
+      resolve(new Response(body, {
+        status: statusCode,
         statusText: res.statusMessage ?? '',
         headers: responseHeaders,
       }))

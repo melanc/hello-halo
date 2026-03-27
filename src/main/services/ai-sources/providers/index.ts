@@ -6,3 +6,4 @@
  */
 
 export { CustomAISourceProvider, getCustomProvider } from './custom.provider'
+export { ClaudeProvider, getClaudeProvider } from './claude.provider'

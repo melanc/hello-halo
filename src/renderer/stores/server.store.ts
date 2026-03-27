@@ -9,6 +9,7 @@
  */
 
 import { create } from 'zustand'
+import { setActiveServerUrl, setAuthToken } from '../api/transport'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -17,7 +18,7 @@ import { create } from 'zustand'
 export interface ServerEntry {
   /** Unique identifier (nanoid-style short id) */
   id: string
-  /** User-visible name, e.g. "Office Mac Mini" or hostname from /api/health */
+  /** User-visible name, e.g. "Office Mac Mini" or hostname derived from server URL */
   name: string
   /** Server base URL, e.g. "http://192.168.1.10:3456" */
   url: string
@@ -134,6 +135,8 @@ export const useServerStore = create<ServerStore>((set, get) => ({
       set({ servers: updated, activeId: existing.id })
       persistServers(updated)
       persistActiveId(existing.id)
+      setActiveServerUrl(existing.url)
+      setAuthToken(entry.token)
       return { ...existing, name: entry.name, token: entry.token }
     }
 
@@ -141,16 +144,20 @@ export const useServerStore = create<ServerStore>((set, get) => ({
     set({ servers: updated, activeId: newEntry.id })
     persistServers(updated)
     persistActiveId(newEntry.id)
+    setActiveServerUrl(newEntry.url)
+    setAuthToken(newEntry.token)
     console.log(`[ServerStore] Added server: ${newEntry.name} (${newEntry.url}), id=${newEntry.id}`)
     return newEntry
   },
 
   removeServer: (id) => {
     const updated = get().servers.filter(s => s.id !== id)
-    const newActiveId = get().activeId === id ? null : get().activeId
+    const wasActive = get().activeId === id
+    const newActiveId = wasActive ? null : get().activeId
     set({ servers: updated, activeId: newActiveId })
     persistServers(updated)
     persistActiveId(newActiveId)
+    if (wasActive) setActiveServerUrl(null)
     console.log(`[ServerStore] Removed server: ${id}`)
   },
 
@@ -162,12 +169,15 @@ export const useServerStore = create<ServerStore>((set, get) => ({
     }
     set({ activeId: id })
     persistActiveId(id)
+    setActiveServerUrl(server.url)
+    setAuthToken(server.token)
     console.log(`[ServerStore] Activated server: ${server.name} (${server.url})`)
   },
 
   clearActive: () => {
     set({ activeId: null })
     persistActiveId(null)
+    setActiveServerUrl(null)
     console.log('[ServerStore] Cleared active server')
   },
 
@@ -189,9 +199,12 @@ export const useServerStore = create<ServerStore>((set, get) => ({
   hydrate: () => {
     const servers = loadServers()
     const activeId = loadActiveId()
-    // Validate activeId still exists in list
     const validActiveId = servers.some(s => s.id === activeId) ? activeId : null
     set({ servers, activeId: validActiveId })
+    // Push active server URL + token to transport layer
+    const active = validActiveId ? servers.find(s => s.id === validActiveId) ?? null : null
+    setActiveServerUrl(active?.url ?? null)
+    if (active) setAuthToken(active.token)
     console.log(`[ServerStore] Hydrated: ${servers.length} servers, active=${validActiveId}`)
   },
 }))

@@ -408,6 +408,24 @@ export const BUILTIN_PROVIDERS: BuiltinProvider[] = [
     region: 'global',
     icon: 'github'
   },
+  {
+    id: 'claude',
+    name: 'Claude (OAuth)',
+    authType: 'oauth',
+    apiUrl: 'https://api.anthropic.com',
+    models: [
+      { id: 'claude-opus-4-6', name: 'Claude Opus 4.6' },
+      { id: 'claude-opus-4-5-20251101', name: 'Claude Opus 4.5' },
+      { id: 'claude-sonnet-4-6', name: 'Claude Sonnet 4.6' },
+      { id: 'claude-sonnet-4-5-20250929', name: 'Claude Sonnet 4.5' },
+      { id: 'claude-haiku-4-5-20251001', name: 'Claude Haiku 4.5' }
+    ],
+    description: 'Login with Claude.ai account (Pro/Max subscription)',
+    website: 'https://claude.ai/',
+    region: 'global',
+    icon: 'brain',
+    notes: 'Uses OAuth PKCE flow. Requires anthropic-beta: oauth-2025-04-20 header. Tool names must be prefixed with mcp_'
+  },
 ]
 
 // ============================================================================

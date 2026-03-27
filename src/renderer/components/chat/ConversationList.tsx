@@ -70,7 +70,9 @@ export const ConversationList = memo(function ConversationList({
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null)
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
+  const editContainerRef = useRef<HTMLDivElement>(null)
   const editInputRef = useRef<HTMLInputElement>(null)
+  const focusedEditingIdRef = useRef<string | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
 
   // Handle drag resize
@@ -131,12 +133,19 @@ export const ConversationList = memo(function ConversationList({
     setMenuPosition(null)
   }, [conversations])
 
-  // Focus and select all text when entering edit mode (only once on mount)
   useEffect(() => {
-    if (editingId && editInputRef.current) {
-      editInputRef.current.focus()
-      editInputRef.current.select()
+    if (!editingId) {
+      focusedEditingIdRef.current = null
     }
+  }, [editingId])
+
+  const attachEditInputRef = useCallback((input: HTMLInputElement | null) => {
+    editInputRef.current = input
+    if (!input || !editingId || focusedEditingIdRef.current === editingId) return
+
+    focusedEditingIdRef.current = editingId
+    input.focus()
+    input.select()
   }, [editingId])
 
   // Format date
@@ -188,6 +197,14 @@ export const ConversationList = memo(function ConversationList({
     }
   }
 
+  const handleEditBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    const nextTarget = e.relatedTarget
+    if (nextTarget instanceof Node && editContainerRef.current?.contains(nextTarget)) {
+      return
+    }
+    handleSaveEdit()
+  }
+
   // Render a single conversation item (used by Virtuoso)
   const renderConversationItem = useCallback((conversation: ConversationMeta) => (
     <div
@@ -198,14 +215,14 @@ export const ConversationList = memo(function ConversationList({
     >
       {/* Edit mode */}
       {editingId === conversation.id ? (
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <div ref={editContainerRef} className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
           <input
-            ref={editInputRef}
+            ref={attachEditInputRef}
             type="text"
             value={editingTitle}
             onChange={(e) => setEditingTitle(e.target.value)}
             onKeyDown={handleEditKeyDown}
-            onBlur={handleSaveEdit}
+            onBlur={handleEditBlur}
             className="flex-1 text-sm bg-input border border-border rounded px-2 py-1 focus:outline-none focus:border-primary min-w-0"
             placeholder={t('Conversation title...')}
           />

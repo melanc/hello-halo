@@ -384,6 +384,9 @@ export function getDbMcpServers(spaceId: string): Record<string, unknown> | null
     if (Object.keys(mergedEnv).length > 0) {
       serverConfig.env = mergedEnv
     }
+    if (mcpServer.headers && Object.keys(mcpServer.headers).length > 0) {
+      serverConfig.headers = mcpServer.headers
+    }
 
     servers[app.specId] = serverConfig
   }
@@ -459,10 +462,12 @@ export function getMcpServersForRequires(
     if (Object.keys(mergedEnv).length > 0) {
       serverConfig.env = mergedEnv
     }
+    if (mcpServer.headers && Object.keys(mcpServer.headers).length > 0) {
+      serverConfig.headers = mcpServer.headers
+    }
 
     result[app.specId] = serverConfig
   }
 
   return result
 }
-

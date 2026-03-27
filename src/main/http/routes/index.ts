@@ -29,7 +29,7 @@ import { getTempSpacePath, getSpacesDir, getConfig as getServiceConfig } from '.
 import { getSpace, getAllSpacePaths } from '../../services/space.service'
 import { getAppManager } from '../../apps/manager'
 import { getAppRuntime, sendAppChatMessage, stopAppChat, isAppChatGenerating, loadAppChatMessages, getAppChatSessionState, getAppChatConversationId } from '../../apps/runtime'
-import type { AppListFilter, UninstallOptions } from '../../apps/manager'
+import type { AppListFilter, UninstallOptions, InstalledApp } from '../../apps/manager'
 import type { ActivityQueryOptions, EscalationResponse, AppChatRequest } from '../../apps/runtime'
 import { readSessionMessages } from '../../apps/runtime/session-store'
 import { broadcastToAll } from '../websocket'
@@ -1067,6 +1067,29 @@ export function registerApiRoutes(app: Express): void {
       const config = req.body as Record<string, unknown>
       manager.updateConfig(appId, config)
       console.log('[HTTP] POST /api/apps/%s/config', appId)
+      res.json({ success: true })
+    } catch (error) {
+      res.json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // PATCH /api/apps/:appId/overrides — update user overrides (JSON Merge Patch semantics)
+  // `null` values delete the corresponding key from the stored overrides object.
+  // This mirrors the IPC `app:update-overrides` handler. The null-delete convention is
+  // required because JSON serialization strips `undefined`, so the client sends `null`
+  // to signal "clear this field" (e.g. reset per-app model to follow global).
+  app.patch('/api/apps/:appId/overrides', async (req: Request, res: Response) => {
+    try {
+      const { appId } = req.params
+      if (!appId) {
+        res.status(400).json({ success: false, error: 'Missing appId' })
+        return
+      }
+      const manager = getManagerOrFail(res)
+      if (!manager) return
+      const patch = req.body as Record<string, unknown>
+      manager.updateOverrides(appId, patch as InstalledApp['userOverrides'])
+      console.log('[HTTP] PATCH /api/apps/%s/overrides', appId)
       res.json({ success: true })
     } catch (error) {
       res.json({ success: false, error: (error as Error).message })

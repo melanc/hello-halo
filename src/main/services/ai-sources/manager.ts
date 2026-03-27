@@ -40,6 +40,7 @@ import { getBuiltinProvider, isAnthropicProvider, isBuiltinProvider } from '../.
 import { getConfig, saveConfig } from '../config.service'
 import { getCustomProvider } from './providers/custom.provider'
 import { getGitHubCopilotProvider } from './providers/github-copilot.provider'
+import { getClaudeProvider } from './providers/claude.provider'
 import { loadAuthProvidersAsync, loadProductConfig } from './auth-loader'
 import { decryptString } from '../secure-storage.service'
 import { normalizeApiUrl } from '../../openai-compat-router'
@@ -78,6 +79,7 @@ class AISourceManager {
     // Register built-in providers immediately
     this.registerProvider(getCustomProvider())
     this.registerProvider(getGitHubCopilotProvider())
+    this.registerProvider(getClaudeProvider())
 
     // Sync saved sources' model lists with current BUILTIN_PROVIDERS
     this.syncBuiltinModels()
