@@ -7,8 +7,10 @@ const config: CapacitorConfig = {
   webDir: 'dist-mobile',
   // Server configuration: load from local assets (not a remote URL)
   server: {
-    // Allow mixed content for connecting to HTTP servers on LAN
-    androidScheme: 'https',
+    // Use http scheme to avoid mixed-content CORS preflight failures on Android WebView.
+    // With 'https', POST requests (which trigger OPTIONS preflight) to http:// LAN servers
+    // are intermittently blocked by Android WebView's mixed-content policy.
+    androidScheme: 'http',
     // Allow navigation to any origin (needed for WebSocket connections)
     allowNavigation: ['*']
   },

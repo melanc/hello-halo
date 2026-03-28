@@ -320,6 +320,56 @@ export function buildSdkEnv(params: SdkEnvParams): Record<string, string | numbe
 }
 
 // ============================================
+// Claude Code CLI Path Resolution
+// ============================================
+
+const CLI_RELATIVE = 'node_modules/@anthropic-ai/claude-code/cli.js'
+
+/**
+ * Resolve the path to the Claude Code CLI executable.
+ *
+ * Three runtime environments need to be handled:
+ *
+ * 1. **Packaged** (`app.isPackaged === true`): electron-builder bundles node_modules
+ *    alongside app.asar. `app.getAppPath()` returns the asar root, so the CLI is
+ *    always at `<appPath>/node_modules/...`. This path is guaranteed to exist.
+ *
+ * 2. **Dev** (`npm run dev`): Vite runs the main process from the project root.
+ *    `app.getAppPath()` returns the project root, so the CLI is at
+ *    `<projectRoot>/node_modules/...`.
+ *
+ * 3. **Built but unpackaged** (`npm run build` + run `out/main/index.mjs`, i.e. E2E):
+ *    Electron resolves `app.getAppPath()` to `out/main/` (the entry file's directory),
+ *    which has no `node_modules`. The CLI must be found at the project root instead.
+ *
+ * Using `app.isPackaged` cleanly separates case 1 from 2/3. For the unpackaged cases,
+ * `existsSync` picks whichever candidate path actually exists, covering both dev and E2E
+ * without any hardcoded relative-path assumptions.
+ */
+function resolveClaudeCodeCliPath(): string {
+  if (app.isPackaged) {
+    // Packaged: node_modules is bundled inside the asar alongside the app
+    return path.join(app.getAppPath(), CLI_RELATIVE)
+  }
+
+  // Unpackaged (dev or E2E build): search candidate locations
+  const candidates = [
+    // Dev mode: app.getAppPath() === project root
+    path.join(app.getAppPath(), CLI_RELATIVE),
+    // E2E build mode: app.getAppPath() === out/main/, project root is two levels up
+    path.join(app.getAppPath(), '..', '..', CLI_RELATIVE),
+  ]
+
+  const resolved = candidates.find(existsSync)
+  if (!resolved) {
+    throw new Error(
+      `[SDK Config] Claude Code CLI not found. Searched:\n${candidates.join('\n')}`
+    )
+  }
+  return resolved
+}
+
+// ============================================
 // SDK Options Builder
 // ============================================
 
@@ -352,16 +402,15 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     anthropicBaseUrl: credentials.anthropicBaseUrl
   })
 
+  const cliPath = resolveClaudeCodeCliPath()
+
   // Build base options
   const sdkOptions: Record<string, any> = {
     model: credentials.sdkModel,
     cwd: workDir,
     abortController,
     env,
-    // CRITICAL FIX: Use claude-code/cli.js instead of SDK's bundled CLI
-    // SDK's bundled CLI has a bug where skills without user-invocable: true return empty
-    // Use app.getAppPath() to get reliable path to node_modules
-    pathToClaudeCodeExecutable: path.join(app.getAppPath(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+    pathToClaudeCodeExecutable: cliPath,
     extraArgs: {
       'dangerously-skip-permissions': null
     },

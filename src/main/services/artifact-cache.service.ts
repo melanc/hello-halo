@@ -79,6 +79,8 @@ interface SpaceCache {
   loadedDirs: Set<string>
   // Last update timestamp
   lastUpdate: number
+  // Maximum depth used for the last flat scan (for cache invalidation)
+  cachedMaxDepth: number
   // Whether watcher has been requested for this space
   watcherInitialized: boolean
 }
@@ -356,6 +358,7 @@ export async function initSpaceCache(spaceId: string, rootPath: string): Promise
     treeNodes: new Map(),
     loadedDirs: new Set(),
     lastUpdate: Date.now(),
+    cachedMaxDepth: 0,
     watcherInitialized: false
   }
 
@@ -428,10 +431,10 @@ export async function listArtifacts(
 
   const cache = cacheMap.get(spaceId)!
 
-  // If cache is fresh (within 5 seconds), return cached items
+  // If cache is fresh (within 5 seconds) AND was scanned at sufficient depth, return cached
   const now = Date.now()
-  if (cache.flatItems.size > 0 && now - cache.lastUpdate < 5000) {
-    console.debug(`[ArtifactCache] Returning cached ${cache.flatItems.size} items`)
+  if (cache.flatItems.size > 0 && now - cache.lastUpdate < 5000 && cache.cachedMaxDepth >= maxDepth) {
+    console.debug(`[ArtifactCache] Returning cached ${cache.flatItems.size} items (depth=${cache.cachedMaxDepth}, requested=${maxDepth})`)
     return Array.from(cache.flatItems.values())
       .sort((a, b) => sortByName(a, b))
   }
@@ -439,12 +442,13 @@ export async function listArtifacts(
   // Scan via worker process
   const artifacts = await scanFlatViaWorker(spaceId, rootPath, rootPath, maxDepth)
 
-  // Update cache
+  // Update cache (track maxDepth for invalidation)
   cache.flatItems.clear()
   for (const artifact of artifacts) {
     cache.flatItems.set(artifact.path, artifact)
   }
   cache.lastUpdate = now
+  cache.cachedMaxDepth = maxDepth
 
   return artifacts.sort((a, b) => sortByName(a, b))
 }
@@ -580,6 +584,7 @@ export async function refreshCache(spaceId: string, rootPath: string): Promise<v
     cache.treeNodes.clear()
     cache.loadedDirs.clear()
     cache.lastUpdate = 0
+    cache.cachedMaxDepth = 0
   }
 }
 

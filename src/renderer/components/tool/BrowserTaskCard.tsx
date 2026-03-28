@@ -39,6 +39,9 @@ interface BrowserTaskCardProps {
   browserToolCalls: ToolCall[]
   /** Whether currently executing */
   isActive: boolean
+  /** Whether to show the "View live feed" button (default: true).
+   *  Set to false in contexts where the Canvas/BrowserView is not available (e.g. automation apps). */
+  showViewButton?: boolean
 }
 
 interface BrowserStep {
@@ -165,7 +168,7 @@ function StepItem({ step, isLatest }: { step: BrowserStep; isLatest: boolean }) 
 // Main Component
 // ============================================
 
-export function BrowserTaskCard({ browserToolCalls, isActive }: BrowserTaskCardProps) {
+export function BrowserTaskCard({ browserToolCalls, isActive, showViewButton = true }: BrowserTaskCardProps) {
   const [isExpanded, setIsExpanded] = useState(true)
   const attachAIBrowserView = useCanvasStore(state => state.attachAIBrowserView)
   const openUrl = useCanvasStore(state => state.openUrl)
@@ -364,23 +367,25 @@ export function BrowserTaskCard({ browserToolCalls, isActive }: BrowserTaskCardP
             )}
           </div>
 
-          {/* View button */}
-          <button
-            onClick={handleViewLive}
-            disabled={!currentUrl}
-            className={`
-              flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium
-              transition-all duration-200
-              ${currentUrl
-                ? 'bg-primary/20 text-primary hover:bg-primary/30 hover:scale-[1.02] active:scale-[0.98]'
-                : 'bg-muted/30 text-muted-foreground cursor-not-allowed'
-              }
-            `}
-          >
-            <Eye size={14} />
-            <span>{t('View live feed')}</span>
-            <Maximize2 size={12} className="opacity-50" />
-          </button>
+          {/* View button — hidden in contexts without Canvas/BrowserView (e.g. automation apps) */}
+          {showViewButton && (
+            <button
+              onClick={handleViewLive}
+              disabled={!currentUrl}
+              className={`
+                flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium
+                transition-all duration-200
+                ${currentUrl
+                  ? 'bg-primary/20 text-primary hover:bg-primary/30 hover:scale-[1.02] active:scale-[0.98]'
+                  : 'bg-muted/30 text-muted-foreground cursor-not-allowed'
+                }
+              `}
+            >
+              <Eye size={14} />
+              <span>{t('View live feed')}</span>
+              <Maximize2 size={12} className="opacity-50" />
+            </button>
+          )}
         </div>
       </div>
     </div>

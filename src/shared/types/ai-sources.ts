@@ -67,6 +67,8 @@ export type BuiltinProviderId =
   | 'zhipu'
   | 'minimax'
   | 'minimax-global'
+  | 'minimax-token-plan'
+  | 'minimax-token-plan-global'
   | 'yi'
   | 'stepfun'
   | 'openrouter'

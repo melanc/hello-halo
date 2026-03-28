@@ -278,7 +278,7 @@ export function ProviderSelector({
       const validationResponse = await api.validateApi(
         apiKey,
         apiUrl,
-        isAnthropicProvider(selectedProvider) ? 'anthropic' : 'openai',
+        (isAnthropicProvider(selectedProvider) || currentProvider?.apiType === 'anthropic_passthrough') ? 'anthropic' : 'openai',
         finalModel
       )
 

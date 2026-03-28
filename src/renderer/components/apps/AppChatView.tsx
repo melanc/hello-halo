@@ -300,6 +300,7 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps) {
                         message={message}
                         hideThoughts
                         isInContainer
+                        hideBrowserViewButton
                       />
                     )}
                   </div>
@@ -309,7 +310,7 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps) {
 
             return (
               <div key={message.id} className="pb-4">
-                <MessageItem message={message} />
+                <MessageItem message={message} hideBrowserViewButton />
               </div>
             )
           })}
@@ -329,6 +330,7 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps) {
                     <BrowserTaskCard
                       browserToolCalls={streamingBrowserToolCalls}
                       isActive={isThinking}
+                      showViewButton={false}
                     />
                   </div>
                 )}

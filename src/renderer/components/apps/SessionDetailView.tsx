@@ -181,6 +181,7 @@ export function SessionDetailView({ appId, runId }: SessionDetailViewProps) {
                       message={message}
                       hideThoughts
                       isInContainer
+                      hideBrowserViewButton
                     />
                   )}
                 </div>
@@ -191,7 +192,7 @@ export function SessionDetailView({ appId, runId }: SessionDetailViewProps) {
           // Regular messages (user or assistant without thoughts)
           return (
             <div key={message.id} className="pb-4">
-              <MessageItem message={message} />
+              <MessageItem message={message} hideBrowserViewButton />
             </div>
           )
         })}

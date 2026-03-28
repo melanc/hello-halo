@@ -11,6 +11,7 @@
  */
 
 import { test, expect, hasApiKey } from '../fixtures/electron'
+import { navigateToChat } from '../fixtures/helpers'
 
 // Skip all chat tests if no API key is configured
 test.beforeEach(async ({}, testInfo) => {
@@ -18,37 +19,6 @@ test.beforeEach(async ({}, testInfo) => {
     testInfo.skip(true, 'Skipping chat tests: HALO_TEST_API_KEY not set')
   }
 })
-
-/**
- * Helper to navigate from Home Page to Chat Interface
- * The app shows Home Page first, need to click "进入 Halo" to get to chat
- */
-async function navigateToChat(window: any) {
-  await window.waitForSelector('#root', { timeout: 10000 })
-  await window.waitForLoadState('networkidle')
-
-  // Look for "进入 Halo" text button (the main Halo temp space card)
-  // Try multiple approaches
-  let enterHalo = await window.waitForSelector(
-    'text=/进入 Halo/',
-    { timeout: 5000 }
-  ).catch(() => null)
-
-  if (!enterHalo) {
-    // Fallback: look for any element with "Halo" text that's clickable
-    enterHalo = await window.waitForSelector(
-      ':text("Halo"):visible',
-      { timeout: 5000 }
-    ).catch(() => null)
-  }
-
-  if (enterHalo) {
-    await enterHalo.click()
-  }
-
-  // Wait for chat interface to load (textarea should appear)
-  await window.waitForSelector('textarea', { timeout: 10000 })
-}
 
 test.describe('Chat Interface', () => {
   test('chat input is visible and functional', async ({ window }) => {
@@ -236,24 +206,26 @@ test.describe('Switch Provider and Chat', () => {
   test('switch to tencent provider, select GLM-5.0, and chat', async ({ window }) => {
     await navigateToChat(window)
 
-    // Open ModelSelector dropdown (click the button with ChevronDown in header)
-    const modelSelectorBtn = await window.waitForSelector(
-      'button:has(svg.lucide-chevron-down):near(svg.lucide-sparkles)',
-      { timeout: 5000 }
-    ).catch(() => null)
-
-    // Fallback: find the model selector button by its truncated model name text area
-    const selectorBtn = modelSelectorBtn || await window.waitForSelector(
-      'button:has(.lucide-chevron-down)',
-      { timeout: 5000 }
-    )
-    await selectorBtn.click()
+    // Open ModelSelector dropdown
+    // The model selector button shows the current model name (e.g., "DeepSeek V3.2")
+    // and is distinct from the SpaceSelector which shows "Halo ∧"
+    // Use evaluate to find the right button by looking for the model name pattern
+    await window.evaluate(() => {
+      const buttons = document.querySelectorAll('button')
+      for (const btn of buttons) {
+        const text = btn.textContent || ''
+        // Model selector shows model names like "DeepSeek V3.2", "GPT-4", etc.
+        if (text.match(/DeepSeek|GPT|Claude|GLM|kimi|gpt|Qwen|deepseek/i) && btn.querySelector('svg')) {
+          btn.click()
+          break
+        }
+      }
+    })
 
     // Wait for dropdown to appear
     await window.waitForTimeout(500)
 
     // Click on the "tencent" source section to expand it
-    // The source name is rendered as a span inside the accordion header
     const tencentSection = await window.waitForSelector(
       'text="tencent"',
       { timeout: 5000 }

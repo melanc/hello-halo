@@ -40,6 +40,7 @@ interface MessageItemProps {
   isInContainer?: boolean
   isWorking?: boolean  // True when AI is still generating (not yet complete)
   isWaitingMore?: boolean  // True when content paused (e.g., during tool call), show "..." animation
+  hideBrowserViewButton?: boolean  // Hide the "View live feed" button in BrowserTaskCard (e.g. in automation app context)
 }
 
 // Collapsible thought history component
@@ -234,7 +235,7 @@ function ThoughtItem({ thought }: { thought: Thought }) {
   )
 }
 
-export const MessageItem = memo(function MessageItem({ message, previousCost = 0, hideThoughts = false, isInContainer = false, isWorking = false, isWaitingMore = false }: MessageItemProps) {
+export const MessageItem = memo(function MessageItem({ message, previousCost = 0, hideThoughts = false, isInContainer = false, isWorking = false, isWaitingMore = false, hideBrowserViewButton = false }: MessageItemProps) {
   const isUser = message.role === 'user'
   const isStreaming = (message as any).isStreaming
   const [copied, setCopied] = useState(false)
@@ -357,6 +358,7 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
         <BrowserTaskCard
           browserToolCalls={browserToolCalls}
           isActive={isWorking || hasBrowserActivity}
+          showViewButton={!hideBrowserViewButton}
         />
       )}
 

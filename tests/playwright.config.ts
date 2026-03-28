@@ -83,6 +83,34 @@ export default defineConfig({
       }
     },
     {
+      name: 'navigation',
+      testMatch: '**/navigation.spec.ts',
+      use: {
+        actionTimeout: 10000
+      }
+    },
+    {
+      name: 'spaces',
+      testMatch: '**/spaces.spec.ts',
+      use: {
+        actionTimeout: 10000
+      }
+    },
+    {
+      name: 'settings',
+      testMatch: '**/settings.spec.ts',
+      use: {
+        actionTimeout: 10000
+      }
+    },
+    {
+      name: 'apps',
+      testMatch: '**/apps.spec.ts',
+      use: {
+        actionTimeout: 10000
+      }
+    },
+    {
       name: 'chat',
       testMatch: '**/chat.spec.ts',
       use: {

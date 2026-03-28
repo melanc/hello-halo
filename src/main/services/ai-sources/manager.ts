@@ -205,13 +205,15 @@ class AISourceManager {
 
     // API Key: build config directly
     const isAnthropic = isAnthropicProvider(source.provider)
+    const isAnthropicPassthrough = source.apiType === 'anthropic_passthrough'
 
     // Normalize URL: ensure protocol prefix, then apply provider-specific normalization
+    // Skip OpenAI normalization for native Anthropic and anthropic_passthrough providers
     let normalizedUrl = source.apiUrl
     if (normalizedUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(normalizedUrl)) {
       normalizedUrl = `http://${normalizedUrl}`
     }
-    normalizedUrl = isAnthropic
+    normalizedUrl = (isAnthropic || isAnthropicPassthrough)
       ? normalizedUrl
       : normalizeApiUrl(normalizedUrl, 'openai')
 
@@ -304,11 +306,12 @@ class AISourceManager {
 
     // API Key: build config directly
     const isAnthropic = isAnthropicProvider(source.provider)
+    const isAnthropicPassthrough = source.apiType === 'anthropic_passthrough'
     let normalizedUrl = source.apiUrl
     if (normalizedUrl && !/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\//.test(normalizedUrl)) {
       normalizedUrl = `http://${normalizedUrl}`
     }
-    normalizedUrl = isAnthropic
+    normalizedUrl = (isAnthropic || isAnthropicPassthrough)
       ? normalizedUrl
       : normalizeApiUrl(normalizedUrl, 'openai')
 

@@ -623,7 +623,7 @@ export function createAppRuntimeService(deps: AppRuntimeDeps): AppRuntimeService
     sub: SubscriptionDef,
     index: number
   ): SchedulerJobCreate | null {
-    const subId = sub.id || `sub-${index}`
+    const subId = sub.id ?? String(index)
 
     if (sub.source.type === 'schedule') {
       const config = sub.source.config

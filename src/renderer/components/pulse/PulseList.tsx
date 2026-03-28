@@ -69,7 +69,7 @@ interface PulseListProps {
   compact?: boolean
 }
 
-export function PulseList({ maxHeight = '360px', onItemClick, compact = false }: PulseListProps) {
+export function PulseList({ maxHeight, onItemClick, compact = false }: PulseListProps) {
   const { t } = useTranslation()
   const rawItems = usePulseItems()
   const haloSpace = useSpaceStore(state => state.haloSpace)
@@ -165,7 +165,7 @@ export function PulseList({ maxHeight = '360px', onItemClick, compact = false }:
   }
 
   return (
-    <div className="overflow-auto scrollbar-thin" style={{ maxHeight }}>
+    <div className="overflow-auto scrollbar-thin" style={maxHeight ? { maxHeight } : undefined}>
       {/* Active items */}
       {activeItems.length > 0 && (
         <div className="py-1">

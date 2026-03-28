@@ -6,51 +6,7 @@
  */
 
 import { test, expect } from '../fixtures/electron'
-
-/**
- * Helper to click the remote access toggle
- * Uses JavaScript evaluation to find the correct toggle
- */
-async function clickRemoteToggle(window: any) {
-  await window.evaluate(() => {
-    // Find the text "启用远程访问" and then find the nearby toggle
-    const labels = document.querySelectorAll('label')
-    for (const label of labels) {
-      const checkbox = label.querySelector('input[type="checkbox"]')
-      if (checkbox) {
-        // Check if this label is near the "启用远程访问" text
-        const parent = label.closest('div')
-        if (parent && parent.textContent?.includes('启用远程访问')) {
-          label.click()
-          break
-        }
-      }
-    }
-  })
-}
-
-/**
- * Helper to navigate to settings and scroll to remote section
- */
-async function navigateToRemoteSettings(window: any) {
-  await window.waitForSelector('#root', { timeout: 10000 })
-  await window.waitForLoadState('networkidle')
-
-  // Navigate to settings
-  const settingsButton = await window.waitForSelector(
-    'button:has(svg)',
-    { timeout: 10000 }
-  )
-  await settingsButton.click()
-  await window.waitForTimeout(500)
-
-  // Scroll down to find remote access section
-  await window.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-  await window.waitForTimeout(500)
-
-  // Wait for remote access section
-  await window.waitForSelector('text=/远程访问/i', { timeout: 10000 })
-}
+import { navigateToRemoteSettings, clickRemoteToggle } from '../fixtures/helpers'
 
 test.describe('Remote Access', () => {
   // Increase timeout for remote operations

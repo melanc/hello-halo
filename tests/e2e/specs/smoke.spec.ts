@@ -6,71 +6,11 @@
  */
 
 import { test, expect, hasApiKey } from '../fixtures/electron'
-
-/**
- * Helper to navigate from Home Page to Chat Interface
- */
-async function navigateToChat(window: any) {
-  await window.waitForSelector('#root', { timeout: 10000 })
-  await window.waitForLoadState('networkidle')
-
-  // Look for "Enter Halo" or "进入 Halo" text button (supports both EN and CN)
-  let enterHalo = await window.waitForSelector(
-    'text=/Enter Halo|进入 Halo/i',
-    { timeout: 5000 }
-  ).catch(() => null)
-
-  if (!enterHalo) {
-    enterHalo = await window.waitForSelector(
-      ':text("Halo"):visible',
-      { timeout: 5000 }
-    ).catch(() => null)
-  }
-
-  if (enterHalo) {
-    await enterHalo.click()
-  }
-
-  await window.waitForSelector('textarea', { timeout: 10000 })
-}
-
-/**
- * Helper to navigate to settings and find remote section
- */
-async function navigateToRemoteSettings(window: any) {
-  await window.waitForSelector('#root', { timeout: 10000 })
-  await window.waitForLoadState('networkidle')
-
-  const settingsButton = await window.waitForSelector('button:has(svg)', { timeout: 10000 })
-  await settingsButton.click()
-  await window.waitForTimeout(500)
-
-  await window.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
-  await window.waitForTimeout(500)
-
-  // Support both EN and CN: "Remote Access" or "远程访问"
-  await window.waitForSelector('text=/Remote Access|远程访问/i', { timeout: 10000 })
-}
-
-/**
- * Helper to click the remote access toggle
- */
-async function clickRemoteToggle(window: any) {
-  await window.evaluate(() => {
-    const labels = document.querySelectorAll('label')
-    for (const label of labels) {
-      const checkbox = label.querySelector('input[type="checkbox"]')
-      if (checkbox) {
-        const parent = label.closest('div')
-        // Support both EN and CN: "Enable Remote Access" or "启用远程访问"
-        if (parent && (parent.textContent?.includes('启用远程访问') || parent.textContent?.includes('Enable Remote Access'))) {
-          label.click()
-          break
-        }
-      }
-    }
-  })
-}
+import {
+  navigateToChat,
+  navigateToRemoteSettings,
+  clickRemoteToggle
+} from '../fixtures/helpers'
 
 test.describe('Smoke Tests', () => {
   test('application launches successfully', async ({ electronApp }) => {

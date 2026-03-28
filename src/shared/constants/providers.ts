@@ -29,8 +29,8 @@ export interface BuiltinProvider {
   authType: AuthType
   /** Default API endpoint URL (base URL) */
   apiUrl: string
-  /** API type for OpenAI compatible (default: chat_completions) */
-  apiType?: 'chat_completions' | 'responses'
+  /** API type (default: chat_completions). Use 'anthropic_passthrough' for Anthropic-compatible endpoints */
+  apiType?: 'chat_completions' | 'responses' | 'anthropic_passthrough'
   /** Models list endpoint (for dynamic fetching) */
   modelsUrl?: string
   /** Pre-configured model list */
@@ -212,6 +212,7 @@ export const BUILTIN_PROVIDERS: BuiltinProvider[] = [
     apiUrl: 'https://api.minimaxi.com/v1',
     modelsUrl: 'https://api.minimaxi.com/v1/models',
     models: [
+      { id: 'MiniMax-M2.7', name: 'MiniMax M2.7' },
       { id: 'MiniMax-M2.1', name: 'MiniMax M2.1' },
       { id: 'MiniMax-M1', name: 'MiniMax M1' }
     ],
@@ -227,6 +228,7 @@ export const BUILTIN_PROVIDERS: BuiltinProvider[] = [
     apiUrl: 'https://api.minimax.io/v1',
     modelsUrl: 'https://api.minimax.io/v1/models',
     models: [
+      { id: 'MiniMax-M2.7', name: 'MiniMax M2.7' },
       { id: 'MiniMax-M2.1', name: 'MiniMax M2.1' },
       { id: 'MiniMax-M1', name: 'MiniMax M1' }
     ],
@@ -234,6 +236,38 @@ export const BUILTIN_PROVIDERS: BuiltinProvider[] = [
     website: 'https://www.minimax.io/',
     region: 'global',
     icon: 'minimize'
+  },
+  {
+    id: 'minimax-token-plan',
+    name: 'MiniMax Token Plan (中国)',
+    authType: 'api-key',
+    apiType: 'anthropic_passthrough',
+    apiUrl: 'https://api.minimaxi.com/anthropic',
+    models: [
+      { id: 'MiniMax-M2.7', name: 'MiniMax M2.7' },
+      { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax M2.7 Highspeed' }
+    ],
+    description: 'MiniMax Token Plan (China mainland, Anthropic compatible)',
+    website: 'https://platform.minimaxi.com/subscribe/token-plan',
+    region: 'cn',
+    icon: 'minimize',
+    notes: 'Token Plan uses a dedicated API Key, not interchangeable with pay-per-use keys'
+  },
+  {
+    id: 'minimax-token-plan-global',
+    name: 'MiniMax Token Plan (Global)',
+    authType: 'api-key',
+    apiType: 'anthropic_passthrough',
+    apiUrl: 'https://api.minimax.io/anthropic',
+    models: [
+      { id: 'MiniMax-M2.7', name: 'MiniMax M2.7' },
+      { id: 'MiniMax-M2.7-highspeed', name: 'MiniMax M2.7 Highspeed' }
+    ],
+    description: 'MiniMax Token Plan (Global, Anthropic compatible)',
+    website: 'https://platform.minimaxi.com/subscribe/token-plan',
+    region: 'global',
+    icon: 'minimize',
+    notes: 'Token Plan uses a dedicated API Key, not interchangeable with pay-per-use keys'
   },
   {
     id: 'yi',

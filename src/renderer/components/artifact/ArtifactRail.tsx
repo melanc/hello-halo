@@ -9,7 +9,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ArtifactCard } from './ArtifactCard'
+import { createPortal } from 'react-dom'
+import { ArtifactCard, type ArtifactContextMenuState } from './ArtifactCard'
 import { ArtifactTree } from './ArtifactTree'
 import { api } from '../../api'
 import type { Artifact, ArtifactViewMode, ArtifactChangeEvent } from '../../types'
@@ -82,6 +83,7 @@ function normalizeArtifactFromEvent(item: unknown, fallbackSpaceId: string): Art
     extension: candidate.extension || '',
     icon: candidate.icon || 'file-text',
     createdAt: candidate.createdAt || new Date().toISOString(),
+    relativePath: candidate.relativePath || candidate.name,
     preview: undefined,
     size: typeof candidate.size === 'number' ? candidate.size : undefined
   }
@@ -100,12 +102,7 @@ export function ArtifactRail({
   const spaceId = currentSpace?.id ?? ''
   const isTemp = currentSpace?.isTemp ?? false
 
-  const handleOpenFolder = useCallback(() => {
-    if (spaceId) {
-      useSpaceStore.getState().openSpaceFolder(spaceId)
-    }
-  }, [spaceId])
-
+  // ── All useState / useRef declarations first (avoids bundler TDZ issues) ──
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
   // Use external control if provided, otherwise internal state
   const isControlled = externalExpanded !== undefined
@@ -116,6 +113,50 @@ export function ArtifactRail({
   const [width, setWidth] = useState(initialWidth != null ? clampWidth(initialWidth) : DEFAULT_WIDTH)
   const widthRef = useRef(width)
   const [isDragging, setIsDragging] = useState(false)
+  const [viewMode, setViewMode] = useState<ArtifactViewMode>(getInitialViewMode)
+  const [mobileOverlayOpen, setMobileOverlayOpen] = useState(false)
+  const [cardContextMenu, setCardContextMenu] = useState<ArtifactContextMenuState | null>(null)
+  const cardContextMenuRef = useRef<HTMLDivElement>(null)
+  const railRef = useRef<HTMLDivElement>(null)
+  const onWidthChangeRef = useRef(onWidthChange)
+  onWidthChangeRef.current = onWidthChange
+  const isGenerating = useIsGenerating()
+  const { isActive: isOnboarding, currentStep, completeOnboarding } = useOnboardingStore()
+  const isMobile = useIsMobile()
+
+  // ── Callbacks ──
+
+  const handleOpenFolder = useCallback(() => {
+    if (spaceId) {
+      useSpaceStore.getState().openSpaceFolder(spaceId)
+    }
+  }, [spaceId])
+
+  // Card context menu handlers
+  const handleShowCardContextMenu = useCallback((menu: ArtifactContextMenuState) => {
+    setCardContextMenu(menu)
+  }, [])
+
+  const handleCopyRelativePath = useCallback(async (relativePath: string) => {
+    try {
+      await navigator.clipboard.writeText(relativePath)
+    } catch (error) {
+      console.error('[ArtifactRail] Failed to copy relative path:', error)
+    }
+    setCardContextMenu(null)
+  }, [])
+
+  const handleRevealInFolder = useCallback(async (path: string) => {
+    if (isWebMode) return
+    try {
+      await api.showArtifactInFolder(path)
+    } catch (error) {
+      console.error('[ArtifactRail] Failed to show in folder:', error)
+    }
+    setCardContextMenu(null)
+  }, [])
+
+  // ── Effects ──
 
   // Sync width when initialWidth arrives from async config load
   useEffect(() => {
@@ -125,14 +166,40 @@ export function ArtifactRail({
       widthRef.current = clamped
     }
   }, [initialWidth, isDragging])
-  const [viewMode, setViewMode] = useState<ArtifactViewMode>(getInitialViewMode)
-  const [mobileOverlayOpen, setMobileOverlayOpen] = useState(false)
-  const railRef = useRef<HTMLDivElement>(null)
-  const onWidthChangeRef = useRef(onWidthChange)
-  onWidthChangeRef.current = onWidthChange
-  const isGenerating = useIsGenerating()
-  const { isActive: isOnboarding, currentStep, completeOnboarding } = useOnboardingStore()
-  const isMobile = useIsMobile()
+
+  // Dismiss card context menu on outside click or Escape
+  useEffect(() => {
+    if (!cardContextMenu) return
+    const handlePointerDown = (e: MouseEvent) => {
+      if (cardContextMenuRef.current && !cardContextMenuRef.current.contains(e.target as Node)) {
+        setCardContextMenu(null)
+      }
+    }
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setCardContextMenu(null)
+    }
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('keydown', handleEscape)
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [cardContextMenu])
+
+  // Adjust card context menu position to stay within viewport (P1 fix)
+  useEffect(() => {
+    if (!cardContextMenu || !cardContextMenuRef.current) return
+    const rect = cardContextMenuRef.current.getBoundingClientRect()
+    const vw = window.innerWidth
+    const vh = window.innerHeight
+    let { x, y } = cardContextMenu
+    if (x + rect.width > vw) x = vw - rect.width - 8
+    if (y + rect.height > vh) y = vh - rect.height - 8
+    if (x < 0) x = 8
+    if (y < 0) y = 8
+    cardContextMenuRef.current.style.left = `${x}px`
+    cardContextMenuRef.current.style.top = `${y}px`
+  }, [cardContextMenu])
 
   // Canvas lifecycle for opening browser
   const { openUrl } = useCanvasLifecycle()
@@ -369,7 +436,7 @@ export function ArtifactRail({
                     data-onboarding={isOnboardingArtifact && isOnboardingViewStep ? 'artifact-card' : undefined}
                     onClick={isOnboardingArtifact && isOnboardingViewStep ? handleOnboardingArtifactClick : undefined}
                   >
-                    <ArtifactCard artifact={artifact} />
+                    <ArtifactCard artifact={artifact} onShowContextMenu={handleShowCardContextMenu} />
                   </div>
                 )
               })}
@@ -597,6 +664,34 @@ export function ArtifactRail({
             </>
           )}
         </div>
+      )}
+
+      {/* Card view context menu (portal to body for correct z-index) */}
+      {cardContextMenu && createPortal(
+        <div
+          ref={cardContextMenuRef}
+          role="menu"
+          className="fixed z-[9999] min-w-[180px] bg-popover border border-border rounded-lg shadow-lg py-1"
+          style={{ top: cardContextMenu.y, left: cardContextMenu.x }}
+        >
+          <button
+            role="menuitem"
+            onClick={() => handleCopyRelativePath(cardContextMenu.relativePath)}
+            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-secondary transition-colors text-left"
+          >
+            <span>{t('Copy relative path')}</span>
+          </button>
+          {!isWebMode && (
+            <button
+              role="menuitem"
+              onClick={() => handleRevealInFolder(cardContextMenu.path)}
+              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-secondary transition-colors text-left"
+            >
+              <span>{cardContextMenu.isFolder ? t('Open folder location') : t('Show in folder')}</span>
+            </button>
+          )}
+        </div>,
+        document.body
       )}
     </div>
   )

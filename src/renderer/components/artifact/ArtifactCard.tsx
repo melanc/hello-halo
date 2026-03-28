@@ -16,8 +16,17 @@ import { canOpenInCanvas } from '../../constants/file-types'
 // Check if running in web mode
 const isWebMode = api.isRemoteMode()
 
+export interface ArtifactContextMenuState {
+  x: number
+  y: number
+  path: string
+  relativePath: string
+  isFolder: boolean
+}
+
 interface ArtifactCardProps {
   artifact: Artifact
+  onShowContextMenu?: (menu: ArtifactContextMenuState) => void
 }
 
 // Format file size
@@ -28,7 +37,7 @@ function formatSize(bytes?: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function ArtifactCard({ artifact }: ArtifactCardProps) {
+export function ArtifactCard({ artifact, onShowContextMenu }: ArtifactCardProps) {
   const { t } = useTranslation()
   const [isHovered, setIsHovered] = useState(false)
   const openFile = useCanvasStore(state => state.openFile)
@@ -77,19 +86,33 @@ export function ArtifactCard({ artifact }: ArtifactCardProps) {
     }
   }
 
-  // Handle right-click to show in folder (desktop only)
-  const handleContextMenu = async (e: React.MouseEvent) => {
+  // Handle right-click context menu
+  const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault()
-    if (isWebMode) return
-    try {
-      await api.showArtifactInFolder(artifact.path)
-    } catch (error) {
-      console.error('Failed to show in folder:', error)
+    e.stopPropagation()
+    if (onShowContextMenu) {
+      onShowContextMenu({
+        x: e.clientX,
+        y: e.clientY,
+        path: artifact.path,
+        relativePath: artifact.relativePath,
+        isFolder
+      })
+    } else if (!isWebMode) {
+      api.showArtifactInFolder(artifact.path).catch(error =>
+        console.error('Failed to show in folder:', error)
+      )
     }
   }
 
   return (
     <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData('text/halo-artifact-relative-path', artifact.relativePath)
+        e.dataTransfer.setData('text/plain', artifact.relativePath)
+        e.dataTransfer.effectAllowed = 'copy'
+      }}
       onClick={handleClick}
       onDoubleClick={handleDoubleClick}
       onContextMenu={handleContextMenu}

@@ -23,6 +23,10 @@ export function useSearchShortcuts({
     if (!enabled || !onSearch) return
 
     const handleKeyDown = (e: KeyboardEvent) => {
+      // Skip if the event was already handled by a focused component
+      // (e.g. CodeMirror's in-editor search)
+      if (e.defaultPrevented) return
+
       const isMac = typeof navigator !== 'undefined' &&
         navigator.platform.toUpperCase().indexOf('MAC') >= 0
 

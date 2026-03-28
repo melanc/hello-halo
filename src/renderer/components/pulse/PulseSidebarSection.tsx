@@ -15,9 +15,6 @@ import { usePulseCount } from '../../stores/chat.store'
 import { useTranslation } from '../../i18n'
 import { PulseList } from './PulseList'
 
-/** Fixed height for the list in sidebar mode */
-const SIDEBAR_MAX_HEIGHT = '200px'
-
 export function PulseSidebarSection() {
   const { t } = useTranslation()
   const count = usePulseCount()
@@ -50,7 +47,7 @@ export function PulseSidebarSection() {
 
       {/* List — hidden when collapsed */}
       {!collapsed && (
-        <PulseList maxHeight={SIDEBAR_MAX_HEIGHT} compact />
+        <PulseList compact />
       )}
     </div>
   )

@@ -109,7 +109,7 @@ export const haloEditorTheme = EditorView.theme(
       outline: '1px solid hsl(var(--primary) / 0.5)',
     },
 
-    // Search panel
+    // Search panel container
     '.cm-panels': {
       backgroundColor: 'hsl(var(--card))',
       borderBottom: '1px solid hsl(var(--border))',
@@ -119,6 +119,70 @@ export const haloEditorTheme = EditorView.theme(
       borderBottom: '1px solid hsl(var(--border))',
     },
 
+    // Search panel layout
+    // Tailwind Preflight resets margin/padding/background on native elements,
+    // so we must fully specify layout here instead of relying on browser defaults.
+    '.cm-panel.cm-search': {
+      display: 'flex',
+      alignItems: 'center',
+      flexWrap: 'wrap',
+      gap: '4px',
+      padding: '6px 8px',
+      fontSize: '13px',
+    },
+
+    // Search panel labels (match case / regexp / by word)
+    '.cm-panel.cm-search label': {
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: '3px',
+      fontSize: '12px',
+      color: 'hsl(var(--muted-foreground))',
+      cursor: 'pointer',
+      userSelect: 'none',
+      whiteSpace: 'nowrap',
+    },
+
+    // Search panel checkboxes
+    '.cm-panel.cm-search input[type=checkbox]': {
+      margin: '0',
+      cursor: 'pointer',
+    },
+
+    // Close button (positioned absolute by CM baseTheme)
+    '.cm-panel.cm-search button[name=close]': {
+      position: 'absolute',
+      top: '6px',
+      right: '8px',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      width: '20px',
+      height: '20px',
+      padding: '0',
+      margin: '0',
+      border: 'none',
+      borderRadius: '4px',
+      backgroundColor: 'transparent',
+      color: 'hsl(var(--muted-foreground))',
+      cursor: 'pointer',
+      fontSize: '16px',
+      lineHeight: '1',
+    },
+
+    '.cm-panel.cm-search button[name=close]:hover': {
+      backgroundColor: 'hsl(var(--muted))',
+      color: 'hsl(var(--foreground))',
+    },
+
+    // Replace row: break + fields flow onto a new flex line
+    '.cm-panel.cm-search br': {
+      width: '100%',
+      height: '0',
+      flexBasis: '100%',
+    },
+
+    // Search match highlights
     '.cm-searchMatch': {
       backgroundColor: 'hsl(48 96% 53% / 0.3)',
       outline: '1px solid hsl(48 96% 53% / 0.5)',
@@ -129,7 +193,7 @@ export const haloEditorTheme = EditorView.theme(
       outline: '1px solid hsl(var(--primary))',
     },
 
-    // Search input
+    // Search text input
     '.cm-textfield': {
       backgroundColor: 'hsl(var(--input))',
       border: '1px solid hsl(var(--border))',
@@ -137,6 +201,7 @@ export const haloEditorTheme = EditorView.theme(
       padding: '4px 8px',
       color: 'hsl(var(--foreground))',
       fontSize: '13px',
+      lineHeight: '1.4',
       outline: 'none',
     },
 
@@ -145,15 +210,22 @@ export const haloEditorTheme = EditorView.theme(
       boxShadow: '0 0 0 2px hsl(var(--ring) / 0.2)',
     },
 
-    // Search buttons
+    // Search action buttons (next / previous / all / replace / replace all)
+    // appearance: none is required to disable native OS button chrome that
+    // Tailwind Preflight enables via -webkit-appearance: button.
     '.cm-button': {
+      WebkitAppearance: 'none',
+      appearance: 'none',
+      backgroundImage: 'none',
       backgroundColor: 'hsl(var(--secondary))',
       border: '1px solid hsl(var(--border))',
       borderRadius: '4px',
       padding: '4px 8px',
       color: 'hsl(var(--foreground))',
       fontSize: '12px',
+      lineHeight: '1.4',
       cursor: 'pointer',
+      whiteSpace: 'nowrap',
       transition: 'background-color 0.15s ease',
     },
 

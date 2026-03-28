@@ -87,8 +87,8 @@ function formatFrequency(dur: string, t: (s: string, opts?: Record<string, unkno
 }
 
 /** Get the effective frequency for a subscription (user override > spec default) */
-function getEffectiveFrequency(sub: SubscriptionDef, app: InstalledApp): string | null {
-  const subId = sub.id ?? '0'
+function getEffectiveFrequency(sub: SubscriptionDef, app: InstalledApp, index: number): string | null {
+  const subId = sub.id ?? String(index)
   const userOverride = app.userOverrides?.frequency?.[subId]
   if (userOverride) return userOverride
   if (sub.frequency?.default) return sub.frequency.default
@@ -247,14 +247,15 @@ function ConfigField({ def, value, onChange, t }: ConfigFieldProps) {
 
 interface FrequencyEditorProps {
   subscription: SubscriptionDef
+  subscriptionIndex: number
   app: InstalledApp
   onFrequencyChange: (subscriptionId: string, frequency: string) => void
   t: (s: string, opts?: Record<string, unknown>) => string
 }
 
-function FrequencyEditor({ subscription, app, onFrequencyChange, t }: FrequencyEditorProps) {
-  const subId = subscription.id ?? '0'
-  const currentFreq = getEffectiveFrequency(subscription, app)
+function FrequencyEditor({ subscription, subscriptionIndex, app, onFrequencyChange, t }: FrequencyEditorProps) {
+  const subId = subscription.id ?? String(subscriptionIndex)
+  const currentFreq = getEffectiveFrequency(subscription, app, subscriptionIndex)
   const presets = filterPresets(subscription)
 
   if (presets.length === 0 || !currentFreq) return null
@@ -445,6 +446,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
             <FrequencyEditor
               key={sub.id ?? idx}
               subscription={sub}
+              subscriptionIndex={idx}
               app={app}
               onFrequencyChange={handleFrequencyChange}
               t={t}

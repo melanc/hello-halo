@@ -16,7 +16,7 @@ import { api } from '../../api'
 import { useCanvasStore } from '../../stores/canvas.store'
 import type { ArtifactTreeNode, ArtifactTreeUpdateEvent } from '../../types'
 import { FileIcon } from '../icons/ToolIcons'
-import { ChevronRight, ChevronDown, Download, Eye, Loader2, FilePlus, FolderPlus, Edit3, Trash2, FolderOpen } from 'lucide-react'
+import { ChevronRight, ChevronDown, Download, Eye, Loader2, FilePlus, FolderPlus, Edit3, Trash2, FolderOpen, Copy } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { canOpenInCanvas } from '../../constants/file-types'
 import { ContextMenu, type ContextMenuItem } from '../ui/ContextMenu'
@@ -999,12 +999,17 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
       icon: <Trash2 className="w-4 h-4" />,
       onClick: () => node.tree.delete(node.id)
     },
-    // Separator (only for desktop mode)
+    // Separator
+    { label: '', onClick: () => {}, separator: true },
+    // Copy relative path
     {
-      label: '',
-      onClick: () => {},
-      separator: true,
-      hidden: isWebMode
+      label: t('Copy relative path'),
+      icon: <Copy className="w-4 h-4" />,
+      onClick: () => {
+        navigator.clipboard.writeText(data.relativePath).catch(err =>
+          console.error('Failed to copy relative path:', err)
+        )
+      }
     },
     // Show in Folder (only for desktop mode)
     {
@@ -1026,6 +1031,12 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
       <div
         ref={dragHandle}
         style={style}
+        draggable
+        onDragStart={(e) => {
+          e.dataTransfer.setData('text/halo-artifact-relative-path', data.relativePath)
+          e.dataTransfer.setData('text/plain', data.relativePath)
+          e.dataTransfer.effectAllowed = 'copy'
+        }}
         onClick={handleClick}
         onDoubleClick={handleDoubleClickFile}
         className={`
