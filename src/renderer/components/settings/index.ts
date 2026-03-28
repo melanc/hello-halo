@@ -19,6 +19,8 @@ export { RemoteAccessSection } from './RemoteAccessSection'
 export { AboutSection } from './AboutSection'
 export { RecommendSection } from './RecommendSection'
 export { AdvancedSection } from './AdvancedSection'
-export { NotificationChannelsSection } from './NotificationChannelsSection'
+export { MessageChannelsSection } from './MessageChannelsSection'
+// Legacy exports — ImSessionsSection is reused inside digital human config (per-app mode)
+export { ImSessionsSection } from './ImSessionsSection'
 export { RegistrySection } from './RegistrySection'
 

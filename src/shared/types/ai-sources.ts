@@ -273,6 +273,8 @@ export interface BackendRequestConfig {
   filterContent?: boolean
   /** AWS CodeWhisperer profile ARN (Kiro Desktop auth only) */
   profileArn?: string
+  /** Provider adapter ID — selects a registered adapter for request/response transformations */
+  adapterId?: string
 }
 
 // ============================================================================

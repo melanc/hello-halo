@@ -346,6 +346,18 @@ export interface AppManagerService {
    */
   getAppWorkDir(appId: string): string
 
+  /**
+   * Clear all memory for an App.
+   *
+   * Deletes `memory.md` and all files under `memory/` (run summaries and
+   * compaction archives). The directory structure is preserved so the App
+   * can start fresh on its next run.
+   *
+   * @returns Number of files removed
+   * @throws AppNotFoundError if the App does not exist
+   */
+  clearAppMemory(appId: string): number
+
   // ── Events ─────────────────────────────────────
 
   /**

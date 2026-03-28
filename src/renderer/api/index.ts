@@ -822,6 +822,51 @@ export const api = {
     return httpRequest('POST', '/api/notify-channels/clear-cache')
   },
 
+  // ===== WeCom Bot (企业微信智能机器人) =====
+  getWecomBotStatus: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.getWecomBotStatus()
+    }
+    return httpRequest('GET', '/api/wecom-bot/status')
+  },
+
+  reconnectWecomBot: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.reconnectWecomBot()
+    }
+    return httpRequest('POST', '/api/wecom-bot/reconnect')
+  },
+
+  // ===== IM Sessions (会话管理) =====
+  imSessionsList: async (appId?: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.imSessionsList(appId)
+    }
+    const path = appId ? `/api/im-sessions/${appId}` : '/api/im-sessions'
+    return httpRequest('GET', path)
+  },
+
+  imSessionsSetProactive: async (input: { appId: string; channel: string; chatId: string; proactive: boolean }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.imSessionsSetProactive(input)
+    }
+    return httpRequest('POST', '/api/im-sessions/set-proactive', input)
+  },
+
+  imSessionsRemove: async (input: { appId: string; channel: string; chatId: string }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.imSessionsRemove(input)
+    }
+    return httpRequest('POST', '/api/im-sessions/remove', input)
+  },
+
+  imSessionsSetCustomName: async (input: { appId: string; channel: string; chatId: string; name: string }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.halo.imSessionsSetCustomName(input)
+    }
+    return httpRequest('POST', '/api/im-sessions/set-custom-name', input)
+  },
+
   // ===== Event Listeners =====
   onAgentMessage: (callback: (data: unknown) => void) =>
     onEvent('agent:message', callback),
@@ -865,6 +910,14 @@ export const api = {
 
   // ===== Browser (Embedded Browser for Content Canvas) =====
   // Note: Browser features only available in desktop app (not remote mode)
+
+  getBrowserHomepage: async (): Promise<string> => {
+    if (isElectron()) {
+      const result = await window.halo.getBrowserHomepage()
+      if (result.success) return result.data as string
+    }
+    return 'https://www.bing.com'
+  },
 
   createBrowserView: async (viewId: string, url?: string): Promise<ApiResponse> => {
     if (isElectron()) {
@@ -1515,6 +1568,13 @@ export const api = {
     }
     // No filesystem access in web mode
     return { success: false, error: 'Not supported outside Electron' }
+  },
+
+  appClearMemory: async (appId: string): Promise<ApiResponse<{ filesRemoved: number }>> => {
+    if (isElectron()) {
+      return window.halo.appClearMemory(appId)
+    }
+    return httpRequest('POST', `/api/apps/${appId}/clear-memory`)
   },
 
   appMoveSpace: async (appId: string, newSpaceId: string | null): Promise<ApiResponse> => {

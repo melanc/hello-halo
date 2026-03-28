@@ -3,9 +3,10 @@ import { mkdirSync } from "fs"
 import { join } from "path"
 import { homedir } from "os"
 
-const { getAppManagerMock, getAppRuntimeMock } = vi.hoisted(() => ({
+const { getAppManagerMock, getAppRuntimeMock, loadProductConfigMock } = vi.hoisted(() => ({
   getAppManagerMock: vi.fn(),
   getAppRuntimeMock: vi.fn(),
+  loadProductConfigMock: vi.fn(),
 }))
 
 vi.mock("../../../src/main/apps/manager", () => ({
@@ -14,6 +15,10 @@ vi.mock("../../../src/main/apps/manager", () => ({
 
 vi.mock("../../../src/main/apps/runtime", () => ({
   getAppRuntime: getAppRuntimeMock,
+}))
+
+vi.mock("../../../src/main/services/ai-sources/auth-loader", () => ({
+  loadProductConfig: loadProductConfigMock,
 }))
 
 import {
@@ -25,6 +30,7 @@ import {
   getAppDetail,
   listApps,
   installFromStore,
+  getRegistries,
 } from "../../../src/main/store/registry.service"
 import type { RegistryIndex } from "../../../src/shared/store/store-types"
 
@@ -53,6 +59,8 @@ describe("registry.service", () => {
     getAppRuntimeMock.mockReset()
     getAppManagerMock.mockReturnValue(null)
     getAppRuntimeMock.mockReturnValue(null)
+    // Default: no product.json overrides (open-source build behaviour)
+    loadProductConfigMock.mockReturnValue({ authProviders: [], registryOverrides: undefined })
   })
 
   afterEach(() => {
@@ -347,5 +355,90 @@ store:
     await expect(installFromStore("legacy-app", "space-1")).rejects.toThrow(
       /app not found in store/i
     )
+  })
+
+  describe("registryOverrides (product.json enterprise config)", () => {
+    it("redirects the official registry URL when product.json declares an override", () => {
+      loadProductConfigMock.mockReturnValue({
+        authProviders: [],
+        registryOverrides: {
+          official: { url: "http://registry.example.internal:18081", name: "Enterprise Registry" },
+        },
+      })
+
+      initRegistryService()
+
+      const registries = getRegistries()
+      const official = registries.find(r => r.id === "official")
+      expect(official?.url).toBe("http://registry.example.internal:18081")
+      expect(official?.name).toBe("Enterprise Registry")
+      // sourceType must be preserved from builtin
+      expect(official?.sourceType).toBe("halo")
+    })
+
+    it("force-disables registries when product.json sets enabled: false", () => {
+      loadProductConfigMock.mockReturnValue({
+        authProviders: [],
+        registryOverrides: {
+          "mcp-official":  { enabled: false },
+          "smithery":      { enabled: false },
+          "claude-skills": { enabled: false },
+        },
+      })
+
+      initRegistryService()
+
+      const registries = getRegistries()
+      expect(registries.find(r => r.id === "mcp-official")?.enabled).toBe(false)
+      expect(registries.find(r => r.id === "smithery")?.enabled).toBe(false)
+      expect(registries.find(r => r.id === "claude-skills")?.enabled).toBe(false)
+      // official should remain enabled (no override)
+      expect(registries.find(r => r.id === "official")?.enabled).toBe(true)
+    })
+
+    it("re-enforces overrides on re-init (simulates app restart)", () => {
+      loadProductConfigMock.mockReturnValue({
+        authProviders: [],
+        registryOverrides: {
+          official: { url: "http://registry.example.internal:18081" },
+        },
+      })
+
+      // First startup
+      initRegistryService()
+      expect(getRegistries().find(r => r.id === "official")?.url).toBe("http://registry.example.internal:18081")
+
+      // Simulate restart
+      shutdownRegistryService()
+      initRegistryService()
+
+      expect(getRegistries().find(r => r.id === "official")?.url).toBe("http://registry.example.internal:18081")
+    })
+
+    it("preserves builtin defaults when registryOverrides is absent (open-source build)", () => {
+      loadProductConfigMock.mockReturnValue({ authProviders: [], registryOverrides: undefined })
+
+      initRegistryService()
+
+      const registries = getRegistries()
+      const official = registries.find(r => r.id === "official")
+      expect(official?.url).toBe("https://openkursar.github.io/digital-human-protocol")
+      expect(official?.enabled).toBe(true)
+    })
+
+    it("does not override enabled when product.json omits the enabled field", () => {
+      loadProductConfigMock.mockReturnValue({
+        authProviders: [],
+        registryOverrides: {
+          // Only override URL, leave enabled untouched
+          official: { url: "http://registry.example.internal:18081" },
+        },
+      })
+
+      initRegistryService()
+
+      // enabled should retain the builtin default (true)
+      expect(getRegistries().find(r => r.id === "official")?.enabled).toBe(true)
+    })
   })
 })

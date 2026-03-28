@@ -1885,3 +1885,72 @@ describe('Report Tool', () => {
     // The actual tool execution would be tested via integration tests with the SDK
   })
 })
+
+// ============================================
+// mergeConfigWithDefaults
+// ============================================
+
+import { mergeConfigWithDefaults } from '../../../../src/main/apps/runtime/config-defaults'
+
+describe('mergeConfigWithDefaults', () => {
+  it('returns empty object when both args are undefined', () => {
+    expect(mergeConfigWithDefaults(undefined, undefined)).toEqual({})
+  })
+
+  it('returns full userConfig when configSchema is undefined (no schema guard)', () => {
+    const userConfig = { a: '1', b: '2' }
+    expect(mergeConfigWithDefaults(userConfig, undefined)).toEqual({ a: '1', b: '2' })
+  })
+
+  it('fills in defaults for keys missing in userConfig', () => {
+    const result = mergeConfigWithDefaults(
+      {},
+      [{ key: 'url', label: 'URL', type: 'url', default: 'https://example.com' }]
+    )
+    expect(result).toEqual({ url: 'https://example.com' })
+  })
+
+  it('user-provided values take precedence over defaults', () => {
+    const result = mergeConfigWithDefaults(
+      { url: 'https://mine.com' },
+      [{ key: 'url', label: 'URL', type: 'url', default: 'https://example.com' }]
+    )
+    expect(result).toEqual({ url: 'https://mine.com' })
+  })
+
+  it('filters out userConfig keys that no longer exist in the schema (deleted field)', () => {
+    // User previously had 'keyword' configured, but that field was deleted from the schema.
+    const result = mergeConfigWithDefaults(
+      { keyword: 'old-value', url: 'https://example.com' },
+      [{ key: 'url', label: 'URL', type: 'url' }]
+    )
+    expect(result).not.toHaveProperty('keyword')
+    expect(result).toEqual({ url: 'https://example.com' })
+  })
+
+  it('filters out userConfig keys that were renamed in the schema', () => {
+    // 'keyword' was renamed to 'search_term'; old value must not leak into prompt.
+    const result = mergeConfigWithDefaults(
+      { keyword: 'old-value' },
+      [{ key: 'search_term', label: 'Search Term', type: 'string', default: '' }]
+    )
+    expect(result).not.toHaveProperty('keyword')
+    expect(result).toHaveProperty('search_term', '')
+  })
+
+  it('returns only schema keys even when userConfig has many extra stale keys', () => {
+    const result = mergeConfigWithDefaults(
+      { stale1: 'x', stale2: 'y', active: 'keep' },
+      [{ key: 'active', label: 'Active', type: 'string' }]
+    )
+    expect(result).toEqual({ active: 'keep' })
+  })
+
+  it('does not include schema key when user has no value and no default is defined', () => {
+    const result = mergeConfigWithDefaults(
+      {},
+      [{ key: 'optional', label: 'Optional', type: 'string' }]
+    )
+    expect(result).toEqual({})
+  })
+})

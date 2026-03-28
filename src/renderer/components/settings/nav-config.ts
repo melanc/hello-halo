@@ -17,8 +17,8 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
     icon: Bot
   },
   {
-    id: 'notification-channels',
-    labelKey: 'Notification Channels',
+    id: 'message-channels',
+    labelKey: 'Message Channels',
     icon: Bell
   },
   {

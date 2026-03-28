@@ -5,17 +5,38 @@
  * Three modes:
  *   - Visual (default): structured form for the common case (type=automation)
  *   - YAML: full CodeMirror editor with a complete example template
- *   - Import: drag-and-drop / browse a .yaml spec file to install
+ *   - Import: unified drop zone for .yaml, .zip, or folder — all handled inline
+ *
+ * Import tab state machine:
+ *   idle → loading → error | yaml-preview | bundle-preview → installing → success | partial | failed
  */
 
 import { useState, useMemo, useCallback, useRef, lazy, Suspense } from 'react'
-import { X, Loader2, Sparkles, Upload } from 'lucide-react'
+import {
+  X,
+  Loader2,
+  Sparkles,
+  Upload,
+  Archive,
+  FolderOpen,
+  Bot,
+  Puzzle,
+  CheckCircle2,
+  AlertCircle,
+  AlertTriangle,
+} from 'lucide-react'
 import { parse as parseYaml, stringify as stringifyYaml } from 'yaml'
 import { useAppsStore } from '../../stores/apps.store'
 import { useSpaceStore } from '../../stores/space.store'
 import { useTranslation } from '../../i18n'
-import type { AppSpec } from '../../../shared/apps/spec-types'
+import type { AppSpec, SkillSpec } from '../../../shared/apps/spec-types'
 import { AppModelSelector } from './AppModelSelector'
+import {
+  parseDigitalHumanZip,
+  parseDigitalHumanFolder,
+  type ZipParseResult,
+  type ZipValidationError,
+} from './zip-import-utils'
 
 // Lazy-load CodeMirrorEditor to keep initial bundle small
 const CodeMirrorEditor = lazy(() =>
@@ -136,7 +157,7 @@ permissions:
 `
 
 // ============================================
-// Helpers
+// Helpers — Visual/YAML modes
 // ============================================
 
 interface VisualFormState {
@@ -155,7 +176,6 @@ const INITIAL_FORM: VisualFormState = {
   frequency: '1h',
 }
 
-/** Build an AppSpec object from the visual form state */
 function buildSpecFromForm(form: VisualFormState): AppSpec {
   return {
     spec_version: '1.0',
@@ -169,16 +189,13 @@ function buildSpecFromForm(form: VisualFormState): AppSpec {
       {
         source: {
           type: 'schedule' as const,
-          config: {
-            every: form.frequency,
-          },
+          config: { every: form.frequency },
         },
       },
     ],
   }
 }
 
-/** Try to extract a frequency string from a parsed YAML object */
 function extractFrequency(parsed: Record<string, unknown>): string | null {
   try {
     const subs = parsed.subscriptions as Array<Record<string, unknown>> | undefined
@@ -192,10 +209,117 @@ function extractFrequency(parsed: Record<string, unknown>): string | null {
   }
 }
 
-/** Check if a frequency value is in the presets */
 function isValidPreset(freq: string): boolean {
   return FREQUENCY_PRESETS.some(p => p.value === freq)
 }
+
+// ============================================
+// Helpers — Import mode (folder reading)
+// ============================================
+
+function readFileText(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = e => resolve(e.target!.result as string)
+    reader.onerror = () => reject(new Error(`Failed to read file: ${file.name}`))
+    reader.readAsText(file)
+  })
+}
+
+async function readAllEntries(reader: FileSystemDirectoryReader): Promise<FileSystemEntry[]> {
+  const all: FileSystemEntry[] = []
+  while (true) {
+    const batch = await new Promise<FileSystemEntry[]>((resolve, reject) =>
+      reader.readEntries(resolve, reject)
+    )
+    if (batch.length === 0) break
+    all.push(...batch)
+  }
+  return all
+}
+
+async function readDirectoryEntry(
+  entry: FileSystemDirectoryEntry,
+  prefix = ''
+): Promise<Record<string, string>> {
+  const result: Record<string, string> = {}
+  const entries = await readAllEntries(entry.createReader())
+  for (const child of entries) {
+    if (child.isFile) {
+      const fileEntry = child as FileSystemFileEntry
+      const file = await new Promise<File>((resolve, reject) =>
+        fileEntry.file(resolve, reject)
+      )
+      const content = await readFileText(file)
+      result[prefix + child.name] = content
+    } else if (child.isDirectory) {
+      const sub = await readDirectoryEntry(child as FileSystemDirectoryEntry, prefix + child.name + '/')
+      Object.assign(result, sub)
+    }
+  }
+  return result
+}
+
+async function readFileListAsFolder(
+  fileList: FileList
+): Promise<{ files: Record<string, string>; folderName: string }> {
+  const files: Record<string, string> = {}
+  let folderName = ''
+  for (let i = 0; i < fileList.length; i++) {
+    const file = fileList[i]
+    const relPath = (file as { webkitRelativePath?: string }).webkitRelativePath || file.name
+    if (!folderName) {
+      const slash = relPath.indexOf('/')
+      folderName = slash > 0 ? relPath.slice(0, slash) : file.name
+    }
+    const slash = relPath.indexOf('/')
+    const cleanPath = slash > 0 ? relPath.slice(slash + 1) : relPath
+    if (cleanPath) {
+      const content = await readFileText(file)
+      files[cleanPath] = content
+    }
+  }
+  return { files, folderName }
+}
+
+function parseSkillFrontmatter(content: string): { name: string; description: string } {
+  const match = content.match(/^---\r?\n([\s\S]*?)\r?\n---/)
+  if (!match) return { name: '', description: '' }
+  const fm = match[1]
+  const name = fm.match(/^name:\s*(.+)$/m)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? ''
+  const description = fm.match(/^description:\s*(.+)$/m)?.[1]?.trim().replace(/^["']|["']$/g, '') ?? ''
+  return { name, description }
+}
+
+// ============================================
+// Import tab state machine types
+// ============================================
+
+interface SkillInstallResult {
+  name: string
+  success: boolean
+  error?: string
+  skipped?: boolean
+}
+
+interface InstallProgress {
+  currentStep: string
+  currentIndex: number
+  totalSteps: number
+}
+
+type ImportState =
+  | { phase: 'idle' }
+  | { phase: 'loading' }
+  | { phase: 'error'; errors: ZipValidationError[] }
+  // Single .yaml file loaded — show raw YAML preview in CodeMirror
+  | { phase: 'yaml-preview'; yamlContent: string; fileName: string }
+  // .zip or folder parsed — show structured preview with bundled skills
+  | { phase: 'bundle-preview'; result: ZipParseResult; fileName: string; sourceType: 'zip' | 'folder' }
+  | { phase: 'installing'; result: ZipParseResult; progress: InstallProgress }
+  | { phase: 'success'; result: ZipParseResult; skillResults: SkillInstallResult[] }
+  | { phase: 'partial'; result: ZipParseResult; skillResults: SkillInstallResult[] }
+  | { phase: 'failed'; result: ZipParseResult; error: string; skillResults: SkillInstallResult[] }
 
 // ============================================
 // Component
@@ -209,12 +333,10 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
   const { t } = useTranslation()
   const { installApp, importApp, loadApps, updateAppOverrides } = useAppsStore()
 
-  // Get all spaces
   const currentSpace = useSpaceStore(state => state.currentSpace)
   const haloSpace = useSpaceStore(state => state.haloSpace)
   const spaces = useSpaceStore(state => state.spaces)
 
-  // Combine all available spaces (haloSpace + dedicated spaces)
   const allSpaces = useMemo(() => {
     const result: Array<{ id: string; name: string; icon: string }> = []
     if (haloSpace) result.push(haloSpace)
@@ -228,17 +350,15 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  // Per-app model override (optional, applied after install)
   const [modelSourceId, setModelSourceId] = useState<string | undefined>(undefined)
   const [modelId, setModelId] = useState<string | undefined>(undefined)
 
-  // Import mode state
-  const [importYaml, setImportYaml] = useState<string | null>(null)
-  const [importFileName, setImportFileName] = useState<string | null>(null)
+  // Import tab state machine
+  const [importState, setImportState] = useState<ImportState>({ phase: 'idle' })
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const folderInputRef = useRef<HTMLInputElement>(null)
 
-  // Default space: currentSpace if set, else first available
   const [selectedSpaceId, setSelectedSpaceId] = useState(
     currentSpace?.id ?? allSpaces[0]?.id ?? ''
   )
@@ -252,7 +372,6 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
   // ── Mode switching ──
   const handleSwitchToYaml = useCallback(() => {
     setError(null)
-    // If form has content, serialize it to YAML
     if (form.name || form.systemPrompt) {
       const spec = buildSpecFromForm(form)
       setYamlContent(stringifyYaml(spec, { lineWidth: 0 }))
@@ -282,97 +401,248 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
     setMode('visual')
   }, [yamlContent, t])
 
-  // ── Import mode: file handling ──
-  const handleImportFile = useCallback((file: File) => {
-    setError(null)
-    if (!file.name.endsWith('.yaml') && !file.name.endsWith('.yml')) {
-      setError(t('Please select a .yaml or .yml file'))
-      return
+  // ── Import: process a .yaml file ──
+  const processYamlFile = useCallback(async (file: File) => {
+    setImportState({ phase: 'loading' })
+    try {
+      const content = await readFileText(file)
+      setImportState({ phase: 'yaml-preview', yamlContent: content, fileName: file.name })
+    } catch {
+      setImportState({
+        phase: 'error',
+        errors: [{
+          location: file.name,
+          expected: 'Readable text file',
+          actual: 'Failed to read file',
+          suggestion: 'Make sure the file is accessible and try again.',
+        }],
+      })
     }
-    const reader = new FileReader()
-    reader.onload = (e) => {
-      const content = e.target?.result as string
-      if (content) {
-        setImportYaml(content)
-        setImportFileName(file.name)
-      }
-    }
-    reader.onerror = () => {
-      setError(t('Failed to read file'))
-    }
-    reader.readAsText(file)
-  }, [t])
-
-  const handleDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-    const file = e.dataTransfer.files[0]
-    if (file) handleImportFile(file)
-  }, [handleImportFile])
-
-  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (file) handleImportFile(file)
-    // Reset input so re-selecting the same file works
-    e.target.value = ''
-  }, [handleImportFile])
-
-  const handleClearImport = useCallback(() => {
-    setImportYaml(null)
-    setImportFileName(null)
-    setError(null)
   }, [])
 
-  // ── Install handler (all modes) ──
-  async function handleInstall() {
+  // ── Import: process a .zip file ──
+  const processZipFile = useCallback(async (file: File) => {
+    setImportState({ phase: 'loading' })
+    const outcome = await parseDigitalHumanZip(file)
+    if (!outcome.ok) {
+      setImportState({ phase: 'error', errors: outcome.errors })
+      return
+    }
+    setImportState({ phase: 'bundle-preview', result: outcome.result, fileName: file.name, sourceType: 'zip' })
+  }, [])
+
+  // ── Import: process a dragged folder (DataTransferItem API) ──
+  const processDirectoryEntry = useCallback(async (entry: FileSystemDirectoryEntry) => {
+    setImportState({ phase: 'loading' })
+    try {
+      const files = await readDirectoryEntry(entry)
+      const outcome = await parseDigitalHumanFolder(files, entry.name)
+      if (!outcome.ok) {
+        setImportState({ phase: 'error', errors: outcome.errors })
+        return
+      }
+      setImportState({ phase: 'bundle-preview', result: outcome.result, fileName: entry.name, sourceType: 'folder' })
+    } catch {
+      setImportState({
+        phase: 'error',
+        errors: [{
+          location: entry.name,
+          expected: 'Readable folder',
+          actual: 'Failed to read folder contents',
+          suggestion: 'Make sure the folder is accessible and try again.',
+        }],
+      })
+    }
+  }, [])
+
+  // ── Import: process a folder selected via webkitdirectory ──
+  const processFileList = useCallback(async (fileList: FileList) => {
+    setImportState({ phase: 'loading' })
+    try {
+      const { files, folderName } = await readFileListAsFolder(fileList)
+      const outcome = await parseDigitalHumanFolder(files, folderName)
+      if (!outcome.ok) {
+        setImportState({ phase: 'error', errors: outcome.errors })
+        return
+      }
+      setImportState({ phase: 'bundle-preview', result: outcome.result, fileName: folderName, sourceType: 'folder' })
+    } catch {
+      setImportState({
+        phase: 'error',
+        errors: [{
+          location: 'selected folder',
+          expected: 'Readable folder',
+          actual: 'Failed to read folder contents',
+          suggestion: 'Make sure the folder is accessible and try again.',
+        }],
+      })
+    }
+  }, [])
+
+  // ── Import: drop handler ──
+  const handleImportDrop = useCallback(async (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragOver(false)
+
+    const items = e.dataTransfer.items
+    if (items && items.length > 0) {
+      const entry = items[0].webkitGetAsEntry?.()
+      if (entry?.isDirectory) {
+        await processDirectoryEntry(entry as FileSystemDirectoryEntry)
+        return
+      }
+    }
+
+    const file = e.dataTransfer.files[0]
+    if (!file) return
+    const name = file.name.toLowerCase()
+    if (name.endsWith('.zip')) {
+      await processZipFile(file)
+    } else {
+      await processYamlFile(file)
+    }
+  }, [processYamlFile, processZipFile, processDirectoryEntry])
+
+  // ── Import: file input handler ──
+  const handleFileInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    const name = file.name.toLowerCase()
+    if (name.endsWith('.zip')) {
+      await processZipFile(file)
+    } else {
+      await processYamlFile(file)
+    }
+  }, [processYamlFile, processZipFile])
+
+  // ── Import: folder input handler ──
+  const handleFolderInput = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const fileList = e.target.files
+    if (fileList && fileList.length > 0) {
+      await processFileList(fileList)
+    }
+    e.target.value = ''
+  }, [processFileList])
+
+  const handleImportReset = useCallback(() => {
+    setImportState({ phase: 'idle' })
+    setIsDragOver(false)
+  }, [])
+
+  // ── Install: simple yaml import ──
+  const handleYamlInstall = useCallback(async (yamlStr: string) => {
+    setLoading(true)
+    try {
+      const appId = await importApp(selectedSpaceId, yamlStr)
+      if (appId) {
+        await loadApps()
+        onClose()
+      } else {
+        setError(t('Import failed. Check the YAML spec and try again.'))
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t('Import failed'))
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedSpaceId, importApp, loadApps, onClose, t])
+
+  // ── Install: bundle (zip/folder) ──
+  const handleBundleInstall = useCallback(async (result: ZipParseResult) => {
+    const totalSteps = result.bundledSkills.length + 1
+    const skillResults: SkillInstallResult[] = []
+
+    // Phase 1: install bundled skills first
+    for (let i = 0; i < result.bundledSkills.length; i++) {
+      const skill = result.bundledSkills[i]
+      setImportState(prev => ({
+        ...prev,
+        phase: 'installing',
+        result,
+        progress: {
+          currentStep: t('Installing skill {{name}}...', { name: skill.name }),
+          currentIndex: i + 1,
+          totalSteps,
+        },
+      } as ImportState))
+
+      try {
+        const { name, description } = parseSkillFrontmatter(skill.files['SKILL.md'] ?? '')
+        const skillSpec: SkillSpec = {
+          spec_version: '1.0',
+          version: '1.0',
+          name: name || skill.name,
+          description: description || `Bundled skill: ${skill.name}`,
+          type: 'skill',
+          skill_files: skill.files,
+        }
+        await installApp(selectedSpaceId || null, skillSpec)
+        skillResults.push({ name: skill.name, success: true })
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err)
+        if (message.includes('already') || message.includes('exists')) {
+          skillResults.push({ name: skill.name, success: true, skipped: true })
+        } else {
+          skillResults.push({ name: skill.name, success: false, error: message })
+        }
+      }
+    }
+
+    // Phase 2: install main spec
+    setImportState({
+      phase: 'installing',
+      result,
+      progress: {
+        currentStep: t('Installing digital human...'),
+        currentIndex: totalSteps,
+        totalSteps,
+      },
+    })
+
+    try {
+      const appId = await importApp(selectedSpaceId, result.yamlContent)
+      if (appId) {
+        await loadApps()
+        const failedSkills = skillResults.filter(s => !s.success)
+        if (failedSkills.length > 0) {
+          setImportState({ phase: 'partial', result, skillResults })
+        } else {
+          setImportState({ phase: 'success', result, skillResults })
+        }
+      } else {
+        setImportState({
+          phase: 'failed',
+          result,
+          error: t('Import failed. The backend rejected the spec. Check the YAML content.'),
+          skillResults,
+        })
+      }
+    } catch (err) {
+      setImportState({
+        phase: 'failed',
+        result,
+        error: err instanceof Error ? err.message : t('Installation failed'),
+        skillResults,
+      })
+    }
+  }, [selectedSpaceId, installApp, importApp, loadApps, t])
+
+  // ── Install handler (visual / yaml modes) ──
+  async function handleCreateInstall() {
     setError(null)
     setLoading(true)
 
     try {
-      // ── Import mode: use dedicated import API ──
-      if (mode === 'import') {
-        if (!importYaml) {
-          setError(t('No file loaded'))
-          setLoading(false)
-          return
-        }
-        const appId = await importApp(selectedSpaceId, importYaml)
-        if (appId) {
-          onClose()
-        } else {
-          setError(t('Import failed. Check the YAML spec and try again.'))
-        }
-        setLoading(false)
-        return
-      }
-
-      // ── Visual / YAML modes ──
       let specObj: AppSpec
 
       if (mode === 'visual') {
-        if (!form.name.trim()) {
-          setError(t('App name is required'))
-          setLoading(false)
-          return
-        }
-        if (!form.description.trim()) {
-          setError(t('Description is required'))
-          setLoading(false)
-          return
-        }
-        if (!form.author.trim()) {
-          setError(t('Author is required'))
-          setLoading(false)
-          return
-        }
-        if (!form.systemPrompt.trim()) {
-          setError(t('System prompt is required'))
-          setLoading(false)
-          return
-        }
+        if (!form.name.trim()) { setError(t('App name is required')); setLoading(false); return }
+        if (!form.description.trim()) { setError(t('Description is required')); setLoading(false); return }
+        if (!form.author.trim()) { setError(t('Author is required')); setLoading(false); return }
+        if (!form.systemPrompt.trim()) { setError(t('System prompt is required')); setLoading(false); return }
         specObj = buildSpecFromForm(form)
       } else {
-        // YAML mode
         try {
           specObj = parseYaml(yamlContent) as AppSpec
         } catch {
@@ -389,11 +659,10 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
 
       const appId = await installApp(selectedSpaceId, specObj)
       if (appId) {
-        // Apply per-app model override if user selected one
         if (modelSourceId) {
           await updateAppOverrides(appId, { modelSourceId, modelId })
         }
-        await loadApps() // Global reload
+        await loadApps()
         onClose()
       } else {
         setError(t('Installation failed. Check the spec and try again.'))
@@ -405,13 +674,11 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
     }
   }
 
-  // ── Can install? ──
-  const canInstall = mode === 'import'
-    ? importYaml !== null
-    : mode === 'yaml'
-      ? yamlContent.trim().length > 0
-      : (form.name.trim().length > 0 && form.systemPrompt.trim().length > 0)
+  const canCreate = mode === 'yaml'
+    ? yamlContent.trim().length > 0
+    : (form.name.trim().length > 0 && form.systemPrompt.trim().length > 0)
 
+  // ── Render ──
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onMouseDown={onClose}>
       <div
@@ -481,7 +748,6 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
                 </p>
               </div>
 
-              {/* App Name */}
               <div className="space-y-1.5">
                 <label className="text-sm text-foreground">
                   {t('App Name')} <span className="text-red-400">*</span>
@@ -495,7 +761,6 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
                 />
               </div>
 
-              {/* Description */}
               <div className="space-y-1.5">
                 <label className="text-sm text-foreground">
                   {t('Description')} <span className="text-red-400">*</span>
@@ -509,7 +774,6 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
                 />
               </div>
 
-              {/* Author */}
               <div className="space-y-1.5">
                 <label className="text-sm text-foreground">
                   {t('Author')} <span className="text-red-400">*</span>
@@ -523,7 +787,6 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
                 />
               </div>
 
-              {/* System Prompt */}
               <div className="space-y-1.5">
                 <label className="text-sm text-foreground">
                   {t('System Prompt')} <span className="text-red-400">*</span>
@@ -538,7 +801,6 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
                 />
               </div>
 
-              {/* Schedule Frequency */}
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {t('Schedule')}
@@ -565,7 +827,6 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
               </div>
             </>
           ) : mode === 'yaml' ? (
-            /* YAML mode */
             <>
               <p className="text-xs text-muted-foreground">
                 {t('Edit the YAML spec directly. This template includes all available fields for a digital human.')}
@@ -586,69 +847,28 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
               </Suspense>
             </>
           ) : (
-            /* Import mode */
-            <>
-              <p className="text-xs text-muted-foreground">
-                {t('Import a digital human from a .yaml spec file exported from Halo.')}
-              </p>
-
-              {importYaml === null ? (
-                /* File drop zone */
-                <div
-                  onDragOver={e => { e.preventDefault(); setIsDragOver(true) }}
-                  onDragLeave={() => setIsDragOver(false)}
-                  onDrop={handleDrop}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`flex flex-col items-center justify-center gap-3 h-52 border-2 border-dashed rounded-lg cursor-pointer transition-colors ${
-                    isDragOver
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-muted-foreground/50'
-                  }`}
-                >
-                  <Upload className={`w-8 h-8 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
-                  <div className="text-center">
-                    <p className="text-sm text-foreground">{t('Drop .yaml file here')}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{t('or click to browse')}</p>
-                  </div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".yaml,.yml"
-                    onChange={handleFileInput}
-                    className="hidden"
-                  />
-                </div>
-              ) : (
-                /* Preview loaded file */
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-foreground">{importFileName}</span>
-                    <button
-                      onClick={handleClearImport}
-                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                    >
-                      {t('Clear')}
-                    </button>
-                  </div>
-                  <Suspense fallback={
-                    <div className="h-64 flex items-center justify-center bg-secondary rounded-lg border border-border">
-                      <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-                    </div>
-                  }>
-                    <div className="h-64 border border-border rounded-lg overflow-hidden">
-                      <CodeMirrorEditor
-                        content={importYaml}
-                        language="yaml"
-                        readOnly={true}
-                      />
-                    </div>
-                  </Suspense>
-                </div>
-              )}
-            </>
+            /* ── Import mode ── */
+            <ImportTab
+              importState={importState}
+              isDragOver={isDragOver}
+              fileInputRef={fileInputRef}
+              folderInputRef={folderInputRef}
+              allSpaces={allSpaces}
+              selectedSpaceId={selectedSpaceId}
+              onSelectedSpaceChange={setSelectedSpaceId}
+              onDrop={handleImportDrop}
+              onDragOver={e => { e.preventDefault(); setIsDragOver(true) }}
+              onDragLeave={() => setIsDragOver(false)}
+              onFileInput={handleFileInput}
+              onFolderInput={handleFolderInput}
+              onReset={handleImportReset}
+              onYamlInstall={handleYamlInstall}
+              onBundleInstall={handleBundleInstall}
+              loading={loading}
+            />
           )}
 
-          {/* Model selector — shown in visual and YAML modes */}
+          {/* Model selector — visual and YAML modes only */}
           {mode !== 'import' && (
             <AppModelSelector
               modelSourceId={modelSourceId}
@@ -660,53 +880,536 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
             />
           )}
 
-          {/* Space selector — shown in all modes */}
-          <div className="space-y-2">
-            <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              {t('Install to')}
-            </h3>
-            {allSpaces.length <= 1 ? (
-              // Single space — show as text
-              <p className="text-sm text-foreground">
-                {allSpaces[0]?.name ?? t('No spaces available')}
-              </p>
-            ) : (
-              // Multiple spaces — show dropdown
-              <select
-                value={selectedSpaceId}
-                onChange={e => setSelectedSpaceId(e.target.value)}
-                className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
-              >
-                {allSpaces.map(s => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            )}
-          </div>
+          {/* Space selector — visual and YAML modes only */}
+          {mode !== 'import' && (
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                {t('Install to')}
+              </h3>
+              {allSpaces.length <= 1 ? (
+                <p className="text-sm text-foreground">
+                  {allSpaces[0]?.name ?? t('No spaces available')}
+                </p>
+              ) : (
+                <select
+                  value={selectedSpaceId}
+                  onChange={e => setSelectedSpaceId(e.target.value)}
+                  className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+                >
+                  {allSpaces.map(s => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+              )}
+            </div>
+          )}
 
           {error && (
             <p className="text-xs text-red-400">{error}</p>
           )}
         </div>
 
-        {/* Footer */}
-        <div className="flex justify-end gap-2 px-4 py-3 border-t border-border flex-shrink-0">
-          <button
-            onClick={onClose}
-            className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        {/* Footer — visual / yaml modes only; import mode manages its own footer */}
+        {mode !== 'import' && (
+          <div className="flex justify-end gap-2 px-4 py-3 border-t border-border flex-shrink-0">
+            <button
+              onClick={onClose}
+              className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {t('Cancel')}
+            </button>
+            <button
+              onClick={handleCreateInstall}
+              disabled={loading || !canCreate}
+              className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              {t('Create Digital Human')}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ============================================
+// ImportTab — self-contained import UI
+// ============================================
+
+function ImportTab({
+  importState,
+  isDragOver,
+  fileInputRef,
+  folderInputRef,
+  allSpaces,
+  selectedSpaceId,
+  onSelectedSpaceChange,
+  onDrop,
+  onDragOver,
+  onDragLeave,
+  onFileInput,
+  onFolderInput,
+  onReset,
+  onYamlInstall,
+  onBundleInstall,
+  loading,
+}: {
+  importState: ImportState
+  isDragOver: boolean
+  fileInputRef: React.RefObject<HTMLInputElement>
+  folderInputRef: React.RefObject<HTMLInputElement>
+  allSpaces: Array<{ id: string; name: string; icon: string }>
+  selectedSpaceId: string
+  onSelectedSpaceChange: (id: string) => void
+  onDrop: (e: React.DragEvent) => void
+  onDragOver: (e: React.DragEvent) => void
+  onDragLeave: () => void
+  onFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onFolderInput: (e: React.ChangeEvent<HTMLInputElement>) => void
+  onReset: () => void
+  onYamlInstall: (yaml: string) => void
+  onBundleInstall: (result: ZipParseResult) => void
+  loading: boolean
+}) {
+  const { t } = useTranslation()
+  const phase = importState.phase
+
+  // Installing / terminal phases render full-screen content + Done footer
+  if (phase === 'installing') {
+    const { progress } = importState
+    const percent = Math.round((progress.currentIndex / progress.totalSteps) * 100)
+    return (
+      <>
+        <div className="flex flex-col items-center justify-center py-12 gap-4">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <div className="text-center space-y-1">
+            <p className="text-sm text-foreground">{progress.currentStep}</p>
+            <p className="text-xs text-muted-foreground">
+              {t('Step {{current}} of {{total}}', { current: progress.currentIndex, total: progress.totalSteps })}
+            </p>
+          </div>
+          <div className="w-48 h-1.5 bg-secondary rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${percent}%` }} />
+          </div>
+        </div>
+        <ImportFooter phase={phase} onReset={onReset} loading={false} />
+      </>
+    )
+  }
+
+  if (phase === 'success') {
+    return (
+      <>
+        <div className="space-y-3">
+          <div className="flex flex-col items-center py-6 gap-3">
+            <CheckCircle2 className="w-10 h-10 text-green-500" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground">{t('Installation complete')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{importState.result.displayName}</p>
+            </div>
+          </div>
+          {importState.skillResults.length > 0 && <SkillResultsList skillResults={importState.skillResults} />}
+        </div>
+        <ImportFooter phase={phase} onReset={onReset} loading={false} />
+      </>
+    )
+  }
+
+  if (phase === 'partial') {
+    return (
+      <>
+        <div className="space-y-3">
+          <div className="flex flex-col items-center py-6 gap-3">
+            <AlertTriangle className="w-10 h-10 text-yellow-500" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-foreground">{t('Partially installed')}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('{{name}} was installed, but some bundled skills failed.', { name: importState.result.displayName })}
+              </p>
+            </div>
+          </div>
+          <SkillResultsList skillResults={importState.skillResults} />
+        </div>
+        <ImportFooter phase={phase} onReset={onReset} loading={false} />
+      </>
+    )
+  }
+
+  if (phase === 'failed') {
+    return (
+      <>
+        <div className="space-y-3">
+          <div className="flex flex-col items-center py-6 gap-3">
+            <AlertCircle className="w-10 h-10 text-destructive" />
+            <div className="text-center">
+              <p className="text-sm font-medium text-destructive">{t('Installation failed')}</p>
+              <p className="text-xs text-muted-foreground mt-1 max-w-sm">{importState.error}</p>
+            </div>
+          </div>
+          {importState.skillResults.length > 0 && <SkillResultsList skillResults={importState.skillResults} />}
+        </div>
+        <ImportFooter phase={phase} onReset={onReset} loading={false} />
+      </>
+    )
+  }
+
+  // Idle / loading / error / preview phases — all share the same footer pattern
+  return (
+    <>
+      {/* Description */}
+      <p className="text-xs text-muted-foreground">
+        {t('Drop a .yaml spec file, .zip bundle, or folder to import a digital human.')}
+      </p>
+
+      {phase === 'idle' && (
+        <>
+          {/* Drop zone */}
+          <div
+            onDragOver={onDragOver}
+            onDragLeave={onDragLeave}
+            onDrop={onDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`flex flex-col items-center justify-center gap-3 h-40 border-2 border-dashed rounded-lg cursor-pointer select-none transition-colors ${
+              isDragOver
+                ? 'border-primary bg-primary/5'
+                : 'border-border hover:border-muted-foreground/50'
+            }`}
           >
-            {t('Cancel')}
-          </button>
+            <Upload className={`w-7 h-7 ${isDragOver ? 'text-primary' : 'text-muted-foreground'}`} />
+            <div className="text-center px-4">
+              <p className="text-sm text-foreground">{t('Drop .yaml, .zip, or folder here')}</p>
+              <p className="text-xs text-muted-foreground mt-1">{t('or click to browse a file')}</p>
+            </div>
+            <input ref={fileInputRef} type="file" accept=".yaml,.yml,.zip" onChange={onFileInput} className="hidden" />
+          </div>
+
+          {/* Browse folder button */}
           <button
-            onClick={handleInstall}
-            disabled={loading || !canInstall}
-            className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+            type="button"
+            onClick={() => folderInputRef.current?.click()}
+            className="flex items-center gap-2 w-full px-3 py-2 text-sm text-muted-foreground hover:text-foreground border border-border hover:border-muted-foreground/50 rounded-lg transition-colors"
           >
-            {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            {mode === 'import' ? t('Import Digital Human') : t('Create Digital Human')}
+            <FolderOpen className="w-4 h-4" />
+            {t('Browse folder...')}
           </button>
+          <input
+            ref={folderInputRef}
+            type="file"
+            // @ts-expect-error webkitdirectory is non-standard but widely supported
+            webkitdirectory=""
+            onChange={onFolderInput}
+            className="hidden"
+          />
+
+          {/* Format hint */}
+          <div className="p-3 bg-secondary/50 rounded-lg border border-border space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+              {t('Bundle format (zip or folder)')}
+            </p>
+            <pre className="text-xs text-muted-foreground font-mono leading-relaxed">
+{`├── spec.yaml          ← ${t('Required: automation spec')}
+└── skills/            ← ${t('Optional: bundled skills')}
+    └── skill-name/
+        └── SKILL.md`}
+            </pre>
+          </div>
+        </>
+      )}
+
+      {phase === 'loading' && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-sm text-muted-foreground">{t('Parsing...')}</p>
+        </div>
+      )}
+
+      {phase === 'error' && (
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          <div className="flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 text-destructive flex-shrink-0" />
+            <p className="text-sm font-medium text-destructive">{t('Validation failed')}</p>
+          </div>
+          {importState.errors.map((err, i) => (
+            <div key={i} className="p-3 bg-destructive/5 border border-destructive/20 rounded-lg space-y-1">
+              <p className="text-xs font-medium text-foreground font-mono">{err.location}</p>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground/70">{t('Expected')}: </span>{err.expected}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                <span className="text-muted-foreground/70">{t('Actual')}: </span>{err.actual}
+              </p>
+              {err.suggestion && <p className="text-xs text-primary mt-1">{err.suggestion}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {phase === 'yaml-preview' && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground">{importState.fileName}</span>
+            <button onClick={onReset} className="text-xs text-muted-foreground hover:text-foreground transition-colors">
+              {t('Clear')}
+            </button>
+          </div>
+          <Suspense fallback={
+            <div className="h-64 flex items-center justify-center bg-secondary rounded-lg border border-border">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+            </div>
+          }>
+            <div className="h-64 border border-border rounded-lg overflow-hidden">
+              <CodeMirrorEditor content={importState.yamlContent} language="yaml" readOnly={true} />
+            </div>
+          </Suspense>
+        </div>
+      )}
+
+      {phase === 'bundle-preview' && (
+        <BundlePreview result={importState.result} fileName={importState.fileName} sourceType={importState.sourceType} />
+      )}
+
+      {/* Space selector — shown in yaml-preview and bundle-preview */}
+      {(phase === 'yaml-preview' || phase === 'bundle-preview') && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('Install to')}
+          </h3>
+          {allSpaces.length <= 1 ? (
+            <p className="text-sm text-foreground">{allSpaces[0]?.name ?? t('No spaces available')}</p>
+          ) : (
+            <select
+              value={selectedSpaceId}
+              onChange={e => onSelectedSpaceChange(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-secondary border border-border rounded-lg focus:outline-none focus:ring-1 focus:ring-primary text-foreground"
+            >
+              {allSpaces.map(s => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <ImportFooter
+        phase={phase}
+        onReset={onReset}
+        loading={loading}
+        onYamlInstall={phase === 'yaml-preview' ? () => onYamlInstall(importState.yamlContent) : undefined}
+        onBundleInstall={phase === 'bundle-preview' ? () => onBundleInstall(importState.result) : undefined}
+      />
+    </>
+  )
+}
+
+// ── Footer for import tab ──
+function ImportFooter({
+  phase,
+  onReset,
+  loading,
+  onYamlInstall,
+  onBundleInstall,
+}: {
+  phase: ImportState['phase']
+  onReset: () => void
+  loading: boolean
+  onYamlInstall?: () => void
+  onBundleInstall?: () => void
+}) {
+  const { t } = useTranslation()
+
+  if (phase === 'idle' || phase === 'loading') return null
+
+  if (phase === 'error') {
+    return (
+      <div className="flex justify-end gap-2 pt-2 border-t border-border">
+        <button
+          onClick={onReset}
+          className="px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          {t('Try again')}
+        </button>
+      </div>
+    )
+  }
+
+  if (phase === 'yaml-preview') {
+    return (
+      <div className="flex justify-end gap-2 pt-2 border-t border-border">
+        <button onClick={onReset} className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          {t('Back')}
+        </button>
+        <button
+          onClick={onYamlInstall}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          {t('Import')}
+        </button>
+      </div>
+    )
+  }
+
+  if (phase === 'bundle-preview') {
+    return (
+      <div className="flex justify-end gap-2 pt-2 border-t border-border">
+        <button onClick={onReset} className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          {t('Back')}
+        </button>
+        <button
+          onClick={onBundleInstall}
+          disabled={loading}
+          className="flex items-center gap-1.5 px-4 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
+        >
+          {loading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+          {t('Install')}
+        </button>
+      </div>
+    )
+  }
+
+  if (phase === 'installing') {
+    return (
+      <div className="flex justify-end pt-2 border-t border-border">
+        <button disabled className="px-3 py-1.5 text-sm text-muted-foreground opacity-50 cursor-not-allowed">
+          {t('Installing...')}
+        </button>
+      </div>
+    )
+  }
+
+  // success / partial / failed
+  return (
+    <div className="flex justify-end gap-2 pt-2 border-t border-border">
+      {(phase === 'failed') && (
+        <button onClick={onReset} className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          {t('Try again')}
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ── Bundle preview ──
+function BundlePreview({
+  result,
+  fileName,
+  sourceType,
+}: {
+  result: ZipParseResult
+  fileName: string
+  sourceType: 'zip' | 'folder'
+}) {
+  const { t } = useTranslation()
+  const SourceIcon = sourceType === 'folder' ? FolderOpen : Archive
+  const sourceLabel = sourceType === 'folder' ? t('Folder') : t('ZIP archive')
+
+  return (
+    <div className="space-y-3">
+      {/* Source info */}
+      <div className="flex items-center gap-2.5 p-3 bg-secondary rounded-lg border border-border">
+        <SourceIcon className="w-4 h-4 text-primary flex-shrink-0" />
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground truncate">{fileName}</p>
+          <p className="text-xs text-muted-foreground">{sourceLabel}</p>
         </div>
       </div>
+
+      {/* Main spec card */}
+      <div className="p-3 bg-secondary/50 rounded-lg border border-border space-y-2">
+        <div className="flex items-center gap-2">
+          <Bot className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            {t('Digital Human')}
+          </span>
+        </div>
+        <div className="space-y-1">
+          <p className="text-sm font-medium text-foreground">{result.displayName}</p>
+          <p className="text-xs text-muted-foreground">{result.description}</p>
+          {(result.version || result.author) && (
+            <p className="text-xs text-muted-foreground/70">
+              {result.version && <span>v{result.version}</span>}
+              {result.version && result.author && <span> · </span>}
+              {result.author && <span>{result.author}</span>}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Bundled skills */}
+      {result.bundledSkills.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Puzzle className="w-3.5 h-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              {t('Bundled Skills')} ({result.bundledSkills.length})
+            </span>
+          </div>
+          <div className="space-y-1">
+            {result.bundledSkills.map(skill => {
+              const { name, description } = parseSkillFrontmatter(skill.files['SKILL.md'] ?? '')
+              const fileCount = Object.keys(skill.files).length
+              return (
+                <div
+                  key={skill.name}
+                  className="flex items-center justify-between px-3 py-2 bg-secondary/50 rounded-lg border border-border"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground truncate">{name || skill.name}</p>
+                    {description && <p className="text-xs text-muted-foreground truncate">{description}</p>}
+                  </div>
+                  <span className="text-xs text-muted-foreground flex-shrink-0 ml-2">
+                    {fileCount === 1 ? t('1 file') : t('{{count}} files', { count: fileCount })}
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Warnings */}
+      {result.warnings.length > 0 && (
+        <div className="space-y-1.5">
+          {result.warnings.map((warn, i) => (
+            <div key={i} className="flex items-start gap-2 px-3 py-2 bg-yellow-400/5 border border-yellow-400/20 rounded-lg">
+              <AlertTriangle className="w-3.5 h-3.5 text-yellow-500 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs font-medium text-foreground font-mono">{warn.location}</p>
+                <p className="text-xs text-muted-foreground">{warn.message}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Skill results list (success/partial/failed) ──
+function SkillResultsList({ skillResults }: { skillResults: Array<{ name: string; success: boolean; error?: string; skipped?: boolean }> }) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-1.5">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('Bundled Skills')}</p>
+      {skillResults.map((sr, i) => (
+        <div key={i} className="flex items-center justify-between px-3 py-2 bg-secondary/50 rounded-lg border border-border">
+          <span className="text-xs text-foreground truncate">{sr.name}</span>
+          {sr.success ? (
+            <span className="flex items-center gap-1 text-xs text-green-500 flex-shrink-0">
+              <CheckCircle2 className="w-3 h-3" />
+              {sr.skipped ? t('Already installed') : t('Installed')}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 text-xs text-destructive flex-shrink-0">
+              <AlertCircle className="w-3 h-3" />
+              {t('Failed')}
+            </span>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

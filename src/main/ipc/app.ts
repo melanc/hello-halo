@@ -394,7 +394,7 @@ export function registerAppHandlers(): void {
         // without interrupting any running execution
         const runtime = getAppRuntime()
         if (runtime) {
-          runtime.syncAppSchedule(input.appId)
+          runtime.syncAppSubscriptions(input.appId)
         }
 
         return { success: true }
@@ -433,15 +433,13 @@ export function registerAppHandlers(): void {
         if (!r.success) return r
         r.manager.updateSpec(input.appId, input.specPatch)
 
-        // Reactivate runtime if subscriptions changed
+        // Hot-sync subscriptions if subscriptions changed.
+        // Uses syncAppSubscriptions() instead of deactivate/activate to avoid
+        // aborting any currently running execution for this app.
         if (input.specPatch.subscriptions) {
           const runtime = getAppRuntime()
-          const app = r.manager.getApp(input.appId)
-          if (runtime && app?.status === 'active') {
-            await runtime.deactivate(input.appId).catch(() => {})
-            await runtime.activate(input.appId).catch(err => {
-              console.warn(`[AppIPC] app:update-spec -- reactivation failed (non-fatal): ${err}`)
-            })
+          if (runtime) {
+            runtime.syncAppSubscriptions(input.appId)
           }
         }
 
@@ -754,6 +752,30 @@ export function registerAppHandlers(): void {
       } catch (error: unknown) {
         const err = error as Error
         console.error('[AppIPC] app:open-data-folder error:', err.message)
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
+  // ── app:clear-memory ────────────────────────────────────────────────────
+  ipcMain.handle(
+    'app:clear-memory',
+    async (_event, appId: string) => {
+      try {
+        const r = requireManager()
+        if (!r.success) return r
+
+        const app = r.manager.getApp(appId)
+        if (!app) {
+          return { success: false, error: 'App not found' }
+        }
+
+        const filesRemoved = r.manager.clearAppMemory(appId)
+        console.log(`[AppIPC] app:clear-memory: appId=${appId}, filesRemoved=${filesRemoved}`)
+        return { success: true, data: { filesRemoved } }
+      } catch (error: unknown) {
+        const err = error as Error
+        console.error('[AppIPC] app:clear-memory error:', err.message)
         return { success: false, error: err.message }
       }
     }

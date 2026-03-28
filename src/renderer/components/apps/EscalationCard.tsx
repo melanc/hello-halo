@@ -11,6 +11,7 @@ import { Loader2, MessageSquare, CheckCircle2 } from 'lucide-react'
 import type { ActivityEntry } from '../../../shared/apps/app-types'
 import { useAppsStore } from '../../stores/apps.store'
 import { useTranslation } from '../../i18n'
+import { MarkdownRenderer } from '../chat/MarkdownRenderer'
 
 interface EscalationCardProps {
   entry: ActivityEntry
@@ -27,6 +28,7 @@ export function EscalationCard({ entry, appId }: EscalationCardProps) {
   const resolved = !!entry.userResponse
   const question = entry.content.question ?? entry.content.summary
   const choices = entry.content.choices ?? []
+  const data = typeof entry.content.data === 'string' ? entry.content.data : undefined
 
   async function handleChoice(choice: string) {
     setIsSubmitting(true)
@@ -44,14 +46,17 @@ export function EscalationCard({ entry, appId }: EscalationCardProps) {
   if (resolved) {
     const userAnswer = entry.userResponse?.choice ?? entry.userResponse?.text ?? ''
     return (
-      <div className="flex items-start gap-2 text-xs text-muted-foreground">
-        <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
-        <div>
-          <p className="italic">「{question}」</p>
-          <p className="mt-0.5">
-            {t('Your response')}: <span className="text-foreground font-medium">{userAnswer}</span>
-          </p>
+      <div className="space-y-2">
+        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+          <CheckCircle2 className="w-3.5 h-3.5 text-green-500 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="italic">「{question}」</p>
+            <p className="mt-0.5">
+              {t('Your response')}: <span className="text-foreground font-medium">{userAnswer}</span>
+            </p>
+          </div>
         </div>
+        {data && <MarkdownRenderer content={data} className="text-sm" />}
       </div>
     )
   }
@@ -63,6 +68,9 @@ export function EscalationCard({ entry, appId }: EscalationCardProps) {
         <MessageSquare className="w-3.5 h-3.5 text-orange-400 mt-0.5 flex-shrink-0" />
         <p className="text-sm text-foreground">{question}</p>
       </div>
+
+      {/* Detailed context data */}
+      {data && <MarkdownRenderer content={data} className="text-sm" />}
 
       {/* Preset choices */}
       {choices.length > 0 && !showTextInput && (

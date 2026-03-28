@@ -226,6 +226,7 @@ export interface HaloAPI {
   onUpdaterStatus: (callback: (data: unknown) => void) => () => void
 
   // Browser (embedded browser for Content Canvas)
+  getBrowserHomepage: () => Promise<IpcResponse>
   createBrowserView: (viewId: string, url?: string) => Promise<IpcResponse>
   destroyBrowserView: (viewId: string) => Promise<IpcResponse>
   showBrowserView: (viewId: string, bounds: { x: number; y: number; width: number; height: number }) => Promise<IpcResponse>
@@ -326,6 +327,16 @@ export interface HaloAPI {
   testNotificationChannel: (channelType: string) => Promise<IpcResponse>
   clearNotificationChannelCache: () => Promise<IpcResponse>
 
+  // WeCom Bot (企业微信智能机器人)
+  getWecomBotStatus: () => Promise<IpcResponse>
+  reconnectWecomBot: () => Promise<IpcResponse>
+
+  // IM Sessions (会话管理)
+  imSessionsList: (appId?: string) => Promise<IpcResponse>
+  imSessionsSetProactive: (input: { appId: string; channel: string; chatId: string; proactive: boolean }) => Promise<IpcResponse>
+  imSessionsRemove: (input: { appId: string; channel: string; chatId: string }) => Promise<IpcResponse>
+  imSessionsSetCustomName: (input: { appId: string; channel: string; chatId: string; name: string }) => Promise<IpcResponse>
+
   // Apps Management
   appList: (filter?: { spaceId?: string; status?: string; type?: string }) => Promise<IpcResponse>
   appGet: (appId: string) => Promise<IpcResponse>
@@ -353,6 +364,7 @@ export interface HaloAPI {
   appOpenSkillFolder: (appId: string) => Promise<IpcResponse>
   appGetDataPath: (appId: string) => Promise<IpcResponse<{ path: string }>>
   appOpenDataFolder: (appId: string) => Promise<IpcResponse>
+  appClearMemory: (appId: string) => Promise<IpcResponse<{ filesRemoved: number }>>
   appMoveSpace: (input: { appId: string; newSpaceId: string | null }) => Promise<IpcResponse>
 
   // App Chat
@@ -555,6 +567,7 @@ const api: HaloAPI = {
   onUpdaterStatus: (callback) => createEventListener('updater:status', callback),
 
   // Browser (embedded browser for Content Canvas)
+  getBrowserHomepage: () => ipcRenderer.invoke('browser:get-homepage'),
   createBrowserView: (viewId, url) => ipcRenderer.invoke('browser:create', { viewId, url }),
   destroyBrowserView: (viewId) => ipcRenderer.invoke('browser:destroy', { viewId }),
   showBrowserView: (viewId, bounds) => ipcRenderer.invoke('browser:show', { viewId, bounds }),
@@ -638,6 +651,16 @@ const api: HaloAPI = {
   testNotificationChannel: (channelType: string) => ipcRenderer.invoke('notify-channels:test', channelType),
   clearNotificationChannelCache: () => ipcRenderer.invoke('notify-channels:clear-cache'),
 
+  // WeCom Bot (企业微信智能机器人)
+  getWecomBotStatus: () => ipcRenderer.invoke('wecom-bot:status'),
+  reconnectWecomBot: () => ipcRenderer.invoke('wecom-bot:reconnect'),
+
+  // IM Sessions (会话管理)
+  imSessionsList: (appId) => ipcRenderer.invoke('im-sessions:list', appId),
+  imSessionsSetProactive: (input) => ipcRenderer.invoke('im-sessions:set-proactive', input),
+  imSessionsRemove: (input) => ipcRenderer.invoke('im-sessions:remove', input),
+  imSessionsSetCustomName: (input) => ipcRenderer.invoke('im-sessions:set-custom-name', input),
+
   // Apps Management
   appList: (filter) => ipcRenderer.invoke('app:list', filter),
   appGet: (appId) => ipcRenderer.invoke('app:get', appId),
@@ -665,6 +688,7 @@ const api: HaloAPI = {
   appOpenSkillFolder: (appId) => ipcRenderer.invoke('app:open-skill-folder', appId),
   appGetDataPath: (appId) => ipcRenderer.invoke('app:get-data-path', appId),
   appOpenDataFolder: (appId) => ipcRenderer.invoke('app:open-data-folder', appId),
+  appClearMemory: (appId) => ipcRenderer.invoke('app:clear-memory', appId),
   appMoveSpace: (input) => ipcRenderer.invoke('app:move-space', input),
 
   // App Chat

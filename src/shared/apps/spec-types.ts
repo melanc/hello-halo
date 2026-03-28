@@ -99,11 +99,15 @@ export interface RssSourceConfig {
 
 export type CustomSourceConfig = Record<string, unknown>
 
+export interface WecomSourceConfig {
+  chatId?: string
+}
+
 // ============================================
 // Subscription Source (discriminated union)
 // ============================================
 
-export type SubscriptionSourceType = 'schedule' | 'file' | 'webhook' | 'webpage' | 'rss' | 'custom'
+export type SubscriptionSourceType = 'schedule' | 'file' | 'webhook' | 'webpage' | 'rss' | 'custom' | 'wecom'
 
 export type SubscriptionSource =
   | { type: 'schedule'; config: ScheduleSourceConfig }
@@ -112,6 +116,7 @@ export type SubscriptionSource =
   | { type: 'webpage'; config: WebpageSourceConfig }
   | { type: 'rss'; config: RssSourceConfig }
   | { type: 'custom'; config: CustomSourceConfig }
+  | { type: 'wecom'; config: WecomSourceConfig }
 
 // ============================================
 // Frequency Definition

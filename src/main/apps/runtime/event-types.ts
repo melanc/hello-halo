@@ -114,6 +114,7 @@ export type EventSourceType =
   | 'schedule-bridge'
   | 'webpage'    // V2 placeholder
   | 'rss'        // V2 placeholder
+  | 'wecom-bot'
   | 'internal'
 
 /**

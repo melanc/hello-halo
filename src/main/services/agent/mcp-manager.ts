@@ -14,7 +14,8 @@ import {
   getApiCredentials,
   getEnabledMcpServers,
   getDbMcpServers,
-  inferOpenAIWireApi
+  inferOpenAIWireApi,
+  credentialsToBackendConfig
 } from './helpers'
 import { emitAgentBroadcast } from './events'
 import { getCleanUserEnv } from './sdk-config'
@@ -123,15 +124,7 @@ export async function testMcpConnections(): Promise<{ success: boolean; servers:
       const apiType = credentials.apiType
         || (credentials.provider === 'oauth' ? 'chat_completions' : inferOpenAIWireApi(credentials.baseUrl))
 
-      anthropicApiKey = encodeBackendConfig({
-        url: credentials.baseUrl,
-        key: credentials.apiKey,
-        model: credentials.model,
-        headers: credentials.customHeaders,
-        apiType,
-        forceStream: credentials.forceStream,
-        filterContent: credentials.filterContent
-      })
+      anthropicApiKey = encodeBackendConfig(credentialsToBackendConfig(credentials, { apiType }))
       sdkModel = 'claude-sonnet-4-20250514'
       console.log(`[Agent] MCP test: ${credentials.provider} provider enabled via ${anthropicBaseUrl}, apiType=${apiType}`)
     }

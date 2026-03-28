@@ -12,6 +12,7 @@
  */
 
 import { z } from 'zod'
+import { Cron } from 'croner'
 
 // ============================================
 // Primitives and Reusable Schemas
@@ -36,10 +37,26 @@ const durationString = z.string().regex(
 )
 
 /**
- * Cron expression string. Basic validation only -- full cron parsing is left to
- * the scheduler module.
+ * Cron expression string. Validated via croner to catch invalid expressions
+ * (e.g. "0 9:30 * * *") at spec-creation time rather than silently at runtime.
  */
-const cronString = z.string().trim().min(5, 'Cron expression too short')
+const cronString = z.string().trim().min(5, 'Cron expression too short').superRefine((val, ctx) => {
+  try {
+    const job = new Cron(val, { paused: true, mode: '5-or-6-parts' })
+    const next = job.nextRun(new Date())
+    if (!next) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: `Cron expression "${val}" produces no future occurrences`
+      })
+    }
+  } catch (err) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `Invalid cron expression "${val}": ${err instanceof Error ? err.message : String(err)}`
+    })
+  }
+})
 
 // ============================================
 // App Type
@@ -156,6 +173,11 @@ export const RssSourceConfigSchema = z.object({
 
 export const CustomSourceConfigSchema = z.record(z.string(), z.unknown())
 
+export const WecomSourceConfigSchema = z.object({
+  /** Optional: only trigger for specific chat IDs */
+  chatId: z.string().optional(),
+})
+
 // ============================================
 // Subscription Definition
 // ============================================
@@ -184,6 +206,10 @@ export const SubscriptionSourceSchema = z.discriminatedUnion('type', [
   z.object({
     type: z.literal('custom'),
     config: CustomSourceConfigSchema
+  }),
+  z.object({
+    type: z.literal('wecom'),
+    config: WecomSourceConfigSchema
   })
 ])
 

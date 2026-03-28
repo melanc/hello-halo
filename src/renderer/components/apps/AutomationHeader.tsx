@@ -19,6 +19,7 @@ import { resolveSpecI18n } from '../../utils/spec-i18n'
 import { resolvePermission } from '../../../shared/apps/app-types'
 import { api } from '../../api'
 import type { BrowserLoginEntry } from '../../../shared/apps/spec-types'
+import { getBrowserHomepage } from '../../utils/browser-homepage'
 
 // Brand-aligned palette for boring-avatars
 const AVATAR_COLORS = ['#84B9EF', '#6C8EBF', '#3D5A80', '#98C1D9', '#E0FBFC']
@@ -74,7 +75,7 @@ export function AutomationHeader({ appId, spaceName }: AutomationHeaderProps) {
 
   const handleOpenBlankBrowser = useCallback(() => {
     setShowBrowserPopover(false)
-    api.openLoginWindow('https://www.bing.com', t('Browser'))
+    getBrowserHomepage().then(url => api.openLoginWindow(url, t('Browser')))
   }, [t])
 
   // Derive current tab from detailView

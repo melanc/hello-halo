@@ -57,6 +57,12 @@ export * from './artifact'
 // Notification channel types (shared between main process and renderer)
 export * from './notification-channels'
 
+// Inbound message types (IM channel adapter boundary types)
+export * from './inbound-message'
+
+// IM channel types (proactive push adapter + session records)
+export * from './im-channel'
+
 // File changes types (shared between main process agent and renderer diff)
 export type { FileChangesSummary, ThoughtLike } from '../file-changes'
 export { countChangedLines, calculateDiffStats, extractFileChangesSummaryFromThoughts } from '../file-changes'

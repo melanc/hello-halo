@@ -37,9 +37,7 @@ import { TextViewer } from './viewers/TextViewer'
 import { BrowserViewer, BrowserViewerFallback } from './viewers/BrowserViewer'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
-
-// Default URL for new browser tabs
-const DEFAULT_NEW_TAB_URL = 'https://www.bing.com'
+import { getBrowserHomepage } from '../../utils/browser-homepage'
 
 interface ContentCanvasProps {
   className?: string
@@ -70,7 +68,7 @@ export function ContentCanvas({ className = '' }: ContentCanvasProps) {
       // Cmd/Ctrl + T: New browser tab (works globally)
       if ((e.metaKey || e.ctrlKey) && e.key === 't') {
         e.preventDefault()
-        openUrl(DEFAULT_NEW_TAB_URL, t('New Tab'))
+        getBrowserHomepage().then(url => openUrl(url, t('New Tab')))
         return
       }
 

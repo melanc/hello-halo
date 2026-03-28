@@ -32,9 +32,7 @@ import { useWindowMaximize } from './viewers/useWindowMaximize'
 import { FileIcon } from '../icons/ToolIcons'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
-
-// Default URL for new browser tabs
-const DEFAULT_NEW_TAB_URL = 'https://www.bing.com'
+import { getBrowserHomepage } from '../../utils/browser-homepage'
 
 interface CanvasTabsProps {
   tabs: TabState[]
@@ -464,9 +462,9 @@ export function CanvasTabBar() {
   // Combined maximize state: both window AND canvas are maximized
   const isFullyMaximized = isCanvasMaximized && isWindowMaximized
 
-  // Handle new tab - opens Bing as default
+  // Handle new tab - opens configured homepage (respects browser policy)
   const handleNewTab = useCallback(() => {
-    openUrl(DEFAULT_NEW_TAB_URL, t('New Tab'))
+    getBrowserHomepage().then(url => openUrl(url, t('New Tab')))
   }, [openUrl, t])
 
   // Handle combined maximize toggle: window maximize + canvas fullscreen

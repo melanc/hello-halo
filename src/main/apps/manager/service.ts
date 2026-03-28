@@ -11,7 +11,7 @@
  * in index.ts and returned as the AppManagerService interface.
  */
 
-import { existsSync, mkdirSync, rmSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, rmSync, unlinkSync } from 'fs'
 import { join } from 'path'
 import { v4 as uuidv4 } from 'uuid'
 
@@ -112,10 +112,19 @@ export interface AppManagerDeps {
   store: AppManagerStore
 
   /**
-   * Resolve a space ID to its filesystem path.
+   * Resolve a space ID to its filesystem path for skill sync.
+   * For halo-temp this returns the artifacts/ subdirectory (Claude SDK workDir).
    * Returns null if the space does not exist.
    */
   getSpacePath: (spaceId: string) => string | null
+
+  /**
+   * Resolve a space ID to its raw data path for app work directories.
+   * Always returns space.path directly — never the artifacts/ subdirectory —
+   * so that .halo/apps/{appId}/ is co-located with where the runtime writes memory.
+   * Returns null if the space does not exist.
+   */
+  getAppDataPath: (spaceId: string) => string | null
 
   /**
    * Get the root directory for global app data (haloDir).
@@ -131,7 +140,7 @@ export interface AppManagerDeps {
  * @returns A fully functional AppManagerService
  */
 export function createAppManagerService(deps: AppManagerDeps): AppManagerService {
-  const { store, getSpacePath, getGlobalAppDir } = deps
+  const { store, getSpacePath, getAppDataPath, getGlobalAppDir } = deps
 
   // Status change event listeners
   const statusChangeHandlers: StatusChangeHandler[] = []
@@ -171,7 +180,7 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
     if (spaceId === null) {
       return join(getGlobalAppDir(), 'apps', appId)
     }
-    const spacePath = getSpacePath(spaceId)
+    const spacePath = getAppDataPath(spaceId)
     if (!spacePath) {
       throw new SpaceNotFoundError(spaceId)
     }
@@ -185,6 +194,25 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
     if (!existsSync(dirPath)) {
       mkdirSync(dirPath, { recursive: true })
     }
+  }
+
+  /**
+   * Recursively delete all contents of a directory without removing the directory itself.
+   * Returns the number of files removed.
+   */
+  function clearDirContents(dirPath: string): number {
+    let removed = 0
+    for (const entry of readdirSync(dirPath, { withFileTypes: true })) {
+      const fullPath = join(dirPath, entry.name)
+      if (entry.isDirectory()) {
+        removed += clearDirContents(fullPath)
+        rmSync(fullPath, { recursive: true, force: true })
+      } else {
+        unlinkSync(fullPath)
+        removed++
+      }
+    }
+    return removed
   }
 
   /**
@@ -737,6 +765,36 @@ export function createAppManagerService(deps: AppManagerDeps): AppManagerService
       ensureDir(join(workDir, 'memory'))
 
       return workDir
+    },
+
+    clearAppMemory(appId: string): number {
+      const app = requireApp(appId)
+      const workDir = resolveWorkDir(appId, app.spaceId)
+      let removed = 0
+
+      // Remove memory.md (active memory file)
+      const memoryFile = join(workDir, 'memory.md')
+      if (existsSync(memoryFile)) {
+        unlinkSync(memoryFile)
+        removed++
+      }
+
+      // Remove all files under memory/ recursively (run summaries + compaction archives)
+      // Preserve the directory itself so the next run can write immediately.
+      const memoryDir = join(workDir, 'memory')
+      if (existsSync(memoryDir)) {
+        removed += clearDirContents(memoryDir)
+      }
+
+      // Remove all files under runs/ (full session execution logs written by sessionWriter)
+      // Preserve the directory itself.
+      const runsDir = join(workDir, 'runs')
+      if (existsSync(runsDir)) {
+        removed += clearDirContents(runsDir)
+      }
+
+      console.log(`[AppManager] clearAppMemory: appId=${appId}, filesRemoved=${removed}`)
+      return removed
     },
 
     // ── Events ────────────────────────────────

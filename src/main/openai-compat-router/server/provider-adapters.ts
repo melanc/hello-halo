@@ -7,7 +7,7 @@
  * Design principles:
  * - Single Responsibility: Each adapter handles one provider
  * - Open/Closed: Easy to add new adapters without modifying existing code
- * - URL-based detection: Consistent with the rest of the codebase
+ * - Dual matching: URL-based detection (built-in providers) + adapterId (plugin providers)
  */
 
 // ============================================================================
@@ -119,6 +119,44 @@ const deepSeekAdapter: ProviderAdapter = {
 }
 
 // ============================================================================
+// Tencent Adapter
+// ============================================================================
+
+/**
+ * Tencent Hunyuan / CodeBuddy API uses flat reasoning parameters
+ *
+ * The standard OpenAI format sends `reasoning: { enabled, effort }` (nested object),
+ * but Tencent's API expects flat top-level fields:
+ * - reasoning_effort: 'low' | 'medium' | 'high'
+ * - reasoningEffort: 'low' | 'medium' | 'high'  (camelCase alias)
+ * - reasoning_summary: 'auto'
+ *
+ * Matched via adapterId from provider plugins (tencent, webank, etc.).
+ */
+const tencentAdapter: ProviderAdapter = {
+  id: 'tencent',
+  name: 'Tencent',
+
+  match(url: string): boolean {
+    return url.includes('copilot.tencent.com')
+  },
+
+  transformRequest(body: Record<string, unknown>): void {
+    const reasoning = body.reasoning as { enabled?: boolean; effort?: string } | undefined
+    if (reasoning?.enabled) {
+      const effort = reasoning.effort || 'medium'
+      body.reasoning_effort = effort
+      body.reasoningEffort = effort
+      body.reasoning_summary = 'auto'
+      console.log(`[TencentAdapter] reasoning transform applied: effort=${effort}`)
+    } else {
+      console.log('[TencentAdapter] reasoning transform skipped: not enabled')
+    }
+    delete body.reasoning
+  }
+}
+
+// ============================================================================
 // Registry
 // ============================================================================
 
@@ -129,13 +167,22 @@ const deepSeekAdapter: ProviderAdapter = {
 const adapters: readonly ProviderAdapter[] = [
   groqAdapter,
   openRouterAdapter,
-  deepSeekAdapter
+  deepSeekAdapter,
+  tencentAdapter
 ]
 
 /**
- * Find the adapter that matches the given URL
+ * Find the adapter matching the given URL or adapterId
+ *
+ * Resolution order:
+ * 1. Explicit adapterId (from BackendRequestConfig) — exact match on adapter.id
+ * 2. URL pattern matching — adapter.match(url)
  */
-export function findAdapter(url: string): ProviderAdapter | undefined {
+export function findAdapter(url: string, adapterId?: string): ProviderAdapter | undefined {
+  if (adapterId) {
+    const byId = adapters.find(a => a.id === adapterId)
+    if (byId) return byId
+  }
   return adapters.find(adapter => adapter.match(url))
 }
 
@@ -145,14 +192,16 @@ export function findAdapter(url: string): ProviderAdapter | undefined {
  * @param url - Target API URL
  * @param body - Request body (will be mutated if adapter has transformRequest)
  * @param headers - Request headers (adapter headers will be merged)
+ * @param adapterId - Explicit adapter ID from provider config (takes priority over URL matching)
  * @returns The adapter that was applied, or undefined if none matched
  */
 export function applyProviderAdapter(
   url: string,
   body: Record<string, unknown>,
-  headers: Record<string, string>
+  headers: Record<string, string>,
+  adapterId?: string
 ): ProviderAdapter | undefined {
-  const adapter = findAdapter(url)
+  const adapter = findAdapter(url, adapterId)
 
   if (!adapter) {
     return undefined
@@ -176,4 +225,4 @@ export function applyProviderAdapter(
 // Exports
 // ============================================================================
 
-export { groqAdapter, openRouterAdapter, deepSeekAdapter }
+export { groqAdapter, openRouterAdapter, deepSeekAdapter, tencentAdapter }

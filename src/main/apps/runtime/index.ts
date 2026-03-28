@@ -36,6 +36,9 @@ import type { AppManagerService } from '../manager'
 import type { SchedulerService } from '../../platform/scheduler'
 import type { MemoryService } from '../../platform/memory'
 import type { BackgroundService } from '../../platform/background'
+import type { ImChannelAdapter } from '../../../shared/types/im-channel'
+import { join } from 'path'
+import { homedir } from 'os'
 import { getSpace } from '../../services/space.service'
 import { getExpressApp } from '../../http/server'
 import * as watcherHost from '../../services/watcher-host.service'
@@ -45,6 +48,10 @@ import { MIGRATION_NAMESPACE, migrations } from './migrations'
 import { createEventRouter, type EventRouter } from './event-router'
 import { FileWatcherSource } from './sources/file-watcher.source'
 import { WebhookSource, type WebhookSecretResolver } from './sources/webhook.source'
+import { WecomBotSource } from './sources/wecom-bot.source'
+import { ImSessionRegistry, setImSessionRegistry } from './im-session-registry'
+import { getConfig } from '../../services/config.service'
+import { getDataFolderName } from '../../services/ai-sources/auth-loader'
 import type { AppRuntimeService } from './types'
 
 // Re-export types for consumers
@@ -85,10 +92,18 @@ export {
   loadAppChatMessages,
   getAppChatSessionState,
   getAppChatConversationId,
+  buildImSessionKey,
   cleanupAppChatBrowserContext,
   clearAppChat,
 } from './app-chat'
 export type { AppChatRequest } from './app-chat'
+
+// Re-export inbound dispatch
+export { dispatchInboundMessage } from './dispatch-inbound'
+
+// Re-export IM session registry accessor
+export { getImSessionRegistry } from './im-session-registry'
+export { ImSessionRegistry } from './im-session-registry'
 
 // ============================================
 // Module State
@@ -96,7 +111,13 @@ export type { AppChatRequest } from './app-chat'
 
 let runtimeService: AppRuntimeService | null = null
 let memoryServiceRef: MemoryService | null = null
+let activityStoreRef: ActivityStore | null = null
 let eventRouterInstance: EventRouter | null = null
+let wecomBotSourceInstance: WecomBotSource | null = null
+let imSessionRegistryInstance: ImSessionRegistry | null = null
+
+/** Channel adapter registry: channel identifier → adapter instance */
+const channelAdapters = new Map<string, ImChannelAdapter>()
 
 // ============================================
 // Initialization
@@ -192,6 +213,23 @@ export async function initAppRuntime(
   const webhookSource = new WebhookSource(getExpressApp(), webhookSecretResolver)
   eventRouter.registerSource(webhookSource)
 
+  // WecomBotSource: bridges WeCom intelligent bot WebSocket messages into the event router.
+  // Config is resolved at runtime (lazy) so the source adapts to settings changes.
+  const wecomBotSource = new WecomBotSource(() => getConfig().wecomBot ?? null)
+  eventRouter.registerSource(wecomBotSource)
+  wecomBotSourceInstance = wecomBotSource
+
+  // ── IM Session Registry + Channel Adapters ─────────────────────────────
+  // The registry tracks all known IM sessions across digital humans.
+  // Channel adapters provide the pushToChat() capability for proactive messaging.
+  const registryPath = join(homedir(), `.${getDataFolderName()}`, 'im-sessions.json')
+  const registry = new ImSessionRegistry(registryPath)
+  setImSessionRegistry(registry)
+  imSessionRegistryInstance = registry
+
+  // Register WecomBotSource as a channel adapter (implements ImChannelAdapter)
+  channelAdapters.set(wecomBotSource.channel, wecomBotSource)
+
   // ── Create the runtime service ─────────────────────────────────────────
   const service = createAppRuntimeService({
     store,
@@ -204,6 +242,8 @@ export async function initAppRuntime(
       const space = getSpace(spaceId)
       return space?.path ?? null
     },
+    imSessionRegistry: registry,
+    getChannelAdapter: (channel: string) => channelAdapters.get(channel) ?? null,
   })
 
   // Activate all active automation Apps (registers event subscriptions)
@@ -215,6 +255,7 @@ export async function initAppRuntime(
 
   runtimeService = service
   memoryServiceRef = deps.memory
+  activityStoreRef = store
 
   const duration = performance.now() - start
   console.log(`[Runtime] App Runtime initialized in ${duration.toFixed(1)}ms`)
@@ -239,6 +280,21 @@ export function getAppMemoryService(): MemoryService | null {
 }
 
 /**
+ * Get the activity store instance captured during init.
+ * Used by app-chat.ts to provide report_to_user in chat mode.
+ */
+export function getActivityStore(): ActivityStore | null {
+  return activityStoreRef
+}
+
+/**
+ * Get the WecomBotSource instance for external use (e.g., reconnect on config change).
+ */
+export function getWecomBotSource(): WecomBotSource | null {
+  return wecomBotSourceInstance
+}
+
+/**
  * Shutdown the App Runtime module.
  *
  * 1. Deactivates all Apps (removes scheduler jobs + event subscriptions)
@@ -253,12 +309,18 @@ export async function shutdownAppRuntime(): Promise<void> {
     await runtimeService.deactivateAll()
     runtimeService = null
     memoryServiceRef = null
+    activityStoreRef = null
   }
 
   if (eventRouterInstance) {
     eventRouterInstance.stop()
     eventRouterInstance = null
   }
+
+  wecomBotSourceInstance = null
+  imSessionRegistryInstance = null
+  channelAdapters.clear()
+  setImSessionRegistry(null as any)
 
   console.log('[Runtime] App Runtime shutdown complete')
 }

@@ -198,7 +198,9 @@ class AISourceManager {
         return null
       }
       const legacyConfig = this.buildLegacyOAuthConfig(source)
-      return provider.getBackendConfig(legacyConfig)
+      const result = provider.getBackendConfig(legacyConfig)
+      console.log(`[AISourceManager] OAuth provider returned adapterId: ${result?.adapterId || 'none'}`)
+      return result
     }
 
     // API Key: build config directly
@@ -231,7 +233,9 @@ class AISourceManager {
       url: config.url,
       model: config.model,
       hasKey: !!config.key,
-      apiType: config.apiType
+      apiType: config.apiType,
+      adapterId: config.adapterId || 'none',
+      path: 'api-key'
     })
 
     return config

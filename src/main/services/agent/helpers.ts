@@ -14,6 +14,7 @@ import { getSpace } from '../space.service'
 import { getAISourceManager } from '../ai-sources'
 import { getAppManager } from '../../apps/manager'
 import type { McpSpec } from '../../apps/spec/schema'
+import type { BackendRequestConfig } from '../../../shared/types/ai-sources'
 import type { ApiCredentials } from './types'
 
 // ============================================
@@ -224,7 +225,8 @@ export async function getApiCredentials(config: ReturnType<typeof getConfig>): P
     customHeaders: backendConfig.headers,
     apiType: backendConfig.apiType,
     forceStream: backendConfig.forceStream,
-    filterContent: backendConfig.filterContent
+    filterContent: backendConfig.filterContent,
+    adapterId: backendConfig.adapterId
   }
 }
 
@@ -289,7 +291,8 @@ export async function getApiCredentialsForSource(
     customHeaders: backendConfig.headers,
     apiType: backendConfig.apiType,
     forceStream: backendConfig.forceStream,
-    filterContent: backendConfig.filterContent
+    filterContent: backendConfig.filterContent,
+    adapterId: backendConfig.adapterId
   }
 }
 
@@ -311,6 +314,34 @@ export function inferOpenAIWireApi(apiUrl: string): 'responses' | 'chat_completi
   }
   // 3. Default to chat_completions (most common for third-party providers)
   return 'chat_completions'
+}
+
+// ============================================
+// Credential → BackendConfig Conversion
+// ============================================
+
+/**
+ * Convert ApiCredentials back to BackendRequestConfig.
+ *
+ * Centralizes the reverse mapping (ApiCredentials → BackendRequestConfig)
+ * used by sdk-config.ts and mcp-manager.ts when encoding config for the
+ * OpenAI compat router. Use `overrides` for computed fields like apiType.
+ */
+export function credentialsToBackendConfig(
+  credentials: ApiCredentials,
+  overrides?: Partial<BackendRequestConfig>
+): BackendRequestConfig {
+  return {
+    url: credentials.baseUrl,
+    key: credentials.apiKey,
+    model: credentials.model,
+    headers: credentials.customHeaders,
+    apiType: credentials.apiType,
+    forceStream: credentials.forceStream,
+    filterContent: credentials.filterContent,
+    adapterId: credentials.adapterId,
+    ...overrides
+  }
 }
 
 // ============================================

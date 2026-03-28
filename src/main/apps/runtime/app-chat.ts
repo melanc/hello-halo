@@ -49,9 +49,14 @@ import {
 } from '../../services/agent/session-manager'
 import { stopGeneration } from '../../services/agent/control'
 import { buildAppChatSystemPrompt } from './prompt-chat'
+import { mergeConfigWithDefaults } from './config-defaults'
+import { createReportToolServer, type ReportToolContext } from './report-tool'
+import { createNotifyToolServer } from './notify-tool'
+import { createHaloAppsMcpServer } from '../conversation-mcp'
+import { createWebSearchMcpServer } from '../../services/web-search'
 import { getSpace } from '../../services/space.service'
 import { openSessionWriter, readSessionMessages } from './session-store'
-import { getAppMemoryService } from './index'
+import { getAppMemoryService, getActivityStore } from './index'
 import { createMemoryStatusMcpServer } from '../../platform/memory/snapshot'
 
 // ============================================
@@ -70,6 +75,19 @@ export interface AppChatRequest {
   images?: Array<{ type: string; media_type: string; data: string }>
   /** Enable extended thinking mode */
   thinkingEnabled?: boolean
+  /**
+   * Optional callback invoked with the AI's final response text.
+   * Used by external bridges (e.g., WeCom Bot) to auto-reply
+   * the result back to the originating chat.
+   */
+  onReply?: (finalContent: string) => void
+  /**
+   * Optional override for the conversation/session ID.
+   * When provided, this is used instead of the default "app-chat:{appId}".
+   * Used by IM channel adapters to achieve per-chat session isolation:
+   *   "app-chat:{appId}:{channel}:{chatType}:{chatId}"
+   */
+  conversationId?: string
 }
 
 // ============================================
@@ -85,6 +103,37 @@ const CHAT_RUN_ID = 'chat'
  */
 export function getAppChatConversationId(appId: string): string {
   return `app-chat:${appId}`
+}
+
+/**
+ * Build a fully-qualified session key for IM channel conversations.
+ * Format: "app-chat:{appId}:{channel}:{chatType}:{chatId}"
+ *
+ * This ensures complete session isolation across channels, chat types, and chats.
+ */
+export function buildImSessionKey(
+  appId: string,
+  channel: string,
+  chatType: 'direct' | 'group',
+  chatId: string
+): string {
+  return `app-chat:${appId}:${channel}:${chatType}:${chatId}`
+}
+
+/**
+ * Derive a storage-safe JSONL runId from a conversationId.
+ *
+ * - Halo native ("app-chat:{appId}") → "chat"
+ * - IM channel ("app-chat:{appId}:wecom-bot:group:xxx") → "chat-wecom-bot-group-xxx"
+ */
+function deriveRunId(conversationId: string, appId: string): string {
+  const defaultPrefix = `app-chat:${appId}`
+  if (conversationId === defaultPrefix) {
+    return CHAT_RUN_ID
+  }
+  // Strip "app-chat:{appId}:" prefix, replace colons with dashes
+  const suffix = conversationId.slice(defaultPrefix.length + 1)
+  return `chat-${suffix.replace(/:/g, '-')}`
 }
 
 /**
@@ -113,8 +162,8 @@ const scopedContexts = new Map<string, BrowserContext>()
 export async function sendAppChatMessage(
   request: AppChatRequest
 ): Promise<void> {
-  const { appId, spaceId, message, images, thinkingEnabled } = request
-  const conversationId = getAppChatConversationId(appId)
+  const { appId, spaceId, message, images, thinkingEnabled, onReply } = request
+  const conversationId = request.conversationId ?? getAppChatConversationId(appId)
 
   console.log(`[AppChat][${appId}] sendMessage: "${message.substring(0, 100)}"`)
 
@@ -148,10 +197,13 @@ export async function sendAppChatMessage(
   const memoryInstructions = memory.getPromptInstructions()
   const usesAIBrowser = resolvePermission(app, 'ai-browser')
 
+  // ── Merge config_schema defaults into userConfig ────
+  const mergedConfig = mergeConfigWithDefaults(app.userConfig, app.spec.config_schema)
+
   const systemPrompt = buildAppChatSystemPrompt({
     appSpec: app.spec,
     memoryInstructions,
-    userConfig: app.userConfig,
+    userConfig: mergedConfig,
     usesAIBrowser,
     workDir,
     modelInfo: resolvedCreds.displayModel,
@@ -174,9 +226,31 @@ export async function sendAppChatMessage(
     }
   }
 
+  // Notify tool: allows AI to send external notifications (email, WeCom, etc.)
+  const notifyMcpServer = createNotifyToolServer({
+    appId: app.id,
+    appName: app.spec.name,
+    runId: CHAT_RUN_ID,
+  })
+
+  // Report tool: allows AI to write activity entries in chat mode
+  const activityStore = getActivityStore()
+  const reportContext: ReportToolContext = {
+    appId: app.id,
+    appName: app.spec.name,
+    runId: CHAT_RUN_ID,
+    sessionKey: conversationId,
+    notificationLevel: app.userOverrides?.notificationLevel,
+    notifyChannels: (app.spec as any).output?.notify?.channels,
+  }
+
   const mcpServers: Record<string, any> = {
     ...(dbMcpServers ?? {}),
     'halo-memory': memoryMcpServer,
+    ...(activityStore ? { 'halo-report': createReportToolServer(activityStore, reportContext) } : {}),
+    'halo-notify': notifyMcpServer,
+    'halo-apps': createHaloAppsMcpServer(spaceId),
+    'web-search': createWebSearchMcpServer(),
     ...(usesAIBrowser ? { 'ai-browser': createAIBrowserMcpServer(scopedBrowserCtx, workDir) } : {}),
   }
   console.log(`[AppChat][${appId}] MCP servers: [${Object.keys(mcpServers).join(', ')}], aiBrowser=${usesAIBrowser}`)
@@ -229,8 +303,9 @@ export async function sendAppChatMessage(
 
     // ── 7. Open session writer for JSONL persistence ──
     const spacePath = getSpace(spaceId)?.path ?? ''
+    const chatRunId = deriveRunId(conversationId, appId)
     const sessionWriter = spacePath
-      ? openSessionWriter(spacePath, appId, CHAT_RUN_ID)
+      ? openSessionWriter(spacePath, appId, chatRunId)
       : undefined
 
     // Write user message to JSONL for reload recovery
@@ -260,6 +335,15 @@ export async function sendAppChatMessage(
             `thoughts=${streamResult.thoughts.length}, ` +
             `tokens=${streamResult.tokenUsage ? 'yes' : 'no'}`
           )
+
+          // Invoke onReply callback for external bridges (WeCom Bot auto-reply)
+          if (onReply && streamResult.finalContent) {
+            try {
+              onReply(streamResult.finalContent)
+            } catch (replyErr) {
+              console.error(`[AppChat][${appId}] onReply callback error:`, replyErr)
+            }
+          }
         },
         onRawMessage: (sdkMessage) => {
           // Persist SDK messages to JSONL for "View process" / reload recovery
