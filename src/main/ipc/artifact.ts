@@ -8,6 +8,8 @@
  */
 
 import { ipcMain, shell } from 'electron'
+import { promises as fs } from 'fs'
+import { join, dirname } from 'path'
 import {
   listArtifacts,
   listArtifactsTree,
@@ -100,7 +102,7 @@ export function registerArtifactHandlers(): void {
   ipcMain.handle('artifact:read-content', async (_event, filePath: string) => {
     try {
       console.log(`[IPC] artifact:read-content - path: ${filePath}`)
-      const content = readArtifactContent(filePath)
+      const content = await readArtifactContent(filePath)
       return { success: true, data: content }
     } catch (error) {
       console.error('[IPC] artifact:read-content error:', error)
@@ -112,7 +114,7 @@ export function registerArtifactHandlers(): void {
   ipcMain.handle('artifact:save-content', async (_event, filePath: string, content: string) => {
     try {
       console.log(`[IPC] artifact:save-content - path: ${filePath}`)
-      saveArtifactContent(filePath, content)
+      await saveArtifactContent(filePath, content)
       return { success: true }
     } catch (error) {
       console.error('[IPC] artifact:save-content error:', error)
@@ -125,10 +127,128 @@ export function registerArtifactHandlers(): void {
   ipcMain.handle('artifact:detect-file-type', async (_event, filePath: string) => {
     try {
       console.log(`[IPC] artifact:detect-file-type - path: ${filePath}`)
-      const fileTypeInfo = detectFileType(filePath)
+      const fileTypeInfo = await detectFileType(filePath)
       return { success: true, data: fileTypeInfo }
     } catch (error) {
       console.error('[IPC] artifact:detect-file-type error:', error)
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  // ===== File Operations (Create, Rename, Delete, Move) =====
+
+  /**
+   * Ensure parent directory exists for a given file path
+   * @param filePath - Absolute file path
+   */
+  async function ensureParentDir(filePath: string): Promise<void> {
+    await fs.mkdir(dirname(filePath), { recursive: true })
+  }
+
+  /**
+   * Check if a path already exists
+   * @param path - Absolute path to check
+   * @returns true if exists, false otherwise
+   */
+  async function pathExists(path: string): Promise<boolean> {
+    try {
+      await fs.access(path)
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  // Create file
+  ipcMain.handle('artifact:create-file', async (_event, spaceId: string, filePath: string, content: string = '') => {
+    try {
+      console.log(`[IPC] artifact:create-file - spaceId: ${spaceId}, path: ${filePath}`)
+      
+      // Ensure parent directory exists
+      await ensureParentDir(filePath)
+      
+      // Create file
+      await fs.writeFile(filePath, content, 'utf-8')
+      
+      console.log(`[IPC] artifact:create-file success: ${filePath}`)
+      return { success: true }
+    } catch (error) {
+      console.error('[IPC] artifact:create-file error:', error)
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  // Create folder
+  ipcMain.handle('artifact:create-folder', async (_event, spaceId: string, folderPath: string) => {
+    try {
+      console.log(`[IPC] artifact:create-folder - spaceId: ${spaceId}, path: ${folderPath}`)
+      
+      await fs.mkdir(folderPath, { recursive: true })
+      
+      console.log(`[IPC] artifact:create-folder success: ${folderPath}`)
+      return { success: true }
+    } catch (error) {
+      console.error('[IPC] artifact:create-folder error:', error)
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  // Delete file or folder (recursive)
+  ipcMain.handle('artifact:delete', async (_event, spaceId: string, targetPath: string) => {
+    try {
+      console.log(`[IPC] artifact:delete - spaceId: ${spaceId}, path: ${targetPath}`)
+      
+      await fs.rm(targetPath, { recursive: true, force: true })
+      
+      console.log(`[IPC] artifact:delete success: ${targetPath}`)
+      return { success: true }
+    } catch (error) {
+      console.error('[IPC] artifact:delete error:', error)
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  // Rename file or folder
+  ipcMain.handle('artifact:rename', async (_event, spaceId: string, oldPath: string, newName: string) => {
+    try {
+      console.log(`[IPC] artifact:rename - spaceId: ${spaceId}, oldPath: ${oldPath}, newName: ${newName}`)
+      
+      const newFullPath = join(dirname(oldPath), newName)
+      
+      // Check if target already exists
+      if (await pathExists(newFullPath)) {
+        return { success: false, error: 'File or folder already exists' }
+      }
+      
+      await fs.rename(oldPath, newFullPath)
+      
+      console.log(`[IPC] artifact:rename success: ${oldPath} -> ${newFullPath}`)
+      return { success: true }
+    } catch (error) {
+      console.error('[IPC] artifact:rename error:', error)
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  // Move file or folder
+  ipcMain.handle('artifact:move', async (_event, spaceId: string, oldPath: string, newPath: string) => {
+    try {
+      console.log(`[IPC] artifact:move - spaceId: ${spaceId}, oldPath: ${oldPath}, newPath: ${newPath}`)
+      
+      // Ensure target directory exists
+      await ensureParentDir(newPath)
+      
+      // Check if target already exists
+      if (await pathExists(newPath)) {
+        return { success: false, error: 'Target already exists' }
+      }
+      
+      await fs.rename(oldPath, newPath)
+      
+      console.log(`[IPC] artifact:move success: ${oldPath} -> ${newPath}`)
+      return { success: true }
+    } catch (error) {
+      console.error('[IPC] artifact:move error:', error)
       return { success: false, error: (error as Error).message }
     }
   })
