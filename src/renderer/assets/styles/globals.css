@@ -737,7 +737,7 @@ body {
   right: 0;
   height: 1px;
   background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.3), transparent);
-  animation: shimmer 2s infinite;
+  /* Static gradient line — no animation (GPU perf) */
 }
 
 /* Working message style */
@@ -760,7 +760,7 @@ body {
     hsl(var(--primary) / 0.08)
   );
   opacity: 1;
-  animation: breathing-glow 3s ease-in-out infinite;
+  /* Static background — no animation (GPU perf) */
   pointer-events: none;
   z-index: -1;
   transition: opacity 0.5s ease-out;

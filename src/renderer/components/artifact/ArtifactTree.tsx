@@ -19,7 +19,7 @@ import { FileIcon } from '../icons/ToolIcons'
 import { ChevronRight, ChevronDown, Download, Eye, Loader2, FilePlus, FolderPlus, Edit3, Trash2, FolderOpen } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { canOpenInCanvas } from '../../constants/file-types'
-import { ContextMenu, type ContextMenuItem } from '../ContextMenu'
+import { ContextMenu, type ContextMenuItem } from '../ui/ContextMenu'
 import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 import { useNotificationStore } from '../../stores/notification.store'
 import { useFileOperations } from '../../hooks/useFileOperations'
@@ -142,12 +142,6 @@ function mergeChildren(
         node.children = prev.children
         node.childrenLoaded = prev.childrenLoaded
       }
-    } else {
-      // New node - check if it's a recently created file
-      if (recentlyCreatedPaths && recentlyCreatedPaths.has(node.path)) {
-        // Mark this node for auto-selection (keep original timestamp for cleanup)
-        console.log('[mergeChildren] Found new node for auto-selection:', { path: node.path, id: node.id })
-      }
     }
     index.set(node.path, node)
     return node
@@ -164,8 +158,12 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
   const treeHeight = useTreeHeight()
   const watcherInitialized = useRef(false)
   const treeRef = useRef<TreeApi<ArtifactTreeNode>>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
   const { showConfirm, DialogComponent } = useConfirmDialog()
   
+  // Workspace root — authoritative absolute path from backend, used for path construction
+  const workspaceRootRef = useRef<string>('')
+
   // File operations hook
   const {
     createNewArtifact,
@@ -174,7 +172,7 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     moveArtifact,
     recentlyCreatedPaths,
     cleanup: cleanupFileOperations
-  } = useFileOperations({ spaceId })
+  } = useFileOperations({ spaceId, workspaceRootRef })
 
   // Whether the initial IPC load has completed (distinguishes "loading" from "truly empty")
   const [hasLoaded, setHasLoaded] = useState(false)
@@ -192,12 +190,10 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     if (!spaceId) return
 
     try {
-      console.log('[ArtifactTree] loadTree START, spaceId:', spaceId)
       const response = await api.listArtifactsTree(spaceId)
-      console.log('[ArtifactTree] loadTree IPC response: success=%s, nodeCount=%d',
-        response.success, Array.isArray(response.data) ? response.data.length : 0)
       if (response.success && response.data) {
-        const nodes = response.data as ArtifactTreeNode[]
+        const { workspaceRoot, nodes } = response.data as { workspaceRoot: string; nodes: ArtifactTreeNode[] }
+        workspaceRootRef.current = workspaceRoot
         treeDataRef.current = nodes
         nodeIndex.current.clear()
         indexNodes(nodes, nodeIndex.current)
@@ -214,19 +210,15 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
 
   // onCreate - Create temporary node
   const handleCreate: CreateHandler<ArtifactTreeNode> = useCallback(async (args) => {
-    const { parentId, parentNode, index, type } = args
-    // Create a temporary node with minimal data
-    // Real file will be created in onRename
+    const { parentNode, index, type } = args
+    // Create a temporary node — real file is created in handleRename on submit
     const tempId = `temp-${Date.now()}`
-    const parentPath = parentNode?.data.path || ''
-    
-    console.log('[onCreate] Creating temp node:', { tempId, type, parentId, parentPath })
-    
-    // Create a complete temporary node
+    const parentPath = parentNode?.data.path || workspaceRootRef.current
+
     const tempNode: ArtifactTreeNode = {
       id: tempId,
-      name: '', // Empty name, will be filled by user
-      path: parentPath ? `${parentPath}/${tempId}` : tempId, // Temporary path
+      name: '',
+      path: parentPath ? `${parentPath}/${tempId}` : tempId,
       relativePath: tempId,
       type: type === 'leaf' ? 'file' : 'folder',
       extension: '',
@@ -235,37 +227,23 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
       children: type === 'internal' ? [] : undefined,
       childrenLoaded: type === 'internal' ? true : false
     }
-    
-    // PERFORMANCE OPTIMIZATION:
-    // We mutate the tree data in place (lines 361-368), then trigger a shallow copy
-    // of the root array via revision bump (line 376). This pattern minimizes re-renders:
-    // - react-arborist uses virtual scrolling, so only visible nodes (~20-30) re-render
-    // - React's reconciliation uses 'id' to identify unchanged nodes and skip them
-    // - Mutation + revision bump is faster than deep cloning the entire tree
-    
+
+    // Mutate tree in place then bump revision — avoids deep cloning the full tree.
+    // react-arborist virtual scrolling means only ~20-30 visible nodes re-render.
     if (parentNode) {
-      // Add to parent's children (mutate in place)
       if (!parentNode.data.children) {
         parentNode.data.children = []
       }
       parentNode.data.children.splice(index, 0, tempNode)
       parentNode.data.childrenLoaded = true
     } else {
-      // Add to root (mutate in place)
       treeDataRef.current.splice(index, 0, tempNode)
     }
-    
-    // Add to index for O(1) lookup
+
     nodeIndex.current.set(tempNode.path, tempNode)
-    
-    // Trigger re-render with shallow copy
-    // This is necessary because react-arborist needs to detect the change
     setRevision(r => r + 1)
-    
-    console.log('[onCreate] Temp node created and added to tree')
-    
-    // After the tree re-renders, select the new node (without focus to avoid blue border)
-    // Use requestAnimationFrame to ensure the tree has updated and rendered
+
+    // Select the temp node once the tree has re-rendered
     requestAnimationFrame(() => {
       const tree = treeRef.current
       if (tree) {
@@ -284,22 +262,27 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
   const handleRename: RenameHandler<ArtifactTreeNode> = useCallback(async (args) => {
     const { id, name, node } = args
     const newName = name.trim()
-    
-    // Validate file name
-    if (!newName) {
-      console.warn('[handleRename] Empty name, ignoring')
-      return
-    }
-    
+
+    if (!newName) return
+
     // Check if this is a new file (temp ID) or rename
     const isCreating = id.toString().startsWith('temp-')
-    
+
     if (isCreating) {
-      await createNewArtifact(node, newName)
+      const result = await createNewArtifact(node, newName)
+      if (result.success && result.resolvedPath) {
+        // Update node path and index with the real absolute path from backend.
+        // This ensures that if the user immediately creates a child inside this node,
+        // the parent path is correct (not a stale temp- placeholder).
+        const oldPath = node.data.path
+        node.data.path = result.resolvedPath
+        nodeIndex.current.delete(oldPath)
+        nodeIndex.current.set(result.resolvedPath, node.data)
+      }
     } else {
       await renameExistingArtifact(node, newName)
     }
-    
+
     // File watcher will automatically update tree
   }, [createNewArtifact, renameExistingArtifact])
 
@@ -313,12 +296,8 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     const hasTempNodes = nodes.some((n: NodeApi<ArtifactTreeNode>) => n.id.toString().startsWith('temp-'))
     
     if (hasTempNodes) {
-      // Deleting temporary nodes (cancel creation) - no confirmation needed
-      console.log('[onDelete] Deleting temporary nodes (cancel creation):', ids)
-      
-      // Remove from tree data
+      // Cancel in-progress creation — remove temp nodes, no confirmation needed
       for (const node of nodes) {
-        // Check if node is at root level (parent is react-arborist's internal root)
         const isRootNode = !node.parent || node.parent.id === '__REACT_ARBORIST_INTERNAL_ROOT__'
         
         if (isRootNode) {
@@ -360,25 +339,12 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
       variant: 'danger'
     })
     
-    if (!confirmed) {
-      console.log('[onDelete] User cancelled')
-      return
-    }
-    
-    console.log('[onDelete] Deleting:', nodes.map((n: NodeApi<ArtifactTreeNode>) => n.data.path))
-    
-    // Batch delete
-    let successCount = 0
-    let failCount = 0
-    
-    for (const node of nodes) {
-      const success = await deleteArtifact(node.data.path)
-      if (success) {
-        successCount++
-      } else {
-        failCount++
-      }
-    }
+    if (!confirmed) return
+
+    // Parallel delete — avoids sequential IPC round-trips for multi-file selections
+    const results = await Promise.all(nodes.map(n => deleteArtifact(n.data.path)))
+    const successCount = results.filter(Boolean).length
+    const failCount = results.length - successCount
     
     // Show result notification
     if (successCount > 0) {
@@ -405,26 +371,16 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
   }, [spaceId, t, showConfirm, deleteArtifact])
 
   // onMove - Drag and drop move
+  // Sends (oldPath, newParentPath) — backend constructs the destination path
   const handleMove: MoveHandler<ArtifactTreeNode> = useCallback(async (args) => {
     const { dragNodes, parentNode } = args
-    const targetPath = parentNode?.data.path || ''
-    
-    console.log('[onMove] Moving to:', targetPath)
-    
+    const newParentPath = parentNode?.data.path || ''
+
     for (const node of dragNodes) {
       const oldPath = node.data.path
-      const fileName = node.data.name
-      const newPath = targetPath ? `${targetPath}/${fileName}` : fileName
-      
-      // Prevent moving to itself
-      if (oldPath === newPath) {
-        console.warn('[onMove] Same path, skipping:', oldPath)
-        continue
-      }
-      
-      // Prevent moving to subdirectory
-      if (newPath.startsWith(oldPath + '/')) {
-        console.warn('[onMove] Cannot move to subdirectory:', oldPath, '→', newPath)
+
+      // Prevent moving a folder into one of its own descendants
+      if (newParentPath.startsWith(oldPath + '/') || newParentPath === oldPath) {
         useNotificationStore.getState().show({
           title: t('Move failed'),
           body: t('Cannot move a folder into itself'),
@@ -433,10 +389,10 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
         })
         continue
       }
-      
-      await moveArtifact(oldPath, newPath)
+
+      await moveArtifact(oldPath, newParentPath)
     }
-    
+
     // File watcher will automatically update tree
   }, [t, moveArtifact])
 
@@ -482,12 +438,19 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     treeRef.current?.create({ type: 'internal', parentId })
   }, [])
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — scoped to tree container to avoid conflicts with other inputs
   useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const tree = treeRef.current
       if (!tree) return
-      
+
+      // Skip if an input/textarea is focused (e.g. inline rename)
+      const target = e.target as HTMLElement
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return
+
       // F2 - Rename
       if (e.key === 'F2') {
         e.preventDefault()
@@ -496,9 +459,9 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
           focusedNode.edit()
         }
       }
-      
-      // Delete - Delete
-      if (e.key === 'Delete') {
+
+      // Delete / Backspace - Delete
+      if (e.key === 'Delete' || e.key === 'Backspace') {
         e.preventDefault()
         const selectedNodes = tree.selectedNodes
         if (selectedNodes.length > 0) {
@@ -506,9 +469,9 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
         }
       }
     }
-    
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+
+    container.addEventListener('keydown', handleKeyDown)
+    return () => container.removeEventListener('keydown', handleKeyDown)
   }, [])
 
   // Lazy load children for a folder — mutates ref in place, O(1) lookup
@@ -516,12 +479,9 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     if (!spaceId) return
 
     try {
-      console.log('[ArtifactTree] loadChildren START: %s', dirPath)
       setLoadingPaths(prev => new Set(prev).add(dirPath))
       const response = await api.loadArtifactChildren(spaceId, dirPath)
 
-      console.log('[ArtifactTree] loadChildren IPC response: success=%s, childCount=%d, path=%s',
-        response.success, Array.isArray(response.data) ? response.data.length : 0, dirPath)
       if (response.success && response.data) {
         const children = response.data as ArtifactTreeNode[]
         const parent = nodeIndex.current.get(dirPath)
@@ -530,14 +490,11 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
           parent.childrenLoaded = true
           indexNodes(children, nodeIndex.current)
           setRevision(r => r + 1)
-          console.log('[ArtifactTree] loadChildren OK: %d children attached to "%s", hasChildren=%s',
-            children.length, parent.name, Array.isArray(parent.children))
         } else {
-          console.warn('[ArtifactTree] loadChildren: parent NOT in nodeIndex — path=%s, indexSize=%d',
-            dirPath, nodeIndex.current.size)
+          console.warn('[ArtifactTree] loadChildren: parent not in index — path=%s', dirPath)
         }
       } else {
-        console.warn('[ArtifactTree] loadChildren: response not successful or empty — path=%s', dirPath)
+        console.warn('[ArtifactTree] loadChildren: empty response — path=%s', dirPath)
       }
     } catch (error) {
       console.error('[ArtifactTree] Failed to load children:', error)
@@ -563,67 +520,28 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
       item?: unknown
     }>
   }) => {
-    console.log('[handleTreeUpdate] Received event:', { 
-      spaceId: data.spaceId, 
-      currentSpaceId: spaceId,
-      updatedDirsCount: data.updatedDirs.length,
-      updatedDirs: data.updatedDirs.map(d => ({ dirPath: d.dirPath, childrenCount: d.children.length }))
-    })
-    
     if (data.spaceId !== spaceId || data.updatedDirs.length === 0) return
 
     for (const { dirPath, children } of data.updatedDirs) {
       const incomingChildren = children as ArtifactTreeNode[]
       const parent = nodeIndex.current.get(dirPath)
 
-      console.log('[handleTreeUpdate] Processing dirPath:', dirPath, 'parent found:', !!parent)
-
       if (parent) {
         // Known expanded directory — O(1) lookup, merge children
         parent.children = mergeChildren(incomingChildren, parent.children || [], nodeIndex.current, recentlyCreatedPaths.current)
         parent.childrenLoaded = true
       } else {
-        // Check if this is a root-level update
+        // Root-level update or initial load
         const isRoot = treeDataRef.current.length > 0 &&
           treeDataRef.current.some(n => getParentPath(n.path) === dirPath)
-
-        console.log('[handleTreeUpdate] Parent not found, isRoot:', isRoot, 'treeDataLength:', treeDataRef.current.length)
-
         if (isRoot || treeDataRef.current.length === 0) {
           treeDataRef.current = mergeChildren(incomingChildren, treeDataRef.current, nodeIndex.current, recentlyCreatedPaths.current)
         }
-        // Else: untracked directory, skip — will be loaded on first expand
+        // Else: untracked directory — loaded on first expand
       }
     }
 
     setRevision(r => r + 1)
-    
-    // Auto-select recently created files
-    if (recentlyCreatedPaths.current.size > 0) {
-      console.log('[handleTreeUpdate] Checking for auto-selection, tracked paths:', Array.from(recentlyCreatedPaths.current.keys()))
-      // Use requestAnimationFrame to ensure tree has rendered before selecting nodes
-      requestAnimationFrame(() => {
-        const tree = treeRef.current
-        if (tree) {
-          const pathsToCheck = Array.from(recentlyCreatedPaths.current.keys())
-          for (const path of pathsToCheck) {
-            console.log('[handleTreeUpdate] Processing path for auto-selection:', path)
-            // Find node by path in the index
-            const nodeData = nodeIndex.current.get(path)
-            if (nodeData) {
-              const node = tree.get(nodeData.id)
-              console.log('[handleTreeUpdate] Found node:', !!node, 'for path:', path)
-              if (node) {
-                console.log('[handleTreeUpdate] Selecting node (without focus):', path)
-                // Only select, don't focus - this avoids showing the focus border
-                node.select()
-                recentlyCreatedPaths.current.delete(path)
-              }
-            }
-          }
-        }
-      })
-    }
   }, [spaceId])
 
   // Initialize watcher and subscribe to changes
@@ -655,6 +573,25 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     }
   }, [cleanupFileOperations])
 
+  // Auto-select recently created files after each revision commit.
+  // useEffect runs after React commits the DOM, so react-arborist has already rendered
+  // the new nodes — no requestAnimationFrame timing hack needed.
+  useEffect(() => {
+    if (recentlyCreatedPaths.current.size === 0) return
+    const tree = treeRef.current
+    if (!tree) return
+    for (const path of Array.from(recentlyCreatedPaths.current.keys())) {
+      const nodeData = nodeIndex.current.get(path)
+      if (nodeData) {
+        const node = tree.get(nodeData.id)
+        if (node) {
+          node.select()
+          recentlyCreatedPaths.current.delete(path)
+        }
+      }
+    }
+  }, [revision])
+
   // New shallow root array only when revision changes — internal nodes are same (mutated) objects
   const treeData = useMemo(() => [...treeDataRef.current], [revision])
 
@@ -682,7 +619,7 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
   return (
     <OpenFileContext.Provider value={openFile}>
       <LazyLoadContext.Provider value={lazyLoadValue}>
-        <div className="flex flex-col h-full">
+        <div ref={containerRef} tabIndex={-1} className="flex flex-col h-full outline-none">
           {/* Override react-arborist focus-visible styles */}
           <style>{`
             [role="treeitem"]:focus-visible {
@@ -789,19 +726,11 @@ function EditingNode({ node, style, dragHandle, tree }: NodeRendererProps<Artifa
     
     const isCreating = node.id.toString().startsWith('temp-')
     
-    // Get siblings from the tree
-    let siblings: any[] = []
-    if (node.parent && node.parent.id !== '__REACT_ARBORIST_INTERNAL_ROOT__') {
-      // Has a real parent folder
-      siblings = node.parent.children || []
-    } else {
-      // At root level
-      siblings = node.tree.root.children || []
-    }
-    
-    console.log('[checkNameExists] Checking name:', name, 'siblings:', siblings.map(s => s.data?.name))
-    
-    // For renaming, exclude the current node from the check
+    const siblings: NodeApi<ArtifactTreeNode>[] =
+      node.parent && node.parent.id !== '__REACT_ARBORIST_INTERNAL_ROOT__'
+        ? node.parent.children || []
+        : node.tree.root.children || []
+
     return siblings.some(sibling => {
       if (!sibling?.data) return false
       if (!isCreating && sibling.id === node.id) return false
@@ -884,65 +813,29 @@ function EditingNode({ node, style, dragHandle, tree }: NodeRendererProps<Artifa
       }
       
       if (value) {
-        // Submit new name
         node.submit(value)
       } else {
-        // Empty name
-        if (isCreating) {
-          // For new nodes, delete the temporary node
-          console.log('[EditingNode] Empty name on Enter, deleting temp node')
-          node.tree.delete(node.id)
-        } else {
-          // For existing nodes, cancel editing
-          node.reset()
-        }
+        isCreating ? node.tree.delete(node.id) : node.reset()
       }
     } else if (e.key === 'Escape') {
       e.preventDefault()
-      // Cancel editing
-      if (isCreating) {
-        // For new nodes, delete the temporary node
-        console.log('[EditingNode] Escape pressed on new node, deleting temp node')
-        node.tree.delete(node.id)
-      } else {
-        // For existing nodes, just cancel editing
-        node.reset()
-      }
+      isCreating ? node.tree.delete(node.id) : node.reset()
     }
   }
-  
+
   const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     const value = e.currentTarget.value.trim()
-    
-    // Check if this is a new node (temp ID)
     const isCreating = node.id.toString().startsWith('temp-')
-    
-    // If there's an error, cancel editing
+
     if (errorMessage) {
-      if (isCreating) {
-        // For new nodes, delete the temporary node
-        console.log('[EditingNode] Error on blur, deleting temp node')
-        node.tree.delete(node.id)
-      } else {
-        // For existing nodes, cancel editing (keep original name)
-        node.reset()
-      }
+      isCreating ? node.tree.delete(node.id) : node.reset()
       return
     }
-    
+
     if (value) {
-      // Has content, submit
       node.submit(value)
     } else {
-      // Empty content
-      if (isCreating) {
-        // For new nodes, delete the temporary node
-        console.log('[EditingNode] Empty name on new node, deleting temp node')
-        node.tree.delete(node.id)
-      } else {
-        // For existing nodes, cancel editing (keep original name)
-        node.reset()
-      }
+      isCreating ? node.tree.delete(node.id) : node.reset()
     }
   }
   
@@ -975,8 +868,8 @@ function EditingNode({ node, style, dragHandle, tree }: NodeRendererProps<Artifa
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             className={`w-full px-1 py-0.5 text-sm bg-background rounded focus:outline-none focus:ring-1 ${
-              errorMessage 
-                ? 'border border-red-500 focus:ring-red-500' 
+              errorMessage
+                ? 'border border-destructive focus:ring-destructive'
                 : 'border border-primary focus:ring-primary'
             }`}
             spellCheck={false}
@@ -984,7 +877,7 @@ function EditingNode({ node, style, dragHandle, tree }: NodeRendererProps<Artifa
           
           {/* Error message */}
           {errorMessage && (
-            <div className="absolute top-full left-0 right-0 mt-0.5 z-50 px-2 py-1 text-[11px] text-red-700 dark:text-red-100 bg-red-50 dark:bg-red-900 rounded border border-red-200 dark:border-red-700 shadow-md">
+            <div className="absolute top-full left-0 right-0 mt-0.5 z-50 px-2 py-1 text-[11px] text-destructive bg-destructive/10 rounded border border-destructive/20 shadow-md">
               {errorMessage}
             </div>
           )}
@@ -1007,14 +900,10 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
   // Handle folder toggle with lazy loading (must be before early return)
   const handleToggle = useCallback(async () => {
     if (!isFolder) return
-    console.log('[ArtifactTree] handleToggle: name="%s", isOpen=%s, isLeaf=%s, childrenLoaded=%s, dataChildren=%s',
-      data.name, node.isOpen, node.isLeaf, data.childrenLoaded,
-      Array.isArray(data.children) ? data.children.length : String(data.children))
     if (!node.isOpen && !data.childrenLoaded && lazyLoad) {
       await lazyLoad.loadChildren(data.path)
     }
     node.toggle()
-    console.log('[ArtifactTree] handleToggle DONE: name="%s", toggled to open=%s', data.name, !node.isOpen)
   }, [isFolder, node, data.childrenLoaded, data.path, lazyLoad])
 
   // Handle click — select node and open in canvas, system app, or download

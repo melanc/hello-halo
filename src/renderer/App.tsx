@@ -28,7 +28,7 @@ import { UpdateNotification } from './components/updater/UpdateNotification'
 import { NotificationToast } from './components/notification/NotificationToast'
 import { useNotificationStore } from './stores/notification.store'
 import { api } from './api'
-import { isCapacitor } from './api/transport'
+import { isCapacitor, isElectron } from './api/transport'
 import type { WsConnectionState } from './api/transport'
 import { useTranslation } from './i18n'
 import type { AgentEventBase, Thought, ToolCall, HaloConfig, AgentErrorType, Question } from './types'
@@ -282,19 +282,19 @@ export default function App() {
           let body = ''
 
           if (channel === 'agent:complete') {
-            title = 'Task Complete'
-            body = 'Your AI task has finished.'
+            title = t('Task Complete')
+            body = t('Your AI task has finished.')
           } else if (channel === 'app:status_changed') {
             const status = (event.state as Record<string, unknown>)?.status
             if (status === 'completed') {
-              title = 'App Complete'
-              body = 'A digital human has finished running.'
+              title = t('App Complete')
+              body = t('A digital human has finished running.')
             } else {
               return // Don't notify for other status changes
             }
           } else if (channel === 'app:escalation:new') {
-            title = 'Action Required'
-            body = (event.question as string) || 'A digital human needs your input.'
+            title = t('Action Required')
+            body = (event.question as string) || t('A digital human needs your input.')
           }
 
           LocalNotifications.schedule({
@@ -316,6 +316,81 @@ export default function App() {
 
     return () => {
       for (const fn of cleanups) fn()
+    }
+  }, [t])
+
+  // Mobile/Remote: recover WebSocket + UI state when app returns to foreground
+  // Handles both browser visibilitychange and Capacitor appStateChange events.
+  // When the app goes to background on Android, the WebView is suspended and the
+  // WebSocket connection may drop. Events (agent:complete, etc.) sent during this
+  // time are lost. This effect:
+  //   1. Forces immediate WebSocket reconnection (skip backoff)
+  //   2. Checks each active session against the backend (getSessionState)
+  //   3. If the backend says "not active" but the frontend still has isGenerating=true,
+  //      triggers handleAgentComplete to unblock the UI and reload the conversation.
+  useEffect(() => {
+    if (isElectron()) return // Electron uses IPC, not WebSocket — no recovery needed
+
+    const recoverOnResume = () => {
+      if (document.hidden) return // Only recover when becoming visible
+      console.log('[App] Visibility resumed — recovering WebSocket + session state')
+
+      // 1. Force-reconnect WebSocket immediately (resets backoff, re-subscribes)
+      api.forceReconnectWebSocket()
+
+      // 2. Check all sessions that think they're still generating
+      const chatState = useChatStore.getState()
+      const sessions = chatState.sessions
+      for (const [conversationId, session] of sessions) {
+        if (!session.isGenerating) continue
+
+        // Find spaceId for this conversation
+        let spaceId: string | null = null
+        for (const [sid, ss] of chatState.spaceStates) {
+          if (ss.conversations.some(c => c.id === conversationId)) {
+            spaceId = sid
+            break
+          }
+        }
+
+        if (!spaceId) continue
+
+        // Ask the backend if this session is actually still active
+        api.getSessionState(conversationId).then(res => {
+          if (res.success && res.data) {
+            const backendState = res.data as { isActive: boolean }
+            if (!backendState.isActive) {
+              // Backend says done, but frontend is stuck on isGenerating=true
+              console.log(`[App] Session ${conversationId} completed while backgrounded — recovering`)
+              chatState.handleAgentComplete({ spaceId: spaceId!, conversationId } as AgentEventBase)
+            }
+          }
+        }).catch(err => {
+          console.warn(`[App] Failed to check session state for ${conversationId}:`, err)
+        })
+      }
+    }
+
+    // Browser visibilitychange — works for both remote web and Capacitor WebView
+    document.addEventListener('visibilitychange', recoverOnResume)
+
+    // Capacitor appStateChange — fires reliably when Android app goes to/from background
+    let removeCapListener: (() => void) | null = null
+    if (isCapacitor()) {
+      import('@capacitor/app').then(({ App: CapApp }) => {
+        const listenerPromise = CapApp.addListener('appStateChange', (state) => {
+          if (state.isActive) {
+            console.log('[App] Capacitor appStateChange: active — triggering recovery')
+            recoverOnResume()
+          }
+        })
+        removeCapListener = () => { listenerPromise.then(l => l.remove()) }
+      }).catch(() => {})
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', recoverOnResume)
+      removeCapListener?.()
     }
   }, [])
 

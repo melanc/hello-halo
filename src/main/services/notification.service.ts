@@ -18,6 +18,7 @@
 import { Notification } from 'electron'
 import { getConfig } from './config.service'
 import { getMainWindow, sendToRenderer } from './window.service'
+import { broadcastToAll } from '../http/websocket'
 import type { NotificationChannelType } from '../../shared/types/notification-channels'
 import { sendToChannels } from './notify-channels'
 
@@ -40,14 +41,24 @@ function sendInAppToast(
   body: string,
   options?: { appId?: string; variant?: 'default' | 'success' | 'warning' | 'error'; duration?: number }
 ): void {
-  const sent = sendToRenderer('notification:toast', {
+  const payload = {
     title,
     body,
     variant: options?.variant ?? 'default',
     duration: options?.duration ?? 0,
     appId: options?.appId,
-  })
+  }
+
+  // 1. Send to Electron renderer via IPC (desktop)
+  const sent = sendToRenderer('notification:toast', payload)
   console.log(`[Notification] In-app toast sent=${sent}: title="${title}"`)
+
+  // 2. Broadcast to remote/mobile WebSocket clients
+  try {
+    broadcastToAll('notification:toast', payload as unknown as Record<string, unknown>)
+  } catch {
+    // WebSocket module might not be initialized yet, ignore
+  }
 }
 
 // ── Public API ─────────────────────────────────────────

@@ -9,23 +9,29 @@
 export * from './types'
 export { warmupInterceptor } from './warmup'
 export { preflightInterceptor } from './preflight'
+export { imageBudgetInterceptor } from './image-budget'
 
 import type { AnthropicRequest } from '../types'
 import type { RequestInterceptor, InterceptorContext } from './types'
 import { warmupInterceptor } from './warmup'
 import { preflightInterceptor } from './preflight'
+import { imageBudgetInterceptor } from './image-budget'
 
 /**
  * Default interceptor chain - order matters!
- * First matching interceptor wins.
  *
  * Chain order rationale:
- *   1. warmup — exact string match ("Warmup"), cheapest check
- *   2. preflight — tools.length check + system prompt match, short-circuits CC SDK internal calls
+ *   1. warmup — exact string match ("Warmup"), cheapest check; terminal (responds)
+ *   2. preflight — tools.length check + system prompt match; terminal (responds)
+ *   3. image-budget — scans message images, evicts oldest if over 3.5MB; modifies request
+ *
+ * warmup and preflight are terminal (send their own response) and never reach
+ * image-budget. For normal agent-loop requests, only image-budget runs.
  */
 const defaultInterceptors: RequestInterceptor[] = [
   warmupInterceptor,
   preflightInterceptor,
+  imageBudgetInterceptor,
 ]
 
 /**

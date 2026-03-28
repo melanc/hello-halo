@@ -180,12 +180,12 @@ export interface HaloAPI {
     mimeType: string
   }>>
 
-  // File operations
-  createArtifactFile: (spaceId: string, filePath: string, content?: string) => Promise<IpcResponse>
-  createArtifactFolder: (spaceId: string, folderPath: string) => Promise<IpcResponse>
+  // File operations — create/move send (parentPath, name), backend constructs full path
+  createArtifactFile: (spaceId: string, parentPath: string, name: string, content?: string) => Promise<IpcResponse>
+  createArtifactFolder: (spaceId: string, parentPath: string, name: string) => Promise<IpcResponse>
   deleteArtifact: (spaceId: string, targetPath: string) => Promise<IpcResponse>
   renameArtifact: (spaceId: string, oldPath: string, newName: string) => Promise<IpcResponse>
-  moveArtifact: (spaceId: string, oldPath: string, newPath: string) => Promise<IpcResponse>
+  moveArtifact: (spaceId: string, oldPath: string, newParentPath: string) => Promise<IpcResponse>
 
   // Onboarding
   writeOnboardingArtifact: (spaceId: string, filename: string, content: string) => Promise<IpcResponse>
@@ -534,12 +534,12 @@ const api: HaloAPI = {
   saveArtifactContent: (filePath, content) => ipcRenderer.invoke('artifact:save-content', filePath, content),
   detectFileType: (filePath) => ipcRenderer.invoke('artifact:detect-file-type', filePath),
   
-  // File operations
-  createArtifactFile: (spaceId, filePath, content) => ipcRenderer.invoke('artifact:create-file', spaceId, filePath, content),
-  createArtifactFolder: (spaceId, folderPath) => ipcRenderer.invoke('artifact:create-folder', spaceId, folderPath),
+  // File operations — create/move send (parentPath, name), backend constructs full path
+  createArtifactFile: (spaceId, parentPath, name, content) => ipcRenderer.invoke('artifact:create-file', spaceId, parentPath, name, content),
+  createArtifactFolder: (spaceId, parentPath, name) => ipcRenderer.invoke('artifact:create-folder', spaceId, parentPath, name),
   deleteArtifact: (spaceId, targetPath) => ipcRenderer.invoke('artifact:delete', spaceId, targetPath),
   renameArtifact: (spaceId, oldPath, newName) => ipcRenderer.invoke('artifact:rename', spaceId, oldPath, newName),
-  moveArtifact: (spaceId, oldPath, newPath) => ipcRenderer.invoke('artifact:move', spaceId, oldPath, newPath),
+  moveArtifact: (spaceId, oldPath, newParentPath) => ipcRenderer.invoke('artifact:move', spaceId, oldPath, newParentPath),
 
   // Onboarding
   writeOnboardingArtifact: (spaceId, filename, content) =>
@@ -808,9 +808,7 @@ const electronAPI = {
       ipcRenderer.on(channel, (_event, ...args) => callback(...args))
     },
     removeListener: (channel: string, callback: (...args: unknown[]) => void) => {
-      // Store the wrapped handler to ensure proper removal
-      const handler = (_event: Electron.IpcRendererEvent, ...args: unknown[]) => callback(...args)
-      ipcRenderer.removeListener(channel, handler)
+      ipcRenderer.removeListener(channel, callback as (...args: unknown[]) => void)
     },
     send: (channel: string, ...args: unknown[]) => {
       ipcRenderer.send(channel, ...args)

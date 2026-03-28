@@ -1,9 +1,12 @@
 /**
  * useFileOperations - Custom hook for file/folder operations
  * Extracted from ArtifactTree to follow Single Responsibility Principle
+ *
+ * Path construction is delegated to the backend — this hook sends
+ * (parentPath, name) and receives the resolved absolute path in the response.
  */
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useRef, type MutableRefObject } from 'react'
 import { NodeApi } from 'react-arborist'
 import { api } from '../api'
 import { useNotificationStore } from '../stores/notification.store'
@@ -15,11 +18,18 @@ const AUTO_CLEANUP_TIMEOUT = 10000
 
 interface UseFileOperationsOptions {
   spaceId: string
+  /** Ref to the workspace root — read at call time, avoids stale closures */
+  workspaceRootRef: MutableRefObject<string>
 }
 
-export function useFileOperations({ spaceId }: UseFileOperationsOptions) {
+export interface CreateResult {
+  success: boolean
+  resolvedPath: string
+}
+
+export function useFileOperations({ spaceId, workspaceRootRef }: UseFileOperationsOptions) {
   const { t } = useTranslation()
-  
+
   // Track recently created files for auto-selection (path -> timestamp mapping)
   // Entries are automatically cleaned up after 10 seconds to prevent memory leaks
   const recentlyCreatedPaths = useRef<Map<string, number>>(new Map())
@@ -42,27 +52,19 @@ export function useFileOperations({ spaceId }: UseFileOperationsOptions) {
    * Automatically cleans up after timeout to prevent memory leaks
    */
   const trackPathForSelection = useCallback((path: string) => {
-    console.log('[trackPathForSelection]', path)
     const timestamp = Date.now()
     recentlyCreatedPaths.current.set(path, timestamp)
-    
-    // Clear existing timeout if any
+
     const existingTimeout = cleanupTimeouts.current.get(path)
-    if (existingTimeout) {
-      clearTimeout(existingTimeout)
-    }
-    
-    // Auto-cleanup after timeout
+    if (existingTimeout) clearTimeout(existingTimeout)
+
     const timeoutId = setTimeout(() => {
-      const storedTimestamp = recentlyCreatedPaths.current.get(path)
-      // Only delete if the timestamp matches (not replaced by a newer operation)
-      if (storedTimestamp === timestamp) {
+      if (recentlyCreatedPaths.current.get(path) === timestamp) {
         recentlyCreatedPaths.current.delete(path)
         cleanupTimeouts.current.delete(path)
-        console.log('[trackPathForSelection] Auto-cleanup:', path)
       }
     }, AUTO_CLEANUP_TIMEOUT)
-    
+
     cleanupTimeouts.current.set(path, timeoutId)
   }, [])
 
@@ -80,44 +82,71 @@ export function useFileOperations({ spaceId }: UseFileOperationsOptions) {
   }, [])
 
   /**
-   * Create new file or folder
+   * Resolve parent path for a node.
+   * For root-level nodes (parent is arborist internal root), returns empty string
+   * so the backend falls back to workspaceRoot.
+   * For nodes whose parent has a temp path, returns empty string (same fallback).
+   */
+  const getParentPath = useCallback((node: NodeApi<ArtifactTreeNode>): string => {
+    const parentPath = node.parent?.data.path || ''
+    // If parent path is a temp placeholder, the real directory may not exist yet on disk.
+    // Send empty string so the backend uses workspaceRoot as the parent.
+    if (!parentPath || parentPath.startsWith('temp-')) return ''
+    return parentPath
+  }, [])
+
+  /**
+   * Create new file or folder.
+   * Sends (parentPath, name) to backend; backend constructs the full path.
+   * Returns the resolved absolute path on success so the caller can update tree state.
    */
   const createNewArtifact = useCallback(async (
     node: NodeApi<ArtifactTreeNode>,
     newName: string
-  ) => {
-    console.log('[createNewArtifact]', newName)
-    
-    // Get parent path
-    const parentPath = node.parent?.data.path || ''
-    const fullPath = parentPath ? `${parentPath}/${newName}` : newName
-    
-    // Update the temp node's name immediately for better UX
+  ): Promise<CreateResult> => {
+    const parentPath = getParentPath(node)
+
+    // Update temp node name immediately for responsive UX
     node.data.name = newName
     node.reset()
     node.deselect()
-    
-    // Track for auto-selection
-    trackPathForSelection(fullPath)
-    
+
+    // Optimistic path for tracking — backend will return the real one
+    const wsRoot = workspaceRootRef.current
+    const optimisticPath = parentPath ? `${parentPath}/${newName}` : `${wsRoot}/${newName}`
+    trackPathForSelection(optimisticPath)
+
     // Determine if it's a folder or file
     const isFolder = !node.isLeaf
-    
+
     try {
       const response = isFolder
-        ? await api.createArtifactFolder(spaceId, fullPath)
-        : await api.createArtifactFile(spaceId, fullPath, '')
-      
+        ? await api.createArtifactFolder(spaceId, parentPath, newName)
+        : await api.createArtifactFile(spaceId, parentPath, newName, '')
+
       if (!response.success) {
-        untrackPath(fullPath)
+        untrackPath(optimisticPath)
         showError(t('Failed to create'), response.error || t('Unknown error'))
+        return { success: false, resolvedPath: '' }
       }
+
+      // Backend returns the resolved absolute path
+      const resolvedPath = (response.data as { path: string })?.path || optimisticPath
+
+      // If the resolved path differs from our optimistic guess, update tracking
+      if (resolvedPath !== optimisticPath) {
+        untrackPath(optimisticPath)
+        trackPathForSelection(resolvedPath)
+      }
+
+      return { success: true, resolvedPath }
     } catch (error) {
-      untrackPath(fullPath)
+      untrackPath(optimisticPath)
       console.error('[createNewArtifact] Failed:', error)
       showError(t('Failed to create'), (error as Error).message)
+      return { success: false, resolvedPath: '' }
     }
-  }, [spaceId, t, trackPathForSelection, untrackPath, showError])
+  }, [spaceId, t, getParentPath, trackPathForSelection, untrackPath, showError])
 
   /**
    * Rename existing file or folder
@@ -128,31 +157,24 @@ export function useFileOperations({ spaceId }: UseFileOperationsOptions) {
   ) => {
     const oldPath = node.data.path
     const oldName = node.data.name
-    
-    // If name unchanged, ignore
-    if (newName === oldName) {
-      console.log('[renameExistingArtifact] Name unchanged, ignoring')
-      return
-    }
-    
-    console.log('[renameExistingArtifact]', oldPath, '→', newName)
-    
-    // Calculate new path
-    const parentPath = node.parent?.data.path || ''
-    const newPath = parentPath ? `${parentPath}/${newName}` : newName
-    
-    // Track for auto-selection
-    trackPathForSelection(newPath)
-    
+
+    if (newName === oldName) return
+
+    // Track the expected new path for auto-selection
+    // Rename API already handles path construction on the backend (dirname(oldPath) + newName)
+    const parentDir = oldPath.substring(0, oldPath.lastIndexOf('/')) || oldPath.substring(0, oldPath.lastIndexOf('\\'))
+    const expectedNewPath = parentDir ? `${parentDir}/${newName}` : newName
+    trackPathForSelection(expectedNewPath)
+
     try {
       const response = await api.renameArtifact(spaceId, oldPath, newName)
-      
+
       if (!response.success) {
-        untrackPath(newPath)
+        untrackPath(expectedNewPath)
         showError(t('Failed to rename'), response.error || t('Unknown error'))
       }
     } catch (error) {
-      untrackPath(newPath)
+      untrackPath(expectedNewPath)
       console.error('[renameExistingArtifact] Failed:', error)
       showError(t('Failed to rename'), (error as Error).message)
     }
@@ -176,14 +198,14 @@ export function useFileOperations({ spaceId }: UseFileOperationsOptions) {
   }, [spaceId])
 
   /**
-   * Move file or folder
+   * Move file or folder — sends (oldPath, newParentPath), backend constructs destination
    */
-  const moveArtifact = useCallback(async (oldPath: string, newPath: string) => {
+  const moveArtifact = useCallback(async (oldPath: string, newParentPath: string) => {
     try {
-      const response = await api.moveArtifact(spaceId, oldPath, newPath)
-      
+      const response = await api.moveArtifact(spaceId, oldPath, newParentPath)
+
       if (!response.success) {
-        console.error('[moveArtifact] Move failed:', oldPath, '→', newPath, response.error)
+        console.error('[moveArtifact] Move failed:', oldPath, '→', newParentPath, response.error)
         showError(t('Move failed'), response.error || t('Unknown error'))
         return false
       }

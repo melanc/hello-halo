@@ -4,7 +4,7 @@
  */
 
 import { useState, useCallback } from 'react'
-import { ConfirmDialog } from '../components/ConfirmDialog'
+import { ConfirmDialog } from '../components/ui/ConfirmDialog'
 
 interface ConfirmOptions {
   title: string

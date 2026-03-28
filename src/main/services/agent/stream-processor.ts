@@ -158,6 +158,17 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
   // Track if we received a result message (for detecting stream interruption)
   let receivedResult = false
 
+  // Text block merge strategy:
+  // AI sometimes splits its final reply across consecutive text blocks. We merge them.
+  // A "substantive" tool_use (anything except TodoWrite) breaks continuity — text before
+  // it is transitional ("let me do X…") and should not appear in the final bubble.
+  // TodoWrite is bookkeeping-only, so it does NOT break text continuity.
+  //
+  // Tools considered transparent (do not break text continuity):
+  const TRANSPARENT_TOOLS = new Set(['TodoWrite'])
+  // When true, the next text block overwrites; when false, it appends.
+  let hadSubstantiveToolSinceLastText = false
+
   // Streaming block state - track active blocks by index for delta/stop correlation
   // Key: block index, Value: { type, thoughtId, content/partialJson }
   const streamingBlocks = new Map<number, {
@@ -227,7 +238,20 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
       // Text block started
       if (event.type === 'content_block_start' && event.content_block?.type === 'text') {
         isStreamingTextBlock = true
-        currentStreamingText = event.content_block.text || ''
+        const blockText = event.content_block.text || ''
+
+        if (hadSubstantiveToolSinceLastText) {
+          // A substantive tool occurred — previous text was transitional, start fresh
+          currentStreamingText = blockText
+          hadSubstantiveToolSinceLastText = false
+        } else {
+          // Consecutive text block (or only transparent tools in between) — append
+          if (currentStreamingText) {
+            currentStreamingText += '\n\n' + blockText
+          } else {
+            currentStreamingText = blockText
+          }
+        }
 
         // 🔑 Send precise signal for new text block (fixes truncation bug)
         // This is 100% reliable - comes directly from SDK's content_block_start event
@@ -309,6 +333,11 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         const toolId = event.content_block.id || `tool-${Date.now()}`
         const toolName = event.content_block.name || 'Unknown'
         const thoughtId = `thought-tool-${Date.now()}-${blockIndex}`
+
+        // Mark substantive tool — breaks text continuity (transparent tools like TodoWrite do not)
+        if (!TRANSPARENT_TOOLS.has(toolName)) {
+          hadSubstantiveToolSinceLastText = true
+        }
 
         // Track this block for delta correlation
         streamingBlocks.set(blockIndex, {
@@ -434,14 +463,14 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         // Handle text block stop (existing logic)
         if (isStreamingTextBlock) {
           isStreamingTextBlock = false
-          // Send final content of this block
+          // Send final content of this block (full accumulated text including merged blocks)
           emitAgentEvent('agent:message', spaceId, conversationId, {
             type: 'message',
             content: currentStreamingText,
             isComplete: false,
             isStreaming: false
           })
-          // Update lastTextContent for final result
+          // Update lastTextContent — currentStreamingText already contains merged consecutive blocks
           lastTextContent = currentStreamingText
           console.log(`[Agent][${conversationId}] Text block completed, length: ${currentStreamingText.length}`)
         }
@@ -525,10 +554,14 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
 
         // Handle specific thought types
         if (thought.type === 'text') {
-          // Keep only the latest text block (overwritten by each new text block)
-          // This becomes the final reply when generation completes
-          // Intermediate texts stay in the thought process area only
-          lastTextContent = thought.content
+          // Merge consecutive text blocks: append if no substantive tool in between
+          if (hadSubstantiveToolSinceLastText || !lastTextContent) {
+            lastTextContent = thought.content
+            hadSubstantiveToolSinceLastText = false
+          } else {
+            // Consecutive text (or only transparent tools like TodoWrite in between) — append
+            lastTextContent += '\n\n' + thought.content
+          }
 
           // Send streaming update - frontend shows this during generation
           emitAgentEvent('agent:message', spaceId, conversationId, {
@@ -537,6 +570,10 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
             isComplete: false
           })
         } else if (thought.type === 'tool_use') {
+          // Mark substantive tool — breaks text continuity
+          if (!TRANSPARENT_TOOLS.has(thought.toolName || '')) {
+            hadSubstantiveToolSinceLastText = true
+          }
           // Send tool call event
           const toolCall: ToolCall = {
             id: thought.id,

@@ -4,6 +4,7 @@
  * Utility functions used across multiple tool categories.
  */
 
+import { nativeImage } from 'electron'
 import type { BrowserContext } from '../context'
 
 // ============================================
@@ -14,6 +15,12 @@ import type { BrowserContext } from '../context'
 export const TOOL_TIMEOUT = 60_000
 /** Default navigation wait timeout (ms). */
 export const NAV_TIMEOUT = 30_000
+
+/**
+ * Hard cap for a single image in base64 characters (~375KB raw).
+ * Acts as Layer 2 safety net after context.ts Layer 1 compression.
+ */
+const IMAGE_HARD_CAP_BASE64 = 500_000
 
 // ============================================
 // Helpers
@@ -38,12 +45,52 @@ export function textResult(text: string, isError = false) {
   }
 }
 
-/** Build an image + text content response. */
+/**
+ * Build an image + text content response.
+ *
+ * Enforces a per-image hard cap (Layer 2). If the image exceeds
+ * IMAGE_HARD_CAP_BASE64, it is progressively degraded:
+ *   1. Re-encode as JPEG quality 60
+ *   2. If still too large, resize to half dimensions + JPEG quality 50
+ * Falls back to original data if nativeImage processing fails.
+ */
 export function imageResult(text: string, data: string, mimeType: string) {
+  let finalData = data
+  let finalMime = mimeType
+
+  if (finalData.length > IMAGE_HARD_CAP_BASE64) {
+    try {
+      const buf = Buffer.from(finalData, 'base64')
+      const img = nativeImage.createFromBuffer(buf)
+
+      if (!img.isEmpty()) {
+        // Step 1: re-encode at lower quality
+        let jpegBuf = img.toJPEG(60)
+
+        if (jpegBuf.toString('base64').length > IMAGE_HARD_CAP_BASE64) {
+          // Step 2: resize to half + even lower quality
+          const { width, height } = img.getSize()
+          const half = img.resize({
+            width: Math.round(width / 2),
+            height: Math.round(height / 2),
+            quality: 'better'
+          })
+          jpegBuf = half.toJPEG(50)
+        }
+
+        finalData = jpegBuf.toString('base64')
+        finalMime = 'image/jpeg'
+      }
+    } catch (error) {
+      // Layer 2 compression failed — pass through original data
+      console.warn('[AI Browser] imageResult hard-cap compression failed:', error)
+    }
+  }
+
   return {
     content: [
       { type: 'text' as const, text },
-      { type: 'image' as const, data, mimeType }
+      { type: 'image' as const, data: finalData, mimeType: finalMime }
     ]
   }
 }

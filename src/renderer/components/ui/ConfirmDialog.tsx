@@ -45,9 +45,9 @@ export function ConfirmDialog({
     return () => document.removeEventListener('keydown', handleKeyDown)
   }, [onConfirm, onCancel])
 
-  const confirmButtonClass = 
-    variant === 'danger' 
-      ? 'bg-red-600 hover:bg-red-500 text-white'
+  const confirmButtonClass =
+    variant === 'danger'
+      ? 'bg-destructive hover:bg-destructive/90 text-destructive-foreground'
       : variant === 'warning'
         ? 'bg-amber-600 hover:bg-amber-500 text-white'
         : 'bg-primary hover:bg-primary/90 text-primary-foreground'

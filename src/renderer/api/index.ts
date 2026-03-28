@@ -10,6 +10,7 @@ import {
   onEvent,
   connectWebSocket,
   disconnectWebSocket,
+  forceReconnectWebSocket,
   subscribeToConversation,
   unsubscribeFromConversation,
   setAuthToken,
@@ -660,21 +661,23 @@ export const api = {
   },
 
   // ===== File Operations =====
-  
+  // Create and move send (parentPath, name) — backend constructs full path via path.join.
+  // Responses include { data: { path } } with the resolved absolute path.
+
   // Create file
-  createArtifactFile: async (spaceId: string, filePath: string, content: string = ''): Promise<ApiResponse> => {
+  createArtifactFile: async (spaceId: string, parentPath: string, name: string, content: string = ''): Promise<ApiResponse> => {
     if (isElectron()) {
-      return window.halo.createArtifactFile(spaceId, filePath, content)
+      return window.halo.createArtifactFile(spaceId, parentPath, name, content)
     }
-    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/file`, { path: filePath, content })
+    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/file`, { parentPath, name, content })
   },
 
   // Create folder
-  createArtifactFolder: async (spaceId: string, folderPath: string): Promise<ApiResponse> => {
+  createArtifactFolder: async (spaceId: string, parentPath: string, name: string): Promise<ApiResponse> => {
     if (isElectron()) {
-      return window.halo.createArtifactFolder(spaceId, folderPath)
+      return window.halo.createArtifactFolder(spaceId, parentPath, name)
     }
-    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/folder`, { path: folderPath })
+    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/folder`, { parentPath, name })
   },
 
   // Delete file or folder
@@ -693,12 +696,12 @@ export const api = {
     return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/rename`, { oldPath, newName })
   },
 
-  // Move file or folder
-  moveArtifact: async (spaceId: string, oldPath: string, newPath: string): Promise<ApiResponse> => {
+  // Move file or folder — sends (oldPath, newParentPath), backend constructs destination
+  moveArtifact: async (spaceId: string, oldPath: string, newParentPath: string): Promise<ApiResponse> => {
     if (isElectron()) {
-      return window.halo.moveArtifact(spaceId, oldPath, newPath)
+      return window.halo.moveArtifact(spaceId, oldPath, newParentPath)
     }
-    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/move`, { oldPath, newPath })
+    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/move`, { oldPath, newParentPath })
   },
 
   // ===== Onboarding =====
@@ -945,6 +948,7 @@ export const api = {
   // ===== WebSocket Control =====
   connectWebSocket,
   disconnectWebSocket,
+  forceReconnectWebSocket,
   subscribeToConversation,
   unsubscribeFromConversation,
   onWsStateChange,

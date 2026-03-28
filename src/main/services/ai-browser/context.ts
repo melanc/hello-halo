@@ -13,7 +13,7 @@
  * All AI Browser tools operate through this context.
  */
 
-import { BrowserWindow } from 'electron'
+import { BrowserWindow, nativeImage } from 'electron'
 import { browserViewManager } from '../browser-view.service'
 import {
   createAccessibilitySnapshot,
@@ -855,9 +855,22 @@ export class BrowserContext implements BrowserContextInterface {
   // Screenshot
   // ============================================
 
+  // Claude Vision recommended max dimension (aligned with renderer imageProcessor.ts)
+  private static readonly SCREENSHOT_MAX_DIMENSION = 1568
+  // Default JPEG quality for API transmission (balanced size vs clarity)
+  private static readonly SCREENSHOT_DEFAULT_QUALITY = 80
+
   /**
-   * Capture a screenshot
-   * Aligned with chrome-devtools-mcp: supports png, jpeg, webp formats
+   * Capture a screenshot with automatic compression for API transmission.
+   *
+   * Compression pipeline:
+   *   1. CDP captures as JPEG by default (not PNG) with quality 80
+   *   2. If the captured image exceeds 1568px on either axis, it is
+   *      resized via Electron nativeImage to fit within that bound
+   *   3. Output is always JPEG unless the caller explicitly requests PNG
+   *
+   * This keeps each screenshot at ~150-400KB instead of 1-3MB,
+   * preventing Anthropic API 6MB request-body limit from being hit.
    */
   async captureScreenshot(options?: {
     format?: 'png' | 'jpeg' | 'webp'
@@ -865,18 +878,12 @@ export class BrowserContext implements BrowserContextInterface {
     fullPage?: boolean
     uid?: string
   }): Promise<{ data: string; mimeType: string }> {
-    const format = options?.format || 'png'
+    // Default to jpeg for much smaller payloads (was 'png')
+    const format = options?.format || 'jpeg'
     // Quality only applies to jpeg and webp, not png
-    const quality = format === 'png' ? undefined : (options?.quality || 80)
-
-    // Helper to get mime type
-    const getMimeType = (fmt: string): string => {
-      switch (fmt) {
-        case 'jpeg': return 'image/jpeg'
-        case 'webp': return 'image/webp'
-        default: return 'image/png'
-      }
-    }
+    const quality = format === 'png'
+      ? undefined
+      : (options?.quality || BrowserContext.SCREENSHOT_DEFAULT_QUALITY)
 
     // If uid provided, capture specific element
     if (options?.uid) {
@@ -906,10 +913,7 @@ export class BrowserContext implements BrowserContextInterface {
           }
         })
 
-        return {
-          data: response.data,
-          mimeType: getMimeType(format)
-        }
+        return this.compressScreenshot(response.data, format)
       }
     }
 
@@ -934,9 +938,64 @@ export class BrowserContext implements BrowserContextInterface {
 
     const response = await this.sendCDPCommand<{ data: string }>('Page.captureScreenshot', params)
 
-    return {
-      data: response.data,
-      mimeType: getMimeType(format)
+    return this.compressScreenshot(response.data, format)
+  }
+
+  /**
+   * Compress a raw CDP screenshot to fit within API size constraints.
+   *
+   * - Resizes if either dimension exceeds SCREENSHOT_MAX_DIMENSION (1568px)
+   * - Converts to JPEG for consistent, compact output
+   * - Falls back to original data if nativeImage processing fails
+   */
+  private compressScreenshot(
+    base64Data: string,
+    requestedFormat: string
+  ): { data: string; mimeType: string } {
+    try {
+      const buf = Buffer.from(base64Data, 'base64')
+      const img = nativeImage.createFromBuffer(buf)
+
+      if (img.isEmpty()) {
+        // nativeImage couldn't decode — return original data as-is
+        return { data: base64Data, mimeType: this.getMimeType(requestedFormat) }
+      }
+
+      const { width, height } = img.getSize()
+      const maxDim = BrowserContext.SCREENSHOT_MAX_DIMENSION
+      const needsResize = width > maxDim || height > maxDim
+
+      if (needsResize) {
+        const ratio = Math.min(maxDim / width, maxDim / height)
+        const resized = img.resize({
+          width: Math.round(width * ratio),
+          height: Math.round(height * ratio),
+          quality: 'better'
+        })
+        const jpegBuf = resized.toJPEG(BrowserContext.SCREENSHOT_DEFAULT_QUALITY)
+        return { data: jpegBuf.toString('base64'), mimeType: 'image/jpeg' }
+      }
+
+      // No resize needed — still convert to JPEG if not already
+      if (requestedFormat !== 'jpeg') {
+        const jpegBuf = img.toJPEG(BrowserContext.SCREENSHOT_DEFAULT_QUALITY)
+        return { data: jpegBuf.toString('base64'), mimeType: 'image/jpeg' }
+      }
+
+      // Already JPEG and within size — return as-is
+      return { data: base64Data, mimeType: 'image/jpeg' }
+    } catch (error) {
+      // Compression failed — return original to avoid breaking the tool
+      console.warn('[AI Browser] Screenshot compression failed, using original:', error)
+      return { data: base64Data, mimeType: this.getMimeType(requestedFormat) }
+    }
+  }
+
+  private getMimeType(format: string): string {
+    switch (format) {
+      case 'jpeg': return 'image/jpeg'
+      case 'webp': return 'image/webp'
+      default: return 'image/png'
     }
   }
 

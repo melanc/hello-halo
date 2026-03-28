@@ -227,6 +227,9 @@ const WS_BACKOFF_BASE_MS = 1000
 const WS_BACKOFF_MAX_MS = 30000
 const wsEventListeners = new Map<string, Set<(data: unknown) => void>>()
 
+/** Track subscribed conversationIds so we can re-subscribe after reconnect */
+const _subscribedConversations = new Set<string>()
+
 /** WebSocket connection state event (for UI reconnection banner) */
 export type WsConnectionState = 'connected' | 'disconnected' | 'connecting'
 
@@ -281,6 +284,22 @@ export function connectWebSocket(): void {
 
       if (message.type === 'auth:success') {
         console.log('[WS] Authenticated')
+
+        // Re-subscribe to all previously subscribed conversations after reconnect
+        if (_subscribedConversations.size > 0) {
+          console.log(`[WS] Re-subscribing to ${_subscribedConversations.size} conversation(s)`)
+          for (const convId of _subscribedConversations) {
+            wsConnection?.send(JSON.stringify({ type: 'subscribe', payload: { conversationId: convId } }))
+          }
+        }
+
+        // Start foreground service to keep WebSocket alive in background (Capacitor only)
+        if (isCapacitor()) {
+          import('./foreground-service').then(({ startForegroundService }) => {
+            startForegroundService('Halo', 'Connected to desktop')
+          }).catch(() => { /* plugin not available */ })
+        }
+
         return
       }
 
@@ -322,6 +341,7 @@ export function connectWebSocket(): void {
 
 export function disconnectWebSocket(): void {
   wsReconnectAttempt = 0
+  _subscribedConversations.clear()
 
   if (wsReconnectTimer) {
     clearTimeout(wsReconnectTimer)
@@ -334,9 +354,19 @@ export function disconnectWebSocket(): void {
   }
 
   emitWsState('disconnected')
+
+  // Stop foreground service when intentionally disconnecting (Capacitor only)
+  if (isCapacitor()) {
+    import('./foreground-service').then(({ stopForegroundService }) => {
+      stopForegroundService()
+    }).catch(() => { /* plugin not available */ })
+  }
 }
 
 export function subscribeToConversation(conversationId: string): void {
+  // Always track locally so we can re-subscribe after reconnect
+  _subscribedConversations.add(conversationId)
+
   if (wsConnection?.readyState === WebSocket.OPEN) {
     wsConnection.send(
       JSON.stringify({
@@ -348,6 +378,8 @@ export function subscribeToConversation(conversationId: string): void {
 }
 
 export function unsubscribeFromConversation(conversationId: string): void {
+  _subscribedConversations.delete(conversationId)
+
   if (wsConnection?.readyState === WebSocket.OPEN) {
     wsConnection.send(
       JSON.stringify({
@@ -356,6 +388,25 @@ export function unsubscribeFromConversation(conversationId: string): void {
       })
     )
   }
+}
+
+/**
+ * Force immediate WebSocket reconnection (skip backoff timer).
+ * Used when the app returns to foreground and needs to recover immediately.
+ */
+export function forceReconnectWebSocket(): void {
+  if (isElectron()) return
+  if (wsConnection?.readyState === WebSocket.OPEN) return // already connected
+
+  // Clear any pending backoff timer
+  if (wsReconnectTimer) {
+    clearTimeout(wsReconnectTimer)
+    wsReconnectTimer = null
+  }
+
+  // Reset backoff counter for immediate reconnect
+  wsReconnectAttempt = 0
+  connectWebSocket()
 }
 
 // ---------------------------------------------------------------------------

@@ -23,7 +23,12 @@ import {
   loadTreeChildren,
   readArtifactContent,
   saveArtifactContent,
-  detectFileType
+  detectFileType,
+  createFile,
+  createFolder,
+  trashArtifact,
+  renameArtifact,
+  moveArtifact
 } from '../../services/artifact.service'
 import { getTempSpacePath, getSpacesDir, getConfig as getServiceConfig } from '../../services/config.service'
 import { getSpace, getAllSpacePaths } from '../../services/space.service'
@@ -434,11 +439,11 @@ export function registerApiRoutes(app: Express): void {
     }
   })
 
-  // Tree view of artifacts
+  // Tree view of artifacts — returns { workspaceRoot, nodes }
   app.get('/api/spaces/:spaceId/artifacts/tree', async (req: Request, res: Response) => {
     try {
-      const tree = await listArtifactsTree(req.params.spaceId)
-      res.json({ success: true, data: tree })
+      const result = await listArtifactsTree(req.params.spaceId)
+      res.json({ success: true, data: result })
     } catch (error) {
       res.json({ success: false, error: (error as Error).message })
     }
@@ -629,6 +634,83 @@ export function registerApiRoutes(app: Express): void {
 
       const info = detectFileType(validatedPath)
       res.json({ success: true, data: info })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // ===== File Operations Routes (Create, Rename, Delete, Move) =====
+
+  // Create file — frontend sends (parentPath, name), backend constructs full path
+  app.post('/api/spaces/:spaceId/artifacts/file', async (req: Request, res: Response) => {
+    try {
+      const { parentPath, name, content } = req.body as { parentPath?: string; name?: string; content?: string }
+      if (!name) {
+        res.status(400).json({ success: false, error: 'Missing name' })
+        return
+      }
+      const resolvedPath = await createFile(req.params.spaceId, parentPath || '', name, content || '')
+      res.json({ success: true, data: { path: resolvedPath } })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // Create folder — frontend sends (parentPath, name), backend constructs full path
+  app.post('/api/spaces/:spaceId/artifacts/folder', async (req: Request, res: Response) => {
+    try {
+      const { parentPath, name } = req.body as { parentPath?: string; name?: string }
+      if (!name) {
+        res.status(400).json({ success: false, error: 'Missing name' })
+        return
+      }
+      const resolvedPath = await createFolder(req.params.spaceId, parentPath || '', name)
+      res.json({ success: true, data: { path: resolvedPath } })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // Delete file or folder (move to trash)
+  app.delete('/api/spaces/:spaceId/artifacts', async (req: Request, res: Response) => {
+    try {
+      const { path: targetPath } = req.body as { path?: string }
+      if (!targetPath) {
+        res.status(400).json({ success: false, error: 'Missing path' })
+        return
+      }
+      await trashArtifact(req.params.spaceId, targetPath)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // Rename file or folder
+  app.post('/api/spaces/:spaceId/artifacts/rename', async (req: Request, res: Response) => {
+    try {
+      const { oldPath, newName } = req.body as { oldPath?: string; newName?: string }
+      if (!oldPath || !newName) {
+        res.status(400).json({ success: false, error: 'Missing oldPath or newName' })
+        return
+      }
+      await renameArtifact(req.params.spaceId, oldPath, newName)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // Move file or folder — frontend sends (oldPath, newParentPath), backend constructs destination
+  app.post('/api/spaces/:spaceId/artifacts/move', async (req: Request, res: Response) => {
+    try {
+      const { oldPath, newParentPath } = req.body as { oldPath?: string; newParentPath?: string }
+      if (!oldPath) {
+        res.status(400).json({ success: false, error: 'Missing oldPath' })
+        return
+      }
+      const resolvedPath = await moveArtifact(req.params.spaceId, oldPath, newParentPath || '')
+      res.json({ success: true, data: { path: resolvedPath } })
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message })
     }

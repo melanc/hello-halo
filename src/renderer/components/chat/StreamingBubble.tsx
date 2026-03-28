@@ -55,6 +55,12 @@ export function StreamingBubble({
   const pendingSnapshotRef = useRef<string | null>(null)  // Content waiting to be saved
   const prevTextBlockVersionRef = useRef(textBlockVersion)  // Track version changes
 
+  // GPU perf: only enable CSS transitions during segment changes (tool_use scroll animation).
+  // During normal streaming, height changes every ~100ms — transition-[height] would cause
+  // continuous overlapping CSS transitions, each triggering per-frame layout recalc.
+  const [isSegmentAnimating, setIsSegmentAnimating] = useState(false)
+  const segmentAnimTimerRef = useRef<ReturnType<typeof setTimeout>>()
+
   /**
    * Step 0: Reset on new text block (100% reliable signal from SDK)
    * When textBlockVersion changes, it means a new content_block_start (type='text') arrived.
@@ -67,6 +73,8 @@ export function StreamingBubble({
       setActiveSnapshotLen(0)
       setSegments([])
       setScrollOffset(0)
+      setIsSegmentAnimating(false)
+      clearTimeout(segmentAnimTimerRef.current)
       pendingSnapshotRef.current = null
       prevTextBlockVersionRef.current = textBlockVersion
     }
@@ -134,6 +142,8 @@ export function StreamingBubble({
       setScrollOffset(0)
       setCurrentHeight(0)
       setActiveSnapshotLen(0)
+      setIsSegmentAnimating(false)
+      clearTimeout(segmentAnimTimerRef.current)
       prevThoughtsLenRef.current = 0
       prevTextBlockVersionRef.current = 0
     }
@@ -164,9 +174,17 @@ export function StreamingBubble({
    * Step 5: Calculate scroll offset when segments change
    * scrollOffset = total height of history segments
    * This value is used for translateY(-scrollOffset)
+   *
+   * Also enables CSS transitions for the duration of the scroll animation,
+   * then disables them to avoid continuous layout thrashing during streaming.
    */
   useEffect(() => {
     if (segments.length > 0 && historyRef.current) {
+      // Enable transitions for segment scroll animation
+      setIsSegmentAnimating(true)
+      clearTimeout(segmentAnimTimerRef.current)
+      segmentAnimTimerRef.current = setTimeout(() => setIsSegmentAnimating(false), 350)
+
       // Wait for DOM to update
       requestAnimationFrame(() => {
         if (historyRef.current) {
@@ -193,14 +211,16 @@ export function StreamingBubble({
         <span className="text-xs text-muted-foreground/70">{t('Halo is working')}</span>
       </div>
 
-      {/* Viewport - height matches current content only */}
+      {/* Viewport - height matches current content only
+           CSS transitions only enabled during segment scroll animation (GPU perf).
+           During normal streaming, height changes are instant to avoid layout thrashing. */}
       <div
-        className="overflow-hidden transition-[height] duration-300"
+        className={`overflow-hidden ${isSegmentAnimating ? 'transition-[height] duration-300' : ''}`}
         style={{ height: containerHeight }}
       >
         {/* Scrollable container */}
         <div
-          className="transition-transform duration-300"
+          className={isSegmentAnimating ? 'transition-transform duration-300' : ''}
           style={{ transform: `translateY(-${scrollOffset}px)` }}
         >
           {/* History segments - will be scrolled out of view */}
