@@ -68,8 +68,8 @@ Contrôlez votre Halo de bureau depuis votre téléphone ou n'importe quel navig
 ### Navigateur IA
 Laissez l'IA contrôler un vrai navigateur intégré. Web scraping, remplissage de formulaires, tests — tout automatisé.
 
-### Support MCP
-Étendez les capacités avec Model Context Protocol. Compatible avec les serveurs MCP de Claude Desktop.
+### Système d'Humains Digitaux IA
+Créez et gérez des agents IA autonomes (Humains Digitaux) qui s'exécutent selon un calendrier ou en réponse à des événements — surveiller, rapporter, notifier, tout en arrière-plan.
 
 </td>
 </tr>
@@ -82,7 +82,6 @@ Laissez l'IA contrôler un vrai navigateur intégré. Web scraping, remplissage 
 - **Réflexion en Temps Réel** — Observez le processus de réflexion de l'IA pendant qu'elle travaille
 - **Thèmes Sombre/Clair** — Thématisation adaptée au système
 - **i18n Prêt** — Anglais, Chinois, Espagnol (plus à venir)
-- **Mises à Jour Auto** — Restez à jour en un clic
 
 ---
 
@@ -111,6 +110,14 @@ Exemples de ce que les Humains Digitaux peuvent faire :
 Vous voulez contribuer un Humain Digital à l'écosystème ? Écrivez un `spec.yaml` et soumettez une PR au registre du [Digital Human Protocol (DHP)](https://github.com/openkursar/digital-human-protocol) — le protocole et store open-source derrière les Humains Digitaux de Halo.
 
 Votre agent devient disponible pour tous les utilisateurs Halo instantanément après le merge.
+
+*Store IA : Parcourez et installez des Humains Digitaux en secondes*
+
+![AI Store](./assets/shop.png)
+
+*Humain Digital IA : Agents autonomes s'exécutant en arrière-plan*
+
+![AI Digital Human](./assets/ai-digital-human.png)
 
 ---
 
@@ -232,7 +239,9 @@ L'obstacle n'est plus la capacité de l'IA. **C'est l'accessibilité.** Halo sup
 - [x] Support serveur MCP
 - [x] Système de Skills
 - [x] Humains Digitaux & Store d'Humains Digitaux
-- [ ] Système de plugins
+- [x] Store d'Applications de Plugins IA
+- [ ] Compatibilité avec les plugins d'écosystèmes tiers
+- [ ] Expérience d'édition de code améliorée (réduire la dépendance aux éditeurs externes comme VS Code)
 - [ ] Git visuel avec revue assistée par IA
 - [ ] Recherche de fichiers propulsée par IA
 

@@ -68,8 +68,8 @@ Controla tu Halo de escritorio desde tu teléfono o cualquier navegador. Trabaja
 ### Navegador IA
 Deja que la IA controle un navegador real integrado. Web scraping, llenado de formularios, pruebas — todo automatizado.
 
-### Soporte MCP
-Extiende capacidades con Model Context Protocol. Compatible con servidores MCP de Claude Desktop.
+### Sistema de Humanos Digitales IA
+Crea y gestiona agentes de IA autónomos (Humanos Digitales) que se ejecutan según un horario o en respuesta a eventos — monitoreando, reportando, notificando, todo en segundo plano.
 
 </td>
 </tr>
@@ -82,7 +82,6 @@ Extiende capacidades con Model Context Protocol. Compatible con servidores MCP d
 - **Pensamiento en Tiempo Real** — Observa el proceso de pensamiento de la IA mientras trabaja
 - **Temas Oscuro/Claro** — Tematización consciente del sistema
 - **i18n Listo** — Inglés, Chino, Español (más por venir)
-- **Actualizaciones Automáticas** — Mantente al día con actualizaciones de un clic
 
 ---
 
@@ -111,6 +110,14 @@ Ejemplos de lo que los Humanos Digitales pueden hacer:
 ¿Quieres contribuir un Humano Digital al ecosistema? Escribe un `spec.yaml` y envía un PR al registro del [Protocolo de Humanos Digitales (DHP)](https://github.com/openkursar/digital-human-protocol) — el protocolo y tienda open-source detrás de los Humanos Digitales de Halo.
 
 Tu agente queda disponible para todos los usuarios de Halo inmediatamente tras el merge.
+
+*Tienda IA: Busca e instala Humanos Digitales en segundos*
+
+![AI Store](./assets/shop.png)
+
+*Humano Digital IA: Agentes autónomos ejecutándose en segundo plano*
+
+![AI Digital Human](./assets/ai-digital-human.png)
 
 ---
 
@@ -232,7 +239,9 @@ La barrera ya no es la capacidad de la IA. **Es la accesibilidad.** Halo elimina
 - [x] Soporte de servidor MCP
 - [x] Sistema de Skills
 - [x] Humanos Digitales y Tienda de Humanos Digitales
-- [ ] Sistema de plugins
+- [x] Tienda de Aplicaciones de Plugins IA
+- [ ] Compatibilidad con plugins de ecosistemas de terceros
+- [ ] Experiencia de edición de código mejorada (reducir la dependencia de editores externos como VS Code)
 - [ ] Git visual con revisión asistida por IA
 - [ ] Búsqueda de archivos potenciada por IA
 

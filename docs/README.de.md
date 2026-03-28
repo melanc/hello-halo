@@ -68,8 +68,8 @@ Steuere dein Desktop-Halo von deinem Handy oder jedem Browser. Arbeite von über
 ### KI-Browser
 Lass die KI einen echten eingebetteten Browser steuern. Web-Scraping, Formularausfüllung, Tests — alles automatisiert.
 
-### MCP-Unterstützung
-Erweitere Fähigkeiten mit Model Context Protocol. Kompatibel mit Claude Desktop MCP-Servern.
+### KI-Digital-Human-System
+Erstelle und verwalte autonome KI-Agenten (Digitale Menschen), die nach Zeitplan oder auf Ereignisse reagieren — überwachen, berichten, benachrichtigen, alles im Hintergrund.
 
 </td>
 </tr>
@@ -82,7 +82,6 @@ Erweitere Fähigkeiten mit Model Context Protocol. Kompatibel mit Claude Desktop
 - **Echtzeit-Denken** — Beobachte den Denkprozess der KI während sie arbeitet
 - **Dunkel/Hell Themes** — Systemabhängige Thematisierung
 - **i18n Bereit** — Englisch, Chinesisch, Spanisch (mehr kommen)
-- **Auto-Updates** — Bleib aktuell mit Ein-Klick-Updates
 
 ---
 
@@ -111,6 +110,14 @@ Beispiele, was Digitale Menschen für dich tun können:
 Möchtest du einen Digitalen Menschen zum Ökosystem beitragen? Schreibe eine `spec.yaml` und reiche einen PR beim [Digital Human Protocol (DHP)](https://github.com/openkursar/digital-human-protocol) Registry ein — das Open-Source-Protokoll hinter Halos Digitalen Menschen.
 
 Dein Agent steht allen Halo-Nutzern sofort nach dem Merge zur Verfügung.
+
+*KI-Store: Digitale Menschen in Sekunden durchsuchen und installieren*
+
+![AI Store](./assets/shop.png)
+
+*KI-Digital-Human: Autonome Agenten im Hintergrund*
+
+![AI Digital Human](./assets/ai-digital-human.png)
 
 ---
 
@@ -232,7 +239,9 @@ Die Hürde ist nicht mehr die KI-Fähigkeit. **Es ist die Zugänglichkeit.** Hal
 - [x] MCP-Server-Unterstützung
 - [x] Skills-System
 - [x] Digitale Menschen & Digitale Menschen Store
-- [ ] Plugin-System
+- [x] KI-Plugin-App-Store
+- [ ] Kompatibilität mit Drittanbieter-Ökosystem-Plugins
+- [ ] Verbesserte Code-Editiererfahrung (weniger Abhängigkeit von externen Editoren wie VS Code)
 - [ ] Visuelles Git mit KI-gestützter Code-Review
 - [ ] KI-gestützte Dateisuche
 

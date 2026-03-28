@@ -68,8 +68,8 @@ Halo 由 Claude Code 驱动，拥有与其同等强大的 Agent 能力。
 ### AI 浏览器
 让 AI 控制真实的内嵌浏览器。网页抓取、表单填写、测试 — 全部自动化。
 
-### MCP 支持
-通过 Model Context Protocol 扩展能力。兼容 Claude Desktop MCP 服务器。
+### AI 数字人系统
+创建并管理自主运行的 AI 数字人，按计划或事件触发 — 监控、汇报、通知，全在后台完成。
 
 </td>
 </tr>
@@ -82,7 +82,6 @@ Halo 由 Claude Code 驱动，拥有与其同等强大的 Agent 能力。
 - **实时思考过程** — 观看 AI 的思考过程
 - **深色/浅色主题** — 跟随系统主题
 - **多语言支持** — 英文、中文、西班牙语等
-- **自动更新** — 一键保持最新
 
 ---
 
@@ -111,6 +110,14 @@ Halo 由 Claude Code 驱动，拥有与其同等强大的 Agent 能力。
 想为生态贡献数字人？写一个 `spec.yaml`，向 [数字人协议 (DHP)](https://github.com/openkursar/digital-human-protocol) 仓库提交 PR — 这是 Halo 数字人商店背后的开源协议。
 
 合并后，你的 Agent 立即对所有 Halo 用户可用。
+
+*AI 商店：几秒钟内浏览安装数字人*
+
+![AI Store](./assets/shop.png)
+
+*AI 数字人：在后台自主运行的 Agent*
+
+![AI Digital Human](./assets/ai-digital-human.png)
 
 ---
 
@@ -234,7 +241,9 @@ Halo 不只是给开发者用的。我们看到：
 - [x] MCP 服务器支持
 - [x] Skills 技能系统
 - [x] 数字人与数字人商店
-- [ ] 插件系统
+- [x] AI 插件应用市场
+- [ ] 第三方生态插件兼容
+- [ ] 代码编辑体验增强（减少对外部编辑器如 VS Code 的依赖）
 - [ ] Git 可视化与 AI 辅助代码审查
 - [ ] AI 智能文件搜索
 

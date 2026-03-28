@@ -68,8 +68,8 @@ Control your desktop Halo from your phone or any browser. Work from anywhere —
 ### AI Browser
 Let AI control a real embedded browser. Web scraping, form filling, testing — all automated.
 
-### MCP Support
-Extend capabilities with Model Context Protocol. Compatible with Claude Desktop MCP servers.
+### AI Digital Human System
+Create and manage autonomous AI agents (Digital Humans) that run on a schedule or in response to events — monitoring, reporting, notifying, all in the background.
 
 </td>
 </tr>
@@ -82,7 +82,6 @@ Extend capabilities with Model Context Protocol. Compatible with Claude Desktop 
 - **Real-time Thinking** — Watch AI's thought process as it works
 - **Dark/Light Themes** — System-aware theming
 - **i18n Ready** — English, Chinese, Spanish (more coming)
-- **Auto Updates** — Stay current with one-click updates
 
 ---
 
@@ -111,6 +110,14 @@ Examples of what Digital Humans can do for you:
 Want to contribute a Digital Human to the ecosystem? Write a `spec.yaml` and submit a PR to the [Digital Human Protocol (DHP)](https://github.com/openkursar/digital-human-protocol) registry — the open-source store and protocol behind Halo's Digital Humans.
 
 Your agent becomes available to all Halo users instantly after merge.
+
+*AI Store: Browse and install Digital Humans in seconds*
+
+![AI Store](./assets/shop.png)
+
+*AI Digital Human: Autonomous agents running in the background*
+
+![AI Digital Human](./assets/ai-digital-human.png)
 
 ---
 
@@ -235,7 +242,9 @@ The barrier isn't AI capability anymore. **It's accessibility.** Halo removes th
 - [x] MCP Server support
 - [x] Skills system
 - [x] Digital Humans & Digital Human Store
-- [ ] Plugin system
+- [x] AI Plugin App Store
+- [ ] Third-party ecosystem plugin compatibility
+- [ ] Enhanced code editing experience (reduce reliance on external editors like VS Code)
 - [ ] Visual Git with AI-assisted review
 - [ ] AI-powered file search
 
