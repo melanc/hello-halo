@@ -64,6 +64,19 @@ describe('validateAppSpec - minimal valid specs', () => {
     expect(result.mcp_server!.command).toBe('npx')
   })
 
+  it('should coerce numeric and boolean env values to strings in MCP spec', () => {
+    const result = validateAppSpec({
+      ...minimalMcpSpec,
+      mcp_server: {
+        command: 'npx',
+        args: ['-y', '@example/mcp-server'],
+        env: { PORT: 8080, DEBUG: true, KEY: 'value' }
+      }
+    })
+    expect(result.type).toBe('mcp')
+    expect(result.mcp_server!.env).toEqual({ PORT: '8080', DEBUG: 'true', KEY: 'value' })
+  })
+
   it('should accept MCP headers for HTTP transports', () => {
     const result = validateAppSpec({
       ...minimalMcpSpec,

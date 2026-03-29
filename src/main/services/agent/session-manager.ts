@@ -551,7 +551,9 @@ export async function ensureSessionWarm(
     },
     mcpServers: Object.keys(mcpServers).length > 0 ? mcpServers : null,
     maxTurns: config.agent?.maxTurns,
-    promptProfile: config.agent?.promptProfile
+    promptProfile: config.agent?.promptProfile,
+    configDirMode: config.agent?.configDirMode,
+    customConfigDir: config.agent?.customConfigDir,
   })
 
   try {

@@ -594,13 +594,28 @@ export function McpStatusCard({ appId }: McpStatusCardProps) {
           }
           <Wrench className="w-3.5 h-3.5" />
           {t('Tools provided by this server')}
+          {sdkEntry?.tools && sdkEntry.tools.length > 0 && (
+            <span className="ml-1 text-muted-foreground/70 font-normal normal-case tracking-normal">
+              ({sdkEntry.tools.length})
+            </span>
+          )}
         </button>
         {toolsExpanded && (
-          <p className="text-xs text-muted-foreground italic pl-5">
-            {isPaused
-              ? t('Enable this server to load its tools.')
-              : t('Tool list is available after the MCP server connects.')}
-          </p>
+          sdkEntry?.tools && sdkEntry.tools.length > 0 ? (
+            <ul className="pl-5 space-y-0.5">
+              {sdkEntry.tools.map(tool => (
+                <li key={tool} className="text-xs text-muted-foreground font-mono truncate" title={tool}>
+                  {tool}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-xs text-muted-foreground italic pl-5">
+              {isPaused
+                ? t('Enable this server to load its tools.')
+                : t('Tool list is available after the MCP server connects.')}
+            </p>
+          )
         )}
       </div>
 

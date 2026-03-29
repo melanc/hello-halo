@@ -43,18 +43,65 @@ export function getLastMcpStatusUpdate(): number {
 }
 
 // ============================================
+// MCP Tool Grouping
+// ============================================
+
+/**
+ * Group flat tool names by MCP server.
+ * Tool name convention: "mcp__{server-name}__{tool-name}"
+ * Built-in tools (no "mcp__" prefix) are ignored.
+ *
+ * @returns Record mapping server name to array of short tool names
+ */
+export function groupToolsByMcpServer(tools: string[]): Record<string, string[]> {
+  const MCP_PREFIX = 'mcp__'
+  const grouped: Record<string, string[]> = {}
+  for (const tool of tools) {
+    if (!tool.startsWith(MCP_PREFIX)) continue
+    const rest = tool.slice(MCP_PREFIX.length)
+    const sepIdx = rest.indexOf('__')
+    if (sepIdx <= 0) continue
+    const serverName = rest.slice(0, sepIdx)
+    const toolName = rest.slice(sepIdx + 2)
+    if (!toolName) continue
+    if (!grouped[serverName]) grouped[serverName] = []
+    grouped[serverName].push(toolName)
+  }
+  return grouped
+}
+
+// ============================================
 // MCP Status Broadcasting
 // ============================================
 
 /**
- * Broadcast MCP status to all renderers (global, not conversation-specific)
+ * Broadcast MCP status to all renderers (global, not conversation-specific).
+ * When allTools is provided, parses and groups them by server name.
+ * When allTools is omitted, preserves previously cached tools (tools don't change within a session).
  */
-export function broadcastMcpStatus(mcpServers: Array<{ name: string; status: string }>): void {
-  // Convert to our status type
-  cachedMcpStatus = mcpServers.map(s => ({
-    name: s.name,
-    status: s.status as McpServerStatusInfo['status']
-  }))
+export function broadcastMcpStatus(
+  mcpServers: Array<{ name: string; status: string }>,
+  allTools?: string[]
+): void {
+  // Group tools by server name if provided
+  const toolsByServer = allTools ? groupToolsByMcpServer(allTools) : null
+
+  // Build previous tools lookup for cache preservation
+  const prevToolsMap = !toolsByServer
+    ? new Map(cachedMcpStatus.filter(s => s.tools).map(s => [s.name, s.tools!]))
+    : null
+
+  // Convert to our status type, merging tools
+  cachedMcpStatus = mcpServers.map(s => {
+    const tools = toolsByServer
+      ? toolsByServer[s.name]    // new tools from SDK
+      : prevToolsMap?.get(s.name) // preserve cached tools
+    return {
+      name: s.name,
+      status: s.status as McpServerStatusInfo['status'],
+      ...(tools ? { tools } : {})
+    }
+  })
   lastMcpStatusUpdate = Date.now()
 
   const eventData = {

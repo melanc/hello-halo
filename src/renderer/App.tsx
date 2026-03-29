@@ -31,7 +31,7 @@ import { api } from './api'
 import { isCapacitor, isElectron } from './api/transport'
 import type { WsConnectionState } from './api/transport'
 import { useTranslation } from './i18n'
-import type { AgentEventBase, Thought, ToolCall, HaloConfig, AgentErrorType, Question } from './types'
+import type { AgentEventBase, Thought, ToolCall, HaloConfig, AgentErrorType, Question, McpServerStatus } from './types'
 import type { SessionInitInfo } from './types/slash-command'
 import { hasAnyAISource } from './types'
 
@@ -543,9 +543,9 @@ export default function App() {
     // MCP status updates (global - not per-conversation)
     const unsubMcpStatus = api.onAgentMcpStatus((data) => {
       console.log('[App] Received agent:mcp-status event:', data)
-      const event = data as { servers: Array<{ name: string; status: string }>; timestamp: number }
+      const event = data as { servers: McpServerStatus[]; timestamp: number }
       if (event.servers) {
-        setMcpStatus(event.servers as any, event.timestamp)
+        setMcpStatus(event.servers, event.timestamp)
       }
     })
 

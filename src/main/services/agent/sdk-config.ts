@@ -9,6 +9,7 @@
 import path from 'path'
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'fs'
 import { app } from 'electron'
+import { resolveClaudeConfigDir } from '../config.service'
 import { ensureOpenAICompatRouter, encodeBackendConfig } from '../../openai-compat-router'
 import type { ApiCredentials } from './types'
 import { inferOpenAIWireApi, credentialsToBackendConfig } from './helpers'
@@ -55,6 +56,10 @@ export interface ResolvedSdkCredentials {
 export interface SdkEnvParams {
   anthropicApiKey: string
   anthropicBaseUrl: string
+  /** Claude CLI config directory mode */
+  configDirMode?: 'halo' | 'cc' | 'custom'
+  /** Custom config dir path (when configDirMode === 'custom') */
+  customConfigDir?: string
 }
 
 /**
@@ -81,6 +86,10 @@ export interface BaseSdkOptionsParams {
   maxTurns?: number
   /** System prompt profile ('official' | 'halo') */
   promptProfile?: 'official' | 'halo'
+  /** Claude CLI config directory mode */
+  configDirMode?: 'halo' | 'cc' | 'custom'
+  /** Custom config dir path (when configDirMode === 'custom') */
+  customConfigDir?: string
 }
 
 // ============================================
@@ -270,9 +279,9 @@ export function buildSdkEnv(params: SdkEnvParams): Record<string, string | numbe
     ANTHROPIC_API_KEY: params.anthropicApiKey,
     ANTHROPIC_BASE_URL: params.anthropicBaseUrl,
 
-    // Halo's own config dir (avoid conflicts with CC's ~/.claude)
+    // Claude config dir: resolved from configDirMode (halo default / cc default / custom)
     CLAUDE_CONFIG_DIR: (() => {
-      const configDir = path.join(app.getPath('userData'), 'claude-config')
+      const configDir = resolveClaudeConfigDir(params.configDirMode, params.customConfigDir)
       ensureSandboxSettings(configDir)
       return configDir
     })(),
@@ -394,12 +403,14 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     mcpServers
   } = params
 
-  console.log(`[SDK Config] buildBaseSdkOptions: workDir="${workDir}", spaceId="${spaceId}"`)
+  console.log(`[SDK Config] buildBaseSdkOptions: workDir="${workDir}", spaceId="${spaceId}", configDirMode="${params.configDirMode ?? 'halo'}"`)
 
   // Build environment variables
   const env = buildSdkEnv({
     anthropicApiKey: credentials.anthropicApiKey,
-    anthropicBaseUrl: credentials.anthropicBaseUrl
+    anthropicBaseUrl: credentials.anthropicBaseUrl,
+    configDirMode: params.configDirMode,
+    customConfigDir: params.customConfigDir,
   })
 
   const cliPath = resolveClaudeCodeCliPath()

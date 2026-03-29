@@ -1,6 +1,6 @@
 /**
  * Advanced Section Component
- * Developer-level settings: prompt profile, max turns
+ * Developer-level settings: prompt profile, max turns, CLI integration
  */
 
 import { useState } from 'react'
@@ -8,6 +8,7 @@ import { AlertTriangle } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { api } from '../../api'
 import type { HaloConfig } from '../../types'
+import { CLIConfigSection } from './CLIConfigSection'
 
 interface AdvancedSectionProps {
   config: HaloConfig | null
@@ -144,6 +145,9 @@ export function AdvancedSection({ config, setConfig }: AdvancedSectionProps) {
             className="w-24 px-3 py-1.5 text-sm bg-secondary border border-border rounded-lg text-right focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
+
+        {/* Claude CLI Integration */}
+        <CLIConfigSection />
       </div>
     </section>
   )

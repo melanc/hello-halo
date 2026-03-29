@@ -250,6 +250,12 @@ export const McpDependencySchema = z.object({
 // MCP Server Config (for type=mcp apps)
 // ============================================
 
+/** Accepts string, number, or boolean and coerces to string (e.g. env PORT: 8080 → "8080") */
+const coercibleStringValue = z.preprocess(
+  (val) => (typeof val === 'number' || typeof val === 'boolean') ? String(val) : val,
+  z.string()
+)
+
 export const McpServerConfigSchema = z.object({
   /** Transport protocol (default: stdio) */
   transport: z.enum(['stdio', 'sse', 'streamable-http']).default('stdio'),
@@ -257,10 +263,10 @@ export const McpServerConfigSchema = z.object({
   command: nonEmptyString,
   /** Command arguments */
   args: z.array(z.string()).optional(),
-  /** Environment variables */
-  env: z.record(z.string(), z.string()).optional(),
-  /** HTTP/SSE request headers */
-  headers: z.record(z.string(), z.string()).optional(),
+  /** Environment variables (values coerced from number/boolean to string) */
+  env: z.record(z.string(), coercibleStringValue).optional(),
+  /** HTTP/SSE request headers (values coerced from number/boolean to string) */
+  headers: z.record(z.string(), coercibleStringValue).optional(),
   /** Working directory */
   cwd: z.string().optional()
 })

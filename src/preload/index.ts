@@ -33,6 +33,14 @@ export interface HaloAPI {
   fetchModels: (apiKey: string, apiUrl: string) => Promise<IpcResponse>
   refreshAISourcesConfig: () => Promise<IpcResponse>
 
+  // CLI Config (Skills + MCP migration, config dir mode)
+  cliConfigGetPaths: () => Promise<IpcResponse>
+  cliConfigScanSkills: () => Promise<IpcResponse>
+  cliConfigMigrateSkills: (actions: Array<{ name: string; action: 'skip' | 'overwrite' | 'rename' }>) => Promise<IpcResponse>
+  cliConfigScanMcp: () => Promise<IpcResponse>
+  cliConfigMigrateMcp: (actions: Array<{ name: string; action: 'skip' | 'overwrite' }>) => Promise<IpcResponse>
+  cliConfigSetConfigDir: (mode: 'halo' | 'cc' | 'custom', customDir?: string) => Promise<IpcResponse>
+
   // AI Sources CRUD (atomic - backend reads from disk, never overwrites rotating tokens)
   aiSourcesSwitchSource: (sourceId: string) => Promise<IpcResponse>
   aiSourcesSetModel: (modelId: string) => Promise<IpcResponse>
@@ -457,6 +465,14 @@ const api: HaloAPI = {
   fetchModels: (apiKey, apiUrl) =>
     ipcRenderer.invoke('config:fetch-models', apiKey, apiUrl),
   refreshAISourcesConfig: () => ipcRenderer.invoke('config:refresh-ai-sources'),
+
+  // CLI Config
+  cliConfigGetPaths: () => ipcRenderer.invoke('cli-config:get-paths'),
+  cliConfigScanSkills: () => ipcRenderer.invoke('cli-config:scan-skills'),
+  cliConfigMigrateSkills: (actions) => ipcRenderer.invoke('cli-config:migrate-skills', actions),
+  cliConfigScanMcp: () => ipcRenderer.invoke('cli-config:scan-mcp'),
+  cliConfigMigrateMcp: (actions) => ipcRenderer.invoke('cli-config:migrate-mcp', actions),
+  cliConfigSetConfigDir: (mode, customDir?) => ipcRenderer.invoke('cli-config:set-config-dir', mode, customDir),
 
   // AI Sources CRUD (atomic - backend reads from disk, never overwrites rotating tokens)
   aiSourcesSwitchSource: (sourceId) => ipcRenderer.invoke('ai-sources:switch-source', sourceId),

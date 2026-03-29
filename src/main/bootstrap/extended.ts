@@ -50,6 +50,7 @@ import { registerNotificationChannelHandlers } from '../ipc/notification-channel
 import { registerWecomBotHandlers } from '../ipc/wecom-bot'
 import { registerImSessionHandlers } from '../ipc/im-sessions'
 import { registerStoreHandlers } from '../ipc/store'
+import { registerCliConfigHandlers } from '../ipc/cli-config'
 import { initRegistryService, shutdownRegistryService } from '../store'
 
 // Module-level reference to db for cleanup
@@ -182,6 +183,9 @@ export function initializeExtendedServices(): void {
 
   // Store: IPC handlers for App Store registry operations
   registerStoreHandlers()
+
+  // CLI Config: IPC handlers for Claude CLI config dir + migration
+  registerCliConfigHandlers()
 
   // Windows-specific: Initialize Git Bash in background
   if (process.platform === 'win32') {

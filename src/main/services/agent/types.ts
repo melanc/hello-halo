@@ -211,6 +211,8 @@ export interface McpServerStatusInfo {
     version: string
   }
   error?: string
+  /** Short tool names provided by this server (without mcp__ prefix) */
+  tools?: string[]
 }
 
 // ============================================

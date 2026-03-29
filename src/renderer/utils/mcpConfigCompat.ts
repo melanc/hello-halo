@@ -9,7 +9,7 @@ export type McpJsonConfig =
     cwd?: string
   }
   | {
-    type: 'sse' | 'http'
+    type: 'sse' | 'http' | 'streamable-http'
     url: string
     headers?: Record<string, string>
     env?: Record<string, string>
@@ -38,8 +38,9 @@ function validateStringRecord(value: unknown, fieldName: string): string | null 
     return `${fieldName} must be an object`
   }
   for (const [key, entry] of Object.entries(value)) {
-    if (typeof entry !== 'string') {
-      return `${fieldName}.${key} must be a string`
+    const t = typeof entry
+    if (t !== 'string' && t !== 'number' && t !== 'boolean') {
+      return `${fieldName}.${key} must be a string, number, or boolean`
     }
   }
   return null
@@ -57,11 +58,14 @@ function detectNestedConfigError(config: Record<string, unknown>): string | null
 
 function normalizeStringRecord(value: unknown): Record<string, string> | undefined {
   if (!isRecord(value)) return undefined
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([, entry]) => typeof entry === 'string')
-      .map(([key, entry]) => [key, entry as string])
-  )
+  const entries: [string, string][] = []
+  for (const [key, entry] of Object.entries(value)) {
+    const t = typeof entry
+    if (t === 'string' || t === 'number' || t === 'boolean') {
+      entries.push([key, String(entry)])
+    }
+  }
+  return entries.length > 0 ? Object.fromEntries(entries) : undefined
 }
 
 function normalizeInternalConfig(config: Record<string, unknown>): McpServerConfig {
@@ -77,10 +81,10 @@ function normalizeInternalConfig(config: Record<string, unknown>): McpServerConf
 }
 
 function normalizeExternalConfig(config: Record<string, unknown>): McpServerConfig {
-  const type = config.type as 'stdio' | 'sse' | 'http' | undefined
-  if (type === 'sse' || type === 'http') {
+  const type = config.type as 'stdio' | 'sse' | 'http' | 'streamable-http' | undefined
+  if (type === 'sse' || type === 'http' || type === 'streamable-http') {
     return {
-      transport: type === 'http' ? 'streamable-http' : 'sse',
+      transport: type === 'sse' ? 'sse' : 'streamable-http',
       command: String(config.url).trim(),
       ...(normalizeStringRecord(config.headers) ? { headers: normalizeStringRecord(config.headers)! } : {}),
       ...(normalizeStringRecord(config.env) ? { env: normalizeStringRecord(config.env)! } : {}),
@@ -125,11 +129,11 @@ function validateInternalConfig(config: Record<string, unknown>): string | null 
 
 function validateExternalConfig(config: Record<string, unknown>): string | null {
   const type = config.type
-  if (type !== undefined && type !== 'stdio' && type !== 'sse' && type !== 'http') {
-    return 'type must be one of: stdio, sse, http'
+  if (type !== undefined && type !== 'stdio' && type !== 'sse' && type !== 'http' && type !== 'streamable-http') {
+    return 'type must be one of: stdio, sse, http, streamable-http'
   }
 
-  if (type === 'sse' || type === 'http') {
+  if (type === 'sse' || type === 'http' || type === 'streamable-http') {
     if (typeof config.url !== 'string' || !config.url.trim()) {
       return 'url must be a non-empty string'
     }

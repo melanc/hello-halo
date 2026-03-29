@@ -30,9 +30,9 @@ export function validateMcpServerName(
     return 'Server name is required'
   }
 
-  // Check for invalid characters (only allow alphanumeric, dash, underscore)
-  if (!/^[\w-]+$/.test(name)) {
-    return 'Name can only include letters, numbers, underscore, and hyphen'
+  // Check for invalid characters (allow alphanumeric, dash, underscore, dot, @, /)
+  if (!/^[\w@][\w.@\/-]*$/.test(name)) {
+    return 'Name can only include letters, numbers, and . @ / _ -'
   }
 
   // Check for duplicates (excluding current name if editing)

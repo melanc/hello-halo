@@ -634,21 +634,19 @@ export async function processStream(params: ProcessStreamParams): Promise<Stream
         }
       }
 
-      // Extract MCP server status from system init message
+      // Extract MCP server status and tools list from system message
       // SDKSystemMessage includes mcp_servers: { name: string; status: string }[]
+      // and tools: string[] (flat list of all available tool names)
       const mcpServers = msg.mcp_servers as Array<{ name: string; status: string }> | undefined
+      const tools = msg.tools as string[] | undefined
+
       if (mcpServers && mcpServers.length > 0) {
         if (is.dev) {
           console.log(`[Agent][${conversationId}] MCP server status:`, JSON.stringify(mcpServers))
+          if (tools) console.log(`[Agent][${conversationId}] Available tools: ${tools.length}`)
         }
-        // Broadcast MCP status to frontend (global event, not conversation-specific)
-        broadcastMcpStatus(mcpServers)
-      }
-
-      // Also capture tools list if available
-      const tools = msg.tools as string[] | undefined
-      if (tools) {
-        console.log(`[Agent][${conversationId}] Available tools: ${tools.length}`)
+        // Broadcast MCP status + tools to frontend (global event, not conversation-specific)
+        broadcastMcpStatus(mcpServers, tools)
       }
 
       // Forward slash_commands / skills / agents to renderer for input autocomplete.

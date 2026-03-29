@@ -350,6 +350,8 @@ interface HaloConfig {
   agent?: {
     maxTurns: number
     promptProfile?: 'official' | 'halo'
+    configDirMode?: 'halo' | 'cc' | 'custom'
+    customConfigDir?: string
   }
   remoteAccess: {
     enabled: boolean
@@ -434,7 +436,7 @@ interface HaloConfig {
 }
 
 // MCP server configuration types
-type McpServerConfig = McpStdioServerConfig | McpHttpServerConfig | McpSseServerConfig
+export type McpServerConfig = McpStdioServerConfig | McpHttpServerConfig | McpSseServerConfig
 
 interface McpStdioServerConfig {
   type?: 'stdio'  // Optional, defaults to stdio
@@ -496,6 +498,28 @@ export function getTempSpacePath(): string {
 
 export function getSpacesDir(): string {
   return join(getHaloDir(), 'spaces')
+}
+
+/**
+ * Resolve the effective CLAUDE_CONFIG_DIR based on the user's configDirMode setting.
+ *
+ * Centralised so that both IPC handlers (cli-config) and SDK env (sdk-config)
+ * resolve the path identically. Callers that already have mode/customDir can
+ * pass them directly; otherwise they are read from the persisted config.
+ */
+export function resolveClaudeConfigDir(
+  mode?: 'halo' | 'cc' | 'custom',
+  customDir?: string
+): string {
+  const effectiveMode = mode ?? getConfig().agent?.configDirMode ?? 'halo'
+  switch (effectiveMode) {
+    case 'cc':
+      return join(homedir(), '.claude')
+    case 'custom':
+      return customDir || join(app.getPath('userData'), 'claude-config')
+    default:
+      return join(app.getPath('userData'), 'claude-config')
+  }
 }
 
 // Default model (Opus 4.5)
