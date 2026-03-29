@@ -127,7 +127,9 @@ function CLIConfigSectionInner() {
     getKey: (item) => item.name,
     migrate: (actions) => api.cliConfigMigrateSkills(actions),
     extractResults: (data) => (data as { results: CliMigrateResult[] }).results,
-  }), []))
+    scanFailedMessage: t('Scan failed'),
+    migrateFailedMessage: t('Migration failed'),
+  }), [t]))
 
   // MCP migration (via useMigration hook)
   const mcpMigration = useMigration<CliMcpEntry, CliMcpAction>(useMemo(() => ({
@@ -137,7 +139,9 @@ function CLIConfigSectionInner() {
     getKey: (item) => item.name,
     migrate: (actions) => api.cliConfigMigrateMcp(actions),
     extractResults: (data) => (data as { results: CliMigrateResult[] }).results,
-  }), []))
+    scanFailedMessage: t('Scan failed'),
+    migrateFailedMessage: t('Migration failed'),
+  }), [t]))
 
   // Load paths on mount
   useEffect(() => {

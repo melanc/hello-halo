@@ -28,6 +28,10 @@ export interface UseMigrationOptions<TEntry, TAction extends string> {
   migrate: (actions: Array<{ name: string; action: TAction }>) => Promise<{ success: boolean; data?: unknown; error?: string }>
   /** Extract results from the migrate response data. */
   extractResults: (data: unknown) => CliMigrateResult[]
+  /** Fallback message when scan IPC returns no error string (should be translated by caller) */
+  scanFailedMessage?: string
+  /** Fallback message when migrate IPC returns no error string (should be translated by caller) */
+  migrateFailedMessage?: string
 }
 
 export interface UseMigrationReturn<TEntry, TAction extends string> {
@@ -71,7 +75,7 @@ export function useMigration<TEntry, TAction extends string>(
         setActions(defaults)
         setPhase('scanned')
       } else {
-        setError(res.error ?? 'Scan failed')
+        setError(res.error ?? opts.scanFailedMessage ?? 'Scan failed')
         setPhase('error')
       }
     } catch (e: unknown) {
@@ -93,7 +97,7 @@ export function useMigration<TEntry, TAction extends string>(
         setResults(opts.extractResults(res.data))
         setPhase('done')
       } else {
-        setError(res.error ?? 'Migration failed')
+        setError(res.error ?? opts.migrateFailedMessage ?? 'Migration failed')
         setPhase('error')
       }
     } catch (e: unknown) {
