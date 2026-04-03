@@ -20,7 +20,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
-import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe } from 'lucide-react'
+import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useAIBrowserStore } from '../../stores/ai-browser.store'
@@ -81,6 +81,10 @@ interface InputAreaProps {
   slashCommands?: SlashCommandItem[]
   /** Artifacts available for @ mention suggestions */
   mentionArtifacts?: Artifact[]
+  /** Main chat only: code reference chips from canvas “Add to Chat” */
+  composerReferenceChips?: Array<{ id: string; label: string }>
+  onRemoveComposerReferenceChip?: (id: string) => void
+  clearComposerReferenceChips?: () => void
 }
 
 // Image constraints
@@ -93,7 +97,18 @@ interface ImageError {
   message: string
 }
 
-export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact = false, slashCommands = [], mentionArtifacts = [] }: InputAreaProps) {
+export function InputArea({
+  onSend,
+  onStop,
+  isGenerating,
+  placeholder,
+  isCompact = false,
+  slashCommands = [],
+  mentionArtifacts = [],
+  composerReferenceChips = [],
+  onRemoveComposerReferenceChip,
+  clearComposerReferenceChips,
+}: InputAreaProps) {
   const { t } = useTranslation()
   const sendKeyMode = useAppStore(state => state.config?.chat?.sendKeyMode ?? 'enter')
   const [content, setContent] = useState('')
@@ -114,6 +129,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const attachMenuRef = useRef<HTMLDivElement>(null)
+  const prevChipCountRef = useRef(0)
 
   // AI Browser state
   const { enabled: aiBrowserEnabled, setEnabled: setAIBrowserEnabled } = useAIBrowserStore()
@@ -148,6 +164,25 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
   // Onboarding state
   const { isActive: isOnboarding, currentStep } = useOnboardingStore()
   const isOnboardingSendStep = isOnboarding && currentStep === 'send-message'
+
+  // Focus composer when a new reference chip is added (canvas “Add to Chat”)
+  useEffect(() => {
+    const n = composerReferenceChips.length
+    if (
+      onRemoveComposerReferenceChip &&
+      n > prevChipCountRef.current &&
+      !isOnboardingSendStep
+    ) {
+      requestAnimationFrame(() => {
+        const el = textareaRef.current
+        if (!el) return
+        el.focus()
+        const len = el.value.length
+        el.setSelectionRange(len, len)
+      })
+    }
+    prevChipCountRef.current = n
+  }, [composerReferenceChips.length, onRemoveComposerReferenceChip, isOnboardingSendStep])
 
   // In onboarding send step, show prefilled prompt
   const onboardingPrompt = getOnboardingPrompt(t)
@@ -429,8 +464,13 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   // Handle send
   const handleSend = () => {
-    const textToSend = isOnboardingSendStep ? onboardingPrompt : content.trim()
-    const hasContent = textToSend || images.length > 0
+    const bodyText = isOnboardingSendStep ? onboardingPrompt : content.trim()
+    const refBlock =
+      composerReferenceChips.length > 0
+        ? composerReferenceChips.map((c) => c.label).join('\n') + '\n\n'
+        : ''
+    const textToSend = (refBlock + bodyText).trim()
+    const hasContent = textToSend.length > 0 || images.length > 0
 
     if (hasContent && !isGenerating) {
       onSend(textToSend, images.length > 0 ? images : undefined, thinkingEnabled)
@@ -438,6 +478,7 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
       if (!isOnboardingSendStep) {
         setContent('')
         setImages([])  // Clear images after send
+        clearComposerReferenceChips?.()
         handleMentionClose()
         handleSlashClose()
         // Don't reset thinkingEnabled - user might want to keep it on
@@ -549,7 +590,12 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
 
   // In onboarding mode, can always send (prefilled content)
   // Can send if has text OR has images (and not processing/generating)
-  const canSend = isOnboardingSendStep || ((content.trim().length > 0 || images.length > 0) && !isGenerating && !isProcessingImages)
+  const hasComposerChips = composerReferenceChips.length > 0
+  const canSend =
+    isOnboardingSendStep ||
+    (((content.trim().length > 0 || hasComposerChips || images.length > 0) &&
+      !isGenerating &&
+      !isProcessingImages))
   const hasImages = images.length > 0
 
   return (
@@ -639,6 +685,37 @@ export function InputArea({ onSend, onStop, isGenerating, placeholder, isCompact
               images={images}
               onRemove={removeImage}
             />
+          )}
+
+          {/* Code reference chips (canvas Add to Chat) — one bordered block, each tag removable */}
+          {onRemoveComposerReferenceChip && composerReferenceChips.length > 0 && (
+            <div className="px-3 pt-3">
+              <div
+                className="rounded-xl border border-border bg-muted/50 p-2 flex flex-wrap gap-2"
+                role="group"
+                aria-label={t('Code references')}
+              >
+                {composerReferenceChips.map((chip) => (
+                  <div
+                    key={chip.id}
+                    className="inline-flex max-w-full items-center gap-0.5 rounded-lg border border-border/80 bg-background/90 pl-2.5 pr-1 py-1 text-xs text-foreground shadow-sm"
+                  >
+                    <span className="truncate font-mono min-w-0" title={chip.label}>
+                      {chip.label}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onRemoveComposerReferenceChip(chip.id)}
+                      className="shrink-0 rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                      aria-label={t('Remove')}
+                      title={t('Remove')}
+                    >
+                      <X className="h-3.5 w-3.5" strokeWidth={2} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
 
           {/* Image processing indicator */}

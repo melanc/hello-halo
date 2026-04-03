@@ -698,6 +698,24 @@ export const api = {
     return httpRequest('GET', `/api/artifacts/detect-type?path=${encodeURIComponent(filePath)}`)
   },
 
+  getGitBranchForPath: async (filePath: string): Promise<ApiResponse<{ branch: string | null }>> => {
+    if (isElectron()) {
+      return window.halo.getGitBranchForPath(filePath)
+    }
+    return httpRequest('GET', `/api/artifacts/git-branch?path=${encodeURIComponent(filePath)}`)
+  },
+
+  runArtifactGitCommand: async (
+    spaceId: string,
+    targetPath: string,
+    action: 'status' | 'add' | 'pull' | 'push' | 'diff'
+  ): Promise<ApiResponse<{ ok: boolean; stdout: string; stderr: string; error?: string }>> => {
+    if (isElectron()) {
+      return window.halo.runArtifactGitCommand(spaceId, targetPath, action)
+    }
+    return httpRequest('POST', `/api/spaces/${spaceId}/artifacts/git`, { targetPath, action })
+  },
+
   // ===== File Operations =====
   // Create and move send (parentPath, name) — backend constructs full path via path.join.
   // Responses include { data: { path } } with the resolved absolute path.

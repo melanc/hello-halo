@@ -9,6 +9,7 @@
  * - Code folding, search (Cmd+F), line numbers
  * - Scroll position preservation
  * - Copy to clipboard, open external
+ * - Add to Chat: adds a removable reference chip in the main composer (not raw textarea text)
  */
 
 import { useRef, useState, useCallback, useMemo } from 'react'
@@ -23,8 +24,22 @@ import {
 } from 'lucide-react'
 import { api } from '../../../api'
 import type { CanvasTab } from '../../../stores/canvas.store'
+import { useChatStore } from '../../../stores/chat.store'
 import { useTranslation } from '../../../i18n'
-import { CodeMirrorEditor, type CodeMirrorEditorRef } from './CodeMirrorEditor'
+import {
+  CodeMirrorEditor,
+  type CodeMirrorEditorRef,
+  type AddSelectionToChatPayload,
+} from './CodeMirrorEditor'
+
+function fileNameFromTabPath(path: string | undefined, title: string): string {
+  if (path) {
+    const norm = path.replace(/\\/g, '/')
+    const seg = norm.split('/').pop()
+    if (seg) return seg
+  }
+  return title
+}
 
 // ============================================
 // Types
@@ -43,7 +58,20 @@ interface CodeViewerProps {
 
 export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplete }: CodeViewerProps) {
   const { t } = useTranslation()
+  const addComposerReferenceChip = useChatStore((s) => s.addComposerReferenceChip)
   const editorRef = useRef<CodeMirrorEditorRef>(null)
+
+  const handleAddSelectionToChat = useCallback(
+    ({ startLine, endLine }: AddSelectionToChatPayload) => {
+      const displayName = fileNameFromTabPath(tab.path, tab.title) || t('File')
+      const rangeLabel =
+        startLine === endLine
+          ? t('line {{n}}', { n: startLine })
+          : t('lines {{start}}–{{end}}', { start: startLine, end: endLine })
+      addComposerReferenceChip(t('{{file}} ({{range}})', { file: displayName, range: rangeLabel }))
+    },
+    [tab.path, tab.title, addComposerReferenceChip, t]
+  )
 
   // State
   const [copied, setCopied] = useState(false)
@@ -286,6 +314,7 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
           onChange={isEditing ? onContentChange : undefined}
           onScroll={handleScroll}
           scrollPosition={tab.scrollPosition}
+          onAddSelectionToChat={handleAddSelectionToChat}
         />
       </div>
     </div>

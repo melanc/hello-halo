@@ -117,6 +117,12 @@ interface ChatState {
   isLoading: boolean
   isLoadingConversation: boolean  // Loading full conversation
 
+  /** Code reference pills in main composer (canvas “Add to Chat”) */
+  composerReferenceChips: Array<{ id: string; label: string }>
+  addComposerReferenceChip: (label: string) => void
+  removeComposerReferenceChip: (id: string) => void
+  clearComposerReferenceChips: () => void
+
   // Computed getters
   getCurrentSpaceState: () => SpaceState
   getSpaceState: (spaceId: string) => SpaceState
@@ -211,8 +217,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
   artifacts: [],
   isLoading: false,
   isLoadingConversation: false,
+  composerReferenceChips: [],
   _pulseItems: [],
   _pulseCount: 0,
+
+  addComposerReferenceChip: (label: string) => {
+    const id =
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `ref-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`
+    set((state) => ({
+      composerReferenceChips: [...state.composerReferenceChips, { id, label }],
+    }))
+  },
+
+  removeComposerReferenceChip: (chipId: string) => {
+    set((state) => ({
+      composerReferenceChips: state.composerReferenceChips.filter((c) => c.id !== chipId),
+    }))
+  },
+
+  clearComposerReferenceChips: () => set({ composerReferenceChips: [] }),
 
   // Get current space state
   getCurrentSpaceState: () => {
@@ -1397,6 +1422,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       pendingPulseNavigation: null,
       artifacts: [],
       isLoadingConversation: false,
+      composerReferenceChips: [],
       _pulseItems: [],
       _pulseCount: 0
     })

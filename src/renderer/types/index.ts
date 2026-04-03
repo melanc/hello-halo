@@ -696,7 +696,7 @@ export const DEFAULT_CONFIG: HaloConfig = {
     trustMode: false
   },
   appearance: {
-    theme: 'system'
+    theme: 'light'
   },
   system: {
     autoLaunch: false

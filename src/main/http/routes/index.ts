@@ -28,8 +28,11 @@ import {
   createFolder,
   trashArtifact,
   renameArtifact,
-  moveArtifact
+  moveArtifact,
+  runGitArtifactCommand,
+  type GitArtifactAction
 } from '../../services/artifact.service'
+import { getGitBranchForPath } from '../../services/git-branch.service'
 import { getTempSpacePath, getSpacesDir, getConfig as getServiceConfig } from '../../services/config.service'
 import { getSpace, getAllSpacePaths } from '../../services/space.service'
 import { getAppManager } from '../../apps/manager'
@@ -642,6 +645,19 @@ export function registerApiRoutes(app: Express): void {
     }
   })
 
+  // Git branch for canvas path bar (remote mode)
+  app.get('/api/artifacts/git-branch', async (req: Request, res: Response) => {
+    try {
+      const validatedPath = validateFilePath(res, req.query.path as string)
+      if (!validatedPath) return
+
+      const branch = await getGitBranchForPath(validatedPath)
+      res.json({ success: true, data: { branch } })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
   // ===== File Operations Routes (Create, Rename, Delete, Move) =====
 
   // Create file — frontend sends (parentPath, name), backend constructs full path
@@ -714,6 +730,26 @@ export function registerApiRoutes(app: Express): void {
       }
       const resolvedPath = await moveArtifact(req.params.spaceId, oldPath, newParentPath || '')
       res.json({ success: true, data: { path: resolvedPath } })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // Git actions from artifact tree (remote / Capacitor parity with IPC)
+  app.post('/api/spaces/:spaceId/artifacts/git', async (req: Request, res: Response) => {
+    try {
+      const { targetPath, action } = req.body as { targetPath?: string; action?: string }
+      if (!targetPath || !action) {
+        res.status(400).json({ success: false, error: 'Missing targetPath or action' })
+        return
+      }
+      const allowed: GitArtifactAction[] = ['status', 'add', 'pull', 'push', 'diff']
+      if (!allowed.includes(action as GitArtifactAction)) {
+        res.status(400).json({ success: false, error: 'Invalid action' })
+        return
+      }
+      const data = await runGitArtifactCommand(req.params.spaceId, targetPath, action as GitArtifactAction)
+      res.json({ success: true, data })
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message })
     }

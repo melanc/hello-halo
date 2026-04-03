@@ -16,7 +16,20 @@ import { api } from '../../api'
 import { useCanvasStore } from '../../stores/canvas.store'
 import type { ArtifactTreeNode, ArtifactTreeUpdateEvent } from '../../types'
 import { FileIcon } from '../icons/ToolIcons'
-import { ChevronRight, ChevronDown, Download, Eye, Loader2, FilePlus, FolderPlus, Edit3, Trash2, FolderOpen, Copy } from 'lucide-react'
+import {
+  ChevronRight,
+  ChevronDown,
+  Download,
+  Eye,
+  Loader2,
+  FilePlus,
+  FolderPlus,
+  Edit3,
+  Trash2,
+  FolderOpen,
+  Copy,
+  GitBranch,
+} from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { canOpenInCanvas } from '../../constants/file-types'
 import { ContextMenu, type ContextMenuItem } from '../ui/ContextMenu'
@@ -27,6 +40,7 @@ import { useFileOperations } from '../../hooks/useFileOperations'
 // Context to pass openFile function to tree nodes without each node subscribing to store
 type OpenFileFn = (path: string, title?: string) => Promise<void>
 const OpenFileContext = createContext<OpenFileFn | null>(null)
+const SpaceIdContext = createContext<string>('')
 
 const isWebMode = api.isRemoteMode()
 
@@ -618,6 +632,7 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
 
   return (
     <OpenFileContext.Provider value={openFile}>
+      <SpaceIdContext.Provider value={spaceId}>
       <LazyLoadContext.Provider value={lazyLoadValue}>
         <div ref={containerRef} tabIndex={-1} className="flex flex-col h-full outline-none">
           {/* Override react-arborist focus-visible styles */}
@@ -681,6 +696,7 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
         {/* Confirmation dialog */}
         {DialogComponent}
       </LazyLoadContext.Provider>
+      </SpaceIdContext.Provider>
     </OpenFileContext.Provider>
   )
 }
@@ -890,6 +906,7 @@ function EditingNode({ node, style, dragHandle, tree }: NodeRendererProps<Artifa
 function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<ArtifactTreeNode>) {
   const { t } = useTranslation()
   const openFile = useContext(OpenFileContext)
+  const spaceId = useContext(SpaceIdContext)
   const lazyLoad = useContext(LazyLoadContext)
   const data = node.data
   const isFolder = data.type === 'folder'
@@ -953,6 +970,61 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
     }
   }, [isFolder, node, data.path])
 
+  const runGitAction = useCallback(
+    async (action: 'status' | 'add' | 'pull' | 'push' | 'diff') => {
+      const show = useNotificationStore.getState().show
+      try {
+        const res = await api.runArtifactGitCommand(spaceId, data.path, action)
+        if (!res.success) {
+          show({
+            title: t('Git'),
+            body: res.error ?? t('Command failed'),
+            variant: 'error',
+            duration: 8000,
+          })
+          return
+        }
+        const payload = res.data
+        if (!payload) {
+          show({
+            title: t('Git'),
+            body: t('Command failed'),
+            variant: 'error',
+            duration: 8000,
+          })
+          return
+        }
+        if (!payload.ok) {
+          const body =
+            [payload.stderr, payload.stdout, payload.error].filter(Boolean).join('\n').trim() ||
+            t('Command failed')
+          show({
+            title: t('Git'),
+            body: body.length > 6000 ? `${body.slice(0, 6000)}…` : body,
+            variant: 'warning',
+            duration: 12000,
+          })
+          return
+        }
+        const body = (payload.stdout || payload.stderr || t('Done')).trim()
+        show({
+          title: t('Git'),
+          body: body.length > 6000 ? `${body.slice(0, 6000)}…` : body,
+          variant: 'success',
+          duration: 8000,
+        })
+      } catch (e) {
+        show({
+          title: t('Git'),
+          body: (e as Error).message,
+          variant: 'error',
+          duration: 8000,
+        })
+      }
+    },
+    [spaceId, data.path, t]
+  )
+
   // Check editing state (after all hooks)
   if (node.isEditing) {
     return <EditingNode node={node} style={style} dragHandle={dragHandle} tree={node.tree} />
@@ -983,7 +1055,6 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
     // Separator (only for folders)
     {
       label: '',
-      onClick: () => {},
       separator: true,
       hidden: !isFolder
     },
@@ -1000,7 +1071,7 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
       onClick: () => node.tree.delete(node.id)
     },
     // Separator
-    { label: '', onClick: () => {}, separator: true },
+    { label: '', separator: true },
     // Copy relative path
     {
       label: t('Copy relative path'),
@@ -1010,6 +1081,19 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
           console.error('Failed to copy relative path:', err)
         )
       }
+    },
+    // Git (desktop — sub-actions in secondary menu)
+    {
+      label: t('Git'),
+      icon: <GitBranch className="w-4 h-4" />,
+      hidden: isWebMode,
+      children: [
+        { label: t('Status'), onClick: () => void runGitAction('status') },
+        { label: t('Stage'), onClick: () => void runGitAction('add') },
+        { label: t('Diff'), onClick: () => void runGitAction('diff') },
+        { label: t('Pull'), onClick: () => void runGitAction('pull') },
+        { label: t('Push'), onClick: () => void runGitAction('push') },
+      ],
     },
     // Show in Folder (only for desktop mode)
     {

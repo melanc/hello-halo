@@ -20,8 +20,11 @@ import {
   createFolder,
   trashArtifact,
   renameArtifact,
-  moveArtifact
+  moveArtifact,
+  runGitArtifactCommand,
+  type GitArtifactAction
 } from '../services/artifact.service'
+import { getGitBranchForPath } from '../services/git-branch.service'
 
 // Register all artifact handlers
 export function registerArtifactHandlers(): void {
@@ -187,4 +190,34 @@ export function registerArtifactHandlers(): void {
       return { success: false, error: (error as Error).message }
     }
   })
+
+  ipcMain.handle('artifact:git-branch', async (_event, filePath: string) => {
+    try {
+      if (typeof filePath !== 'string' || !filePath.trim()) {
+        return { success: true, data: { branch: null as string | null } }
+      }
+      const branch = await getGitBranchForPath(filePath)
+      return { success: true, data: { branch } }
+    } catch (error) {
+      console.error('[IPC] artifact:git-branch error:', error)
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  ipcMain.handle(
+    'artifact:git-command',
+    async (_event, spaceId: string, targetPath: string, action: GitArtifactAction) => {
+      try {
+        const allowed: GitArtifactAction[] = ['status', 'add', 'pull', 'push', 'diff']
+        if (!allowed.includes(action)) {
+          return { success: false, error: 'Invalid git action' }
+        }
+        const data = await runGitArtifactCommand(spaceId, targetPath, action)
+        return { success: true, data }
+      } catch (error) {
+        console.error('[IPC] artifact:git-command error:', error)
+        return { success: false, error: (error as Error).message }
+      }
+    }
+  )
 }

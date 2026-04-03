@@ -23,8 +23,8 @@
  * BrowserView lifecycle is managed centrally by CanvasLifecycle.
  */
 
-import { useCallback, useEffect } from 'react'
-import { X, ChevronLeft, Maximize2, Minimize2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { X, ChevronLeft, Maximize2, Minimize2, GitBranch } from 'lucide-react'
 import { useCanvasLifecycle, type TabState, type ContentType } from '../../hooks/useCanvasLifecycle'
 import { CanvasTabBar } from './CanvasTabs'
 import { CodeViewer } from './viewers/CodeViewer'
@@ -38,6 +38,8 @@ import { BrowserViewer, BrowserViewerFallback } from './viewers/BrowserViewer'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
 import { getBrowserHomepage } from '../../utils/browser-homepage'
+import { toWorkspaceRelativePath } from '../../utils/path-display'
+import { useSpaceStore } from '../../stores/space.store'
 
 interface ContentCanvasProps {
   className?: string
@@ -45,6 +47,8 @@ interface ContentCanvasProps {
 
 export function ContentCanvas({ className = '' }: ContentCanvasProps) {
   const { t } = useTranslation()
+  const currentSpace = useSpaceStore((s) => s.currentSpace)
+  const spaceRoot = currentSpace?.workingDir || currentSpace?.path
   const {
     activeTabId,
     activeTab,
@@ -61,6 +65,43 @@ export function ContentCanvas({ className = '' }: ContentCanvasProps) {
     openUrl,
     setEditMode,
   } = useCanvasLifecycle()
+
+  const [canvasGitBranch, setCanvasGitBranch] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) {
+      setCanvasGitBranch(null)
+      return
+    }
+    const filePath = activeTab?.path
+    if (!filePath) {
+      setCanvasGitBranch(null)
+      return
+    }
+
+    let cancelled = false
+    setCanvasGitBranch(null)
+
+    void (async () => {
+      const res = await api.getGitBranchForPath(filePath)
+      if (cancelled) return
+      const branch =
+        res.success && res.data && typeof res.data === 'object' && 'branch' in res.data
+          ? res.data.branch
+          : null
+      setCanvasGitBranch(typeof branch === 'string' && branch.length > 0 ? branch : null)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, activeTab?.path, activeTab?.id])
+
+  const pathBarLabel = useMemo(() => {
+    const p = activeTab?.path
+    if (!p) return null
+    return toWorkspaceRelativePath(p, spaceRoot)
+  }, [activeTab?.path, spaceRoot])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -153,6 +194,27 @@ export function ContentCanvas({ className = '' }: ContentCanvasProps) {
     <div className={`flex flex-col h-full ${className}`}>
       {/* Tab bar - VS Code style */}
       <CanvasTabBar />
+
+      {/* File path / URL under tabs (not all tab types have one) */}
+      {activeTab && (activeTab.path || activeTab.url) && (
+        <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/30 text-xs text-muted-foreground">
+          <div
+            className="min-w-0 flex-1 font-mono truncate select-text"
+            title={activeTab.path ?? activeTab.url}
+          >
+            {activeTab.path ? pathBarLabel ?? activeTab.path : activeTab.url}
+          </div>
+          {canvasGitBranch ? (
+            <div
+              className="shrink-0 flex items-center gap-1 font-mono max-w-[45%] truncate select-text"
+              title={canvasGitBranch}
+            >
+              <GitBranch className="w-3.5 h-3.5 shrink-0 text-muted-foreground/70" aria-hidden />
+              <span>{canvasGitBranch}</span>
+            </div>
+          ) : null}
+        </div>
+      )}
 
       {/* Content area - bg-card matches active tab for visual continuity */}
       <div className="flex-1 min-h-0 overflow-hidden bg-card">

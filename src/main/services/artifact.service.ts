@@ -10,7 +10,9 @@
 
 import { statSync, existsSync, realpathSync, readFileSync, writeFileSync, openSync, readSync, closeSync } from 'fs'
 import { promises as fsAsync } from 'fs'
-import { join, extname, basename, dirname, sep } from 'path'
+import { execFile } from 'child_process'
+import { promisify } from 'util'
+import { join, extname, basename, dirname, sep, relative } from 'path'
 import { shell } from 'electron'
 import { getTempSpacePath } from './config.service'
 import { getSpace } from './space.service'
@@ -25,6 +27,110 @@ import {
   type CachedTreeNode,
   type ArtifactChangeEvent
 } from './artifact-cache.service'
+
+const execFileAsync = promisify(execFile)
+
+const GIT_EXEC_OPTS = {
+  maxBuffer: 1024 * 1024,
+  timeout: 120_000,
+  windowsHide: true,
+} as const
+
+/** Allowed git subcommands from the artifact tree context menu (validated server-side). */
+export type GitArtifactAction = 'status' | 'add' | 'pull' | 'push' | 'diff'
+
+export interface GitArtifactCommandResult {
+  ok: boolean
+  stdout: string
+  stderr: string
+  error?: string
+}
+
+/**
+ * Run a limited git command for a path inside the space workspace.
+ * Resolves the repo root via `git rev-parse`; path must pass workspace validation.
+ */
+export async function runGitArtifactCommand(
+  spaceId: string,
+  targetPath: string,
+  action: GitArtifactAction
+): Promise<GitArtifactCommandResult> {
+  validatePathInWorkspace(spaceId, targetPath)
+
+  let gitCwd: string
+  try {
+    const st = statSync(targetPath)
+    gitCwd = st.isDirectory() ? targetPath : dirname(targetPath)
+  } catch {
+    return { ok: false, stdout: '', stderr: '', error: 'Path not found' }
+  }
+
+  let toplevel: string
+  try {
+    const { stdout } = await execFileAsync(
+      'git',
+      ['-C', gitCwd, 'rev-parse', '--show-toplevel'],
+      GIT_EXEC_OPTS
+    )
+    toplevel = stdout.trim()
+  } catch {
+    return { ok: false, stdout: '', stderr: '', error: 'Not a Git repository' }
+  }
+
+  const pathSpec = relative(toplevel, targetPath).replace(/\\/g, '/') || '.'
+
+  try {
+    let stdout = ''
+    let stderr = ''
+    switch (action) {
+      case 'status': {
+        const r = await execFileAsync('git', ['-C', toplevel, 'status'], GIT_EXEC_OPTS)
+        stdout = r.stdout.toString()
+        stderr = r.stderr.toString()
+        break
+      }
+      case 'add': {
+        const r = await execFileAsync('git', ['-C', toplevel, 'add', '--', pathSpec], GIT_EXEC_OPTS)
+        stdout = r.stdout.toString()
+        stderr = r.stderr.toString()
+        break
+      }
+      case 'pull': {
+        const r = await execFileAsync('git', ['-C', toplevel, 'pull'], GIT_EXEC_OPTS)
+        stdout = r.stdout.toString()
+        stderr = r.stderr.toString()
+        break
+      }
+      case 'push': {
+        const r = await execFileAsync('git', ['-C', toplevel, 'push'], GIT_EXEC_OPTS)
+        stdout = r.stdout.toString()
+        stderr = r.stderr.toString()
+        break
+      }
+      case 'diff': {
+        const r = await execFileAsync('git', ['-C', toplevel, 'diff', '--', pathSpec], GIT_EXEC_OPTS)
+        stdout = r.stdout.toString()
+        stderr = r.stderr.toString()
+        break
+      }
+      default: {
+        const _exhaustive: never = action
+        return { ok: false, stdout: '', stderr: '', error: `Unknown action: ${_exhaustive}` }
+      }
+    }
+    return { ok: true, stdout: stdout.trim(), stderr: stderr.trim() }
+  } catch (e: unknown) {
+    const err = e as { stdout?: Buffer | string; stderr?: Buffer | string; message?: string }
+    const out = typeof err.stdout === 'string' ? err.stdout : err.stdout?.toString() ?? ''
+    const errOut = typeof err.stderr === 'string' ? err.stderr : err.stderr?.toString() ?? ''
+    return {
+      ok: false,
+      stdout: out.trim(),
+      stderr: errOut.trim(),
+      error: err.message ?? 'Git command failed',
+    }
+  }
+}
 
 export interface Artifact {
   id: string

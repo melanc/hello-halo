@@ -221,7 +221,7 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps) {
   // ── Loading state ──
   if (loadState === 'loading') {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full text-[12px]">
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Loader2 className="w-4 h-4 animate-spin" />
@@ -244,7 +244,7 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps) {
   // ── Error state (load error) ──
   if (loadState === 'error') {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full text-[12px]">
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="flex flex-col items-center gap-2 text-muted-foreground max-w-sm text-center">
             <AlertCircle className="w-5 h-5 text-destructive" />
@@ -269,7 +269,7 @@ export function AppChatView({ appId, spaceId }: AppChatViewProps) {
   const hasStreamingContent = isGenerating && (streamingContent || thoughts.length > 0 || isThinking)
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full text-[12px]">
       {/* Message area */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="max-w-3xl mx-auto py-6 px-4">

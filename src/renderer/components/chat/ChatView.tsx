@@ -45,7 +45,10 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
     sendMessage,
     stopGeneration,
     continueAfterInterrupt,
-    answerQuestion
+    answerQuestion,
+    composerReferenceChips,
+    removeComposerReferenceChip,
+    clearComposerReferenceChips,
   } = useChatStore()
 
   // Onboarding state
@@ -346,7 +349,7 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
   return (
     <div
       className={`
-        flex-1 flex flex-col h-full
+        flex-1 flex flex-col h-full text-[12px]
         transition-[padding] duration-300 ease-out
         ${isCompact ? 'bg-background/50' : 'bg-background'}
       `}
@@ -404,6 +407,9 @@ export function ChatView({ isCompact = false }: ChatViewProps) {
         isCompact={isCompact}
         slashCommands={slashCommands}
         mentionArtifacts={mentionArtifacts}
+        composerReferenceChips={composerReferenceChips}
+        onRemoveComposerReferenceChip={removeComposerReferenceChip}
+        clearComposerReferenceChips={clearComposerReferenceChips}
       />
     </div>
   )

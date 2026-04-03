@@ -21,12 +21,12 @@ import {
   useEffect,
   useImperativeHandle,
   forwardRef,
-  useCallback,
   useMemo,
   memo,
+  useState,
 } from 'react'
 import { EditorView } from '@codemirror/view'
-import { EditorState } from '@codemirror/state'
+import { MessageSquare } from 'lucide-react'
 import {
   createEditorState,
   setReadOnly,
@@ -35,10 +35,17 @@ import {
   setContent,
   hasChanges,
 } from '../../../lib/codemirror-setup'
+import { useTranslation } from '../../../i18n'
 
 // ============================================
 // Types
 // ============================================
+
+/** 1-based line numbers of the current selection (inclusive) */
+export interface AddSelectionToChatPayload {
+  startLine: number
+  endLine: number
+}
 
 export interface CodeMirrorEditorProps {
   /** Document content */
@@ -55,6 +62,8 @@ export interface CodeMirrorEditorProps {
   scrollPosition?: number
   /** CSS class name for the container */
   className?: string
+  /** When set, a non-empty selection shows an “Add to Chat” control (canvas code viewer) */
+  onAddSelectionToChat?: (payload: AddSelectionToChatPayload) => void
 }
 
 export interface CodeMirrorEditorRef {
@@ -90,17 +99,36 @@ export const CodeMirrorEditor = memo(
       onScroll,
       scrollPosition,
       className = '',
+      onAddSelectionToChat,
     },
     ref
   ) {
+    const { t } = useTranslation()
     const containerRef = useRef<HTMLDivElement>(null)
+    const wrapperRef = useRef<HTMLDivElement>(null)
     const viewRef = useRef<EditorView | null>(null)
     const originalContentRef = useRef<string>(content)
     const lastScrollPositionRef = useRef<number>(0)
+    const onAddToChatRef = useRef(onAddSelectionToChat)
+    const [addToChatPopup, setAddToChatPopup] = useState<{
+      left: number
+      top: number
+      startLine: number
+      endLine: number
+    } | null>(null)
+    const setAddToChatPopupRef = useRef(setAddToChatPopup)
+    setAddToChatPopupRef.current = setAddToChatPopup
 
     // Keep refs up to date with latest callbacks
     const onChangeRef = useRef(onChange)
     const onScrollRef = useRef(onScroll)
+
+    useEffect(() => {
+      onAddToChatRef.current = onAddSelectionToChat
+      if (!onAddSelectionToChat) {
+        setAddToChatPopup(null)
+      }
+    }, [onAddSelectionToChat])
 
     useEffect(() => {
       onChangeRef.current = onChange
@@ -111,8 +139,53 @@ export const CodeMirrorEditor = memo(
     }, [onScroll])
 
     // Build extensions array - stable across re-renders using refs
-    const extensions = useMemo(
-      () => [
+    const extensions = useMemo(() => {
+      let addToChatRaf = 0
+      return [
+        EditorView.updateListener.of((update) => {
+          const cb = onAddToChatRef.current
+          const setPop = setAddToChatPopupRef.current
+          if (!cb) {
+            cancelAnimationFrame(addToChatRaf)
+            setPop(null)
+            return
+          }
+          const view = update.view
+          const sel = view.state.selection.main
+          const selected = sel.empty ? '' : view.state.sliceDoc(sel.from, sel.to)
+          if (!selected.trim()) {
+            cancelAnimationFrame(addToChatRaf)
+            setPop(null)
+            return
+          }
+          cancelAnimationFrame(addToChatRaf)
+          addToChatRaf = requestAnimationFrame(() => {
+            if (!view.dom.isConnected || !onAddToChatRef.current) {
+              setPop(null)
+              return
+            }
+            const wrap = wrapperRef.current
+            if (!wrap) {
+              setPop(null)
+              return
+            }
+            const coords = view.coordsAtPos(sel.head)
+            if (!coords) {
+              setPop(null)
+              return
+            }
+            const r = wrap.getBoundingClientRect()
+            const btnApproxWidth = 168
+            const leftRaw = coords.left - r.left
+            const left = Math.max(6, Math.min(leftRaw, Math.max(6, r.width - btnApproxWidth - 6)))
+            const top = coords.bottom - r.top + 6
+            const doc = view.state.doc
+            const startLine = doc.lineAt(sel.from).number
+            const endLine = doc.lineAt(sel.to).number
+            setPop({ left, top, startLine, endLine })
+          })
+        }),
+
         // Update listener for content changes
         EditorView.updateListener.of((update) => {
           if (update.docChanged && onChangeRef.current) {
@@ -122,7 +195,7 @@ export const CodeMirrorEditor = memo(
 
         // Scroll listener
         EditorView.domEventHandlers({
-          scroll: (event, view) => {
+          scroll: (_event, view) => {
             const scrollTop = view.scrollDOM.scrollTop
             lastScrollPositionRef.current = scrollTop
             if (onScrollRef.current) {
@@ -131,9 +204,8 @@ export const CodeMirrorEditor = memo(
             return false
           },
         }),
-      ],
-      [] // Stable - uses refs for callbacks
-    )
+      ]
+    }, [])
 
     // Initialize editor once on mount
     useEffect(() => {
@@ -260,10 +332,31 @@ export const CodeMirrorEditor = memo(
     )
 
     return (
-      <div
-        ref={containerRef}
-        className={`codemirror-container h-full w-full overflow-hidden ${className}`}
-      />
+      <div ref={wrapperRef} className={`relative h-full w-full min-h-0 ${className}`}>
+        <div ref={containerRef} className="codemirror-container h-full w-full overflow-hidden" />
+        {addToChatPopup && onAddSelectionToChat ? (
+          <div
+            className="pointer-events-auto absolute z-[200]"
+            style={{ left: addToChatPopup.left, top: addToChatPopup.top }}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            <button
+              type="button"
+              className="flex items-center gap-1.5 rounded-md border border-border bg-popover px-2.5 py-2 text-xs font-medium text-popover-foreground shadow-md hover:bg-accent hover:text-accent-foreground sm:py-1.5"
+              onClick={() => {
+                onAddSelectionToChat({
+                  startLine: addToChatPopup.startLine,
+                  endLine: addToChatPopup.endLine,
+                })
+                setAddToChatPopup(null)
+              }}
+            >
+              <MessageSquare className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+              {t('Add to Chat')}
+            </button>
+          </div>
+        ) : null}
+      </div>
     )
   })
 )

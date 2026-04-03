@@ -187,6 +187,19 @@ export interface HaloAPI {
     language?: string
     mimeType: string
   }>>
+  getGitBranchForPath: (filePath: string) => Promise<IpcResponse<{ branch: string | null }>>
+  runArtifactGitCommand: (
+    spaceId: string,
+    targetPath: string,
+    action: 'status' | 'add' | 'pull' | 'push' | 'diff'
+  ) => Promise<
+    IpcResponse<{
+      ok: boolean
+      stdout: string
+      stderr: string
+      error?: string
+    }>
+  >
 
   // File operations — create/move send (parentPath, name), backend constructs full path
   createArtifactFile: (spaceId: string, parentPath: string, name: string, content?: string) => Promise<IpcResponse>
@@ -549,7 +562,10 @@ const api: HaloAPI = {
   readArtifactContent: (filePath) => ipcRenderer.invoke('artifact:read-content', filePath),
   saveArtifactContent: (filePath, content) => ipcRenderer.invoke('artifact:save-content', filePath, content),
   detectFileType: (filePath) => ipcRenderer.invoke('artifact:detect-file-type', filePath),
-  
+  getGitBranchForPath: (filePath) => ipcRenderer.invoke('artifact:git-branch', filePath),
+  runArtifactGitCommand: (spaceId, targetPath, action) =>
+    ipcRenderer.invoke('artifact:git-command', spaceId, targetPath, action),
+
   // File operations — create/move send (parentPath, name), backend constructs full path
   createArtifactFile: (spaceId, parentPath, name, content) => ipcRenderer.invoke('artifact:create-file', spaceId, parentPath, name, content),
   createArtifactFolder: (spaceId, parentPath, name) => ipcRenderer.invoke('artifact:create-folder', spaceId, parentPath, name),
