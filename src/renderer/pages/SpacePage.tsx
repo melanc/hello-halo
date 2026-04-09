@@ -34,7 +34,7 @@ import { GitBashWarningBanner } from '../components/setup/GitBashWarningBanner'
 import { api } from '../api'
 import { useLayoutPreferences } from '../hooks/useLayoutPreferences'
 import { useWindowMaximize } from '../components/canvas/viewers/useWindowMaximize'
-import { X, MessageSquare } from 'lucide-react'
+import { X, MessageSquare, ClipboardList } from 'lucide-react'
 import { SearchIcon } from '../components/search/SearchIcon'
 import { useSearchShortcuts } from '../hooks/useSearchShortcuts'
 import { useTranslation } from '../i18n'
@@ -393,6 +393,14 @@ export function SpacePage() {
 
             {/* Model Selector */}
             <ModelSelector />
+
+            <button
+              onClick={() => setView('tasks')}
+              className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
+              title={t('Tasks & Requirements')}
+            >
+              <ClipboardList className="w-5 h-5" />
+            </button>
 
             <button
               onClick={() => setView('settings')}

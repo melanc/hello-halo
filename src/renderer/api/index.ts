@@ -2136,6 +2136,42 @@ export const api = {
     }
     return onEvent('store:sync-status-changed', callback)
   },
+
+  // ===== Pipeline (Tasks & Requirements) =====
+  pipelineListTasks: async (spaceId: string): Promise<ApiResponse> => {
+    if (isElectron()) return window.halo.pipelineListTasks(spaceId)
+    return { success: false, error: 'Pipeline only available in desktop app' }
+  },
+
+  pipelineGetTask: async (taskId: string): Promise<ApiResponse> => {
+    if (isElectron()) return window.halo.pipelineGetTask(taskId)
+    return { success: false, error: 'Pipeline only available in desktop app' }
+  },
+
+  pipelineCreateTask: async (input: { spaceId: string; title: string; requirement: string }): Promise<ApiResponse> => {
+    if (isElectron()) return window.halo.pipelineCreateTask(input)
+    return { success: false, error: 'Pipeline only available in desktop app' }
+  },
+
+  pipelineUpdateTask: async (input: { taskId: string; updates: Record<string, unknown> }): Promise<ApiResponse> => {
+    if (isElectron()) return window.halo.pipelineUpdateTask(input)
+    return { success: false, error: 'Pipeline only available in desktop app' }
+  },
+
+  pipelineDeleteTask: async (taskId: string): Promise<ApiResponse> => {
+    if (isElectron()) return window.halo.pipelineDeleteTask(taskId)
+    return { success: false, error: 'Pipeline only available in desktop app' }
+  },
+
+  pipelineUpsertSubtasks: async (input: { taskId: string; subtasks: Array<{ title: string; description: string }> }): Promise<ApiResponse> => {
+    if (isElectron()) return window.halo.pipelineUpsertSubtasks(input)
+    return { success: false, error: 'Pipeline only available in desktop app' }
+  },
+
+  pipelineUpdateSubtaskStatus: async (input: { subtaskId: string; status: string }): Promise<ApiResponse> => {
+    if (isElectron()) return window.halo.pipelineUpdateSubtaskStatus(input)
+    return { success: false, error: 'Pipeline only available in desktop app' }
+  },
 }
 
 // Export type for the API

@@ -53,6 +53,8 @@ import { registerStoreHandlers } from '../ipc/store'
 import { registerCliConfigHandlers } from '../ipc/cli-config'
 import { registerOfflineSpeechHandlers } from '../ipc/offline-speech'
 import { initRegistryService, shutdownRegistryService } from '../store'
+import { initPipeline, shutdownPipeline } from '../pipeline'
+import { registerPipelineHandlers } from '../ipc/pipeline'
 
 // Module-level reference to db for cleanup
 let platformDb: DatabaseManager | null = null
@@ -102,6 +104,9 @@ async function initPlatformAndApps(): Promise<void> {
 
   // ── Phase 4: Registry Service (App Store) ─────────────────────────────
   initRegistryService({ db })
+
+  // ── Phase 5: Pipeline Service (Tasks & Requirements) ─────────────────
+  initPipeline(db)
 
   // ── Start timer loops AFTER all wiring is complete ──────────────────────
   // This ensures no events fire before subscriptions are registered.
@@ -191,6 +196,9 @@ export function initializeExtendedServices(): void {
   // Offline speech (whisper.cpp) status + transcribe + file picker
   registerOfflineSpeechHandlers()
 
+  // Pipeline: Tasks & Requirements workflow IPC handlers
+  registerPipelineHandlers()
+
   // Windows-specific: Initialize Git Bash in background
   if (process.platform === 'win32') {
     initializeGitBashOnStartup()
@@ -241,6 +249,9 @@ export function initializeExtendedServices(): void {
  * Called during window-all-closed to properly release resources.
  */
 export async function cleanupExtendedServices(): Promise<void> {
+  // Pipeline: Shutdown pipeline store
+  shutdownPipeline()
+
   // Store: Shutdown registry service (before app manager)
   shutdownRegistryService()
 

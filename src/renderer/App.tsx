@@ -42,6 +42,7 @@ const HomePage = lazy(() => import('./pages/HomePage').then(m => ({ default: m.H
 const SpacePage = lazy(() => import('./pages/SpacePage').then(m => ({ default: m.SpacePage })))
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const AppsPage = lazy(() => import('./pages/AppsPage').then(m => ({ default: m.AppsPage })))
+const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })))
 
 // Page loading fallback - minimal spinner that matches app style
 function PageLoader() {
@@ -876,6 +877,12 @@ export default function App() {
         return (
           <Suspense fallback={<PageLoader />}>
             <AppsPage />
+          </Suspense>
+        )
+      case 'tasks':
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <TasksPage />
           </Suspense>
         )
       default:

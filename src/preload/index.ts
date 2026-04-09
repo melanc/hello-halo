@@ -467,6 +467,15 @@ export interface DevXAPI {
   onAppEscalation: (callback: (data: unknown) => void) => () => void
   onAppNavigate: (callback: (data: unknown) => void) => () => void
 
+  // Pipeline (Tasks & Requirements)
+  pipelineListTasks: (spaceId: string) => Promise<IpcResponse>
+  pipelineGetTask: (taskId: string) => Promise<IpcResponse>
+  pipelineCreateTask: (input: { spaceId: string; title: string; requirement: string }) => Promise<IpcResponse>
+  pipelineUpdateTask: (input: { taskId: string; updates: Record<string, unknown> }) => Promise<IpcResponse>
+  pipelineDeleteTask: (taskId: string) => Promise<IpcResponse>
+  pipelineUpsertSubtasks: (input: { taskId: string; subtasks: Array<{ title: string; description: string }> }) => Promise<IpcResponse>
+  pipelineUpdateSubtaskStatus: (input: { subtaskId: string; status: string }) => Promise<IpcResponse>
+
   // Notification (in-app toast)
   onNotificationToast: (callback: (data: unknown) => void) => () => void
 
@@ -891,6 +900,15 @@ const api: DevXAPI = {
   storeToggleRegistry: (input) => ipcRenderer.invoke('store:toggle-registry', input),
   storeUpdateRegistryAdapterConfig: (input) => ipcRenderer.invoke('store:update-registry-adapter-config', input),
   onStoreSyncStatusChanged: (callback) => createEventListener('store:sync-status-changed', callback),
+
+  // Pipeline (Tasks & Requirements)
+  pipelineListTasks: (spaceId) => ipcRenderer.invoke('pipeline:list-tasks', spaceId),
+  pipelineGetTask: (taskId) => ipcRenderer.invoke('pipeline:get-task', taskId),
+  pipelineCreateTask: (input) => ipcRenderer.invoke('pipeline:create-task', input),
+  pipelineUpdateTask: (input) => ipcRenderer.invoke('pipeline:update-task', input),
+  pipelineDeleteTask: (taskId) => ipcRenderer.invoke('pipeline:delete-task', taskId),
+  pipelineUpsertSubtasks: (input) => ipcRenderer.invoke('pipeline:upsert-subtasks', input),
+  pipelineUpdateSubtaskStatus: (input) => ipcRenderer.invoke('pipeline:update-subtask-status', input),
 
   // Notification (in-app toast)
   onNotificationToast: (callback) => createEventListener('notification:toast', callback),
