@@ -334,15 +334,15 @@ export function AppInstallDialog({ onClose }: AppInstallDialogProps) {
   const { installApp, importApp, loadApps, updateAppOverrides } = useAppsStore()
 
   const currentSpace = useSpaceStore(state => state.currentSpace)
-  const haloSpace = useSpaceStore(state => state.haloSpace)
+  const devxSpace = useSpaceStore(state => state.devxSpace)
   const spaces = useSpaceStore(state => state.spaces)
 
   const allSpaces = useMemo(() => {
     const result: Array<{ id: string; name: string; icon: string }> = []
-    if (haloSpace) result.push(haloSpace)
+    if (devxSpace) result.push(devxSpace)
     result.push(...spaces)
     return result
-  }, [haloSpace, spaces])
+  }, [devxSpace, spaces])
 
   const [mode, setMode] = useState<InstallMode>('visual')
   const [form, setForm] = useState<VisualFormState>({ ...INITIAL_FORM })

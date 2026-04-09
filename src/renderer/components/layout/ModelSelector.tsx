@@ -14,7 +14,7 @@ import {
   getCurrentModelName,
   getCurrentSource,
   AVAILABLE_MODELS,
-  type HaloConfig,
+  type DevXConfig,
   type AISourcesConfig,
   type AISource,
   type ModelOption

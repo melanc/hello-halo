@@ -4,22 +4,23 @@
  * Desktop (>=640px): Inline panel with drag-to-resize
  * Mobile (<640px): Floating button + Overlay panel
  *
- * Supports view mode toggle: Tree (default) vs Card
+ * File list uses tree view only.
  * Supports external control for Canvas integration (smart collapse)
  */
 
-import { useState, useEffect, useCallback, useRef } from 'react'
-import { createPortal } from 'react-dom'
-import { ArtifactCard, type ArtifactContextMenuState } from './ArtifactCard'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { ArtifactTree } from './ArtifactTree'
 import { api } from '../../api'
-import type { Artifact, ArtifactViewMode, ArtifactChangeEvent } from '../../types'
+import type { Artifact, ArtifactChangeEvent } from '../../types'
 import { useIsGenerating } from '../../stores/chat.store'
 import { useSpaceStore } from '../../stores/space.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useCanvasLifecycle } from '../../hooks/useCanvasLifecycle'
 import { useCanvasStore } from '../../stores/canvas.store'
-import { ChevronRight, FolderOpen, Monitor, LayoutGrid, FolderTree, X, Globe } from 'lucide-react'
+import { useTaskStore } from '../../stores/task.store'
+import { ChevronRight, FolderOpen, Monitor, X, Globe, GitBranch, Search } from 'lucide-react'
+import { GitSourceControlPanel } from '../git/GitSourceControlPanel'
+import { RailWorkspaceFindPanel } from './RailWorkspaceFindPanel'
 import { ONBOARDING_ARTIFACT_NAME } from '../onboarding/onboardingData'
 import { useTranslation } from '../../i18n'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -29,7 +30,16 @@ import { getBrowserHomepage } from '../../utils/browser-homepage'
 const isWebMode = api.isRemoteMode()
 
 // Storage keys
-const VIEW_MODE_STORAGE_KEY = 'halo:artifact-view-mode'
+const RAIL_MAIN_TAB_KEY = 'devx:rail-main-tab'
+
+type RailMainTab = 'files' | 'source-control'
+
+function getInitialRailMainTab(): RailMainTab {
+  if (typeof window === 'undefined') return 'files'
+  const s =
+    localStorage.getItem(RAIL_MAIN_TAB_KEY) ?? localStorage.getItem('halo:rail-main-tab')
+  return s === 'source-control' ? 'source-control' : 'files'
+}
 
 // Width constraints (in pixels) - Desktop only
 const MIN_WIDTH = 200
@@ -46,14 +56,6 @@ interface ArtifactRailProps {
   initialWidth?: number             // Persisted width from config
   onWidthChange?: (width: number) => void  // Callback when user finishes resizing
 }
-
-// Load initial view mode from storage
-function getInitialViewMode(): ArtifactViewMode {
-  if (typeof window === 'undefined') return 'tree'
-  const stored = localStorage.getItem(VIEW_MODE_STORAGE_KEY)
-  return (stored === 'tree' || stored === 'card') ? stored : 'tree'
-}
-
 
 function normalizeArtifactFromEvent(item: unknown, fallbackSpaceId: string): Artifact | null {
   if (!item || typeof item !== 'object') return null
@@ -100,7 +102,27 @@ export function ArtifactRail({
   // Self-subscribe to space data
   const currentSpace = useSpaceStore(state => state.currentSpace)
   const spaceId = currentSpace?.id ?? ''
-  const isTemp = currentSpace?.isTemp ?? false
+
+  const activeTaskId = useTaskStore((s) => s.activeTaskId)
+  const workspaceTasks = useTaskStore((s) => s.tasks)
+
+  const activeTaskForSpace = useMemo(() => {
+    if (!spaceId || !activeTaskId) return null
+    return workspaceTasks.find((t) => t.id === activeTaskId && t.spaceId === spaceId) ?? null
+  }, [spaceId, activeTaskId, workspaceTasks])
+
+  /** Task-scoped file tree: always a Set when this space’s active task is open (may be empty). */
+  const taskProjectRootSetForSpace = useMemo(() => {
+    if (!activeTaskForSpace) return null
+    return new Set([...activeTaskForSpace.projectDirs, ...(activeTaskForSpace.touchedProjectDirs ?? [])])
+  }, [activeTaskForSpace])
+
+  const taskProjectDirNamesForGit = useMemo(() => {
+    if (!taskProjectRootSetForSpace || taskProjectRootSetForSpace.size === 0) return undefined
+    return Array.from(taskProjectRootSetForSpace).sort((a, b) =>
+      a.localeCompare(b, undefined, { sensitivity: 'base' })
+    )
+  }, [taskProjectRootSetForSpace])
 
   // ── All useState / useRef declarations first (avoids bundler TDZ issues) ──
   const [artifacts, setArtifacts] = useState<Artifact[]>([])
@@ -109,14 +131,11 @@ export function ArtifactRail({
   const [internalExpanded, setInternalExpanded] = useState(true)
   const isExpanded = isControlled ? externalExpanded : internalExpanded
 
-  const [isLoading, setIsLoading] = useState(false)
   const [width, setWidth] = useState(initialWidth != null ? clampWidth(initialWidth) : DEFAULT_WIDTH)
   const widthRef = useRef(width)
   const [isDragging, setIsDragging] = useState(false)
-  const [viewMode, setViewMode] = useState<ArtifactViewMode>(getInitialViewMode)
+  const [railMainTab, setRailMainTab] = useState<RailMainTab>(getInitialRailMainTab)
   const [mobileOverlayOpen, setMobileOverlayOpen] = useState(false)
-  const [cardContextMenu, setCardContextMenu] = useState<ArtifactContextMenuState | null>(null)
-  const cardContextMenuRef = useRef<HTMLDivElement>(null)
   const railRef = useRef<HTMLDivElement>(null)
   const onWidthChangeRef = useRef(onWidthChange)
   onWidthChangeRef.current = onWidthChange
@@ -132,30 +151,6 @@ export function ArtifactRail({
     }
   }, [spaceId])
 
-  // Card context menu handlers
-  const handleShowCardContextMenu = useCallback((menu: ArtifactContextMenuState) => {
-    setCardContextMenu(menu)
-  }, [])
-
-  const handleCopyRelativePath = useCallback(async (relativePath: string) => {
-    try {
-      await navigator.clipboard.writeText(relativePath)
-    } catch (error) {
-      console.error('[ArtifactRail] Failed to copy relative path:', error)
-    }
-    setCardContextMenu(null)
-  }, [])
-
-  const handleRevealInFolder = useCallback(async (path: string) => {
-    if (isWebMode) return
-    try {
-      await api.showArtifactInFolder(path)
-    } catch (error) {
-      console.error('[ArtifactRail] Failed to show in folder:', error)
-    }
-    setCardContextMenu(null)
-  }, [])
-
   // ── Effects ──
 
   // Sync width when initialWidth arrives from async config load
@@ -167,40 +162,6 @@ export function ArtifactRail({
     }
   }, [initialWidth, isDragging])
 
-  // Dismiss card context menu on outside click or Escape
-  useEffect(() => {
-    if (!cardContextMenu) return
-    const handlePointerDown = (e: MouseEvent) => {
-      if (cardContextMenuRef.current && !cardContextMenuRef.current.contains(e.target as Node)) {
-        setCardContextMenu(null)
-      }
-    }
-    const handleEscape = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setCardContextMenu(null)
-    }
-    document.addEventListener('mousedown', handlePointerDown)
-    document.addEventListener('keydown', handleEscape)
-    return () => {
-      document.removeEventListener('mousedown', handlePointerDown)
-      document.removeEventListener('keydown', handleEscape)
-    }
-  }, [cardContextMenu])
-
-  // Adjust card context menu position to stay within viewport (P1 fix)
-  useEffect(() => {
-    if (!cardContextMenu || !cardContextMenuRef.current) return
-    const rect = cardContextMenuRef.current.getBoundingClientRect()
-    const vw = window.innerWidth
-    const vh = window.innerHeight
-    let { x, y } = cardContextMenu
-    if (x + rect.width > vw) x = vw - rect.width - 8
-    if (y + rect.height > vh) y = vh - rect.height - 8
-    if (x < 0) x = 8
-    if (y < 0) y = 8
-    cardContextMenuRef.current.style.left = `${x}px`
-    cardContextMenuRef.current.style.top = `${y}px`
-  }, [cardContextMenu])
-
   // Canvas lifecycle for opening browser
   const { openUrl } = useCanvasLifecycle()
 
@@ -209,7 +170,6 @@ export function ArtifactRail({
 
   // Handle expand/collapse toggle
   const handleToggleExpanded = useCallback(() => {
-    console.log('[ArtifactRail] 🔴 Click! isExpanded:', isExpanded, 'time:', Date.now())
     const newExpanded = !isExpanded
 
     // UI-first optimization: When Canvas is open, directly update DOM
@@ -217,7 +177,6 @@ export function ArtifactRail({
     if (isCanvasOpen && railRef.current) {
       const targetWidth = newExpanded ? width : COLLAPSED_WIDTH
       railRef.current.style.width = `${targetWidth}px`
-      console.log('[ArtifactRail] 🚀 Direct DOM update:', targetWidth, 'time:', Date.now())
     }
 
     // Then update React state (will re-render but width is already correct)
@@ -228,11 +187,6 @@ export function ArtifactRail({
     }
   }, [isExpanded, isControlled, onExpandedChange, isCanvasOpen, width])
 
-  // Debug: log when isExpanded changes
-  useEffect(() => {
-    console.log('[ArtifactRail] 🟢 isExpanded changed to:', isExpanded, 'time:', Date.now())
-  }, [isExpanded])
-
   // Check if we're in onboarding view-artifact step
   const isOnboardingViewStep = isOnboarding && currentStep === 'view-artifact'
 
@@ -240,21 +194,19 @@ export function ArtifactRail({
   // Delay completion so user can see the file open first
   const handleOnboardingArtifactClick = useCallback(() => {
     if (isOnboardingViewStep) {
-      // Let the ArtifactCard's click handler open the file first
-      // Then complete onboarding after a short delay
       setTimeout(() => {
         completeOnboarding()
       }, 500)
     }
   }, [isOnboardingViewStep, completeOnboarding])
 
-  // Toggle view mode and persist
-  const toggleViewMode = useCallback(() => {
-    setViewMode(prev => {
-      const next = prev === 'card' ? 'tree' : 'card'
-      localStorage.setItem(VIEW_MODE_STORAGE_KEY, next)
-      return next
-    })
+  const setRailMainTabPersist = useCallback((tab: RailMainTab) => {
+    setRailMainTab(tab)
+    try {
+      localStorage.setItem(RAIL_MAIN_TAB_KEY, tab)
+    } catch {
+      /* ignore quota */
+    }
   }, [])
 
   // Handle drag resize (desktop only)
@@ -301,15 +253,12 @@ export function ArtifactRail({
     if (!spaceId) return
 
     try {
-      setIsLoading(true)
       const response = await api.listArtifacts(spaceId)
       if (response.success && response.data) {
         setArtifacts(response.data as Artifact[])
       }
     } catch (error) {
       console.error('[ArtifactRail] Failed to load artifacts:', error)
-    } finally {
-      setIsLoading(false)
     }
   }, [spaceId])
 
@@ -400,48 +349,25 @@ export function ArtifactRail({
 
   // Shared content renderer
   const renderContent = () => (
-    <div className="flex-1 overflow-hidden">
-      {viewMode === 'tree' ? (
-        <ArtifactTree spaceId={spaceId} />
+    <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+      {railMainTab === 'source-control' ? (
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <GitSourceControlPanel spaceId={spaceId} taskProjectDirNames={taskProjectDirNamesForGit} />
+        </div>
+      ) : railMainTab === 'workspace-find' ? (
+        <RailWorkspaceFindPanel spaceId={spaceId} isWebMode={isWebMode} />
       ) : (
-        <div className="h-full overflow-auto p-2">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-2">
-              <div className="w-8 h-8 rounded-full border-2 border-primary/30 border-t-primary animate-spin mb-3" />
-              <p className="text-xs text-muted-foreground">{t('Loading...')}</p>
-            </div>
-          ) : artifacts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-2">
-              <div className="w-12 h-12 rounded-full border-2 border-dashed border-muted-foreground/30 flex items-center justify-center mb-3 halo-breathe">
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary/20 to-transparent" />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {isTemp ? t('Ideas will crystallize here') : t('Files will appear here')}
-              </p>
-              {isGenerating && (
-                <p className="text-xs text-primary/60 mt-2 animate-pulse">
-                  {t('AI is working...')}
-                </p>
-              )}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {artifacts.map((artifact) => {
-                // Check if this is the onboarding artifact
-                const isOnboardingArtifact = artifact.name === ONBOARDING_ARTIFACT_NAME
-
-                return (
-                  <div
-                    key={artifact.id}
-                    data-onboarding={isOnboardingArtifact && isOnboardingViewStep ? 'artifact-card' : undefined}
-                    onClick={isOnboardingArtifact && isOnboardingViewStep ? handleOnboardingArtifactClick : undefined}
-                  >
-                    <ArtifactCard artifact={artifact} onShowContextMenu={handleShowCardContextMenu} />
-                  </div>
-                )
-              })}
-            </div>
-          )}
+        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          <ArtifactTree
+            spaceId={spaceId}
+            taskProjectRootSet={taskProjectRootSetForSpace}
+            taskFocusSessionId={activeTaskForSpace?.id ?? null}
+            taskNoExplicitProjectDirs={
+              activeTaskForSpace != null && activeTaskForSpace.projectDirs.length === 0
+            }
+            onboardingHighlightFileName={isOnboardingViewStep ? ONBOARDING_ARTIFACT_NAME : undefined}
+            onboardingArtifactActivate={isOnboardingViewStep ? handleOnboardingArtifactClick : undefined}
+          />
         </div>
       )}
     </div>
@@ -451,11 +377,6 @@ export function ArtifactRail({
   // flex-shrink-0 ensures footer doesn't compress, allowing content to take remaining space
   const renderFooter = () => (
     <div className="flex-shrink-0 p-2 border-t border-border">
-      {viewMode === 'card' && artifacts.length > 0 && (
-        <p className="text-xs text-muted-foreground text-center mb-2">
-          {artifacts.length} {t('artifacts')}
-        </p>
-      )}
       {isWebMode ? (
         <div className="w-full flex items-center justify-center gap-2 px-3 py-2 text-xs text-muted-foreground/50 rounded-lg cursor-not-allowed">
           <Monitor className="w-4 h-4" />
@@ -535,31 +456,51 @@ export function ArtifactRail({
               "
             >
               {/* Header */}
-              <div className="p-3 border-b border-border flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-medium text-muted-foreground">{t('Artifacts')}</span>
+              <div className="p-2.5 border-b border-border flex items-center justify-between gap-2 min-h-[44px]">
+                <div className="flex items-center gap-1">
                   <button
-                    onClick={toggleViewMode}
+                    type="button"
+                    onClick={() => setRailMainTabPersist('files')}
                     className={`
-                      p-1 rounded transition-all duration-200
+                      h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
                       hover:bg-secondary/80
-                      ${viewMode === 'tree' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+                      ${railMainTab === 'files' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
                     `}
-                    title={viewMode === 'card' ? t('Switch to tree view') : t('Switch to card view')}
+                    title={t('Files')}
                   >
-                    {viewMode === 'card' ? (
-                      <FolderTree className="w-3.5 h-3.5" />
-                    ) : (
-                      <LayoutGrid className="w-3.5 h-3.5" />
-                    )}
+                    <FolderOpen className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRailMainTabPersist('source-control')}
+                    className={`
+                      h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
+                      hover:bg-secondary/80
+                      ${railMainTab === 'source-control' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+                    `}
+                    title={t('Git operations')}
+                  >
+                    <GitBranch className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRailMainTabPersist('workspace-find')}
+                    className={`
+                      h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
+                      hover:bg-secondary/80
+                      ${railMainTab === 'workspace-find' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+                    `}
+                    title={t('Search in files')}
+                  >
+                    <Search className="w-5 h-5" />
                   </button>
                 </div>
                 <button
                   onClick={() => setMobileOverlayOpen(false)}
-                  className="p-1 hover:bg-secondary rounded transition-colors"
+                  className="h-10 w-10 shrink-0 flex items-center justify-center hover:bg-secondary rounded-lg transition-colors"
                   aria-label={t('Close')}
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
 
@@ -599,33 +540,55 @@ export function ArtifactRail({
         />
       )}
 
-      {/* Header - height matches CanvasTabs (py-1.5 + h-7 content = ~40px) */}
-      <div className="flex-shrink-0 px-3 h-10 border-b border-border flex items-center justify-between">
+      {/* Header — tab targets ~40px for easier clicking */}
+      <div className="flex-shrink-0 px-2 min-h-11 h-11 border-b border-border flex items-center justify-between gap-1">
         {isExpanded && (
-          <div className="flex items-center gap-1.5">
-            <span className="text-sm font-medium text-muted-foreground">{t('Artifacts')}</span>
+          <div className="flex items-center gap-1">
             <button
-              onClick={toggleViewMode}
+              type="button"
+              onClick={() => setRailMainTabPersist('files')}
               className={`
-                p-1 rounded transition-all duration-200
+                h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
                 hover:bg-secondary/80
-                ${viewMode === 'tree' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+                ${railMainTab === 'files' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
               `}
-              title={viewMode === 'card' ? t('Switch to tree view (developer)') : t('Switch to card view')}
+              title={t('Files')}
             >
-              {viewMode === 'card' ? (
-                <FolderTree className="w-3.5 h-3.5" />
-              ) : (
-                <LayoutGrid className="w-3.5 h-3.5" />
-              )}
+              <FolderOpen className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setRailMainTabPersist('source-control')}
+              className={`
+                h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
+                hover:bg-secondary/80
+                ${railMainTab === 'source-control' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+              `}
+              title={t('Git operations')}
+            >
+              <GitBranch className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setRailMainTabPersist('workspace-find')}
+              className={`
+                h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
+                hover:bg-secondary/80
+                ${railMainTab === 'workspace-find' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+              `}
+              title={t('Search in files')}
+            >
+              <Search className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
             </button>
           </div>
         )}
         <button
+          type="button"
           onClick={handleToggleExpanded}
-          className="p-1 hover:bg-secondary rounded transition-colors"
+          className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center hover:bg-secondary rounded-lg transition-colors"
+          title={isExpanded ? t('Collapse') : t('Expand')}
         >
-          <ChevronRight className={`w-4 h-4 transition-transform ${isExpanded ? '' : 'rotate-180'}`} />
+          <ChevronRight className={`w-[18px] h-[18px] sm:w-5 sm:h-5 transition-transform ${isExpanded ? '' : 'rotate-180'}`} />
         </button>
       </div>
 
@@ -664,34 +627,6 @@ export function ArtifactRail({
             </>
           )}
         </div>
-      )}
-
-      {/* Card view context menu (portal to body for correct z-index) */}
-      {cardContextMenu && createPortal(
-        <div
-          ref={cardContextMenuRef}
-          role="menu"
-          className="fixed z-[9999] min-w-[180px] bg-popover border border-border rounded-lg shadow-lg py-1"
-          style={{ top: cardContextMenu.y, left: cardContextMenu.x }}
-        >
-          <button
-            role="menuitem"
-            onClick={() => handleCopyRelativePath(cardContextMenu.relativePath)}
-            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-secondary transition-colors text-left"
-          >
-            <span>{t('Copy relative path')}</span>
-          </button>
-          {!isWebMode && (
-            <button
-              role="menuitem"
-              onClick={() => handleRevealInFolder(cardContextMenu.path)}
-              className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-secondary transition-colors text-left"
-            >
-              <span>{cardContextMenu.isFolder ? t('Open folder location') : t('Show in folder')}</span>
-            </button>
-          )}
-        </div>,
-        document.body
       )}
     </div>
   )

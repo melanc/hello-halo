@@ -23,6 +23,8 @@ import { api } from '../api'
 import { useTranslation } from '../i18n'
 import { useAppsStore } from '../stores/apps.store'
 import { useAppsPageStore } from '../stores/apps-page.store'
+import { HomeTasksPanel } from '../components/tasks/HomeTasksPanel'
+import { useTaskStore } from '../stores/task.store'
 
 // Check if running in web mode
 const isWebMode = api.isRemoteMode()
@@ -30,7 +32,7 @@ const isWebMode = api.isRemoteMode()
 export function HomePage() {
   const { t } = useTranslation()
   const { setView } = useAppStore()
-  const { haloSpace, spaces, loadSpaces, setCurrentSpace, refreshCurrentSpace, createSpace, updateSpace, deleteSpace } = useSpaceStore()
+  const { devxSpace, spaces, loadSpaces, setCurrentSpace, refreshCurrentSpace, createSpace, updateSpace, deleteSpace } = useSpaceStore()
   const { apps, loadApps } = useAppsStore()
   const { setInitialAppId } = useAppsPageStore()
 
@@ -107,8 +109,11 @@ export function HomePage() {
     setCustomPath(null)
   }
 
+  const clearActiveTask = useTaskStore((s) => s.clearActiveTask)
+
   // Handle space click - no reset needed, SpacePage handles its own state
   const handleSpaceClick = (space: Space) => {
+    clearActiveTask()
     setCurrentSpace(space)
     refreshCurrentSpace()  // Load full space data (preferences) from backend
     setView('space')
@@ -154,7 +159,7 @@ export function HomePage() {
     const isProjectSpace = !!space.workingDir || !isCentralizedSpace
 
     const message = isProjectSpace
-      ? t('Are you sure you want to delete this space?\n\nOnly Halo data (conversation history) will be deleted, your project files will be kept.')
+      ? t('Are you sure you want to delete this space?\n\nOnly DevX data (conversation history) will be deleted, your project files will be kept.')
       : t('Are you sure you want to delete this space?\n\nAll conversations and files in the space will be deleted.')
 
     if (confirm(message)) {
@@ -214,7 +219,7 @@ export function HomePage() {
             <div className="w-[22px] h-[22px] rounded-full border-2 border-primary/60 flex items-center justify-center">
               <div className="w-3 h-3 rounded-full bg-gradient-to-br from-primary/30 to-transparent" />
             </div>
-            <span className="text-sm font-medium">Halo</span>
+            <span className="text-sm font-medium">{t('DevX')}</span>
           </>
         }
         right={
@@ -232,15 +237,15 @@ export function HomePage() {
         {/* Primary entry cards: Halo Space + Apps */}
         <div className="grid grid-cols-2 gap-4 mb-8 animate-fade-in">
           {/* Halo Space card */}
-          {haloSpace && (
+          {devxSpace && (
             <div
               data-onboarding="halo-space"
-              onClick={() => handleSpaceClick(haloSpace)}
-              className="halo-space-card p-5 rounded-xl cursor-pointer flex flex-col justify-between min-h-[160px]"
+              onClick={() => handleSpaceClick(devxSpace)}
+              className="devx-space-card p-5 rounded-xl cursor-pointer flex flex-col justify-between min-h-[160px]"
             >
               <div className="flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-primary" />
-                <h2 className="text-sm font-semibold">{t('Halo')}</h2>
+                <h2 className="text-sm font-semibold">{t('DevX')}</h2>
               </div>
               <div className="flex flex-col gap-2 px-3 pt-3 pb-2 rounded-xl bg-background/60 border border-primary/20 min-h-[72px]">
                 <span className="text-xs text-muted-foreground flex-1">
@@ -304,6 +309,8 @@ export function HomePage() {
           </div>
         </div>
 
+        <HomeTasksPanel />
+
         {/* Spaces Section */}
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-sm font-medium text-muted-foreground">{t('Dedicated Spaces')}</h3>
@@ -315,9 +322,6 @@ export function HomePage() {
             {t('New')}
           </button>
         </div>
-
-        {/* Space Guide - always visible */}
-        <SpaceGuide />
 
         {spaces.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
@@ -360,6 +364,10 @@ export function HomePage() {
             ))}
           </div>
         )}
+
+        <div className="mt-6">
+          <SpaceGuide />
+        </div>
       </main>
 
       {/* Create Space Dialog */}

@@ -102,8 +102,8 @@ function ServerCard({ server, status, onConnect, onDelete }: ServerCardProps) {
           )}
           {status === 'online' && (
             <>
-              <Wifi className="w-4 h-4 text-halo-success" />
-              <span className="text-xs text-halo-success">{t('Online')}</span>
+              <Wifi className="w-4 h-4 text-devx-success" />
+              <span className="text-xs text-devx-success">{t('Online')}</span>
             </>
           )}
           {status === 'offline' && (
@@ -256,7 +256,7 @@ export function ServerListPage({ onServerSelected, onAddServer }: ServerListPage
               {t('No devices yet')}
             </p>
             <p className="text-sm text-muted-foreground mt-1 max-w-[260px]">
-              {t('Add your first Halo desktop to get started')}
+              {t('Add your first DevX desktop to get started')}
             </p>
           </div>
         )}

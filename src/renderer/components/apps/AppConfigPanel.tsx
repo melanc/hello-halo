@@ -538,7 +538,7 @@ function SettingsTab({ app, appId, t }: SettingsTabProps) {
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              {t('Click to open the website and log in via the Halo browser.')}
+              {t('Click to open the website and log in via the DevX browser.')}
             </p>
           </div>
         )}

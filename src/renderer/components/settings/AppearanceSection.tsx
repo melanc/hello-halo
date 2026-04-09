@@ -4,13 +4,13 @@
  */
 
 import { useState, useCallback } from 'react'
-import type { HaloConfig, ThemeMode, SendKeyMode } from '../../types'
+import type { DevXConfig, ThemeMode, SendKeyMode } from '../../types'
 import { useTranslation, setLanguage, getCurrentLanguage, SUPPORTED_LOCALES, type LocaleCode } from '../../i18n'
 import { api } from '../../api'
 
 interface AppearanceSectionProps {
-  config: HaloConfig | null
-  setConfig: (config: HaloConfig) => void
+  config: DevXConfig | null
+  setConfig: (config: DevXConfig) => void
 }
 
 export function AppearanceSection({ config, setConfig }: AppearanceSectionProps) {
@@ -23,8 +23,8 @@ export function AppearanceSection({ config, setConfig }: AppearanceSectionProps)
   const [sendKeyMode, setSendKeyMode] = useState<SendKeyMode>(config?.chat?.sendKeyMode || 'enter')
 
   // Auto-save helper for appearance settings
-  const autoSave = useCallback(async (partialConfig: Partial<HaloConfig>) => {
-    const newConfig = { ...config, ...partialConfig } as HaloConfig
+  const autoSave = useCallback(async (partialConfig: Partial<DevXConfig>) => {
+    const newConfig = { ...config, ...partialConfig } as DevXConfig
     await api.setConfig(partialConfig)
     setConfig(newConfig)
   }, [config, setConfig])
@@ -40,7 +40,7 @@ export function AppearanceSection({ config, setConfig }: AppearanceSectionProps)
     setTheme(value)
     // Sync to localStorage immediately (for anti-flash on reload)
     try {
-      localStorage.setItem('halo-theme', value)
+      localStorage.setItem('devx-theme', value)
     } catch (e) { /* ignore */ }
     await autoSave({
       appearance: { theme: value }

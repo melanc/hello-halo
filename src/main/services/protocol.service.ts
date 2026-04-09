@@ -21,10 +21,13 @@ import { protocol, net } from 'electron'
 export function registerProtocols(): void {
   // halo-file:// - Proxy to file:// for local resources
   // Chromium blocks file:// from localhost/app origins, this bypasses that
-  protocol.handle('halo-file', (request) => {
-    const filePath = decodeURIComponent(request.url.replace('halo-file://', ''))
+  const serveLocalFile = (request: Electron.ProtocolRequest, scheme: string) => {
+    const filePath = decodeURIComponent(request.url.replace(`${scheme}://`, ''))
     return net.fetch(`file://${filePath}`)
-  })
+  }
 
-  console.log('[Protocol] Registered halo-file:// protocol')
+  protocol.handle('halo-file', (request) => serveLocalFile(request, 'halo-file'))
+  protocol.handle('devx-file', (request) => serveLocalFile(request, 'devx-file'))
+
+  console.log('[Protocol] Registered halo-file:// and devx-file:// protocols')
 }

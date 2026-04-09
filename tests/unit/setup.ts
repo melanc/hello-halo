@@ -13,18 +13,18 @@ import fs from 'fs'
 // Use global variable to store current test directory
 // This allows the mock to access the current test directory
 declare global {
-  var __HALO_TEST_DIR__: string
+  var __DEVX_TEST_DIR__: string
 }
 
-globalThis.__HALO_TEST_DIR__ = ''
+globalThis.__DEVX_TEST_DIR__ = ''
 
 // Create a unique temporary directory for each test
 function createTestDir(): string {
   const dir = path.join(
     os.tmpdir(),
-    'halo-test-' + Date.now() + '-' + Math.random().toString(36).slice(2)
+    'devx-test-' + Date.now() + '-' + Math.random().toString(36).slice(2)
   )
-  globalThis.__HALO_TEST_DIR__ = dir
+  globalThis.__DEVX_TEST_DIR__ = dir
   return dir
 }
 
@@ -34,7 +34,7 @@ vi.mock('os', async (importOriginal) => {
   const actual = await importOriginal<typeof import('os')>()
   return {
     ...actual,
-    homedir: () => globalThis.__HALO_TEST_DIR__ || '/tmp/halo-test-fallback'
+    homedir: () => globalThis.__DEVX_TEST_DIR__ || '/tmp/devx-test-fallback'
   }
 })
 
@@ -43,14 +43,15 @@ vi.mock('electron', () => {
   return {
     app: {
       getPath: (name: string) => {
-        const dir = globalThis.__HALO_TEST_DIR__ || '/tmp/halo-test-fallback'
+        const dir = globalThis.__DEVX_TEST_DIR__ || '/tmp/devx-test-fallback'
         if (name === 'home') return dir
-        if (name === 'userData') return path.join(dir, '.halo')
+        if (name === 'userData') return path.join(dir, '.devx')
         return dir
       },
+      isPackaged: false,
       setLoginItemSettings: vi.fn(),
       getLoginItemSettings: vi.fn(() => ({ openAtLogin: false })),
-      getName: vi.fn(() => 'Halo'),
+      getName: vi.fn(() => 'DevX'),
       getVersion: vi.fn(() => '1.0.0-test')
     },
     BrowserWindow: vi.fn(() => ({
@@ -74,8 +75,8 @@ beforeEach(() => {
   // Create fresh unique test directory for this test
   const testDir = createTestDir()
 
-  // Create .halo directory structure
-  const haloDir = path.join(testDir, '.halo')
+  // Create .devx-dev directory structure (matches getDevXDir() when app.isPackaged is false)
+  const haloDir = path.join(testDir, '.devx-dev')
   const tempDir = path.join(haloDir, 'temp')
   const spacesDir = path.join(haloDir, 'spaces')
 
@@ -89,7 +90,7 @@ beforeEach(() => {
 
 // Clean up test data directory after each test
 afterEach(() => {
-  const testDir = globalThis.__HALO_TEST_DIR__
+  const testDir = globalThis.__DEVX_TEST_DIR__
 
   // Remove test directory with force option
   try {
@@ -101,7 +102,7 @@ afterEach(() => {
   }
 
   // Reset test directory
-  globalThis.__HALO_TEST_DIR__ = ''
+  globalThis.__DEVX_TEST_DIR__ = ''
 
   // Clear all mocks
   vi.clearAllMocks()
@@ -109,5 +110,5 @@ afterEach(() => {
 
 // Export for use in tests if needed
 export function getTestDir(): string {
-  return globalThis.__HALO_TEST_DIR__
+  return globalThis.__DEVX_TEST_DIR__
 }

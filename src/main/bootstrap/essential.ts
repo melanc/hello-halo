@@ -24,6 +24,8 @@ import { registerSpaceHandlers } from '../ipc/space'
 import { registerConversationHandlers } from '../ipc/conversation'
 import { registerAgentHandlers } from '../ipc/agent'
 import { registerArtifactHandlers } from '../ipc/artifact'
+import { registerGitWorkspaceHandlers } from '../ipc/git-workspace'
+import { registerWorkspaceSearchHandlers } from '../ipc/workspace-search'
 import { registerSystemHandlers } from '../ipc/system'
 import { registerUpdaterHandlers, initAutoUpdater } from '../services/updater.service'
 import { registerAuthHandlers } from '../ipc/auth'
@@ -66,6 +68,12 @@ export function initializeEssentialServices(): void {
 
   // Artifact: File list is displayed in the right sidebar
   registerArtifactHandlers()
+
+  // Git: Source control panel (simple-git, workspace-scoped)
+  registerGitWorkspaceHandlers()
+
+  // Workspace file search / replace (artifact rail)
+  registerWorkspaceSearchHandlers()
 
   // System: Window controls (maximize/minimize/close) are basic functionality
   registerSystemHandlers()

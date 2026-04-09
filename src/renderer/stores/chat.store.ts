@@ -123,6 +123,10 @@ interface ChatState {
   removeComposerReferenceChip: (id: string) => void
   clearComposerReferenceChips: () => void
 
+  /** Increment to request InputArea to focus the composer (e.g. after “task supplement” navigation). */
+  composerFocusTick: number
+  bumpComposerFocus: () => void
+
   // Computed getters
   getCurrentSpaceState: () => SpaceState
   getSpaceState: (spaceId: string) => SpaceState
@@ -138,9 +142,9 @@ interface ChatState {
   setCurrentSpace: (spaceId: string) => void
 
   // Conversation actions
-  loadConversations: (spaceId: string) => Promise<void>
+  loadConversations: (spaceId: string, options?: { silent?: boolean }) => Promise<void>
   preloadAllSpaceConversations: (spaceIds: string[]) => void
-  createConversation: (spaceId: string) => Promise<Conversation | null>
+  createConversation: (spaceId: string, title?: string) => Promise<Conversation | null>
   selectConversation: (conversationId: string) => void
   deleteConversation: (spaceId: string, conversationId: string) => Promise<boolean>
   renameConversation: (spaceId: string, conversationId: string, newTitle: string) => Promise<boolean>
@@ -218,8 +222,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
   isLoading: false,
   isLoadingConversation: false,
   composerReferenceChips: [],
+  composerFocusTick: 0,
   _pulseItems: [],
   _pulseCount: 0,
+
+  bumpComposerFocus: () => set((state) => ({ composerFocusTick: state.composerFocusTick + 1 })),
 
   addComposerReferenceChip: (label: string) => {
     const id =
@@ -299,9 +306,12 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Load conversations for a space (returns lightweight metadata)
-  loadConversations: async (spaceId) => {
+  loadConversations: async (spaceId, options) => {
+    const silent = options?.silent === true
     try {
-      set({ isLoading: true })
+      if (!silent) {
+        set({ isLoading: true })
+      }
 
       const response = await api.listConversations(spaceId)
 
@@ -324,7 +334,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
     } catch (error) {
       console.error('Failed to load conversations:', error)
     } finally {
-      set({ isLoading: false })
+      if (!silent) {
+        set({ isLoading: false })
+      }
     }
   },
 
@@ -358,9 +370,9 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   // Create new conversation
-  createConversation: async (spaceId) => {
+  createConversation: async (spaceId, title) => {
     try {
-      const response = await api.createConversation(spaceId)
+      const response = await api.createConversation(spaceId, title)
 
       if (response.success && response.data) {
         const newConversation = response.data as Conversation
@@ -1423,6 +1435,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       artifacts: [],
       isLoadingConversation: false,
       composerReferenceChips: [],
+      composerFocusTick: 0,
       _pulseItems: [],
       _pulseCount: 0
     })
@@ -1469,7 +1482,7 @@ function _computePulseItems(state: ChatState): PulseItem[] {
   const addedIds = new Set<string>()
 
   const getSpaceName = (spaceId: string): string => {
-    return spaceId === 'halo-temp' ? 'Halo' : spaceId
+    return spaceId === 'halo-temp' ? 'DevX' : spaceId
   }
 
   // 1. Active sessions

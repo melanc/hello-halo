@@ -65,4 +65,12 @@ export * from './im-channel'
 
 // File changes types (shared between main process agent and renderer diff)
 export type { FileChangesSummary, ThoughtLike } from '../file-changes'
+
+// Workspace file search / replace (artifact rail)
+export type {
+  WorkspaceSearchMatch,
+  WorkspaceSearchOptionsInput,
+  WorkspaceSearchOptionsResolved,
+  WorkspaceReplaceAllResult,
+} from './workspace-search'
 export { countChangedLines, calculateDiffStats, extractFileChangesSummaryFromThoughts } from '../file-changes'

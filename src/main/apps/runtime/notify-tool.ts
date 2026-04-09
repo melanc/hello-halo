@@ -54,7 +54,7 @@ function textResult(text: string, isError = false) {
  * Create an MCP server with the `send_notification` tool.
  *
  * The tool lets the AI send notifications to any configured and enabled channel.
- * It reads the current channel configuration from HaloConfig at send time,
+ * It reads the current channel configuration from DevXConfig at send time,
  * so it always uses the latest credentials.
  *
  * @param context - The current run's identity
@@ -90,7 +90,7 @@ export function createNotifyToolServer(context: NotifyToolContext): SdkMcpServer
       try {
         config = getConfig()
       } catch {
-        return textResult('Failed to read notification configuration. Ensure Halo is properly initialized.', true)
+        return textResult('Failed to read notification configuration. Ensure DevX is properly initialized.', true)
       }
 
       const channelsConfig = config.notificationChannels

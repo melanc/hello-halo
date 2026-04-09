@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Halo Product Configuration",
-  "description": "Configuration for Halo build variants (public/internal)",
+  "title": "DevX Product Configuration",
+  "description": "Configuration for DevX build variants (public/internal)",
   "type": "object",
   "required": ["name", "version", "updateConfig", "authProviders"],
   "properties": {
@@ -14,9 +14,9 @@
     },
     "dataFolderName": {
       "type": "string",
-      "description": "Data folder name for per-variant isolation. Controls both the Halo config directory (~/.{dataFolderName}/) and Electron userData directory. Defaults to 'halo' when omitted.",
+      "description": "Data folder name for per-variant isolation. Controls both the DevX config directory (~/.{dataFolderName}/) and Electron userData directory. Defaults to 'devx' when omitted.",
       "pattern": "^[a-z][a-z0-9-]*$",
-      "examples": ["halo", "halo-enterprise"]
+      "examples": ["devx", "devx-enterprise"]
     },
     "version": {
       "type": "string",

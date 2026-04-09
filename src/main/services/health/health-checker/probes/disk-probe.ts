@@ -8,7 +8,7 @@
 
 import { statfsSync } from 'fs'
 import type { DiskProbeResult } from '../../types'
-import { getHaloDir } from '../../../config.service'
+import { getDevXDir } from '../../../config.service'
 
 // Minimum free space threshold (100 MB)
 const MIN_FREE_SPACE_MB = 100
@@ -53,7 +53,7 @@ function formatBytes(bytes: number): string {
  * Check disk space health
  */
 export async function runDiskProbe(): Promise<DiskProbeResult> {
-  const haloDir = getHaloDir()
+  const haloDir = getDevXDir()
 
   try {
     const diskSpace = getDiskSpace(haloDir)

@@ -13,16 +13,16 @@ import path from 'path'
 import {
   getConfig,
   saveConfig,
-  getHaloDir,
+  getDevXDir,
   getConfigPath,
   initializeApp
 } from '../../../src/main/services/config.service'
 
 describe('Config Service', () => {
-  describe('getHaloDir', () => {
-    it('should return path to .halo directory in home', () => {
-      const haloDir = getHaloDir()
-      expect(haloDir).toContain('.halo')
+  describe('getDevXDir', () => {
+    it('should return path to .devx-dev directory in home when not packaged', () => {
+      const haloDir = getDevXDir()
+      expect(haloDir).toContain('.devx-dev')
     })
   })
 
@@ -30,7 +30,7 @@ describe('Config Service', () => {
     it('should return path to config.json', () => {
       const configPath = getConfigPath()
       expect(configPath).toContain('config.json')
-      expect(configPath).toContain('.halo')
+      expect(configPath).toContain('.devx-dev')
     })
   })
 
@@ -38,7 +38,7 @@ describe('Config Service', () => {
     it('should create necessary directories', async () => {
       await initializeApp()
 
-      const haloDir = getHaloDir()
+      const haloDir = getDevXDir()
       expect(fs.existsSync(haloDir)).toBe(true)
       expect(fs.existsSync(path.join(haloDir, 'temp'))).toBe(true)
       expect(fs.existsSync(path.join(haloDir, 'spaces'))).toBe(true)

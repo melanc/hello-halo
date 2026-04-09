@@ -146,7 +146,7 @@ export async function waitForAIResponse(window: Page, timeout = 45000) {
 
   // Wait for AI to finish working (supports both EN and CN)
   await window.waitForSelector(
-    'text=/Halo 工作中|Halo is working/i',
+    'text=/DevX 工作中|Halo 工作中|DevX is working|Halo is working/i',
     { state: 'hidden', timeout }
   ).catch(() => {
     // Indicator might have already disappeared

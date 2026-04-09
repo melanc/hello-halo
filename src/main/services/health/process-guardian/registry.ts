@@ -11,7 +11,7 @@ import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { randomUUID } from 'crypto'
 import type { HealthRegistry, ProcessEntry, ProcessType } from '../types'
-import { getHaloDir } from '../../config.service'
+import { getDevXDir } from '../../config.service'
 
 // ============================================
 // Registry State
@@ -28,7 +28,7 @@ let registryCache: HealthRegistry | null = null
 
 /** Registry file path */
 function getRegistryPath(): string {
-  return join(getHaloDir(), '.health-registry.json')
+  return join(getDevXDir(), '.health-registry.json')
 }
 
 // ============================================

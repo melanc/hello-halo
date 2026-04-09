@@ -10,7 +10,7 @@ import fs from 'fs'
 import path from 'path'
 
 import {
-  getHaloSpace,
+  getDevXSpace,
   listSpaces,
   createSpace,
   getSpace,
@@ -27,21 +27,21 @@ describe('Space Service', () => {
     await initializeApp()
   })
 
-  describe('getHaloSpace', () => {
-    it('should return the Halo temp space', () => {
-      const haloSpace = getHaloSpace()
+  describe('getDevXSpace', () => {
+    it('should return the default temp space', () => {
+      const devxSpace = getDevXSpace()
 
-      expect(haloSpace.id).toBe('halo-temp')
-      expect(haloSpace.name).toBe('Halo')
-      expect(haloSpace.isTemp).toBe(true)
-      expect(haloSpace.icon).toBe('sparkles')
+      expect(devxSpace.id).toBe('halo-temp')
+      expect(devxSpace.name).toBe('DevX')
+      expect(devxSpace.isTemp).toBe(true)
+      expect(devxSpace.icon).toBe('sparkles')
     })
 
     it('should have valid path', () => {
-      const haloSpace = getHaloSpace()
+      const devxSpace = getDevXSpace()
 
-      expect(haloSpace.path).toBeTruthy()
-      expect(fs.existsSync(haloSpace.path)).toBe(true)
+      expect(devxSpace.path).toBeTruthy()
+      expect(fs.existsSync(devxSpace.path)).toBe(true)
     })
 
   })

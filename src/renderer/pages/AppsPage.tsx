@@ -41,7 +41,7 @@ export function AppsPage() {
   const { t } = useTranslation()
   const { setView, previousView } = useAppStore()
   const currentSpace = useSpaceStore(state => state.currentSpace)
-  const haloSpace = useSpaceStore(state => state.haloSpace)
+  const devxSpace = useSpaceStore(state => state.devxSpace)
   const spaces = useSpaceStore(state => state.spaces)
   const { apps, loadApps, updateAppOverrides } = useAppsStore()
   const {
@@ -80,15 +80,15 @@ export function AppsPage() {
   }, [loadApps])
 
   // Build spaceId -> space name map for display
-  // Always populate from both haloSpace and dedicated spaces
+  // Always populate from both devxSpace and dedicated spaces
   const spaceMap = useMemo(() => {
     const map: Record<string, string> = {}
-    if (haloSpace) map[haloSpace.id] = haloSpace.name
+    if (devxSpace) map[devxSpace.id] = devxSpace.name
     for (const s of spaces) {
       map[s.id] = s.name
     }
     return map
-  }, [spaces, haloSpace])
+  }, [spaces, devxSpace])
 
   // Auto-select initial app (from notification/badge navigation)
   useEffect(() => {

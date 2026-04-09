@@ -24,7 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { X, ChevronLeft, Maximize2, Minimize2, GitBranch } from 'lucide-react'
+import { X, ChevronLeft, Maximize2, Minimize2, GitBranch, PanelRightOpen } from 'lucide-react'
 import { useCanvasLifecycle, type TabState, type ContentType } from '../../hooks/useCanvasLifecycle'
 import { CanvasTabBar } from './CanvasTabs'
 import { CodeViewer } from './viewers/CodeViewer'
@@ -34,12 +34,14 @@ import { HtmlViewer } from './viewers/HtmlViewer'
 import { JsonViewer } from './viewers/JsonViewer'
 import { CsvViewer } from './viewers/CsvViewer'
 import { TextViewer } from './viewers/TextViewer'
+import { DiffContent } from '../diff/DiffContent'
 import { BrowserViewer, BrowserViewerFallback } from './viewers/BrowserViewer'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
 import { getBrowserHomepage } from '../../utils/browser-homepage'
 import { toWorkspaceRelativePath } from '../../utils/path-display'
 import { useSpaceStore } from '../../stores/space.store'
+import { useCanvasStore } from '../../stores/canvas.store'
 
 interface ContentCanvasProps {
   className?: string
@@ -196,13 +198,17 @@ export function ContentCanvas({ className = '' }: ContentCanvasProps) {
       <CanvasTabBar />
 
       {/* File path / URL under tabs (not all tab types have one) */}
-      {activeTab && (activeTab.path || activeTab.url) && (
+      {activeTab && (activeTab.path || activeTab.url || activeTab.type === 'diff') && (
         <div className="shrink-0 flex items-center gap-2 px-3 py-1.5 border-b border-border bg-muted/30 text-xs text-muted-foreground">
           <div
             className="min-w-0 flex-1 font-mono truncate select-text"
-            title={activeTab.path ?? activeTab.url}
+            title={activeTab.path ?? activeTab.url ?? activeTab.title}
           >
-            {activeTab.path ? pathBarLabel ?? activeTab.path : activeTab.url}
+            {activeTab.type === 'diff'
+              ? activeTab.title
+              : activeTab.path
+                ? pathBarLabel ?? activeTab.path
+                : activeTab.url}
           </div>
           {canvasGitBranch ? (
             <div
@@ -356,6 +362,25 @@ function TabContent({ tab, onScrollChange, onContentChange, onSaveComplete, onEd
         </div>
       )
 
+    case 'diff':
+      if (tab.diffIsBinary) {
+        return (
+          <div className="flex items-center justify-center h-full p-4">
+            <p className="text-sm text-muted-foreground">{t('Binary file — diff not shown')}</p>
+          </div>
+        )
+      }
+      return (
+        <div className="h-full min-h-0 overflow-auto p-2">
+          <DiffContent
+            type="edit"
+            oldString={tab.diffOldString ?? ''}
+            newString={tab.diffNewString ?? ''}
+            fileName={tab.title}
+          />
+        </div>
+      )
+
     default:
       return <TextViewer tab={tab} onScrollChange={onScrollChange} />
   }
@@ -431,6 +456,38 @@ export function CanvasToggleButton() {
         <Minimize2 className="w-4 h-4 text-muted-foreground" />
       ) : (
         <Maximize2 className="w-4 h-4 text-muted-foreground" />
+      )}
+    </button>
+  )
+}
+
+/**
+ * Shown when the canvas is collapsed but tabs remain — restores the editor panel.
+ */
+export function CanvasRestoreButton({ className = '' }: { className?: string }) {
+  const { t } = useTranslation()
+  const isOpen = useCanvasStore((s) => s.isOpen)
+  const isMaximized = useCanvasStore((s) => s.isMaximized)
+  const tabs = useCanvasStore((s) => s.tabs)
+  const setOpen = useCanvasStore((s) => s.setOpen)
+
+  if (isOpen || isMaximized || tabs.length === 0) return null
+
+  return (
+    <button
+      type="button"
+      onClick={() => setOpen(true)}
+      className={`
+        flex items-center justify-center gap-1 rounded-lg border border-border/80 bg-card/95 shadow-md
+        backdrop-blur-sm px-2 py-1.5 text-muted-foreground hover:text-foreground hover:bg-secondary/90
+        transition-colors ring-1 ring-border/40
+        ${className}
+      `.trim()}
+      title={t('Expand canvas')}
+    >
+      <PanelRightOpen className="w-4 h-4 shrink-0" />
+      {tabs.length > 1 && (
+        <span className="text-[10px] font-medium tabular-nums min-w-[1ch]">{tabs.length}</span>
       )}
     </button>
   )

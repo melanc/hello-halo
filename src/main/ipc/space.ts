@@ -4,7 +4,7 @@
 
 import { ipcMain, dialog } from 'electron'
 import {
-  getHaloSpace,
+  getDevXSpace,
   listSpaces,
   createSpace,
   deleteSpace,
@@ -27,15 +27,15 @@ interface SpacePreferences {
 }
 
 export function registerSpaceHandlers(): void {
-  // Get Halo temp space
-  ipcMain.handle('space:get-halo', async () => {
+  // Get default (temp) workspace space
+  ipcMain.handle('space:get-devx', async () => {
     try {
-      const space = getHaloSpace()
-      console.log('[SpaceIPC] space:get-halo response: id=%s', space?.id)
+      const space = getDevXSpace()
+      console.log('[SpaceIPC] space:get-devx response: id=%s', space?.id)
       return { success: true, data: space }
     } catch (error: unknown) {
       const err = error as Error
-      console.error('[SpaceIPC] space:get-halo error:', err.message)
+      console.error('[SpaceIPC] space:get-devx error:', err.message)
       return { success: false, error: err.message }
     }
   })

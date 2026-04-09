@@ -12,6 +12,7 @@
 import { getConfig } from '../config.service'
 import { getConversation, saveSessionId, addMessage, updateLastMessage } from '../conversation.service'
 import { type FileChangesSummary, extractFileChangesSummaryFromThoughts } from '../../../shared/file-changes'
+import { normalizeArtifactRefsForAgent } from '../../../shared/chat-artifact-refs'
 import { notifyTaskComplete } from '../notification.service'
 import {
   AI_BROWSER_SYSTEM_PROMPT,
@@ -225,7 +226,7 @@ export async function sendMessage(
       console.log(`[Agent][${conversationId}] Message includes ${images.length} image(s)`)
     }
     const canvasPrefix = formatCanvasContext(canvasContext)
-    const messageWithContext = canvasPrefix + message
+    const messageWithContext = canvasPrefix + normalizeArtifactRefsForAgent(message)
     const messageContent = buildMessageContent(messageWithContext, images)
 
     // Process the stream using shared stream processor

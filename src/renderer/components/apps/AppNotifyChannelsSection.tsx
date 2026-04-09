@@ -23,7 +23,7 @@ import { useAppStore } from '../../stores/app.store'
 import { useAppsStore } from '../../stores/apps.store'
 import { api } from '../../api'
 import { ImSessionsSection } from '../settings/ImSessionsSection'
-import type { HaloConfig } from '../../types'
+import type { DevXConfig } from '../../types'
 import type {
   NotificationChannelType,
   NotificationChannelsConfig,
@@ -109,7 +109,7 @@ interface ChannelStatus {
 }
 
 function getChannelStatuses(
-  config: HaloConfig | null,
+  config: DevXConfig | null,
   botStatus: { connected: boolean } | null,
 ): Record<string, ChannelStatus> {
   const statuses: Record<string, ChannelStatus> = {}
@@ -278,7 +278,7 @@ export function AppNotifyChannelsSection({ appId, selectedChannels, appName }: A
   const { setView } = useAppStore()
   const { updateAppSpec } = useAppsStore()
 
-  const [globalConfig, setGlobalConfig] = useState<HaloConfig | null>(null)
+  const [globalConfig, setGlobalConfig] = useState<DevXConfig | null>(null)
   const [botStatus, setBotStatus] = useState<{ connected: boolean } | null>(null)
   const [expandedBidirectional, setExpandedBidirectional] = useState<Set<string>>(new Set(['wecom-bot']))
 
@@ -287,7 +287,7 @@ export function AppNotifyChannelsSection({ appId, selectedChannels, appName }: A
     let cancelled = false
     async function fetch() {
       try {
-        const res = await api.getConfig() as { success: boolean; data?: HaloConfig }
+        const res = await api.getConfig() as { success: boolean; data?: DevXConfig }
         if (!cancelled && res.success && res.data) {
           setGlobalConfig(res.data)
         }

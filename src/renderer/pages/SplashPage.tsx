@@ -3,7 +3,7 @@
  */
 
 import { useEffect, useState } from 'react'
-import { HaloLogo } from '../components/brand/HaloLogo'
+import { DevXLogo } from '../components/brand/DevXLogo'
 import { useTranslation } from '../i18n'
 
 export function SplashPage() {
@@ -24,7 +24,7 @@ export function SplashPage() {
           animate ? 'opacity-100 scale-100' : 'opacity-0 scale-95'
         }`}
       >
-        <HaloLogo size="lg" />
+        <DevXLogo size="lg" />
       </div>
 
       {/* Brand Name */}
@@ -33,7 +33,7 @@ export function SplashPage() {
           animate ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4'
         }`}
       >
-        Halo
+        {t('DevX')}
       </h1>
 
       {/* Tagline */}

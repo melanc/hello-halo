@@ -17,9 +17,9 @@ export default defineConfig({
     '__CAPACITOR__': JSON.stringify(true),
     '__BUILD_TIME__': JSON.stringify(new Date().toISOString()),
     // Disable analytics define placeholders (not used in mobile)
-    '__HALO_GA_MEASUREMENT_ID__': JSON.stringify(''),
-    '__HALO_GA_API_SECRET__': JSON.stringify(''),
-    '__HALO_BAIDU_SITE_ID__': JSON.stringify('')
+    '__DEVX_GA_MEASUREMENT_ID__': JSON.stringify(''),
+    '__DEVX_GA_API_SECRET__': JSON.stringify(''),
+    '__DEVX_BAIDU_SITE_ID__': JSON.stringify('')
   },
 
   plugins: [react()],

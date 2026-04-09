@@ -142,7 +142,7 @@ export async function startHttpServer(
       if (req.path === '/' && !urlToken && !headerToken) {
         // Check cookie for token
         const cookies = req.headers.cookie || ''
-        const hasToken = cookies.includes('halo_authenticated=true')
+        const hasToken = cookies.includes('devx_authenticated=true')
         if (!hasToken) {
           return res.send(getRemoteLoginPage())
         }
@@ -200,7 +200,7 @@ export async function startHttpServer(
 
       // Check if authenticated via cookie
       const cookies = req.headers.cookie || ''
-      const hasToken = cookies.includes('halo_authenticated=true')
+      const hasToken = cookies.includes('devx_authenticated=true')
 
       // If not authenticated, show login page
       if (!hasToken) {
@@ -362,7 +362,7 @@ function getRemoteLoginPage(): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Halo Remote Access</title>
+  <title>DevX Remote Access</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -428,7 +428,7 @@ function getRemoteLoginPage(): string {
 <body>
   <div class="container">
     <div class="logo">◯</div>
-    <h1>Halo Remote Access</h1>
+    <h1>DevX Remote Access</h1>
 
     <p>Enter access code to connect to your desktop</p>
     <div class="input-group">
@@ -457,7 +457,7 @@ function getRemoteLoginPage(): string {
         if (res.ok) {
           localStorage.setItem('halo_remote_token', token);
           // Set cookie for server-side auth check
-          document.cookie = 'halo_authenticated=true; path=/';
+          document.cookie = 'devx_authenticated=true; path=/';
           error.textContent = '';
           error.classList.remove('error');
           error.classList.add('success');

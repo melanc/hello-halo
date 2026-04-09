@@ -67,7 +67,7 @@ describe('AppManager', () => {
 
   /**
    * Create fresh service instance with in-memory DB and temp directories.
-   * Uses the global __HALO_TEST_DIR__ from setup.ts for filesystem paths.
+   * Uses the global __DEVX_TEST_DIR__ from setup.ts for filesystem paths.
    */
   function setup(): void {
     dbManager = createDatabaseManager(':memory:')
@@ -76,7 +76,7 @@ describe('AppManager', () => {
     store = new AppManagerStore(db)
 
     // Create space directories in the test temp dir
-    const testDir = globalThis.__HALO_TEST_DIR__
+    const testDir = globalThis.__DEVX_TEST_DIR__
     spacePaths = {
       [TEST_SPACE_ID]: join(testDir, 'spaces', TEST_SPACE_ID),
       [TEST_SPACE_ID_2]: join(testDir, 'spaces', TEST_SPACE_ID_2),

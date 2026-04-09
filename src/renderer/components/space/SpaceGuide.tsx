@@ -2,7 +2,7 @@
  * SpaceGuide - Collapsible guide component for explaining space concepts
  *
  * Features:
- * - Collapsed by default, shows only title bar
+ * - Collapsed by default (first visit and when no saved preference), shows only title bar
  * - Expands to show full educational content
  * - Smooth slide animation
  * - Persistent state via localStorage
@@ -13,7 +13,6 @@ import { useState, useEffect } from 'react'
 import {
   ChevronDown,
   Zap,
-  Folder,
   HelpCircle,
   AlertTriangle
 } from 'lucide-react'
@@ -26,13 +25,13 @@ export function SpaceGuide() {
   const { t } = useTranslation()
 
   // Read initial state from localStorage
-  // First-time users (no saved value) see expanded guide; returning users keep their preference
+  // First-time users (no saved value) see collapsed guide; returning users keep their preference
   const [isExpanded, setIsExpanded] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem(GUIDE_STATE_KEY)
-      return saved === null ? true : saved === 'true'
+      return saved === null ? false : saved === 'true'
     }
-    return true
+    return false
   })
 
   // Persist state to localStorage
@@ -78,28 +77,14 @@ export function SpaceGuide() {
               <div className="flex-1 min-w-0">
                 <h4 className="text-sm font-medium mb-1 sm:mb-1.5">{t('What can AI do?')}</h4>
                 <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed space-y-0.5 sm:space-y-1">
-                  <p>{t('Halo is not just chat, it can help you do things')}</p>
+                  <p>{t('DevX is not just chat, it can help you do things')}</p>
                   <p>{t('Use natural language to have it write documents, create spreadsheets, search the web, write code...')}</p>
                   <p>{t('It can create, modify, and delete files')}</p>
                 </div>
               </div>
             </div>
 
-            {/* Section 2: What is a space */}
-            <div className="flex items-start gap-2.5 sm:gap-3">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Folder className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-medium mb-1 sm:mb-1.5">{t('What is a space?')}</h4>
-                <div className="text-xs sm:text-sm text-muted-foreground leading-relaxed space-y-0.5 sm:space-y-1">
-                  <p>{t('AI-generated files (we call them "artifacts") need a place to be stored')}</p>
-                  <p>{t('A space is their home, an independent folder')}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Section 3: When to create one */}
+            {/* Section 2: When to create one */}
             <div className="flex items-start gap-2.5 sm:gap-3">
               <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <HelpCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-500" />
@@ -110,7 +95,7 @@ export function SpaceGuide() {
                   <p>
                     <span className="text-foreground/80">{t('Casual chat, asking questions')}</span>
                     <span className="mx-1 sm:mx-1.5">→</span>
-                    {t('Use Halo space')}
+                    {t('Use DevX space')}
                   </p>
                   <p>
                     <span className="text-foreground/80">{t('Projects, long-term tasks')}</span>
@@ -124,11 +109,11 @@ export function SpaceGuide() {
           </div>
 
           {/* Warning section - keep separate with subtle top border */}
-          <div className="px-3 py-2.5 sm:p-3 bg-halo-warning/5 border-t border-border/50">
+          <div className="px-3 py-2.5 sm:p-3 bg-devx-warning/5 border-t border-border/50">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-halo-warning flex-shrink-0" />
+              <AlertTriangle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-devx-warning flex-shrink-0" />
               <p className="text-xs text-muted-foreground">
-                <span className="text-halo-warning font-medium">{t('AI has delete permissions')}</span>
+                <span className="text-devx-warning font-medium">{t('AI has delete permissions')}</span>
                 {t(', be mindful of backing up important files')}
               </p>
             </div>

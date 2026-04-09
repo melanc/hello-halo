@@ -1,5 +1,5 @@
 /**
- * i18n Configuration for Halo
+ * i18n Configuration for DevX
  *
  * Supports 7 languages with automatic system language detection.
  * English is the source language, translations maintained by AI.
@@ -38,7 +38,8 @@ export const SUPPORTED_LOCALES = {
 export type LocaleCode = keyof typeof SUPPORTED_LOCALES
 
 // Storage key for persisting language preference
-const LOCALE_STORAGE_KEY = 'halo-locale'
+const LOCALE_STORAGE_KEY = 'devx-locale'
+const LEGACY_LOCALE_STORAGE_KEY = 'halo-locale'
 
 /**
  * Detect system language and map to supported locale
@@ -76,6 +77,12 @@ function getInitialLanguage(): LocaleCode {
     const saved = localStorage.getItem(LOCALE_STORAGE_KEY)
     if (saved && saved in SUPPORTED_LOCALES) {
       return saved as LocaleCode
+    }
+    const legacy = localStorage.getItem(LEGACY_LOCALE_STORAGE_KEY)
+    if (legacy && legacy in SUPPORTED_LOCALES) {
+      localStorage.setItem(LOCALE_STORAGE_KEY, legacy)
+      localStorage.removeItem(LEGACY_LOCALE_STORAGE_KEY)
+      return legacy as LocaleCode
     }
   } catch (e) {
     // Ignore localStorage errors (may be disabled)

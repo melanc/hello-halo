@@ -325,7 +325,7 @@ export function onNetworkConfigChange(handler: NetworkConfigChangeHandler): () =
 }
 
 // Types (shared with renderer)
-interface HaloConfig {
+interface DevXConfig {
   api: {
     provider: 'anthropic' | 'openai' | 'custom'
     apiKey: string
@@ -342,6 +342,12 @@ interface HaloConfig {
   }
   appearance: {
     theme: 'light' | 'dark' | 'system'
+  }
+  /** Offline dictation via whisper.cpp (paths + enable) */
+  offlineSpeech?: {
+    enabled: boolean
+    whisperBinPath: string
+    whisperModelPath: string
   }
   system: {
     autoLaunch: boolean
@@ -464,11 +470,12 @@ interface McpSseServerConfig {
 // Paths
 // Use os.homedir() instead of app.getPath('home') to respect HOME environment variable
 // This is essential for E2E tests to run in isolated test directories
-export function getHaloDir(): string {
+export function getDevXDir(): string {
   // 1. Support custom data directory via environment variable
   //    Useful for development to avoid conflicts with production data
-  if (process.env.HALO_DATA_DIR) {
-    let dir = process.env.HALO_DATA_DIR
+  const envDir = process.env.DEVX_DATA_DIR || process.env.HALO_DATA_DIR
+  if (envDir) {
+    let dir = envDir
     // Expand ~ to home directory (shell doesn't expand in env vars)
     if (dir.startsWith('~')) {
       dir = join(homedir(), dir.slice(1))
@@ -479,25 +486,25 @@ export function getHaloDir(): string {
   // 2. Auto-detect development mode: use separate directory
   //    app.isPackaged is false when running via electron-vite dev
   if (!app.isPackaged) {
-    return join(homedir(), '.halo-dev')
+    return join(homedir(), '.devx-dev')
   }
 
   // 3. Production: use dataFolderName from product.json for per-variant isolation
-  //    e.g. 'halo' → ~/.halo/, 'halo-enterprise' → ~/.halo-enterprise/
+  //    e.g. 'devx' → ~/.devx/, 'devx-enterprise' → ~/.devx-enterprise/
   const folderName = getDataFolderName()
   return join(homedir(), `.${folderName}`)
 }
 
 export function getConfigPath(): string {
-  return join(getHaloDir(), 'config.json')
+  return join(getDevXDir(), 'config.json')
 }
 
 export function getTempSpacePath(): string {
-  return join(getHaloDir(), 'temp')
+  return join(getDevXDir(), 'temp')
 }
 
 export function getSpacesDir(): string {
-  return join(getHaloDir(), 'spaces')
+  return join(getDevXDir(), 'spaces')
 }
 
 /**
@@ -526,7 +533,7 @@ export function resolveClaudeConfigDir(
 const DEFAULT_MODEL = 'claude-opus-4-5-20251101'
 
 // Default configuration
-const DEFAULT_CONFIG: HaloConfig = {
+const DEFAULT_CONFIG: DevXConfig = {
   api: {
     provider: 'anthropic',
     apiKey: '',
@@ -546,6 +553,11 @@ const DEFAULT_CONFIG: HaloConfig = {
   },
   appearance: {
     theme: 'light'
+  },
+  offlineSpeech: {
+    enabled: false,
+    whisperBinPath: '',
+    whisperModelPath: '',
   },
   system: {
     autoLaunch: false
@@ -818,7 +830,7 @@ function getAiSourcesSignature(aiSources?: AISourcesConfig): string {
 
 // Initialize app directories
 export async function initializeApp(): Promise<void> {
-  const haloDir = getHaloDir()
+  const haloDir = getDevXDir()
   const tempDir = getTempSpacePath()
   const spacesDir = getSpacesDir()
   const tempArtifactsDir = join(tempDir, 'artifacts')
@@ -851,7 +863,7 @@ export async function initializeApp(): Promise<void> {
 }
 
 // Get configuration
-export function getConfig(): HaloConfig {
+export function getConfig(): DevXConfig {
   const configPath = getConfigPath()
 
   if (!existsSync(configPath)) {
@@ -880,6 +892,7 @@ export function getConfig(): HaloConfig {
       aiSources,
       permissions: { ...DEFAULT_CONFIG.permissions, ...parsed.permissions },
       appearance: { ...DEFAULT_CONFIG.appearance, ...parsed.appearance },
+      offlineSpeech: { ...DEFAULT_CONFIG.offlineSpeech, ...(parsed.offlineSpeech || {}) },
       system: { ...DEFAULT_CONFIG.system, ...parsed.system },
       agent: { ...DEFAULT_CONFIG.agent, ...parsed.agent },
       onboarding: { ...DEFAULT_CONFIG.onboarding, ...parsed.onboarding },
@@ -899,7 +912,7 @@ export function getConfig(): HaloConfig {
 }
 
 // Save configuration
-export function saveConfig(config: Partial<HaloConfig>): HaloConfig {
+export function saveConfig(config: Partial<DevXConfig>): DevXConfig {
   const currentConfig = getConfig()
   const newConfig = { ...currentConfig, ...config }
   const previousAiSourcesSignature = getAiSourcesSignature(currentConfig.aiSources)
@@ -913,6 +926,12 @@ export function saveConfig(config: Partial<HaloConfig>): HaloConfig {
   }
   if (config.appearance) {
     newConfig.appearance = { ...currentConfig.appearance, ...config.appearance }
+  }
+  if (config.offlineSpeech !== undefined) {
+    newConfig.offlineSpeech = {
+      ...(currentConfig.offlineSpeech ?? DEFAULT_CONFIG.offlineSpeech),
+      ...config.offlineSpeech,
+    }
   }
   if (config.system) {
     newConfig.system = { ...currentConfig.system, ...config.system }

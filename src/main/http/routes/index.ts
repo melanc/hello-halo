@@ -33,6 +33,35 @@ import {
   type GitArtifactAction
 } from '../../services/artifact.service'
 import { getGitBranchForPath } from '../../services/git-branch.service'
+import {
+  gitWorkspaceStatus,
+  gitWorkspaceDiff,
+  gitWorkspaceStage,
+  gitWorkspaceStageAll,
+  gitWorkspaceUnstage,
+  gitWorkspaceUnstageAll,
+  gitWorkspaceCommit,
+  gitWorkspaceDiscardWorking,
+  gitProjectDirStatus,
+  gitProjectDirDiff,
+  gitProjectDirStage,
+  gitProjectDirUnstage,
+  gitProjectDirCommit,
+  gitProjectDirDiscardWorking,
+  gitWorkspaceBranchList,
+  gitWorkspaceCheckoutBranch,
+  gitWorkspaceDeleteBranch,
+  gitWorkspaceCreateBranch,
+  gitProjectDirBranchList,
+  gitProjectDirCheckoutBranch,
+  gitProjectDirDeleteBranch,
+  gitProjectDirCreateBranch,
+} from '../../services/git-workspace.service'
+import {
+  searchWorkspaceFiles,
+  replaceAllInWorkspaceFiles,
+} from '../../services/workspace-search.service'
+import type { WorkspaceSearchOptionsInput } from '../../../shared/types/workspace-search'
 import { getTempSpacePath, getSpacesDir, getConfig as getServiceConfig } from '../../services/config.service'
 import { getSpace, getAllSpacePaths } from '../../services/space.service'
 import { getAppManager } from '../../apps/manager'
@@ -243,7 +272,7 @@ export function registerApiRoutes(app: Express): void {
 
   // ===== Space Routes =====
   app.get('/api/spaces/halo', async (req: Request, res: Response) => {
-    const result = spaceController.getHaloTempSpace()
+    const result = spaceController.getDevXTempSpace()
     res.json(result)
   })
 
@@ -743,13 +772,358 @@ export function registerApiRoutes(app: Express): void {
         res.status(400).json({ success: false, error: 'Missing targetPath or action' })
         return
       }
-      const allowed: GitArtifactAction[] = ['status', 'add', 'pull', 'push', 'diff']
+      const allowed: GitArtifactAction[] = ['status', 'add', 'pull', 'pull-rebase', 'push', 'diff']
       if (!allowed.includes(action as GitArtifactAction)) {
         res.status(400).json({ success: false, error: 'Invalid action' })
         return
       }
       const data = await runGitArtifactCommand(req.params.spaceId, targetPath, action as GitArtifactAction)
       res.json({ success: true, data })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // Workspace text search / replace (artifact rail, parity with workspace-search IPC)
+  app.post('/api/spaces/:spaceId/workspace-search', async (req: Request, res: Response) => {
+    try {
+      const { query, options } = req.body as {
+        query?: string
+        options?: WorkspaceSearchOptionsInput
+      }
+      if (typeof query !== 'string') {
+        res.status(400).json({ success: false, error: 'Missing query' })
+        return
+      }
+      const result = searchWorkspaceFiles(req.params.spaceId, query, options)
+      if (!result.ok) {
+        res.status(400).json({ success: false, error: result.error })
+        return
+      }
+      res.json({ success: true, data: result.matches })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/workspace-replace-all', async (req: Request, res: Response) => {
+    try {
+      const { find, replace, options } = req.body as {
+        find?: string
+        replace?: string
+        options?: WorkspaceSearchOptionsInput
+      }
+      if (typeof find !== 'string' || typeof replace !== 'string') {
+        res.status(400).json({ success: false, error: 'Missing find or replace' })
+        return
+      }
+      const result = replaceAllInWorkspaceFiles(req.params.spaceId, find, replace, options)
+      if (!result.ok) {
+        res.status(400).json({ success: false, error: result.error })
+        return
+      }
+      res.json({ success: true, data: result.result })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  // Source control panel (simple-git, parity with git-workspace IPC)
+  app.get('/api/spaces/:spaceId/git/status', async (req: Request, res: Response) => {
+    try {
+      const data = await gitWorkspaceStatus(req.params.spaceId)
+      res.json({ success: true, data })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/diff', async (req: Request, res: Response) => {
+    try {
+      const { path: relPath, view } = req.body as { path?: string; view?: string }
+      if (!relPath || (view !== 'staged' && view !== 'unstaged')) {
+        res.status(400).json({ success: false, error: 'Missing path or invalid view' })
+        return
+      }
+      const data = await gitWorkspaceDiff(req.params.spaceId, relPath, view)
+      res.json({ success: true, data })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/stage', async (req: Request, res: Response) => {
+    try {
+      const { paths } = req.body as { paths?: string[] }
+      if (!Array.isArray(paths)) {
+        res.status(400).json({ success: false, error: 'Missing paths' })
+        return
+      }
+      await gitWorkspaceStage(req.params.spaceId, paths)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/stage-all', async (req: Request, res: Response) => {
+    try {
+      await gitWorkspaceStageAll(req.params.spaceId)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/unstage', async (req: Request, res: Response) => {
+    try {
+      const { paths } = req.body as { paths?: string[] }
+      if (!Array.isArray(paths)) {
+        res.status(400).json({ success: false, error: 'Missing paths' })
+        return
+      }
+      await gitWorkspaceUnstage(req.params.spaceId, paths)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/unstage-all', async (req: Request, res: Response) => {
+    try {
+      await gitWorkspaceUnstageAll(req.params.spaceId)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/commit', async (req: Request, res: Response) => {
+    try {
+      const { message, amend } = req.body as { message?: string; amend?: boolean }
+      if (typeof message !== 'string') {
+        res.status(400).json({ success: false, error: 'Missing message' })
+        return
+      }
+      await gitWorkspaceCommit(req.params.spaceId, message, !!amend)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/discard-working', async (req: Request, res: Response) => {
+    try {
+      const { paths } = req.body as { paths?: string[] }
+      if (!Array.isArray(paths)) {
+        res.status(400).json({ success: false, error: 'Missing paths' })
+        return
+      }
+      await gitWorkspaceDiscardWorking(req.params.spaceId, paths)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.get('/api/spaces/:spaceId/git/project-status', async (req: Request, res: Response) => {
+    try {
+      const dir = req.query.dir
+      if (typeof dir !== 'string' || !dir.trim()) {
+        res.status(400).json({ success: false, error: 'Missing dir query' })
+        return
+      }
+      const data = await gitProjectDirStatus(req.params.spaceId, dir)
+      res.json({ success: true, data })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/project/diff', async (req: Request, res: Response) => {
+    try {
+      const { topLevel, path: relPath, view } = req.body as {
+        topLevel?: string
+        path?: string
+        view?: string
+      }
+      if (!topLevel || !relPath || (view !== 'staged' && view !== 'unstaged')) {
+        res.status(400).json({ success: false, error: 'Missing topLevel, path, or invalid view' })
+        return
+      }
+      const data = await gitProjectDirDiff(req.params.spaceId, topLevel, relPath, view)
+      res.json({ success: true, data })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/project/stage', async (req: Request, res: Response) => {
+    try {
+      const { topLevel, paths } = req.body as { topLevel?: string; paths?: string[] }
+      if (!topLevel || !Array.isArray(paths)) {
+        res.status(400).json({ success: false, error: 'Missing topLevel or paths' })
+        return
+      }
+      await gitProjectDirStage(req.params.spaceId, topLevel, paths)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/project/unstage', async (req: Request, res: Response) => {
+    try {
+      const { topLevel, paths } = req.body as { topLevel?: string; paths?: string[] }
+      if (!topLevel || !Array.isArray(paths)) {
+        res.status(400).json({ success: false, error: 'Missing topLevel or paths' })
+        return
+      }
+      await gitProjectDirUnstage(req.params.spaceId, topLevel, paths)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/project/commit', async (req: Request, res: Response) => {
+    try {
+      const { topLevel, message, amend } = req.body as {
+        topLevel?: string
+        message?: string
+        amend?: boolean
+      }
+      if (!topLevel || typeof message !== 'string') {
+        res.status(400).json({ success: false, error: 'Missing topLevel or message' })
+        return
+      }
+      await gitProjectDirCommit(req.params.spaceId, topLevel, message, !!amend)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/project/discard-working', async (req: Request, res: Response) => {
+    try {
+      const { topLevel, paths } = req.body as { topLevel?: string; paths?: string[] }
+      if (!topLevel || !Array.isArray(paths)) {
+        res.status(400).json({ success: false, error: 'Missing topLevel or paths' })
+        return
+      }
+      await gitProjectDirDiscardWorking(req.params.spaceId, topLevel, paths)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.get('/api/spaces/:spaceId/git/branches', async (req: Request, res: Response) => {
+    try {
+      const data = await gitWorkspaceBranchList(req.params.spaceId)
+      res.json({ success: true, data })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/checkout-branch', async (req: Request, res: Response) => {
+    try {
+      const { branch } = req.body as { branch?: string }
+      if (typeof branch !== 'string' || !branch.trim()) {
+        res.status(400).json({ success: false, error: 'Missing branch' })
+        return
+      }
+      await gitWorkspaceCheckoutBranch(req.params.spaceId, branch)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/delete-branch', async (req: Request, res: Response) => {
+    try {
+      const { branch, force } = req.body as { branch?: string; force?: boolean }
+      if (typeof branch !== 'string' || !branch.trim()) {
+        res.status(400).json({ success: false, error: 'Missing branch' })
+        return
+      }
+      await gitWorkspaceDeleteBranch(req.params.spaceId, branch, !!force)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/create-branch', async (req: Request, res: Response) => {
+    try {
+      const { name } = req.body as { name?: string }
+      if (typeof name !== 'string' || !name.trim()) {
+        res.status(400).json({ success: false, error: 'Missing name' })
+        return
+      }
+      await gitWorkspaceCreateBranch(req.params.spaceId, name)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.get('/api/spaces/:spaceId/git/project/branches', async (req: Request, res: Response) => {
+    try {
+      const dir = req.query.dir
+      if (typeof dir !== 'string' || !dir.trim()) {
+        res.status(400).json({ success: false, error: 'Missing dir query' })
+        return
+      }
+      const data = await gitProjectDirBranchList(req.params.spaceId, dir)
+      res.json({ success: true, data })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/project/checkout-branch', async (req: Request, res: Response) => {
+    try {
+      const { topLevel, branch } = req.body as { topLevel?: string; branch?: string }
+      if (!topLevel || typeof branch !== 'string' || !branch.trim()) {
+        res.status(400).json({ success: false, error: 'Missing topLevel or branch' })
+        return
+      }
+      await gitProjectDirCheckoutBranch(req.params.spaceId, topLevel, branch)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/project/delete-branch', async (req: Request, res: Response) => {
+    try {
+      const { topLevel, branch, force } = req.body as {
+        topLevel?: string
+        branch?: string
+        force?: boolean
+      }
+      if (!topLevel || typeof branch !== 'string' || !branch.trim()) {
+        res.status(400).json({ success: false, error: 'Missing topLevel or branch' })
+        return
+      }
+      await gitProjectDirDeleteBranch(req.params.spaceId, topLevel, branch, !!force)
+      res.json({ success: true })
+    } catch (error) {
+      res.status(500).json({ success: false, error: (error as Error).message })
+    }
+  })
+
+  app.post('/api/spaces/:spaceId/git/project/create-branch', async (req: Request, res: Response) => {
+    try {
+      const { topLevel, name } = req.body as { topLevel?: string; name?: string }
+      if (!topLevel || typeof name !== 'string' || !name.trim()) {
+        res.status(400).json({ success: false, error: 'Missing topLevel or name' })
+        return
+      }
+      await gitProjectDirCreateBranch(req.params.spaceId, topLevel, name)
+      res.json({ success: true })
     } catch (error) {
       res.status(500).json({ success: false, error: (error as Error).message })
     }

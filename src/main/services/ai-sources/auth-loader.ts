@@ -201,11 +201,11 @@ export function loadProductConfig(): ProductConfig {
 }
 
 /** Default data folder name when product.json omits dataFolderName */
-export const DEFAULT_DATA_FOLDER_NAME = 'halo'
+export const DEFAULT_DATA_FOLDER_NAME = 'devx'
 
 /**
  * Get the data folder name from product.json configuration.
- * Returns the configured dataFolderName or 'halo' as default.
+ * Returns the configured dataFolderName or 'devx' as default.
  * Safe to call at any point after Electron app module is available.
  */
 export function getDataFolderName(): string {
@@ -217,7 +217,7 @@ export function getDataFolderName(): string {
  */
 function getDefaultProductConfig(): ProductConfig {
   return {
-    name: 'Halo',
+    name: 'DevX',
     version: '1.0.0',
     authProviders: [
       {

@@ -7,6 +7,7 @@ import { useAppStore } from './stores/app.store'
 import { useChatStore } from './stores/chat.store'
 import { useOnboardingStore } from './stores/onboarding.store'
 import { initAIBrowserStoreListeners } from './stores/ai-browser.store'
+import { initTaskStoreListeners } from './stores/task.store'
 import { initPerfStoreListeners } from './stores/perf.store'
 import { useSpaceStore } from './stores/space.store'
 import { useSearchStore } from './stores/search.store'
@@ -31,7 +32,7 @@ import { api } from './api'
 import { isCapacitor, isElectron } from './api/transport'
 import type { WsConnectionState } from './api/transport'
 import { useTranslation } from './i18n'
-import type { AgentEventBase, Thought, ToolCall, HaloConfig, AgentErrorType, Question, McpServerStatus } from './types'
+import type { AgentEventBase, Thought, ToolCall, DevXConfig, AgentErrorType, Question, McpServerStatus } from './types'
 import type { SessionInitInfo } from './types/slash-command'
 import { hasAnyAISource } from './types'
 
@@ -66,7 +67,7 @@ function applyTheme(theme: 'light' | 'dark' | 'system') {
 
   // Save to localStorage for anti-flash script
   try {
-    localStorage.setItem('halo-theme', theme)
+    localStorage.setItem('devx-theme', theme)
   } catch (e) { /* ignore */ }
 
   let isDark: boolean
@@ -112,7 +113,7 @@ export default function App() {
   const { setInitialAppId } = useAppsPageStore()
 
   // For search result navigation
-  const { spaces, haloSpace, setCurrentSpace: setSpaceStoreCurrentSpace, refreshCurrentSpace } = useSpaceStore()
+  const { spaces, devxSpace, setCurrentSpace: setSpaceStoreCurrentSpace, refreshCurrentSpace } = useSpaceStore()
 
   // Initialize app on mount - wait for backend extended services to be ready
   // Uses Pull+Push pattern for reliable initialization:
@@ -278,7 +279,7 @@ export default function App() {
           if (!document.hidden) return // Only notify when app is backgrounded
 
           const event = data as Record<string, unknown>
-          let title = 'Halo'
+          let title = t('DevX')
           let body = ''
 
           if (channel === 'agent:complete') {
@@ -470,8 +471,12 @@ export default function App() {
   useEffect(() => {
     console.log('[App] Initializing AI Browser store listeners')
     initPerfStoreListeners()
-    const cleanup = initAIBrowserStoreListeners()
-    return cleanup
+    const cleanupBrowser = initAIBrowserStoreListeners()
+    const cleanupTasks = initTaskStoreListeners()
+    return () => {
+      cleanupBrowser()
+      cleanupTasks()
+    }
   }, [])
 
   // Register agent event listeners (global - handles events for all conversations)
@@ -739,8 +744,8 @@ export default function App() {
 
           // Find the space object
           let targetSpace = null
-          if (spaceId === 'halo-temp' && haloSpace) {
-            targetSpace = haloSpace
+          if (spaceId === 'halo-temp' && devxSpace) {
+            targetSpace = devxSpace
           } else {
             targetSpace = spaces.find(s => s.id === spaceId)
           }
@@ -791,7 +796,7 @@ export default function App() {
 
     window.addEventListener('search:navigate-to-result', handleNavigateToResult)
     return () => window.removeEventListener('search:navigate-to-result', handleNavigateToResult)
-  }, [currentSpaceId, spaces, haloSpace, setSpaceStoreCurrentSpace, refreshCurrentSpace, setChatCurrentSpace, loadConversations, selectConversation])
+  }, [currentSpaceId, spaces, devxSpace, setSpaceStoreCurrentSpace, refreshCurrentSpace, setChatCurrentSpace, loadConversations, selectConversation])
 
   // Handle Git Bash setup completion
   const handleGitBashSetupComplete = async (installed: boolean) => {
@@ -805,7 +810,7 @@ export default function App() {
     // Continue with normal initialization - sync config to store
     const response = await api.getConfig()
     if (response.success && response.data) {
-      const loadedConfig = response.data as HaloConfig
+      const loadedConfig = response.data as DevXConfig
       setConfig(loadedConfig)  // Sync config to store (was missing, causing empty apiKey in settings)
       // Show setup if first launch or no AI source configured
       if (loadedConfig.isFirstLaunch || !hasAnyAISource(loadedConfig.aiSources)) {
@@ -882,7 +887,7 @@ export default function App() {
     <div className="h-full w-full overflow-hidden bg-background">
       {/* WebSocket reconnection banner */}
       {showReconnectBanner && (
-        <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 py-1.5 bg-halo-warning/90 text-sm font-medium animate-slide-down safe-area-top"
+        <div className="fixed top-0 inset-x-0 z-50 flex items-center justify-center gap-2 py-1.5 bg-devx-warning/90 text-sm font-medium animate-slide-down safe-area-top"
           style={{ paddingTop: 'max(6px, var(--sat))' }}
         >
           <div className="w-3 h-3 border-2 border-foreground/60 border-t-foreground rounded-full animate-spin" />

@@ -10,12 +10,12 @@ import {
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { api } from '../../api'
-import type { HaloConfig } from '../../types'
+import type { DevXConfig } from '../../types'
 import type { HealthCheckResult, HealthReport } from './types'
 
 interface SystemSectionProps {
-  config: HaloConfig | null
-  setConfig: (config: HaloConfig) => void
+  config: DevXConfig | null
+  setConfig: (config: DevXConfig) => void
 }
 
 export function SystemSection({ config, setConfig }: SystemSectionProps) {
@@ -75,7 +75,7 @@ export function SystemSection({ config, setConfig }: SystemSectionProps) {
       const updatedConfig = {
         ...config,
         notifications: { ...config?.notifications, taskComplete: enabled }
-      } as HaloConfig
+      } as DevXConfig
       await api.setConfig({ notifications: updatedConfig.notifications })
       setConfig(updatedConfig)
     } catch (error) {
@@ -224,7 +224,7 @@ export function SystemSection({ config, setConfig }: SystemSectionProps) {
 
         {/* Info banner */}
         <div className="bg-muted/50 rounded-lg p-3 mb-4 text-sm text-muted-foreground">
-          {t('We recommend full trust mode - use natural language to control Halo.')}
+          {t('We recommend full trust mode - use natural language to control DevX.')}
         </div>
 
         {/* Trust Mode - always on */}
@@ -259,13 +259,13 @@ export function SystemSection({ config, setConfig }: SystemSectionProps) {
                 <p className="font-medium">{t('Auto Launch on Startup')}</p>
                 <span
                   className="inline-flex items-center justify-center w-4 h-4 text-xs rounded-full bg-muted text-muted-foreground cursor-help"
-                  title={t('Automatically run Halo when system starts')}
+                  title={t('Automatically run DevX when system starts')}
                 >
                   ?
                 </span>
               </div>
               <p className="text-sm text-muted-foreground">
-                {t('Automatically run Halo when system starts')}
+                {t('Automatically run DevX when system starts')}
               </p>
             </div>
             <label className="relative inline-flex items-center cursor-pointer">

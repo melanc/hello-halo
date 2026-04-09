@@ -11,10 +11,6 @@ import { api } from '../../api'
 /** GitHub repository URL */
 const GITHUB_URL = 'https://github.com/openkursar/hello-halo'
 
-/** Share text templates */
-const SHARE_TEXT_EN = 'Halo - An open-source AI assistant with browser automation. Create AI digital humans to automate tasks.'
-const SHARE_TEXT_ZH = 'Halo - 开源 AI 助手，内置浏览器自动化，可创建 AI 数字人自动完成任务。'
-
 /** Platform types for share modal */
 type SharePlatform = 'wechat' | 'xiaohongshu' | 'bilibili' | null
 
@@ -26,7 +22,7 @@ const PLATFORM_INFO: Record<Exclude<SharePlatform, null>, { nameKey: string; col
 }
 
 export function RecommendSection() {
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
 
   // Copy state for main button
   const [copied, setCopied] = useState(false)
@@ -37,9 +33,8 @@ export function RecommendSection() {
 
   // Get localized share text
   const getShareText = useCallback(() => {
-    const isZh = i18n.language?.startsWith('zh')
-    return isZh ? SHARE_TEXT_ZH : SHARE_TEXT_EN
-  }, [i18n.language])
+    return t('DevX - An open-source AI assistant with browser automation. Create AI digital humans to automate tasks.')
+  }, [t])
 
   // Get full share content (text + link)
   const getShareContent = useCallback(() => {
@@ -116,7 +111,7 @@ export function RecommendSection() {
   return (
     <>
       <section id="recommend" className="bg-card rounded-xl border border-border p-6">
-        <h2 className="text-lg font-medium mb-2">{t('Recommend Halo')}</h2>
+        <h2 className="text-lg font-medium mb-2">{t('Recommend DevX')}</h2>
         <p className="text-sm text-muted-foreground mb-4">
           {t('Like it? Help spread the word')}
         </p>

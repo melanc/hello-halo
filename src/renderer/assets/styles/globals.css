@@ -50,10 +50,10 @@
   --radius: 0.75rem;
 
   /* Halo brand colors */
-  --halo-glow: 217 91% 60%;
-  --halo-success: 142 71% 45%;
-  --halo-warning: 38 92% 50%;
-  --halo-error: 0 62% 50%;
+  --devx-glow: 217 91% 60%;
+  --devx-success: 142 71% 45%;
+  --devx-warning: 38 92% 50%;
+  --devx-error: 0 62% 50%;
 }
 
 /* Light theme */
@@ -79,10 +79,10 @@
   --ring: 217 91% 55%;
 
   /* Halo brand colors (adjusted for light) */
-  --halo-glow: 217 91% 55%;
-  --halo-success: 142 71% 40%;
-  --halo-warning: 38 92% 45%;
-  --halo-error: 0 72% 51%;
+  --devx-glow: 217 91% 55%;
+  --devx-success: 142 71% 40%;
+  --devx-warning: 38 92% 45%;
+  --devx-error: 0 72% 51%;
 }
 
 * {
@@ -281,16 +281,16 @@ body {
    ============================================ */
 
 /* Halo glow animation */
-@keyframes halo-pulse {
+@keyframes devx-pulse {
   0%, 100% {
-    box-shadow: 0 0 20px hsl(var(--halo-glow) / 0.3);
+    box-shadow: 0 0 20px hsl(var(--devx-glow) / 0.3);
   }
   50% {
-    box-shadow: 0 0 40px hsl(var(--halo-glow) / 0.5);
+    box-shadow: 0 0 40px hsl(var(--devx-glow) / 0.5);
   }
 }
 
-@keyframes halo-breathe {
+@keyframes devx-breathe {
   0%, 100% {
     opacity: 0.6;
     transform: scale(1);
@@ -301,7 +301,7 @@ body {
   }
 }
 
-@keyframes halo-spin {
+@keyframes devx-spin {
   from {
     transform: rotate(0deg);
   }
@@ -310,16 +310,16 @@ body {
   }
 }
 
-.halo-glow {
-  animation: halo-pulse 3s ease-in-out infinite;
+.devx-glow {
+  animation: devx-pulse 3s ease-in-out infinite;
 }
 
-.halo-breathe {
-  animation: halo-breathe 3s ease-in-out infinite;
+.devx-breathe {
+  animation: devx-breathe 3s ease-in-out infinite;
 }
 
-.halo-spin {
-  animation: halo-spin 2s linear infinite;
+.devx-spin {
+  animation: devx-spin 2s linear infinite;
 }
 
 /* Fade in animation */
@@ -694,19 +694,19 @@ body {
 }
 
 .tool-running {
-  border-color: hsl(var(--halo-glow));
+  border-color: hsl(var(--devx-glow));
 }
 
 .tool-success {
-  border-color: hsl(var(--halo-success));
+  border-color: hsl(var(--devx-success));
 }
 
 .tool-error {
-  border-color: hsl(var(--halo-error));
+  border-color: hsl(var(--devx-error));
 }
 
 .tool-waiting {
-  border-color: hsl(var(--halo-warning));
+  border-color: hsl(var(--devx-warning));
 }
 
 /* ============================================
@@ -878,12 +878,12 @@ body {
 }
 
 /* Halo space special style */
-.halo-space-card {
+.devx-space-card {
   background: linear-gradient(135deg, hsl(var(--primary) / 0.15), hsl(var(--primary) / 0.05));
   border: 1px solid hsl(var(--primary) / 0.3);
 }
 
-.halo-space-card:hover {
+.devx-space-card:hover {
   border-color: hsl(var(--primary));
   box-shadow: 0 0 20px hsl(var(--primary) / 0.2);
 }
@@ -1040,17 +1040,17 @@ body {
 }
 
 .pulse-dot-waiting {
-  background-color: hsl(var(--halo-warning));
+  background-color: hsl(var(--devx-warning));
   animation: pulse-dot-breathe 1.5s ease-in-out infinite;
 }
 
 .pulse-dot-completed {
-  background-color: hsl(var(--halo-success));
+  background-color: hsl(var(--devx-success));
   animation: pulse-dot-appear 0.3s ease-out;
 }
 
 .pulse-dot-error {
-  background-color: hsl(var(--halo-error));
+  background-color: hsl(var(--devx-error));
 }
 
 /* Pulse panel */
@@ -1102,18 +1102,18 @@ body {
 
 /* Running node - static green dot, no animation (GPU perf) */
 .timeline-node-running {
-  box-shadow: 0 0 4px 1px hsl(var(--halo-success) / 0.3);
+  box-shadow: 0 0 4px 1px hsl(var(--devx-success) / 0.3);
 }
 
 /* Running card ambient glow */
 .activity-running-card {
   background: linear-gradient(
     135deg,
-    hsl(var(--halo-success) / 0.06),
-    hsl(var(--halo-success) / 0.02) 60%,
+    hsl(var(--devx-success) / 0.06),
+    hsl(var(--devx-success) / 0.02) 60%,
     transparent
   );
-  border: 1px solid hsl(var(--halo-success) / 0.12);
+  border: 1px solid hsl(var(--devx-success) / 0.12);
   border-radius: 0.5rem;
 }
 

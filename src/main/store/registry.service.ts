@@ -16,7 +16,7 @@
 
 import { v4 as uuidv4 } from 'uuid'
 import { z } from 'zod'
-import { getConfig, saveConfig as saveHaloConfig } from '../services/config.service'
+import { getConfig, saveConfig as saveDevXConfig } from '../services/config.service'
 import { getAppManager } from '../apps/manager'
 import { AppAlreadyInstalledError } from '../apps/manager/errors'
 import { getAppRuntime } from '../apps/runtime'
@@ -85,7 +85,7 @@ const DEFAULT_CACHE_TTL_MS = 3600000
 /** Per-registry timeout for getIndex: prevents one slow registry from blocking all data */
 const REGISTRY_LOAD_TIMEOUT_MS = 15000
 
-/** Config key used in HaloConfig for store settings */
+/** Config key used in DevXConfig for store settings */
 const CONFIG_KEY = 'appStore'
 
 // ============================================
@@ -767,7 +767,7 @@ export function updateRegistryAdapterConfig(
 // ============================================
 
 /**
- * Load registry service configuration from the main HaloConfig.
+ * Load registry service configuration from the main DevXConfig.
  * Returns defaults if no configuration exists.
  */
 export function loadConfig(): RegistryServiceConfig {
@@ -809,7 +809,7 @@ export function loadConfig(): RegistryServiceConfig {
 }
 
 /**
- * Persist the current registry service configuration to the main HaloConfig.
+ * Persist the current registry service configuration to the main DevXConfig.
  */
 export function saveConfig(): void {
   saveConfigToFile()
@@ -1074,11 +1074,11 @@ function ensureInitialized(): void {
 }
 
 /**
- * Persist current config to the HaloConfig file.
+ * Persist current config to the DevXConfig file.
  */
 function saveConfigToFile(): void {
   try {
-    saveHaloConfig({
+    saveDevXConfig({
       [CONFIG_KEY]: {
         registries: config.registries,
         cacheTtlMs: config.cacheTtlMs,

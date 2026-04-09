@@ -1,15 +1,15 @@
 /**
- * HaloLogo - Brand animated logo component
+ * DevXLogo - Brand animated logo component
  * Used across the app for loading states and branding
  *
  * Usage:
- *   <HaloLogo size="sm" />      // 28px - for inline/small areas
- *   <HaloLogo size="md" />      // 48px - for medium contexts
- *   <HaloLogo size="lg" />      // 96px - for large displays (like splash)
- *   <HaloLogo size={64} />      // custom size in pixels
+ *   <DevXLogo size="sm" />      // 28px - for inline/small areas
+ *   <DevXLogo size="md" />      // 48px - for medium contexts
+ *   <DevXLogo size="lg" />      // 96px - for large displays (like splash)
+ *   <DevXLogo size={64} />      // custom size in pixels
  */
 
-interface HaloLogoProps {
+interface DevXLogoProps {
   /** Size preset or custom pixel value */
   size?: 'sm' | 'md' | 'lg' | number
   /** Optional additional class names */
@@ -40,7 +40,7 @@ function getScaledStyles(size: number) {
   }
 }
 
-export function HaloLogo({ size = 'md', className = '' }: HaloLogoProps) {
+export function DevXLogo({ size = 'md', className = '' }: DevXLogoProps) {
   const pixelSize = typeof size === 'number' ? size : SIZE_PRESETS[size]
   const styles = getScaledStyles(pixelSize)
 
@@ -50,11 +50,11 @@ export function HaloLogo({ size = 'md', className = '' }: HaloLogoProps) {
       style={{ width: pixelSize, height: pixelSize }}
     >
       {/* Outer glow ring */}
-      <div className={`absolute inset-0 rounded-full bg-primary/20 ${styles.blur} halo-breathe`} />
+      <div className={`absolute inset-0 rounded-full bg-primary/20 ${styles.blur} devx-breathe`} />
 
       {/* Main ring */}
       <div
-        className={`relative rounded-full ${styles.border} border-primary/60 flex items-center justify-center halo-glow`}
+        className={`relative rounded-full ${styles.border} border-primary/60 flex items-center justify-center devx-glow`}
         style={{ width: pixelSize, height: pixelSize }}
       >
         {/* Inner glow */}
@@ -74,7 +74,7 @@ export function HaloLogo({ size = 'md', className = '' }: HaloLogoProps) {
             strokeWidth={styles.strokeWidth}
             strokeLinecap="round"
             strokeDasharray="70 200"
-            className="halo-spin"
+            className="devx-spin"
             style={{ transformOrigin: 'center' }}
           />
         </svg>

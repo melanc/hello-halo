@@ -320,7 +320,7 @@ export function ImSessionsSection({ appId, appName, compact }: ImSessionsSection
       {/* Help text */}
       {!compact && (
         <div className="mt-4 p-3 rounded-lg bg-muted/30 text-xs text-muted-foreground space-y-1">
-          <p>{t('When proactive push is enabled, scheduled triggers will send results to the IM conversation instead of keeping them in Halo.')}</p>
+          <p>{t('When proactive push is enabled, scheduled triggers will send results to the IM conversation instead of keeping them in DevX.')}</p>
           <p>{t('The AI shares the same conversation memory across user chats and proactive pushes.')}</p>
         </div>
       )}

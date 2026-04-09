@@ -14,7 +14,7 @@
 
 import { join } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync, readdirSync, statSync } from 'fs'
-import { getHaloDir } from '../services/config.service'
+import { getDevXDir } from '../services/config.service'
 import type { RegistryIndex } from '../../shared/store/store-types'
 import type { AppSpec } from '../apps/spec/schema'
 import type { CachedIndex, CachedSpec } from './registry.types'
@@ -34,7 +34,7 @@ const META_SUFFIX = '.meta.json'
  * Creates the directory if it does not exist.
  */
 export function getCacheDir(): string {
-  const dir = join(getHaloDir(), CACHE_DIR_NAME)
+  const dir = join(getDevXDir(), CACHE_DIR_NAME)
   if (!existsSync(dir)) {
     mkdirSync(dir, { recursive: true })
   }

@@ -7,7 +7,7 @@ import { useState, useCallback } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { useAppStore } from '../stores/app.store'
 import { api } from '../api'
-import type { HaloConfig } from '../types'
+import type { DevXConfig } from '../types'
 import { Header } from '../components/layout/Header'
 import { useTranslation } from '../i18n'
 import { useIsMobile } from '../hooks/useIsMobile'
@@ -92,7 +92,7 @@ export function SettingsPage() {
               {/* AI Sources Section (v2) */}
               <section id="ai-model" className="bg-card rounded-xl border border-border p-6">
                 <h2 className="text-lg font-medium mb-4">{t('AI Model')}</h2>
-                <AISourcesSection config={config as HaloConfig} setConfig={setConfig} />
+                <AISourcesSection config={config as DevXConfig} setConfig={setConfig} />
               </section>
 
               {/* Message Channels (unified: notification channels + WeCom Bot) */}

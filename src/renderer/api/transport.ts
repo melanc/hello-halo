@@ -2,7 +2,7 @@
  * Transport Layer - Abstracts IPC vs HTTP communication
  *
  * Three modes:
- * 1. Electron  — window.halo exists → IPC
+ * 1. Electron  — window.devx exists → IPC
  * 2. Capacitor — Capacitor.isNativePlatform() → HTTP to user-configured server
  * 3. Remote    — neither → HTTP to window.location.origin
  */
@@ -11,9 +11,9 @@
 // Platform detection
 // ---------------------------------------------------------------------------
 
-/** Detect if running in Electron (has window.halo via preload) */
+/** Detect if running in Electron (has window.devx via preload) */
 export function isElectron(): boolean {
-  return typeof window !== 'undefined' && 'halo' in window
+  return typeof window !== 'undefined' && 'devx' in window
 }
 
 /** Detect if running inside a Capacitor native shell */
@@ -192,6 +192,7 @@ export async function httpRequest<T>(
         window.dispatchEvent(new CustomEvent('halo:auth-expired'))
       } else {
         // Remote browser: reload → server shows login page
+        document.cookie = 'devx_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
         document.cookie = 'halo_authenticated=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
         window.location.reload()
       }
@@ -296,7 +297,7 @@ export function connectWebSocket(): void {
         // Start foreground service to keep WebSocket alive in background (Capacitor only)
         if (isCapacitor()) {
           import('./foreground-service').then(({ startForegroundService }) => {
-            startForegroundService('Halo', 'Connected to desktop')
+            startForegroundService('DevX', 'Connected to desktop')
           }).catch(() => { /* plugin not available */ })
         }
 
@@ -419,7 +420,7 @@ export function forceReconnectWebSocket(): void {
 export function onEvent(channel: string, callback: (data: unknown) => void): () => void {
   if (isElectron()) {
     // Use IPC in Electron
-    const methodMap: Record<string, keyof typeof window.halo> = {
+    const methodMap: Record<string, keyof typeof window.devx> = {
       'agent:message': 'onAgentMessage',
       'agent:tool-call': 'onAgentToolCall',
       'agent:tool-result': 'onAgentToolResult',
@@ -447,8 +448,8 @@ export function onEvent(channel: string, callback: (data: unknown) => void): () 
     }
 
     const method = methodMap[channel]
-    if (method && typeof window.halo[method] === 'function') {
-      return (window.halo[method] as (cb: (data: unknown) => void) => () => void)(callback)
+    if (method && typeof window.devx[method] === 'function') {
+      return (window.devx[method] as (cb: (data: unknown) => void) => () => void)(callback)
     }
 
     return () => {}

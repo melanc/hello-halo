@@ -9,12 +9,13 @@ import type {
   HealthRecoveryResponse,
   HealthReportResponse,
   HealthExportResponse,
-  HealthCheckResponse
+  HealthCheckResponse,
+  WorkspaceSearchOptionsInput,
 } from '../shared/types'
 import type { StoreInstallProgress } from '../shared/store/store-types'
 
 // Type definitions for exposed API
-export interface HaloAPI {
+export interface DevXAPI {
   // Generic Auth (provider-agnostic)
   authGetProviders: () => Promise<IpcResponse>
   authGetBuiltinProviders: () => Promise<IpcResponse>
@@ -33,6 +34,14 @@ export interface HaloAPI {
   fetchModels: (apiKey: string, apiUrl: string) => Promise<IpcResponse>
   refreshAISourcesConfig: () => Promise<IpcResponse>
 
+  // Offline speech (whisper.cpp)
+  offlineSpeechStatus: () => Promise<IpcResponse>
+  offlineSpeechTranscribe: (payload: { wavBytes: ArrayBuffer; i18nLanguage: string }) => Promise<IpcResponse>
+  offlineSpeechBrowseFile: (opts?: {
+    title?: string
+    filters?: { name: string; extensions: string[] }[]
+  }) => Promise<IpcResponse>
+
   // CLI Config (Skills + MCP migration, config dir mode)
   cliConfigGetPaths: () => Promise<IpcResponse>
   cliConfigScanSkills: () => Promise<IpcResponse>
@@ -49,7 +58,7 @@ export interface HaloAPI {
   aiSourcesDeleteSource: (sourceId: string) => Promise<IpcResponse>
 
   // Space
-  getHaloSpace: () => Promise<IpcResponse>
+  getDevXSpace: () => Promise<IpcResponse>
   listSpaces: () => Promise<IpcResponse>
   createSpace: (input: { name: string; icon: string; customPath?: string }) => Promise<IpcResponse>
   deleteSpace: (spaceId: string) => Promise<IpcResponse>
@@ -191,7 +200,7 @@ export interface HaloAPI {
   runArtifactGitCommand: (
     spaceId: string,
     targetPath: string,
-    action: 'status' | 'add' | 'pull' | 'push' | 'diff'
+    action: 'status' | 'add' | 'pull' | 'pull-rebase' | 'push' | 'diff'
   ) => Promise<
     IpcResponse<{
       ok: boolean
@@ -201,12 +210,61 @@ export interface HaloAPI {
     }>
   >
 
+  // Source control (simple-git, workspace-scoped)
+  gitWorkspaceStatus: (spaceId: string) => Promise<IpcResponse>
+  gitWorkspaceDiff: (
+    spaceId: string,
+    relativePath: string,
+    view: 'staged' | 'unstaged'
+  ) => Promise<IpcResponse>
+  gitWorkspaceStage: (spaceId: string, paths: string[]) => Promise<IpcResponse>
+  gitWorkspaceStageAll: (spaceId: string) => Promise<IpcResponse>
+  gitWorkspaceUnstage: (spaceId: string, paths: string[]) => Promise<IpcResponse>
+  gitWorkspaceUnstageAll: (spaceId: string) => Promise<IpcResponse>
+  gitWorkspaceCommit: (spaceId: string, message: string, amend?: boolean) => Promise<IpcResponse>
+  gitWorkspaceDiscardWorking: (spaceId: string, paths: string[]) => Promise<IpcResponse>
+  gitProjectDirStatus: (spaceId: string, topLevelDir: string) => Promise<IpcResponse>
+  gitProjectDirDiff: (
+    spaceId: string,
+    topLevelDir: string,
+    relativePath: string,
+    view: 'staged' | 'unstaged'
+  ) => Promise<IpcResponse>
+  gitProjectDirStage: (spaceId: string, topLevelDir: string, paths: string[]) => Promise<IpcResponse>
+  gitProjectDirUnstage: (spaceId: string, topLevelDir: string, paths: string[]) => Promise<IpcResponse>
+  gitProjectDirCommit: (spaceId: string, topLevelDir: string, message: string, amend?: boolean) => Promise<IpcResponse>
+  gitProjectDirDiscardWorking: (spaceId: string, topLevelDir: string, paths: string[]) => Promise<IpcResponse>
+  gitWorkspaceBranchList: (spaceId: string) => Promise<IpcResponse>
+  gitWorkspaceCheckoutBranch: (spaceId: string, branch: string) => Promise<IpcResponse>
+  gitWorkspaceDeleteBranch: (spaceId: string, branch: string, force?: boolean) => Promise<IpcResponse>
+  gitWorkspaceCreateBranch: (spaceId: string, name: string) => Promise<IpcResponse>
+  gitProjectDirBranchList: (spaceId: string, topLevelDir: string) => Promise<IpcResponse>
+  gitProjectDirCheckoutBranch: (spaceId: string, topLevelDir: string, branch: string) => Promise<IpcResponse>
+  gitProjectDirDeleteBranch: (
+    spaceId: string,
+    topLevelDir: string,
+    branch: string,
+    force?: boolean
+  ) => Promise<IpcResponse>
+  gitProjectDirCreateBranch: (spaceId: string, topLevelDir: string, name: string) => Promise<IpcResponse>
+
   // File operations — create/move send (parentPath, name), backend constructs full path
   createArtifactFile: (spaceId: string, parentPath: string, name: string, content?: string) => Promise<IpcResponse>
   createArtifactFolder: (spaceId: string, parentPath: string, name: string) => Promise<IpcResponse>
   deleteArtifact: (spaceId: string, targetPath: string) => Promise<IpcResponse>
   renameArtifact: (spaceId: string, oldPath: string, newName: string) => Promise<IpcResponse>
   moveArtifact: (spaceId: string, oldPath: string, newParentPath: string) => Promise<IpcResponse>
+  workspaceSearch: (
+    spaceId: string,
+    query: string,
+    options?: WorkspaceSearchOptionsInput
+  ) => Promise<IpcResponse>
+  workspaceReplaceAll: (
+    spaceId: string,
+    find: string,
+    replace: string,
+    options?: WorkspaceSearchOptionsInput
+  ) => Promise<IpcResponse>
 
   // Onboarding
   writeOnboardingArtifact: (spaceId: string, filename: string, content: string) => Promise<IpcResponse>
@@ -458,7 +516,7 @@ function createEventListener<T = unknown>(
 }
 
 // Expose API to renderer
-const api: HaloAPI = {
+const api: DevXAPI = {
   // Generic Auth (provider-agnostic)
   authGetProviders: () => ipcRenderer.invoke('auth:get-providers'),
   authGetBuiltinProviders: () => ipcRenderer.invoke('auth:get-builtin-providers'),
@@ -479,6 +537,13 @@ const api: HaloAPI = {
     ipcRenderer.invoke('config:fetch-models', apiKey, apiUrl),
   refreshAISourcesConfig: () => ipcRenderer.invoke('config:refresh-ai-sources'),
 
+  // Offline speech (whisper.cpp)
+  offlineSpeechStatus: () => ipcRenderer.invoke('offline-speech:status'),
+  offlineSpeechTranscribe: (payload: { wavBytes: ArrayBuffer; i18nLanguage: string }) =>
+    ipcRenderer.invoke('offline-speech:transcribe', payload),
+  offlineSpeechBrowseFile: (opts?: { title?: string; filters?: { name: string; extensions: string[] }[] }) =>
+    ipcRenderer.invoke('offline-speech:browse-file', opts ?? {}),
+
   // CLI Config
   cliConfigGetPaths: () => ipcRenderer.invoke('cli-config:get-paths'),
   cliConfigScanSkills: () => ipcRenderer.invoke('cli-config:scan-skills'),
@@ -495,7 +560,7 @@ const api: HaloAPI = {
   aiSourcesDeleteSource: (sourceId) => ipcRenderer.invoke('ai-sources:delete-source', sourceId),
 
   // Space
-  getHaloSpace: () => ipcRenderer.invoke('space:get-halo'),
+  getDevXSpace: () => ipcRenderer.invoke('space:get-devx'),
   listSpaces: () => ipcRenderer.invoke('space:list'),
   createSpace: (input) => ipcRenderer.invoke('space:create', input),
   deleteSpace: (spaceId) => ipcRenderer.invoke('space:delete', spaceId),
@@ -566,12 +631,55 @@ const api: HaloAPI = {
   runArtifactGitCommand: (spaceId, targetPath, action) =>
     ipcRenderer.invoke('artifact:git-command', spaceId, targetPath, action),
 
+  gitWorkspaceStatus: (spaceId) => ipcRenderer.invoke('git-workspace:status', spaceId),
+  gitWorkspaceDiff: (spaceId, relativePath, view) =>
+    ipcRenderer.invoke('git-workspace:diff', spaceId, relativePath, view),
+  gitWorkspaceStage: (spaceId, paths) => ipcRenderer.invoke('git-workspace:stage', spaceId, paths),
+  gitWorkspaceStageAll: (spaceId) => ipcRenderer.invoke('git-workspace:stage-all', spaceId),
+  gitWorkspaceUnstage: (spaceId, paths) => ipcRenderer.invoke('git-workspace:unstage', spaceId, paths),
+  gitWorkspaceUnstageAll: (spaceId) => ipcRenderer.invoke('git-workspace:unstage-all', spaceId),
+  gitWorkspaceCommit: (spaceId, message, amend) =>
+    ipcRenderer.invoke('git-workspace:commit', spaceId, message, !!amend),
+  gitWorkspaceDiscardWorking: (spaceId, paths) =>
+    ipcRenderer.invoke('git-workspace:discard-working', spaceId, paths),
+  gitProjectDirStatus: (spaceId, topLevelDir) =>
+    ipcRenderer.invoke('git-workspace:project-status', spaceId, topLevelDir),
+  gitProjectDirDiff: (spaceId, topLevelDir, relativePath, view) =>
+    ipcRenderer.invoke('git-workspace:project-diff', spaceId, topLevelDir, relativePath, view),
+  gitProjectDirStage: (spaceId, topLevelDir, paths) =>
+    ipcRenderer.invoke('git-workspace:project-stage', spaceId, topLevelDir, paths),
+  gitProjectDirUnstage: (spaceId, topLevelDir, paths) =>
+    ipcRenderer.invoke('git-workspace:project-unstage', spaceId, topLevelDir, paths),
+  gitProjectDirCommit: (spaceId, topLevelDir, message, amend) =>
+    ipcRenderer.invoke('git-workspace:project-commit', spaceId, topLevelDir, message, !!amend),
+  gitProjectDirDiscardWorking: (spaceId, topLevelDir, paths) =>
+    ipcRenderer.invoke('git-workspace:project-discard-working', spaceId, topLevelDir, paths),
+  gitWorkspaceBranchList: (spaceId) => ipcRenderer.invoke('git-workspace:branch-list', spaceId),
+  gitWorkspaceCheckoutBranch: (spaceId, branch) =>
+    ipcRenderer.invoke('git-workspace:checkout-branch', spaceId, branch),
+  gitWorkspaceDeleteBranch: (spaceId, branch, force) =>
+    ipcRenderer.invoke('git-workspace:delete-branch', spaceId, branch, !!force),
+  gitWorkspaceCreateBranch: (spaceId, name) =>
+    ipcRenderer.invoke('git-workspace:create-branch', spaceId, name),
+  gitProjectDirBranchList: (spaceId, topLevelDir) =>
+    ipcRenderer.invoke('git-workspace:branch-list', spaceId, topLevelDir),
+  gitProjectDirCheckoutBranch: (spaceId, topLevelDir, branch) =>
+    ipcRenderer.invoke('git-workspace:checkout-branch', spaceId, branch, topLevelDir),
+  gitProjectDirDeleteBranch: (spaceId, topLevelDir, branch, force) =>
+    ipcRenderer.invoke('git-workspace:delete-branch', spaceId, branch, !!force, topLevelDir),
+  gitProjectDirCreateBranch: (spaceId, topLevelDir, name) =>
+    ipcRenderer.invoke('git-workspace:create-branch', spaceId, name, topLevelDir),
+
   // File operations — create/move send (parentPath, name), backend constructs full path
   createArtifactFile: (spaceId, parentPath, name, content) => ipcRenderer.invoke('artifact:create-file', spaceId, parentPath, name, content),
   createArtifactFolder: (spaceId, parentPath, name) => ipcRenderer.invoke('artifact:create-folder', spaceId, parentPath, name),
   deleteArtifact: (spaceId, targetPath) => ipcRenderer.invoke('artifact:delete', spaceId, targetPath),
   renameArtifact: (spaceId, oldPath, newName) => ipcRenderer.invoke('artifact:rename', spaceId, oldPath, newName),
   moveArtifact: (spaceId, oldPath, newParentPath) => ipcRenderer.invoke('artifact:move', spaceId, oldPath, newParentPath),
+  workspaceSearch: (spaceId, query, options) =>
+    ipcRenderer.invoke('workspace-search:search', spaceId, query, options),
+  workspaceReplaceAll: (spaceId, find, replace, options) =>
+    ipcRenderer.invoke('workspace-search:replace-all', spaceId, find, replace, options),
 
   // Onboarding
   writeOnboardingArtifact: (spaceId, filename, content) =>
@@ -788,7 +896,7 @@ const api: HaloAPI = {
   onNotificationToast: (callback) => createEventListener('notification:toast', callback),
 }
 
-contextBridge.exposeInMainWorld('halo', api)
+contextBridge.exposeInMainWorld('devx', api)
 
 // Analytics: Listen for tracking events from main process
 // Baidu Tongji SDK is loaded in index.html, we just need to call _hmt.push()
@@ -850,10 +958,10 @@ const electronAPI = {
 
 contextBridge.exposeInMainWorld('electron', electronAPI)
 
-// TypeScript declaration for window.halo and window.platform
+// TypeScript declaration for window.devx and window.platform
 declare global {
   interface Window {
-    halo: HaloAPI
+    devx: DevXAPI
     platform: {
       platform: 'darwin' | 'win32' | 'linux'
       isMac: boolean

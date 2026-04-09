@@ -31,15 +31,15 @@ export function StoreInstallDialog({ detail, onClose, onInstalled, showGlobalOpt
 
   // Spaces
   const currentSpace = useSpaceStore(state => state.currentSpace)
-  const haloSpace = useSpaceStore(state => state.haloSpace)
+  const devxSpace = useSpaceStore(state => state.devxSpace)
   const spaces = useSpaceStore(state => state.spaces)
 
   const allSpaces = useMemo(() => {
     const result: Array<{ id: string; name: string; icon: string }> = []
-    if (haloSpace) result.push(haloSpace)
+    if (devxSpace) result.push(devxSpace)
     result.push(...spaces)
     return result
-  }, [haloSpace, spaces])
+  }, [devxSpace, spaces])
 
   // For MCP/Skill (showGlobalOption=true), default to global; otherwise default to current/first space
   const [selectedSpaceId, setSelectedSpaceId] = useState(

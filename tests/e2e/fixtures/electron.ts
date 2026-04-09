@@ -2,13 +2,13 @@
  * Electron App Fixture
  *
  * Provides a reusable fixture for launching and interacting with
- * the Halo Electron application in E2E tests.
+ * the DevX Electron application in E2E tests.
  *
  * Environment Variables:
- *   HALO_TEST_API_KEY   - API key for testing (required for chat tests)
- *   HALO_TEST_API_URL   - API URL (default: https://api.anthropic.com)
- *   HALO_TEST_MODEL     - Model to use (default: claude-haiku-4-5-20251001)
- *   HALO_TEST_PROVIDER  - Provider ID (default: anthropic)
+ *   DEVX_TEST_API_KEY   - API key for testing (required for chat tests)
+ *   DEVX_TEST_API_URL   - API URL (default: https://api.anthropic.com)
+ *   DEVX_TEST_MODEL     - Model to use (default: claude-haiku-4-5-20251001)
+ *   DEVX_TEST_PROVIDER  - Provider ID (default: anthropic)
  */
 
 import { test as base, ElectronApplication, Page } from '@playwright/test'
@@ -23,21 +23,21 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
 // Test configuration from environment variables
-const TEST_API_KEY = process.env.HALO_TEST_API_KEY || ''
-const TEST_API_URL = process.env.HALO_TEST_API_URL || ''
-const TEST_MODEL = process.env.HALO_TEST_MODEL || ''
-const TEST_PROVIDER = process.env.HALO_TEST_PROVIDER || ''
-const TEST_OAUTH_SOURCE = process.env.HALO_TEST_OAUTH_SOURCE || ''
+const TEST_API_KEY = process.env.DEVX_TEST_API_KEY || ''
+const TEST_API_URL = process.env.DEVX_TEST_API_URL || ''
+const TEST_MODEL = process.env.DEVX_TEST_MODEL || ''
+const TEST_PROVIDER = process.env.DEVX_TEST_PROVIDER || ''
+const TEST_OAUTH_SOURCE = process.env.DEVX_TEST_OAUTH_SOURCE || ''
 
 // Validate: if API key is set, the other three must also be set
 if (TEST_API_KEY && (!TEST_API_URL || !TEST_MODEL || !TEST_PROVIDER)) {
   const missing = [
-    !TEST_API_URL && 'HALO_TEST_API_URL',
-    !TEST_MODEL && 'HALO_TEST_MODEL',
-    !TEST_PROVIDER && 'HALO_TEST_PROVIDER'
+    !TEST_API_URL && 'DEVX_TEST_API_URL',
+    !TEST_MODEL && 'DEVX_TEST_MODEL',
+    !TEST_PROVIDER && 'DEVX_TEST_PROVIDER'
   ].filter(Boolean)
   throw new Error(
-    `HALO_TEST_API_KEY is set but missing: ${missing.join(', ')}. ` +
+    `DEVX_TEST_API_KEY is set but missing: ${missing.join(', ')}. ` +
     'All four env vars must be configured together in .env.local'
   )
 }
@@ -157,13 +157,13 @@ function createTestConfigDir(appPath: string): string {
       sources.push(oauthSource)
       console.log(`[E2E] Loaded OAuth source: ${oauthSource.provider}`)
     } catch (err) {
-      console.warn('[E2E] Failed to parse HALO_TEST_OAUTH_SOURCE:', err.message)
+      console.warn('[E2E] Failed to parse DEVX_TEST_OAUTH_SOURCE:', err.message)
     }
   }
 
   // Create config.json with both legacy api field and v2 aiSources format
   const config = {
-    // Legacy api field (still required by HaloConfig for backward compatibility)
+    // Legacy api field (still required by DevXConfig for backward compatibility)
     api: {
       provider: TEST_PROVIDER || 'anthropic',
       apiKey: TEST_API_KEY,
@@ -206,9 +206,9 @@ function createTestConfigDir(appPath: string): string {
 
   // Create headless-electron symlink for Claude Agent SDK
   // SDK uses this to spawn child processes without Dock icon on macOS
-  // Path: ~/Library/Application Support/Halo/headless-electron/electron-node
+  // Path: ~/Library/Application Support/DevX/headless-electron/electron-node
   if (process.platform === 'darwin') {
-    const userDataDir = path.join(testDir, 'Library', 'Application Support', 'Halo')
+    const userDataDir = path.join(testDir, 'Library', 'Application Support', 'DevX')
     const headlessDir = path.join(userDataDir, 'headless-electron')
 
     fs.mkdirSync(headlessDir, { recursive: true })
@@ -251,7 +251,7 @@ export const test = base.extend<ElectronFixtures>({
     console.log(`[E2E] Test config dir: ${testConfigDir}`)
 
     // Build a clean env without ELECTRON_RUN_AS_NODE.
-    // Halo sets ELECTRON_RUN_AS_NODE=1 for its child processes (Claude Agent SDK),
+    // DevX sets ELECTRON_RUN_AS_NODE=1 for its child processes (Claude Agent SDK),
     // which forces Electron into plain Node.js mode. E2E tests inherit this env var,
     // but Playwright needs Electron in full app mode to connect via CDP.
     const { ELECTRON_RUN_AS_NODE: _, ...cleanEnv } = process.env

@@ -74,9 +74,9 @@ function useAppTypeMeta(type: AppType): AppTypeMetaResolved | null {
       return {
         Icon: Package,
         label: t('Extension'),
-        tooltipTitle: t('Halo Extension'),
+        tooltipTitle: t('DevX Extension'),
         tooltipDesc: t(
-          'Enhances the Halo platform with additional UI or system-level functionality.'
+          'Enhances the DevX platform with additional UI or system-level functionality.'
         ),
         badgeClassName: 'bg-amber-500/10 border border-amber-500/30 hover:bg-amber-500/15',
         iconClassName: 'text-amber-500',

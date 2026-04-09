@@ -23,7 +23,7 @@ test.describe('Space Management', () => {
 
     // Dialog should appear
     const dialog = await window.waitForSelector(
-      'text=/Create Dedicated Space|创建专属空间/i',
+      'text=/Create Dedicated Space|Create workspace|创建专属空间|创建工作空间/i',
       { timeout: 5000 }
     )
     expect(dialog).toBeTruthy()
@@ -135,7 +135,7 @@ test.describe('Space Management', () => {
 
     // Dialog should appear
     await window.waitForSelector(
-      'text=/Create Dedicated Space|创建专属空间/i',
+      'text=/Create Dedicated Space|Create workspace|创建专属空间|创建工作空间/i',
       { timeout: 5000 }
     )
 

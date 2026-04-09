@@ -1,6 +1,6 @@
-# Halo v2 Reference Index
+# DevX v2 Reference Index
 
-This folder is the progressive-disclosure layer for the `halo-dev2` skill.
+This folder is the progressive-disclosure layer for the `devx-dev` skill.
 
 Read this file after `../ARCHITECTURE.md`, then open only what your task needs.
 

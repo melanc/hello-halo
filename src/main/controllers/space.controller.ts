@@ -4,7 +4,7 @@
  */
 
 import {
-  getHaloSpace,
+  getDevXSpace,
   listSpaces as serviceListSpaces,
   createSpace as serviceCreateSpace,
   deleteSpace as serviceDeleteSpace,
@@ -22,9 +22,9 @@ export interface ControllerResponse<T = unknown> {
 /**
  * Get the Halo temp space
  */
-export function getHaloTempSpace(): ControllerResponse {
+export function getDevXTempSpace(): ControllerResponse {
   try {
-    const space = getHaloSpace()
+    const space = getDevXSpace()
     return { success: true, data: space }
   } catch (error: unknown) {
     const err = error as Error

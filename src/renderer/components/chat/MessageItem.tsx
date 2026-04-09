@@ -25,6 +25,7 @@ import {
 import { getToolIcon } from '../icons/ToolIcons'
 import { BrowserTaskCard, isBrowserTool } from '../tool/BrowserTaskCard'
 import { MarkdownRenderer } from './MarkdownRenderer'
+import { UserMessageContent } from './user-message-content'
 import { FileChangesFooter } from '../diff'
 import { MessageImages } from './ImageAttachmentPreview'
 import { TokenUsageIndicator } from './TokenUsageIndicator'
@@ -308,7 +309,7 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
       {isWorking && !isUser && (
         <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-border/30 working-indicator-fade">
           <Sparkles size={12} className="text-primary/60" />
-          <span className="text-xs text-muted-foreground/70">{t('Halo is working')}</span>
+          <span className="text-xs text-muted-foreground/70">{t('DevX is working')}</span>
         </div>
       )}
 
@@ -321,8 +322,7 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
       <div className="break-words leading-relaxed" data-message-content>
         {message.content && (
           isUser ? (
-            // User messages: simple whitespace-preserving text
-            <span className="whitespace-pre-wrap">{message.content}</span>
+            <UserMessageContent content={message.content} />
           ) : (
             // Assistant messages: full markdown rendering
             <MarkdownRenderer content={message.content} />

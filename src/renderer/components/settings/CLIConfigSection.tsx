@@ -212,7 +212,7 @@ function CLIConfigSectionInner() {
         icon={<FolderInput className="w-4 h-4" />}
       >
         <p className="text-xs text-muted-foreground mb-3">
-          {t('Choose where Halo reads Claude CLI config (skills, settings, MCP). Changing this affects all future conversations.')}
+          {t('Choose where DevX reads Claude CLI config (skills, settings, MCP). Changing this affects all future conversations.')}
         </p>
 
         <div className="space-y-2">
@@ -231,8 +231,8 @@ function CLIConfigSectionInner() {
               className="mt-0.5 accent-primary"
             />
             <div className="flex-1 min-w-0">
-              <p className="font-medium text-sm">{t('Halo Default')} <span className="ml-1 text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full">{t('Recommended')}</span></p>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("Halo's isolated config directory. Won't interfere with your standalone Claude CLI.")}</p>
+              <p className="font-medium text-sm">{t('DevX Default')} <span className="ml-1 text-xs px-1.5 py-0.5 bg-primary/10 text-primary rounded-full">{t('Recommended')}</span></p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("DevX's isolated config directory. Won't interfere with your standalone Claude CLI.")}</p>
               {paths && (
                 <p className="text-xs font-mono text-muted-foreground mt-1 truncate">{paths.haloDefault}</p>
               )}
@@ -260,7 +260,7 @@ function CLIConfigSectionInner() {
                   <AlertTriangle className="w-3 h-3" /> {t('High Risk')}
                 </span>
               </div>
-              <p className="text-xs text-muted-foreground mt-0.5">{t("Share Claude CLI's ~/.claude directory. Skills and settings are shared but changes in Claude CLI will affect Halo.")}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{t("Share Claude CLI's ~/.claude directory. Skills and settings are shared but changes in Claude CLI will affect DevX.")}</p>
               {paths && (
                 <p className="text-xs font-mono text-muted-foreground mt-1 truncate">{paths.ccDefault}</p>
               )}
@@ -348,7 +348,7 @@ function CLIConfigSectionInner() {
         ) : undefined}
       >
         <p className="text-xs text-muted-foreground">
-          {t('Copy skills from your Claude CLI installation (~/.claude/skills/) into Halo\'s skill directory.')}
+          {t('Copy skills from your Claude CLI installation (~/.claude/skills/) into DevX\'s skill directory.')}
         </p>
 
         {/* Scan button */}
@@ -389,7 +389,7 @@ function CLIConfigSectionInner() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono font-medium truncate">{skill.name}</p>
                     {skill.exists && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">{t('Already exists in Halo')}</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">{t('Already exists in DevX')}</p>
                     )}
                   </div>
                   <select
@@ -467,7 +467,7 @@ function CLIConfigSectionInner() {
         ) : undefined}
       >
         <p className="text-xs text-muted-foreground">
-          {t('Import MCP server configurations from your Claude CLI (~/.claude.json) into Halo\'s MCP settings.')}
+          {t('Import MCP server configurations from your Claude CLI (~/.claude.json) into DevX\'s MCP settings.')}
         </p>
 
         {(mcpMigration.phase === 'idle' || mcpMigration.phase === 'error') && (
@@ -506,7 +506,7 @@ function CLIConfigSectionInner() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-mono font-medium truncate">{s.name}</p>
                     {s.exists && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400">{t('Already exists in Halo')}</p>
+                      <p className="text-xs text-amber-600 dark:text-amber-400">{t('Already exists in DevX')}</p>
                     )}
                   </div>
                   <select
@@ -580,11 +580,11 @@ function CLIConfigSectionInner() {
               <p className="font-semibold">{t('High Risk: Shared Config')}</p>
             </div>
             <p className="text-sm text-muted-foreground">
-              {t('Using Claude CLI\'s default directory means Halo and your standalone Claude CLI will share the same skills, settings, and MCP config.')}
+              {t('Using Claude CLI\'s default directory means DevX and your standalone Claude CLI will share the same skills, settings, and MCP config.')}
             </p>
             <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-4">
-              <li>{t('Changes made by Claude CLI will immediately affect Halo')}</li>
-              <li>{t('Skills installed in Halo will appear in Claude CLI')}</li>
+              <li>{t('Changes made by Claude CLI will immediately affect DevX')}</li>
+              <li>{t('Skills installed in DevX will appear in Claude CLI')}</li>
               <li>{t('MCP server changes are shared bidirectionally')}</li>
               <li>{t('Custom API keys and endpoint URLs will be shared and may be overwritten')}</li>
             </ul>

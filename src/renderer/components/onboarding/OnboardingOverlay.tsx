@@ -18,7 +18,7 @@ const STEP_CONFIGS = {
     targetSelector: '[data-onboarding="halo-space"]',
     tooltipPosition: 'bottom' as const,
     titleKey: 'Start your first conversation',
-    descriptionKey: 'Click to enter Halo space and experience how AI can help you',
+    descriptionKey: 'Click to enter DevX space and experience how AI can help you',
     icon: Sparkles,
     iconColor: 'text-primary',
     buttonText: null, // User must click the target

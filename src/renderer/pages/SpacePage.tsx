@@ -13,7 +13,7 @@
  * - Maximized mode overrides (temporary)
  */
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import { useAppStore } from '../stores/app.store'
 import { useSpaceStore } from '../stores/space.store'
 import { useChatStore } from '../stores/chat.store'
@@ -23,12 +23,13 @@ import { useSearchStore } from '../stores/search.store'
 import { ChatView } from '../components/chat/ChatView'
 import { ArtifactRail } from '../components/artifact/ArtifactRail'
 import { ConversationList } from '../components/chat/ConversationList'
+import { TaskListSidebar } from '../components/tasks/TaskListSidebar'
 import { ChatHistoryPanel } from '../components/chat/ChatHistoryPanel'
 import { Header } from '../components/layout/Header'
 import { SidebarToggle } from '../components/layout/SidebarToggle'
 import { SpaceSelector } from '../components/layout/SpaceSelector'
 import { ModelSelector } from '../components/layout/ModelSelector'
-import { ContentCanvas } from '../components/canvas'
+import { ContentCanvas, CanvasRestoreButton } from '../components/canvas'
 import { GitBashWarningBanner } from '../components/setup/GitBashWarningBanner'
 import { api } from '../api'
 import { useLayoutPreferences } from '../hooks/useLayoutPreferences'
@@ -38,6 +39,7 @@ import { SearchIcon } from '../components/search/SearchIcon'
 import { useSearchShortcuts } from '../hooks/useSearchShortcuts'
 import { useTranslation } from '../i18n'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useTaskStore } from '../stores/task.store'
 import type { LayoutConfig } from '../types'
 
 /** Persist a partial layout update to backend config + sync in-memory store */
@@ -63,6 +65,14 @@ export function SpacePage() {
   const artifactRailWidthConfig = useAppStore(state => state.config?.layout?.artifactRailWidth)
 
   const currentSpace = useSpaceStore(state => state.currentSpace)
+
+  const activeTaskId = useTaskStore(s => s.activeTaskId)
+  const allWorkspaceTasks = useTaskStore(s => s.tasks)
+  const taskFocusMode = useMemo(() => {
+    if (!activeTaskId || !currentSpace) return false
+    const t = allWorkspaceTasks.find(x => x.id === activeTaskId)
+    return !!t && t.spaceId === currentSpace.id
+  }, [activeTaskId, allWorkspaceTasks, currentSpace?.id])
 
   // For mobile ChatHistoryPanel visibility check
   const hasConversations = useChatStore(state => {
@@ -198,9 +208,9 @@ export function SpacePage() {
       await useChatStore.getState().loadConversations(currentSpace.id)
 
       // Preload other spaces' conversations in background for PULSE global visibility
-      const { haloSpace, spaces } = useSpaceStore.getState()
+      const { devxSpace, spaces } = useSpaceStore.getState()
       const allSpaceIds = [
-        ...(haloSpace ? [haloSpace.id] : []),
+        ...(devxSpace ? [devxSpace.id] : []),
         ...spaces.map(s => s.id)
       ].filter(id => id !== currentSpace.id)
       useChatStore.getState().preloadAllSpaceConversations(allSpaceIds)
@@ -211,9 +221,19 @@ export function SpacePage() {
 
       // Consume pending Pulse navigation (cross-space jump from PulseList)
       const pendingNav = store.pendingPulseNavigation
+      const taskSnap = useTaskStore.getState()
+      const activeT =
+        taskSnap.activeTaskId && taskSnap.tasks.find(x => x.id === taskSnap.activeTaskId)
+      const focusTask =
+        activeT && activeT.spaceId === currentSpace.id ? activeT : null
+
       if (pendingNav) {
         useChatStore.setState({ pendingPulseNavigation: null })
         useChatStore.getState().selectConversation(pendingNav)
+      } else if (focusTask) {
+        if (spaceState.currentConversationId !== focusTask.conversationId) {
+          await useChatStore.getState().selectConversation(focusTask.conversationId)
+        }
       } else if (spaceState.conversations.length > 0) {
         // If no conversation selected, select the first one
         if (!spaceState.currentConversationId) {
@@ -325,8 +345,14 @@ export function SpacePage() {
           <>
             {/* Back button */}
             <button
-              onClick={() => setView('home')}
+              type="button"
+              onClick={() => {
+                useTaskStore.getState().clearActiveTask()
+                setView('home')
+              }}
               className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
+              title={t('Back to home')}
+              aria-label={t('Back to home')}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -334,7 +360,7 @@ export function SpacePage() {
             </button>
 
             {/* Space Selector - dropdown for switching spaces (includes icon + name + back) */}
-            <SpaceSelector />
+            <SpaceSelector spaceSwitchLocked={taskFocusMode} />
 
             {/* Mobile: Chat History Panel as bottom sheet */}
             {isMobile && hasConversations && (
@@ -346,17 +372,19 @@ export function SpacePage() {
         }
         right={
           <>
-            {/* New conversation button */}
-            <button
-              onClick={handleNewConversation}
-              className="flex items-center gap-1.5 px-2.5 py-1 text-sm hover:bg-secondary rounded-lg transition-colors"
-              title={t('New conversation')}
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="hidden sm:inline">{t('New conversation')}</span>
-            </button>
+            {/* New conversation — hidden in task focus mode (left rail is tasks) */}
+            {!taskFocusMode && (
+              <button
+                onClick={handleNewConversation}
+                className="flex items-center gap-1.5 px-2.5 py-1 text-sm hover:bg-secondary rounded-lg transition-colors"
+                title={t('New conversation')}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                <span className="hidden sm:inline">{t('New conversation')}</span>
+              </button>
+            )}
 
             {/* Search Icon - hidden on mobile, accessible via shortcut */}
             <div className="hidden sm:block">
@@ -394,10 +422,17 @@ export function SpacePage() {
         {/* Conversation list sidebar - CSS hidden when collapsed or maximized, unmounted on mobile */}
         {!isMobile && (
           <div style={{ display: showConversationList && !isCanvasMaximized ? 'flex' : 'none' }}>
-            <ConversationList
-              onClose={handleToggleConversationList}
-              visible={showConversationList && !isCanvasMaximized}
-            />
+            {taskFocusMode ? (
+              <TaskListSidebar
+                onClose={handleToggleConversationList}
+                visible={showConversationList && !isCanvasMaximized}
+              />
+            ) : (
+              <ConversationList
+                onClose={handleToggleConversationList}
+                visible={showConversationList && !isCanvasMaximized}
+              />
+            )}
           </div>
         )}
 
@@ -419,7 +454,12 @@ export function SpacePage() {
                   maxWidth: isCanvasOpen ? chatWidthMax : undefined,
                 }}
               >
-                <ChatView isCompact={isCanvasOpen} />
+                <ChatView isCompact={isCanvasOpen} isTaskFocusComposer={taskFocusMode} />
+
+                {/* Restore editor when canvas collapsed (desktop — was missing; must sit above ChatView stack) */}
+                <div className="absolute top-2 right-2 z-[100] pointer-events-auto">
+                  <CanvasRestoreButton />
+                </div>
 
                 {/* Floating sidebar toggle - shows when sidebar is closed */}
                 {!showConversationList && (
@@ -462,8 +502,11 @@ export function SpacePage() {
 
         {/* Mobile Layout */}
         {isMobile && (
-          <div className="flex-1 flex flex-col min-w-0">
-            <ChatView isCompact={false} />
+          <div className="flex-1 flex flex-col min-w-0 relative">
+            <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] right-3 z-[100] pointer-events-auto">
+              <CanvasRestoreButton />
+            </div>
+            <ChatView isCompact={false} isTaskFocusComposer={taskFocusMode} />
           </div>
         )}
 

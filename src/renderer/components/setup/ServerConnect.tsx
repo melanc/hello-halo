@@ -142,7 +142,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
       }
     } catch (err) {
       console.error('[ServerConnect] Connection failed:', err)
-      setError(t('Cannot connect to server. Check the address and make sure Halo is running.'))
+      setError(t('Cannot connect to server. Check the address and make sure DevX is running.'))
     } finally {
       setIsConnecting(false)
     }
@@ -327,11 +327,11 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
 
         {/* Logo / Brand */}
         <div className="mb-8 flex flex-col items-center">
-          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/40 flex items-center justify-center mb-4 halo-breathe">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full border-2 border-primary/40 flex items-center justify-center mb-4 devx-breathe">
             <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-primary/20" />
           </div>
           <h1 className="text-xl sm:text-2xl font-semibold text-foreground">
-            Halo
+            {t('DevX')}
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             {onBack ? t('Add a new device') : t('Connect to your desktop')}
@@ -358,7 +358,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
               </button>
             </div>
             <p className="text-center text-sm text-muted-foreground mt-4">
-              {t('Point your camera at the QR code on your desktop Halo')}
+              {t('Point your camera at the QR code on your desktop DevX')}
             </p>
           </div>
         )}
@@ -389,7 +389,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
                 />
               </div>
               <p className="text-xs text-muted-foreground mt-1.5">
-                {t('Find this in Halo desktop → Settings → Remote Access')}
+                {t('Find this in DevX desktop → Settings → Remote Access')}
               </p>
             </div>
 
@@ -430,7 +430,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
           <div className="w-full max-w-sm space-y-4 animate-fade-in">
             {/* Connection status */}
             <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-card border border-border">
-              <div className="w-2 h-2 rounded-full bg-halo-success" />
+              <div className="w-2 h-2 rounded-full bg-devx-success" />
               <span className="text-sm text-foreground truncate flex-1">{serverUrl}</span>
               <button
                 onClick={() => {
@@ -465,7 +465,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
                 className="w-full px-4 py-3 rounded-lg bg-card border border-border text-foreground text-center text-2xl tracking-[0.5em] font-mono placeholder:text-muted-foreground/30 placeholder:tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/50"
               />
               <p className="text-xs text-muted-foreground mt-1.5">
-                {t('Enter the 6-digit code shown on your desktop Halo')}
+                {t('Enter the 6-digit code shown on your desktop DevX')}
               </p>
             </div>
 
@@ -497,7 +497,7 @@ export function ServerConnect({ onServerAdded, onBack }: ServerConnectProps) {
       {/* Footer */}
       <div className="px-6 pb-6 text-center">
         <p className="text-xs text-muted-foreground/50">
-          {t('Make sure Halo is running on your computer with Remote Access enabled')}
+          {t('Make sure DevX is running on your computer with Remote Access enabled')}
         </p>
       </div>
     </div>

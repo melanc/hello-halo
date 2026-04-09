@@ -23,7 +23,7 @@ import {
 import type {
   AISource,
   AISourcesConfig,
-  HaloConfig,
+  DevXConfig,
   ProviderId
 } from '../../types'
 import { getBuiltinProvider, isOAuthProvider as isOAuthProviderFn } from '../../types'
@@ -94,8 +94,8 @@ function hexToRgba(hex: string, alpha: number = 0.15): string {
 }
 
 interface AISourcesSectionProps {
-  config: HaloConfig
-  setConfig: (config: HaloConfig) => void
+  config: DevXConfig
+  setConfig: (config: DevXConfig) => void
 }
 
 // OAuth login state
@@ -188,7 +188,7 @@ export function AISourcesSection({ config, setConfig }: AISourcesSectionProps) {
   const reloadConfig = async () => {
     const result = await api.getConfig()
     if (result.success && result.data) {
-      setConfig(result.data as HaloConfig)
+      setConfig(result.data as DevXConfig)
     }
   }
 

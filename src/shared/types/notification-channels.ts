@@ -132,7 +132,7 @@ export interface ImChannelsConfig {
 // Aggregate Config
 // ============================================
 
-/** All notification channels configuration — stored in HaloConfig */
+/** All notification channels configuration — stored in DevXConfig */
 export interface NotificationChannelsConfig {
   email?: EmailChannelConfig
   wecom?: WecomChannelConfig

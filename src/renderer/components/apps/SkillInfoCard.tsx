@@ -94,7 +94,7 @@ export function SkillInfoCard({ appId, spaceName }: SkillInfoCardProps) {
   const { t } = useTranslation()
   const { apps, pauseApp, resumeApp, uninstallApp, updateAppSpec, moveAppToSpace } = useAppsStore()
   const spaces    = useSpaceStore(s => s.spaces)
-  const haloSpace = useSpaceStore(s => s.haloSpace)
+  const devxSpace = useSpaceStore(s => s.devxSpace)
   const app = apps.find(a => a.id === appId)
 
   const [toggling, setToggling]         = useState(false)
@@ -144,10 +144,10 @@ export function SkillInfoCard({ appId, spaceName }: SkillInfoCardProps) {
   const hasSkillContent = skillContent.length > 0
 
   // Build the ordered space list for the selector.
-  // haloSpace (the primary Halo workspace) is shown first, then dedicated spaces.
+  // devxSpace (the primary Halo workspace) is shown first, then dedicated spaces.
   const allSpaces = [
-    ...(haloSpace ? [haloSpace] : []),
-    ...spaces.filter(s => !haloSpace || s.id !== haloSpace.id),
+    ...(devxSpace ? [devxSpace] : []),
+    ...spaces.filter(s => !devxSpace || s.id !== devxSpace.id),
   ]
 
   // ── Handlers ──────────────────────────────

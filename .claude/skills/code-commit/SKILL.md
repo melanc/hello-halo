@@ -44,7 +44,7 @@ Ensure the code is suitable for an internationalized, open-source project:
 Format:
 
 ```
-<type>: #AI commit# <concise description>. collaboration and commit by halo
+<type>: #AI commit# <concise description>. collaboration and commit by devx
 ```
 
 **Supported types:**
@@ -63,8 +63,8 @@ Format:
 **Examples:**
 
 ```bash
-git commit -m "feat: #AI commit# add user authentication module. collaboration and commit by halo"
-git commit -m "fix: #AI commit# resolve memory leak in event listener. collaboration and commit by halo"
+git commit -m "feat: #AI commit# add user authentication module. collaboration and commit by devx"
+git commit -m "fix: #AI commit# resolve memory leak in event listener. collaboration and commit by devx"
 ```
 
 ### 4. Execute Commit

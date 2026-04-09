@@ -51,6 +51,7 @@ import { registerWecomBotHandlers } from '../ipc/wecom-bot'
 import { registerImSessionHandlers } from '../ipc/im-sessions'
 import { registerStoreHandlers } from '../ipc/store'
 import { registerCliConfigHandlers } from '../ipc/cli-config'
+import { registerOfflineSpeechHandlers } from '../ipc/offline-speech'
 import { initRegistryService, shutdownRegistryService } from '../store'
 
 // Module-level reference to db for cleanup
@@ -186,6 +187,9 @@ export function initializeExtendedServices(): void {
 
   // CLI Config: IPC handlers for Claude CLI config dir + migration
   registerCliConfigHandlers()
+
+  // Offline speech (whisper.cpp) status + transcribe + file picker
+  registerOfflineSpeechHandlers()
 
   // Windows-specific: Initialize Git Bash in background
   if (process.platform === 'win32') {

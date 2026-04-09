@@ -200,7 +200,7 @@ async function processFileListAsFolder(fileList: FileList): Promise<ParsedSkill>
   let folderName = ''
 
   for (const file of Array.from(fileList)) {
-    const relPath = file.webkitRelativePath // e.g. "halo-dev/SKILL.md"
+    const relPath = file.webkitRelativePath // e.g. "devx-dev/SKILL.md"
     const parts = relPath.split('/')
     if (parts.length < 2) continue
     if (!folderName) folderName = parts[0]
@@ -252,7 +252,7 @@ async function processZipFile(file: File): Promise<ParsedSkill> {
     throw new Error('ZIP archive is empty.')
   }
 
-  // Detect a single common top-level folder (e.g. "halo-dev/")
+  // Detect a single common top-level folder (e.g. "devx-dev/")
   const topDirs = new Set(
     Object.keys(rawFiles)
       .map(p => p.split('/')[0])
@@ -547,7 +547,7 @@ export function SkillInstallDialog({ onClose }: SkillInstallDialogProps) {
 
   // Spaces
   const currentSpace = useSpaceStore(state => state.currentSpace)
-  const haloSpace = useSpaceStore(state => state.haloSpace)
+  const devxSpace = useSpaceStore(state => state.devxSpace)
   const spaces = useSpaceStore(state => state.spaces)
 
   // All spaces, plus a sentinel '' = global
@@ -555,10 +555,10 @@ export function SkillInstallDialog({ onClose }: SkillInstallDialogProps) {
     const result: Array<{ id: string; name: string }> = [
       { id: '', name: t('Global (all spaces)') },
     ]
-    if (haloSpace) result.push({ id: haloSpace.id, name: haloSpace.name })
+    if (devxSpace) result.push({ id: devxSpace.id, name: devxSpace.name })
     result.push(...spaces.map(s => ({ id: s.id, name: s.name })))
     return result
-  }, [haloSpace, spaces, t])
+  }, [devxSpace, spaces, t])
 
   // Default: current space if any, else global
   const [selectedSpaceId, setSelectedSpaceId] = useState(currentSpace?.id ?? '')

@@ -11,7 +11,7 @@
 
 import { join } from 'path'
 import { existsSync, readdirSync, readFileSync, statSync } from 'fs'
-import { getTempSpacePath, getHaloDir } from './config.service'
+import { getTempSpacePath, getDevXDir } from './config.service'
 import { getSpace } from './space.service'
 
 /**
@@ -142,7 +142,7 @@ export class SearchService {
       const searchRegex = new RegExp(query, 'gi')
 
       // Get space name
-      let spaceName = data.spaceId === 'halo-temp' ? 'Halo' : data.spaceId
+      let spaceName = data.spaceId === 'halo-temp' ? 'DevX' : data.spaceId
 
       try {
         if (data.spaceId !== 'halo-temp') {
@@ -208,7 +208,7 @@ export class SearchService {
     conversationId?: string,
     spaceId?: string
   ): string[] {
-    const haloDir = getHaloDir()
+    const haloDir = getDevXDir()
     const files: string[] = []
 
     if (scope === 'conversation' && conversationId) {
@@ -294,7 +294,7 @@ export class SearchService {
    * Find conversation file in filesystem
    */
   private findConversationFile(conversationId: string, spaceId?: string): string | null {
-    const haloDir = getHaloDir()
+    const haloDir = getDevXDir()
 
     // If spaceId is provided, search in that space first
     if (spaceId) {

@@ -45,6 +45,12 @@ interface CanvasState {
 
   // Tab Actions (delegate to canvasLifecycle)
   openFile: (path: string, title?: string) => Promise<void>
+  openGitDiffTab: (
+    fileName: string,
+    oldString: string,
+    newString: string,
+    isBinary: boolean
+  ) => Promise<string>
   openUrl: (url: string, title?: string) => Promise<void>
   attachAIBrowserView: (viewId: string, url: string, title?: string) => void
   openContent: (content: string, title: string, type: ContentType, language?: string) => void
@@ -124,6 +130,10 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
 
     openFile: async (path: string, title?: string) => {
       await canvasLifecycle.openFile(path, title)
+    },
+
+    openGitDiffTab: async (fileName: string, oldString: string, newString: string, isBinary: boolean) => {
+      return canvasLifecycle.openGitDiffTab(fileName, oldString, newString, isBinary)
     },
 
     openUrl: async (url: string, title?: string) => {

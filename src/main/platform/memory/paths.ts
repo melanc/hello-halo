@@ -15,7 +15,7 @@
  */
 
 import { join, sep } from 'path'
-import { getHaloDir } from '../../services/config.service'
+import { getDevXDir } from '../../services/config.service'
 import type { MemoryCallerScope, MemoryScopeType } from './types'
 
 /** Memory file name (main file for each scope) */
@@ -42,7 +42,7 @@ export function getMemoryBaseDir(caller: MemoryCallerScope, scope: MemoryScopeTy
   switch (scope) {
     case 'user':
       // User memory lives directly in the halo data directory
-      return getHaloDir()
+      return getDevXDir()
 
     case 'space':
       // Space memory lives in the space's .halo directory

@@ -20,7 +20,6 @@ macOS：npm run build:mac（还有 build:mac-x64）
 Windows：npm run build:win / npm run build:win-x64
 Linux：npm run build:linux
 这些脚本会先 bump-rc、再 npm run build、再跑 electron-builder。发布相关还有 release、release:mac 等。
-
 4. 移动端（Capacitor）
 先构建 Web 资源：npm run build:mobile
 同步到原生工程：npm run cap:sync

@@ -21,7 +21,7 @@ import {
 import { useTranslation } from '../../i18n'
 import { api } from '../../api'
 import { useAppsStore } from '../../stores/apps.store'
-import type { HaloConfig } from '../../types'
+import type { DevXConfig } from '../../types'
 import { NOTIFICATION_CHANNEL_META } from '../../../shared/types/notification-channels'
 import type {
   NotificationChannelType,
@@ -33,8 +33,8 @@ import type {
 // ============================================
 
 interface MessageChannelsSectionProps {
-  config: HaloConfig | null
-  setConfig: (config: HaloConfig) => void
+  config: DevXConfig | null
+  setConfig: (config: DevXConfig) => void
 }
 
 interface TestResult {
@@ -576,7 +576,7 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
       const updatedConfig = {
         ...config,
         wecomBot: channelConfig,
-      } as HaloConfig
+      } as DevXConfig
       try {
         await api.setConfig({ wecomBot: updatedConfig.wecomBot })
         setConfig(updatedConfig)
@@ -591,7 +591,7 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
           ...config.notificationChannels,
           [def.notifyType]: channelConfig,
         },
-      } as HaloConfig
+      } as DevXConfig
       try {
         await api.setConfig({ notificationChannels: updatedConfig.notificationChannels })
         setConfig(updatedConfig)
@@ -632,7 +632,7 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
     const imChannels = { ...config.imChannels, defaultAppId: appId || undefined }
     try {
       await api.setConfig({ imChannels })
-      setConfig({ ...config, imChannels } as HaloConfig)
+      setConfig({ ...config, imChannels } as DevXConfig)
     } catch (error) {
       console.error('[MessageChannelsSection] Failed to save default app:', error)
     }

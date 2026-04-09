@@ -53,6 +53,12 @@ export function useCanvasLifecycle() {
     []
   )
 
+  const openGitDiffTab = useCallback(
+    (fileName: string, oldString: string, newString: string, isBinary: boolean) =>
+      canvasLifecycle.openGitDiffTab(fileName, oldString, newString, isBinary),
+    []
+  )
+
   const openUrl = useCallback(
     (url: string, title?: string) => canvasLifecycle.openUrl(url, title),
     []
@@ -166,6 +172,7 @@ export function useCanvasLifecycle() {
 
     // Tab Actions
     openFile,
+    openGitDiffTab,
     openUrl,
     attachAIBrowserView,
     openContent,

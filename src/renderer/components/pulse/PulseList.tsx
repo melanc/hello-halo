@@ -46,8 +46,8 @@ export function navigateToConversation(spaceId: string, conversationId: string) 
 
   // Different space - switch space first
   const spaceStore = useSpaceStore.getState()
-  const targetSpace = spaceStore.haloSpace?.id === spaceId
-    ? spaceStore.haloSpace
+  const targetSpace = spaceStore.devxSpace?.id === spaceId
+    ? spaceStore.devxSpace
     : spaceStore.spaces.find(s => s.id === spaceId)
 
   if (!targetSpace) return
@@ -72,19 +72,19 @@ interface PulseListProps {
 export function PulseList({ maxHeight, onItemClick, compact = false }: PulseListProps) {
   const { t } = useTranslation()
   const rawItems = usePulseItems()
-  const haloSpace = useSpaceStore(state => state.haloSpace)
+  const devxSpace = useSpaceStore(state => state.devxSpace)
   const spaces = useSpaceStore(state => state.spaces)
 
   // Enrich items with proper space names from space store
   const items = useMemo(() => {
     return rawItems.map(item => {
       if (item.spaceName !== item.spaceId) return item
-      const space = haloSpace?.id === item.spaceId
-        ? haloSpace
+      const space = devxSpace?.id === item.spaceId
+        ? devxSpace
         : spaces.find(s => s.id === item.spaceId)
-      return space ? { ...item, spaceName: space.isTemp ? 'Halo' : space.name } : item
+      return space ? { ...item, spaceName: space.isTemp ? t('DevX') : space.name } : item
     })
-  }, [rawItems, haloSpace, spaces])
+  }, [rawItems, devxSpace, spaces, t])
 
   const handleItemClick = useCallback((item: PulseItem) => {
     navigateToConversation(item.spaceId, item.conversationId)

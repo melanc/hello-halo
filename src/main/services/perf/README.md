@@ -6,8 +6,8 @@ Real-time performance monitoring for main and renderer processes.
 
 ```javascript
 // In renderer DevTools Console
-await window.halo.perfStart()   // Start monitoring
-await window.halo.perfStop()    // Stop monitoring
+await window.devx.perfStart()   // Start monitoring
+await window.devx.perfStop()    // Stop monitoring
 ```
 
 ## Output
@@ -34,7 +34,7 @@ await window.halo.perfStop()    // Stop monitoring
 ## Options
 
 ```javascript
-await window.halo.perfStart({
+await window.devx.perfStart({
   sampleInterval: 2000,    // Sample interval (ms)
   warnOnThreshold: true    // Warn when threshold exceeded
 })
@@ -43,7 +43,7 @@ await window.halo.perfStart({
 ## Other APIs
 
 ```javascript
-await window.halo.perfGetState()     // Get current state
-await window.halo.perfClearHistory() // Clear history
-await window.halo.perfExport()       // Export as JSON
+await window.devx.perfGetState()     // Get current state
+await window.devx.perfClearHistory() // Clear history
+await window.devx.perfExport()       // Export as JSON
 ```

@@ -39,6 +39,7 @@ import { createAIBrowserMcpServer, createScopedBrowserContext } from '../../serv
 import type { BrowserContext } from '../../services/ai-browser/context'
 import { processStream } from '../../services/agent/stream-processor'
 import { buildMessageContent } from '../../services/agent/message-utils'
+import { normalizeArtifactRefsForAgent } from '../../../shared/chat-artifact-refs'
 import {
   getOrCreateV2Session,
   closeV2Session,
@@ -314,7 +315,7 @@ export async function sendAppChatMessage(
     }
 
     // ── 8. Process stream ──────────────────────────────
-    const messageContent = buildMessageContent(message, images)
+    const messageContent = buildMessageContent(normalizeArtifactRefsForAgent(message), images)
 
     await processStream({
       v2Session,

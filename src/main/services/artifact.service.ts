@@ -37,7 +37,7 @@ const GIT_EXEC_OPTS = {
 } as const
 
 /** Allowed git subcommands from the artifact tree context menu (validated server-side). */
-export type GitArtifactAction = 'status' | 'add' | 'pull' | 'push' | 'diff'
+export type GitArtifactAction = 'status' | 'add' | 'pull' | 'pull-rebase' | 'push' | 'diff'
 
 export interface GitArtifactCommandResult {
   ok: boolean
@@ -101,6 +101,12 @@ export async function runGitArtifactCommand(
         stderr = r.stderr.toString()
         break
       }
+      case 'pull-rebase': {
+        const r = await execFileAsync('git', ['-C', toplevel, 'pull', '--rebase'], GIT_EXEC_OPTS)
+        stdout = r.stdout.toString()
+        stderr = r.stderr.toString()
+        break
+      }
       case 'push': {
         const r = await execFileAsync('git', ['-C', toplevel, 'push'], GIT_EXEC_OPTS)
         stdout = r.stdout.toString()
@@ -145,6 +151,11 @@ export interface Artifact {
   createdAt: string
   preview?: string
   size?: number
+}
+
+/** Workspace root for a space — used by artifacts, Git panel, and path validation. */
+export function getArtifactWorkspaceRoot(spaceId: string): string {
+  return getWorkingDir(spaceId)
 }
 
 // Get working directory for a space

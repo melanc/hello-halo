@@ -89,7 +89,7 @@ export function notifyTaskComplete(conversationTitle: string): void {
   try {
     const mainWindow = getMainWindow()
     const notification = new Notification({
-      title: 'Halo',
+      title: 'DevX',
       body: `Task complete: ${conversationTitle}`,
       silent: false
     })

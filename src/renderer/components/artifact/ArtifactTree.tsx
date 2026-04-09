@@ -29,6 +29,10 @@ import {
   FolderOpen,
   Copy,
   GitBranch,
+  ListPlus,
+  ListMinus,
+  LayoutGrid,
+  ListFilter,
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { canOpenInCanvas } from '../../constants/file-types'
@@ -36,11 +40,18 @@ import { ContextMenu, type ContextMenuItem } from '../ui/ContextMenu'
 import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 import { useNotificationStore } from '../../stores/notification.store'
 import { useFileOperations } from '../../hooks/useFileOperations'
+import { useTaskStore } from '../../stores/task.store'
 
 // Context to pass openFile function to tree nodes without each node subscribing to store
 type OpenFileFn = (path: string, title?: string) => Promise<void>
 const OpenFileContext = createContext<OpenFileFn | null>(null)
 const SpaceIdContext = createContext<string>('')
+
+/** Top-level project names in scope for the active task — null = no task highlighting */
+const TaskFileTreeContext = createContext<Set<string> | null>(null)
+
+/** True when task has no folders added via "add to task" and the tree is showing all workspace roots — dim every row */
+const TaskDimAllWorkspaceRootsContext = createContext(false)
 
 const isWebMode = api.isRemoteMode()
 
@@ -69,6 +80,19 @@ function isDimmed(name: string): boolean {
 
 interface ArtifactTreeProps {
   spaceId: string
+  /**
+   * Workspace top-level folder names that belong to the active task (projectDirs + touched).
+   * When non-null (including empty Set), the rail is in task file mode: filter toggle + dimming rules apply.
+   */
+  taskProjectRootSet?: Set<string> | null
+  /** Stable id for the focused task session — used to reset default filter when switching tasks. */
+  taskFocusSessionId?: string | null
+  /** True if the focused task has no entries in projectDirs (nothing explicitly added to the task). */
+  taskNoExplicitProjectDirs?: boolean
+  /** Onboarding: spotlight target on this file name (matches `data-onboarding="artifact-card"`) */
+  onboardingHighlightFileName?: string
+  /** Called after the highlighted file is opened (e.g. complete onboarding) */
+  onboardingArtifactActivate?: () => void
 }
 
 // Fixed offsets for tree height calculation (in pixels)
@@ -97,12 +121,60 @@ function getParentPath(filePath: string): string {
   return lastSep > 0 ? filePath.substring(0, lastSep) : filePath
 }
 
+function topLevelWorkspaceName(n: ArtifactTreeNode): string {
+  return (n.name || n.relativePath?.split(/[/\\]/).filter(Boolean)[0] || '').trim()
+}
+
+/** Root insert index in full root list when the tree UI shows only task roots (react-arborist index is scoped to visible roots). */
+function resolveRootInsertIndexInFullList(
+  fullRoots: ArtifactTreeNode[],
+  visibleInsertIndex: number,
+  taskSet: Set<string>
+): number {
+  const indices: number[] = []
+  for (let i = 0; i < fullRoots.length; i++) {
+    const top = topLevelWorkspaceName(fullRoots[i])
+    if (top && taskSet.has(top)) indices.push(i)
+  }
+  if (indices.length === 0) return Math.min(visibleInsertIndex, fullRoots.length)
+  if (visibleInsertIndex <= 0) return indices[0]
+  if (visibleInsertIndex >= indices.length) return indices[indices.length - 1] + 1
+  return indices[visibleInsertIndex]
+}
+
+/** Put workspace root entries that belong to the active task first (name matches task project roots). */
+function sortRootNodesByTaskProjects(
+  nodes: ArtifactTreeNode[],
+  taskRootSet: Set<string> | null
+): ArtifactTreeNode[] {
+  if (!taskRootSet || taskRootSet.size === 0 || nodes.length <= 1) return nodes
+  const inTask: ArtifactTreeNode[] = []
+  const rest: ArtifactTreeNode[] = []
+  for (const n of nodes) {
+    const top = topLevelWorkspaceName(n)
+    if (top && taskRootSet.has(top)) inTask.push(n)
+    else rest.push(n)
+  }
+  if (inTask.length === 0) return nodes
+  const cmp = (a: ArtifactTreeNode, b: ArtifactTreeNode) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+  inTask.sort(cmp)
+  rest.sort(cmp)
+  return [...inTask, ...rest]
+}
+
 // Context for lazy loading children
 interface LazyLoadContextType {
   loadChildren: (path: string) => Promise<void>
   loadingPaths: Set<string>
 }
 const LazyLoadContext = createContext<LazyLoadContextType | null>(null)
+
+interface OnboardingTreeContextType {
+  highlightFileName: string | null
+  onActivate: (() => void) | null
+}
+const OnboardingTreeContext = createContext<OnboardingTreeContextType | null>(null)
 
 // ============================================
 // Index helpers — maintain Map<path, node> for O(1) lookup
@@ -166,8 +238,52 @@ function mergeChildren(
 // ArtifactTree component
 // ============================================
 
-export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
+export function ArtifactTree({
+  spaceId,
+  taskProjectRootSet,
+  taskFocusSessionId = null,
+  taskNoExplicitProjectDirs = false,
+  onboardingHighlightFileName,
+  onboardingArtifactActivate,
+}: ArtifactTreeProps) {
   const { t } = useTranslation()
+  /** null = not in task file mode; Set (possibly empty) = task session active */
+  const effectiveTaskRootSet = useMemo(
+    () => (taskProjectRootSet != null ? taskProjectRootSet : null),
+    [taskProjectRootSet]
+  )
+  const effectiveTaskRootSetRef = useRef(effectiveTaskRootSet)
+  effectiveTaskRootSetRef.current = effectiveTaskRootSet
+  const [showAllSpaceProjects, setShowAllSpaceProjects] = useState(false)
+  const showAllSpaceProjectsRef = useRef(showAllSpaceProjects)
+  showAllSpaceProjectsRef.current = showAllSpaceProjects
+
+  const prevTaskFocusIdRef = useRef<string | null>(null)
+  const prevTaskRootSizeRef = useRef<number>(-1)
+
+  useEffect(() => {
+    if (taskFocusSessionId == null || effectiveTaskRootSet == null) {
+      prevTaskFocusIdRef.current = null
+      prevTaskRootSizeRef.current = -1
+      setShowAllSpaceProjects(false)
+      return
+    }
+    const sz = effectiveTaskRootSet.size
+    if (prevTaskFocusIdRef.current !== taskFocusSessionId) {
+      prevTaskFocusIdRef.current = taskFocusSessionId
+      prevTaskRootSizeRef.current = sz
+      setShowAllSpaceProjects(sz === 0)
+      return
+    }
+    const prev = prevTaskRootSizeRef.current
+    prevTaskRootSizeRef.current = sz
+    if (prev === 0 && sz > 0) {
+      setShowAllSpaceProjects(false)
+    } else if (prev > 0 && sz === 0) {
+      setShowAllSpaceProjects(true)
+    }
+  }, [taskFocusSessionId, effectiveTaskRootSet])
+
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set())
   const treeHeight = useTreeHeight()
   const watcherInitialized = useRef(false)
@@ -208,9 +324,10 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
       if (response.success && response.data) {
         const { workspaceRoot, nodes } = response.data as { workspaceRoot: string; nodes: ArtifactTreeNode[] }
         workspaceRootRef.current = workspaceRoot
-        treeDataRef.current = nodes
+        const sortedRoot = sortRootNodesByTaskProjects(nodes, effectiveTaskRootSetRef.current)
+        treeDataRef.current = sortedRoot
         nodeIndex.current.clear()
-        indexNodes(nodes, nodeIndex.current)
+        indexNodes(sortedRoot, nodeIndex.current)
         setRevision(r => r + 1)
       } else {
         console.warn('[ArtifactTree] loadTree: response not successful or no data', response)
@@ -251,7 +368,14 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
       parentNode.data.children.splice(index, 0, tempNode)
       parentNode.data.childrenLoaded = true
     } else {
-      treeDataRef.current.splice(index, 0, tempNode)
+      const taskSet = effectiveTaskRootSetRef.current
+      const showAll = showAllSpaceProjectsRef.current
+      if (taskSet && taskSet.size > 0 && !showAll) {
+        const pos = resolveRootInsertIndexInFullList(treeDataRef.current, index, taskSet)
+        treeDataRef.current.splice(pos, 0, tempNode)
+      } else {
+        treeDataRef.current.splice(index, 0, tempNode)
+      }
     }
 
     nodeIndex.current.set(tempNode.path, tempNode)
@@ -549,7 +673,13 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
         const isRoot = treeDataRef.current.length > 0 &&
           treeDataRef.current.some(n => getParentPath(n.path) === dirPath)
         if (isRoot || treeDataRef.current.length === 0) {
-          treeDataRef.current = mergeChildren(incomingChildren, treeDataRef.current, nodeIndex.current, recentlyCreatedPaths.current)
+          const merged = mergeChildren(
+            incomingChildren,
+            treeDataRef.current,
+            nodeIndex.current,
+            recentlyCreatedPaths.current
+          )
+          treeDataRef.current = sortRootNodesByTaskProjects(merged, effectiveTaskRootSetRef.current)
         }
         // Else: untracked directory — loaded on first expand
       }
@@ -580,6 +710,18 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     loadTree()
   }, [loadTree])
 
+  // Re-order root when task project set changes (e.g. add-to-task) without full tree reload
+  useEffect(() => {
+    if (!hasLoaded || treeDataRef.current.length === 0) return
+    const sorted = sortRootNodesByTaskProjects(treeDataRef.current, effectiveTaskRootSetRef.current)
+    const unchanged =
+      sorted.length === treeDataRef.current.length &&
+      sorted.every((n, i) => n === treeDataRef.current[i])
+    if (unchanged) return
+    treeDataRef.current = sorted
+    setRevision((r) => r + 1)
+  }, [effectiveTaskRootSet, hasLoaded])
+
   // Cleanup all pending timeouts on unmount
   useEffect(() => {
     return () => {
@@ -606,19 +748,71 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
     }
   }, [revision])
 
-  // New shallow root array only when revision changes — internal nodes are same (mutated) objects
+  // Full workspace roots (authoritative); filtering only affects what we pass to react-arborist
   const treeData = useMemo(() => [...treeDataRef.current], [revision])
+
+  const displayedRoots = useMemo(() => {
+    const full = treeDataRef.current
+    const taskSet = effectiveTaskRootSet
+    if (!taskSet) {
+      return [...full]
+    }
+    if (taskSet.size === 0 || showAllSpaceProjects) {
+      return [...full]
+    }
+    return full.filter((n) => {
+      const top = topLevelWorkspaceName(n)
+      return top && taskSet.has(top)
+    })
+  }, [revision, showAllSpaceProjects, effectiveTaskRootSet])
+
+  const taskScopeForDimming =
+    effectiveTaskRootSet && effectiveTaskRootSet.size > 0 && showAllSpaceProjects
+      ? effectiveTaskRootSet
+      : null
+
+  const dimAllWorkspaceRoots = useMemo(() => {
+    if (effectiveTaskRootSet == null || !taskNoExplicitProjectDirs) return false
+    return effectiveTaskRootSet.size === 0 || showAllSpaceProjects
+  }, [effectiveTaskRootSet, taskNoExplicitProjectDirs, showAllSpaceProjects])
 
   const lazyLoadValue = useMemo(() => ({
     loadChildren,
     loadingPaths
   }), [loadChildren, loadingPaths])
 
+  const onboardingTreeValue = useMemo<OnboardingTreeContextType | null>(() => {
+    if (!onboardingHighlightFileName || !onboardingArtifactActivate) return null
+    return {
+      highlightFileName: onboardingHighlightFileName,
+      onActivate: onboardingArtifactActivate,
+    }
+  }, [onboardingHighlightFileName, onboardingArtifactActivate])
+
+  const fullRootCount = treeData.length
+
   // Three-state empty check: loading → show nothing; loaded & empty → "No files"
-  if (treeData.length === 0) {
+  if (displayedRoots.length === 0) {
     if (!hasLoaded) {
       // Still loading — render empty container to avoid "No files" flash
       return null
+    }
+    if (fullRootCount > 0 && effectiveTaskRootSet && effectiveTaskRootSet.size > 0 && !showAllSpaceProjects) {
+      return (
+        <div className="flex flex-col items-center justify-center h-full text-center px-2">
+          <div className="w-10 h-10 rounded-lg border border-dashed border-muted-foreground/30 flex items-center justify-center mb-2">
+            <FolderOpen className="w-5 h-5 text-muted-foreground/40" />
+          </div>
+          <p className="text-xs text-muted-foreground">{t('No folders match this task yet')}</p>
+          <button
+            type="button"
+            onClick={() => setShowAllSpaceProjects(true)}
+            className="mt-3 text-[11px] text-primary hover:underline"
+          >
+            {t('Show all workspace folders')}
+          </button>
+        </div>
+      )
     }
     return (
       <div className="flex flex-col items-center justify-center h-full text-center px-2">
@@ -631,8 +825,11 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
   }
 
   return (
+    <TaskDimAllWorkspaceRootsContext.Provider value={dimAllWorkspaceRoots}>
+    <TaskFileTreeContext.Provider value={taskScopeForDimming}>
     <OpenFileContext.Provider value={openFile}>
       <SpaceIdContext.Provider value={spaceId}>
+      <OnboardingTreeContext.Provider value={onboardingTreeValue}>
       <LazyLoadContext.Provider value={lazyLoadValue}>
         <div ref={containerRef} tabIndex={-1} className="flex flex-col h-full outline-none">
           {/* Override react-arborist focus-visible styles */}
@@ -646,9 +843,36 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
           <div className="flex-shrink-0 bg-card px-2 py-1.5 border-b border-border/50">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground/80 [.light_&]:text-muted-foreground uppercase tracking-wider">
-                {t('Files')}
+                {t('File navigation bar')}
               </span>
-              <div className="flex gap-1">
+              <div className="flex gap-1 items-center">
+                {effectiveTaskRootSet != null ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllSpaceProjects((v) => !v)}
+                    className={`
+                      p-1 rounded transition-colors
+                      ${showAllSpaceProjects ? 'bg-secondary/80 text-primary' : 'hover:bg-secondary/60 text-muted-foreground hover:text-foreground'}
+                    `}
+                    title={
+                      showAllSpaceProjects
+                        ? t('Show only task folders')
+                        : t('Show all workspace folders')
+                    }
+                    aria-label={
+                      showAllSpaceProjects
+                        ? t('Show only task folders')
+                        : t('Show all workspace folders')
+                    }
+                    aria-pressed={showAllSpaceProjects}
+                  >
+                    {showAllSpaceProjects ? (
+                      <ListFilter className="w-3.5 h-3.5" aria-hidden />
+                    ) : (
+                      <LayoutGrid className="w-3.5 h-3.5" aria-hidden />
+                    )}
+                  </button>
+                ) : null}
                 <button 
                   onClick={handleNewFile}
                   className="p-1 hover:bg-secondary/60 rounded transition-colors"
@@ -671,7 +895,7 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
           <div className="flex-1 overflow-hidden">
             <Tree<ArtifactTreeNode>
               ref={treeRef}
-              data={treeData}
+              data={displayedRoots}
               openByDefault={false}
               width="100%"
               height={treeHeight}
@@ -696,8 +920,11 @@ export function ArtifactTree({ spaceId }: ArtifactTreeProps) {
         {/* Confirmation dialog */}
         {DialogComponent}
       </LazyLoadContext.Provider>
+      </OnboardingTreeContext.Provider>
       </SpaceIdContext.Provider>
     </OpenFileContext.Provider>
+    </TaskFileTreeContext.Provider>
+    </TaskDimAllWorkspaceRootsContext.Provider>
   )
 }
 
@@ -908,7 +1135,16 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
   const openFile = useContext(OpenFileContext)
   const spaceId = useContext(SpaceIdContext)
   const lazyLoad = useContext(LazyLoadContext)
+  const taskRootSet = useContext(TaskFileTreeContext)
+  const dimAllWorkspaceRoots = useContext(TaskDimAllWorkspaceRootsContext)
+  const onboardingTree = useContext(OnboardingTreeContext)
+  const activeTaskRow = useTaskStore((s) => {
+    const id = s.activeTaskId
+    if (!id) return null
+    return s.tasks.find((x) => x.id === id) ?? null
+  })
   const data = node.data
+  const topSeg = data.relativePath.split(/[/\\]/).filter(Boolean)[0] ?? ''
   const isFolder = data.type === 'folder'
   const isLoading = lazyLoad?.loadingPaths.has(data.path) ?? false
   const dimmed = isDimmed(data.name)
@@ -938,6 +1174,12 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
 
     if (canViewInCanvas && openFile) {
       openFile(data.path, data.name)
+      if (
+        onboardingTree?.highlightFileName === data.name &&
+        onboardingTree.onActivate
+      ) {
+        setTimeout(() => onboardingTree.onActivate?.(), 500)
+      }
       return
     }
 
@@ -950,7 +1192,14 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
         console.error('Failed to open file:', error)
       }
     }
-  }, [node, isFolder, handleToggle, canViewInCanvas, openFile, data.path, data.name])
+    if (
+      !isFolder &&
+      onboardingTree?.highlightFileName === data.name &&
+      onboardingTree.onActivate
+    ) {
+      setTimeout(() => onboardingTree.onActivate?.(), 500)
+    }
+  }, [node, isFolder, handleToggle, canViewInCanvas, openFile, data.path, data.name, onboardingTree])
 
   // Handle double-click to force open with system app
   const handleDoubleClickFile = useCallback(async (e: React.MouseEvent) => {
@@ -1030,6 +1279,24 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
     return <EditingNode node={node} style={style} dragHandle={dragHandle} tree={node.tree} />
   }
 
+  const outOfTaskScope =
+    dimAllWorkspaceRoots || !!(taskRootSet && topSeg && !taskRootSet.has(topSeg))
+  const canAddDirToTask =
+    !isWebMode &&
+    isFolder &&
+    !!topSeg &&
+    !!activeTaskRow &&
+    activeTaskRow.spaceId === spaceId &&
+    !activeTaskRow.projectDirs.includes(topSeg)
+
+  const canRemoveDirFromTask =
+    !isWebMode &&
+    isFolder &&
+    !!topSeg &&
+    !!activeTaskRow &&
+    activeTaskRow.spaceId === spaceId &&
+    activeTaskRow.projectDirs.includes(topSeg)
+
   // Generate context menu items
   const menuItems: ContextMenuItem[] = [
     // New File (only for folders)
@@ -1082,6 +1349,24 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
         )
       }
     },
+    {
+      label: t('添加到任务中'),
+      icon: <ListPlus className="w-4 h-4" />,
+      hidden: !canAddDirToTask,
+      onClick: () => {
+        const id = useTaskStore.getState().activeTaskId
+        if (id && topSeg) useTaskStore.getState().addProjectDirToTask(id, topSeg)
+      },
+    },
+    {
+      label: t('Remove from task'),
+      icon: <ListMinus className="w-4 h-4" />,
+      hidden: !canRemoveDirFromTask,
+      onClick: () => {
+        const id = useTaskStore.getState().activeTaskId
+        if (id && topSeg) useTaskStore.getState().removeProjectDirFromTask(id, topSeg)
+      },
+    },
     // Git (desktop — sub-actions in secondary menu)
     {
       label: t('Git'),
@@ -1092,7 +1377,6 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
         { label: t('Stage'), onClick: () => void runGitAction('add') },
         { label: t('Diff'), onClick: () => void runGitAction('diff') },
         { label: t('Pull'), onClick: () => void runGitAction('pull') },
-        { label: t('Push'), onClick: () => void runGitAction('push') },
       ],
     },
     // Show in Folder (only for desktop mode)
@@ -1110,10 +1394,18 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
     }
   ]
 
+  const onboardingAttr =
+    !isFolder &&
+    onboardingTree?.highlightFileName &&
+    data.name === onboardingTree.highlightFileName
+      ? 'artifact-card'
+      : undefined
+
   return (
     <ContextMenu items={menuItems}>
       <div
         ref={dragHandle}
+        data-onboarding={onboardingAttr}
         style={style}
         draggable
         onDragStart={(e) => {
@@ -1126,7 +1418,8 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
         className={`
           group flex items-center h-full pr-2 cursor-pointer select-none
           transition-colors duration-75
-          ${node.isSelected ? 'bg-primary/15' : 'hover:bg-secondary/60'}
+          ${node.isSelected ? 'bg-primary/15' : outOfTaskScope ? 'hover:bg-muted/50' : 'hover:bg-secondary/60'}
+          ${outOfTaskScope ? 'opacity-45 text-muted-foreground bg-muted/15' : ''}
         `}
         title={canViewInCanvas
           ? t('Click to preview · double-click to open with system')

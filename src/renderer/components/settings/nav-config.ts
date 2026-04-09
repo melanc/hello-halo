@@ -51,7 +51,7 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   },
   {
     id: 'recommend',
-    labelKey: 'Recommend Halo',
+    labelKey: 'Recommend DevX',
     icon: Heart
   },
   {

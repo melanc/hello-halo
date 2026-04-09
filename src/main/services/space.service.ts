@@ -17,7 +17,7 @@
 import { shell } from 'electron'
 import { join } from 'path'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, statSync, rmSync, renameSync } from 'fs'
-import { getHaloDir, getTempSpacePath, getSpacesDir } from './config.service'
+import { getDevXDir, getTempSpacePath, getSpacesDir } from './config.service'
 import { v4 as uuidv4 } from 'uuid'
 import { getAppManager } from '../apps/manager'
 
@@ -87,7 +87,7 @@ export function _resetSpaceRegistry(): void {
 }
 
 function getSpaceIndexPath(): string {
-  return join(getHaloDir(), 'spaces-index.json')
+  return join(getDevXDir(), 'spaces-index.json')
 }
 
 /**
@@ -142,7 +142,7 @@ function loadSpaceIndex(): Map<string, SpaceIndexEntry> {
       }
     }
     console.log(`[Space] Index v3 loaded: ${map.size} spaces`)
-    registerHaloTemp(map)
+    registerDevXTemp(map)
     return map
   }
 
@@ -159,7 +159,7 @@ function loadSpaceIndex(): Map<string, SpaceIndexEntry> {
     }
     persistIndex(map)
     console.log(`[Space] Index v3 migration complete: ${map.size} spaces`)
-    registerHaloTemp(map)
+    registerDevXTemp(map)
     return map
   }
 
@@ -201,19 +201,19 @@ function loadSpaceIndex(): Map<string, SpaceIndexEntry> {
   // Persist v3 format
   persistIndex(map)
   console.log(`[Space] Index v3 migration complete: ${map.size} spaces`)
-  registerHaloTemp(map)
+  registerDevXTemp(map)
   return map
 }
 
 /**
  * Register halo-temp into the registry (in-memory only, never persisted to index).
  */
-function registerHaloTemp(map: Map<string, SpaceIndexEntry>): void {
+function registerDevXTemp(map: Map<string, SpaceIndexEntry>): void {
   const tempPath = getTempSpacePath()
   const now = new Date().toISOString()
   map.set('halo-temp', {
     path: tempPath,
-    name: 'Halo',
+    name: 'DevX',
     icon: 'sparkles',
     createdAt: now,
     updatedAt: now,
@@ -255,7 +255,7 @@ function persistIndex(map: Map<string, SpaceIndexEntry>): void {
   const tmpPath = indexPath + '.tmp'
   try {
     // Ensure parent directory exists
-    const dir = getHaloDir()
+    const dir = getDevXDir()
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true })
     }
@@ -303,7 +303,7 @@ function entryToSpaceWithPreferences(id: string, entry: SpaceIndexEntry): Space 
 /**
  * Get Halo temp space. Delegates to unified getSpace().
  */
-export function getHaloSpace(): Space {
+export function getDevXSpace(): Space {
   return getSpace('halo-temp')!
 }
 
@@ -337,7 +337,7 @@ export function listSpaces(): Space[] {
   const invalidIds: string[] = []
 
   for (const [id, entry] of getRegistry()) {
-    if (entry.isTemp) continue  // halo-temp is returned via getHaloSpace()
+    if (entry.isTemp) continue  // halo-temp is returned via getDevXSpace()
 
     if (!existsSync(entry.path)) {
       invalidIds.push(id)
@@ -654,7 +654,7 @@ export function saveOnboardingConversation(
 
     const conversation = {
       id: conversationId,
-      title: 'Welcome to Halo',
+      title: 'Welcome to DevX',
       createdAt: now,
       updatedAt: now,
       messages: [

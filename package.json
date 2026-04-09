@@ -1,13 +1,13 @@
 {
-  "name": "halo",
+  "name": "devx",
   "version": "2.0.10",
   "description": "AI that gets things done",
   "type": "module",
   "main": "./out/main/index.mjs",
-  "author": "Halo Team",
+  "author": "DevX Team",
   "license": "MIT",
   "scripts": {
-    "dev": "cross-env HALO_DATA_DIR=~/.halo-dev electron-vite dev",
+    "dev": "cross-env DEVX_DATA_DIR=~/.devx-dev electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "postinstall": "patch-package && electron-builder install-app-deps && electron-rebuild -f -w better-sqlite3",
@@ -43,7 +43,7 @@
     "cap:run:android": "npm run cap:sync && npx cap run android",
     "cap:open:android": "npx cap open android",
     "build:android:debug": "npm run cap:sync && ANDROID_HOME=$HOME/Library/Android/sdk ./android/gradlew -p android assembleDebug",
-    "release:android": "npm run cap:sync && ANDROID_HOME=$HOME/Library/Android/sdk ./android/gradlew -p android assembleRelease && node -e \"const v=require('./package.json').version; const fs=require('fs'); fs.mkdirSync('dist',{recursive:true}); fs.copyFileSync('android/app/build/outputs/apk/release/app-release.apk','dist/Halo-'+v+'.apk'); console.log('Output: dist/Halo-'+v+'.apk')\"",
+    "release:android": "npm run cap:sync && ANDROID_HOME=$HOME/Library/Android/sdk ./android/gradlew -p android assembleRelease && node -e \"const v=require('./package.json').version; const fs=require('fs'); fs.mkdirSync('dist',{recursive:true}); fs.copyFileSync('android/app/build/outputs/apk/release/app-release.apk','dist/DevX-'+v+'.apk'); console.log('Output: dist/DevX-'+v+'.apk')\"",
     "cap:open:ios": "npx cap open ios",
     "cap:run:ios": "npm run cap:sync && npx cap run ios"
   },
@@ -108,6 +108,7 @@
     "i18next": "^25.7.4",
     "ignore": "^7.0.5",
     "lucide-react": "^0.555.0",
+    "mammoth": "^1.12.0",
     "nodemailer": "^8.0.1",
     "open": "^10.2.0",
     "proxy-agent": "^7.0.0",
@@ -122,6 +123,7 @@
     "rehype-highlight": "^7.0.2",
     "rehype-raw": "^7.0.0",
     "remark-gfm": "^4.0.1",
+    "simple-git": "^3.35.2",
     "streamdown": "^2.2.0",
     "tailwind-merge": "^2.2.0",
     "uuid": "^13.0.0",
@@ -164,8 +166,8 @@
     "@parcel/watcher-win32-x64": "^2.5.6"
   },
   "build": {
-    "appId": "com.halo.app",
-    "productName": "Halo",
+    "appId": "com.devx.app",
+    "productName": "DevX",
     "npmRebuild": false,
     "beforePack": "./scripts/beforePack.cjs",
     "afterPack": "./scripts/afterPack.cjs",
@@ -187,12 +189,15 @@
     "publish": {
       "provider": "github",
       "owner": "openkursar",
-      "repo": "hello-halo",
+      "repo": "devx",
       "releaseType": "release"
     },
     "mac": {
       "category": "public.app-category.productivity",
       "icon": "resources/icon.icns",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "DevX uses the microphone for voice input in chat."
+      },
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "notarize": false,

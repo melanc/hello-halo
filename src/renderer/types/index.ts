@@ -236,7 +236,7 @@ export interface NetworkConfig {
   proxy?: string;  // Manual proxy URL (e.g. http://host:port, socks5://host:port). Empty = use system proxy.
 }
 
-export interface HaloConfig {
+export interface DevXConfig {
   api: ApiConfig;  // Legacy, kept for backward compatibility
   aiSources: AISourcesConfig;  // v2 format: { version: 2, currentId, sources: [] }
   permissions: PermissionConfig;
@@ -252,6 +252,12 @@ export interface HaloConfig {
   layout?: LayoutConfig;  // Global layout preferences (panel sizes and visibility)
   chat?: ChatConfig;  // Chat behavior preferences
   network?: NetworkConfig;  // Network settings (proxy, etc.)
+  /** Offline dictation (whisper.cpp); when enabled and configured, chat mic uses local STT */
+  offlineSpeech?: {
+    enabled: boolean
+    whisperBinPath: string
+    whisperModelPath: string
+  }
   isFirstLaunch: boolean;
 }
 
@@ -286,6 +292,38 @@ export interface CreateSpaceInput {
   name: string;
   icon: string;
   customPath?: string;
+}
+
+/**
+ * User-defined work item: one space + one main conversation + planned projects + branch name.
+ * Persisted locally until backend storage exists.
+ */
+export interface WorkspaceTask {
+  id: string;
+  name: string;
+  spaceId: string;
+  /** Requirement document filename uploaded at task creation */
+  requirementDocName: string;
+  /** Plain text extracted from the requirement document */
+  requirementDocContent: string;
+  /** Optional requirement summary/description entered manually */
+  requirementDescription?: string;
+  /** Top-level directory names under the space workspace (planned scope) */
+  projectDirs: string[];
+  /** Shared branch name across selected projects */
+  branchName: string;
+  conversationId: string;
+  /** Set when the task is created (ms since epoch); may be missing on very old local data) */
+  createdAt?: number;
+  updatedAt: number;
+  /** First path segment from artifact events while this task is active (actual touch set) */
+  touchedProjectDirs?: string[];
+  /** User has used "Identify requirements" at least once in this task */
+  requirementIdentifyUsed?: boolean;
+  /** User has used "Break down tasks" at least once in this task */
+  requirementBreakdownUsed?: boolean;
+  /** Last assistant breakdown reply (Markdown), for sub-task actions */
+  breakdownPlanMarkdown?: string;
 }
 
 // ============================================
@@ -653,7 +691,7 @@ export interface AppState {
   view: AppView;
   isLoading: boolean;
   error: string | null;
-  config: HaloConfig | null;
+  config: DevXConfig | null;
 }
 
 // ============================================
@@ -677,7 +715,7 @@ export interface ValidationResult {
 }
 
 // Default values
-export const DEFAULT_CONFIG: HaloConfig = {
+export const DEFAULT_CONFIG: DevXConfig = {
   api: {
     provider: 'anthropic',
     apiKey: '',
@@ -698,6 +736,11 @@ export const DEFAULT_CONFIG: HaloConfig = {
   appearance: {
     theme: 'light'
   },
+  offlineSpeech: {
+    enabled: false,
+    whisperBinPath: '',
+    whisperModelPath: '',
+  },
   system: {
     autoLaunch: false
   },
@@ -712,13 +755,13 @@ export const DEFAULT_CONFIG: HaloConfig = {
 
 // Helper functions hasAnyAISource and getCurrentModelName are now imported from shared module
 
-// Helper function wrapper for HaloConfig (uses v2 format)
-export function hasAnyConfiguredSource(config: HaloConfig): boolean {
+// Helper function wrapper for DevXConfig (uses v2 format)
+export function hasAnyConfiguredSource(config: DevXConfig): boolean {
   return hasAnyAISource(config.aiSources);
 }
 
-// Helper function wrapper for HaloConfig (uses v2 format)
-export function getConfigCurrentModelName(config: HaloConfig): string {
+// Helper function wrapper for DevXConfig (uses v2 format)
+export function getConfigCurrentModelName(config: DevXConfig): string {
   return getCurrentModelName(config.aiSources);
 }
 

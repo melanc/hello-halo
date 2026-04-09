@@ -6,7 +6,7 @@
  */
 
 import { Component, ReactNode } from 'react'
-import { HaloLogo } from './brand/HaloLogo'
+import { DevXLogo } from './brand/DevXLogo'
 
 interface Props {
   children: ReactNode
@@ -54,7 +54,7 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="max-w-xl w-full">
             {/* Logo */}
             <div className="flex justify-center mb-6 opacity-60">
-              <HaloLogo size="md" />
+              <DevXLogo size="md" />
             </div>
 
             {/* Title */}

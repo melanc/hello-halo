@@ -9,6 +9,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { ChevronDown, Settings2 } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { useSpaceStore } from '../../stores/space.store'
+import { useTaskStore } from '../../stores/task.store'
 import { SpaceIcon } from '../icons/ToolIcons'
 import { useTranslation } from '../../i18n'
 import type { Space } from '../../types'
@@ -16,10 +17,15 @@ import type { Space } from '../../types'
 /** Minimum interval between loadSpaces calls (ms) */
 const LOAD_THROTTLE_MS = 5_000
 
-export function SpaceSelector() {
+export interface SpaceSelectorProps {
+  /** When true, space name is shown read-only (task focus mode — no switching) */
+  spaceSwitchLocked?: boolean
+}
+
+export function SpaceSelector({ spaceSwitchLocked = false }: SpaceSelectorProps) {
   const { t } = useTranslation()
   const { setView } = useAppStore()
-  const { haloSpace, spaces, currentSpace, setCurrentSpace, refreshCurrentSpace, loadSpaces, isLoading } = useSpaceStore()
+  const { devxSpace, spaces, currentSpace, setCurrentSpace, refreshCurrentSpace, loadSpaces, isLoading } = useSpaceStore()
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const lastLoadRef = useRef(0)
@@ -81,6 +87,7 @@ export function SpaceSelector() {
       setIsOpen(false)
       return
     }
+    useTaskStore.getState().clearActiveTask()
     setCurrentSpace(space)
     refreshCurrentSpace()  // Load full space data (preferences) from backend
     setView('space')
@@ -95,7 +102,7 @@ export function SpaceSelector() {
   // Build space list: Halo Space first, then dedicated spaces
   // Fallback: if store hasn't loaded yet, at least show currentSpace
   const storeSpaces: Space[] = [
-    ...(haloSpace ? [haloSpace] : []),
+    ...(devxSpace ? [devxSpace] : []),
     ...spaces
   ]
   const allSpaces: Space[] = storeSpaces.length > 0
@@ -103,10 +110,22 @@ export function SpaceSelector() {
     : (currentSpace ? [currentSpace] : [])
 
   const displayName = currentSpace
-    ? (currentSpace.isTemp ? t('Halo') : currentSpace.name)
-    : t('Halo')
+    ? (currentSpace.isTemp ? t('DevX') : currentSpace.name)
+    : t('DevX')
 
   const displayIcon = currentSpace?.icon || 'sparkles'
+
+  if (spaceSwitchLocked) {
+    return (
+      <div
+        className="flex items-center gap-1.5 px-2 py-1.5 text-sm rounded-lg max-w-[200px] cursor-default"
+        title={displayName}
+      >
+        <SpaceIcon iconId={displayIcon} size={18} className="flex-shrink-0" />
+        <span className="font-medium truncate hidden sm:inline">{displayName}</span>
+      </div>
+    )
+  }
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -127,7 +146,7 @@ export function SpaceSelector() {
           )}
           {allSpaces.map(space => {
             const isActive = space.id === currentSpace?.id
-            const name = space.isTemp ? t('Halo Space') : space.name
+            const name = space.isTemp ? t('DevX Space') : space.name
 
             return (
               <button

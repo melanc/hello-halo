@@ -12,11 +12,11 @@
  *
  * Content types and rendering:
  * - code/markdown/json/csv/text: Load content via IPC, render in React
- * - image: Use halo-file:// protocol (bypasses CSP in renderer)
+ * - image: Use devx-file:// protocol (bypasses CSP in renderer)
  * - pdf: Use BrowserView with file:// (BrowserView has no cross-origin restrictions)
  * - browser: Use BrowserView with https:// URLs
  *
- * Protocol: halo-file://
+ * Protocol: devx-file://
  * - Custom protocol registered in main process (protocol.service.ts)
  * - Used by <img> tags in renderer to bypass CSP restrictions
  * - NOT used for BrowserView (BrowserView can access file:// directly)
@@ -45,6 +45,7 @@ export type ContentType =
   | 'csv'
   | 'browser'
   | 'terminal'
+  | 'diff'
 
 export interface BrowserState {
   isLoading: boolean
@@ -73,6 +74,10 @@ export interface TabState {
   browserViewId?: string
   browserState?: BrowserState
   isEditMode?: boolean // For markdown tabs - switches between preview and editor
+  /** Git diff tab (type === 'diff') */
+  diffOldString?: string
+  diffNewString?: string
+  diffIsBinary?: boolean
 }
 
 // Callback types
@@ -507,7 +512,7 @@ class CanvasLifecycle {
 
   /**
    * Open a PDF file using BrowserView (Chromium native PDF renderer)
-   * Note: BrowserView can access file:// directly, no need for halo-file://
+   * Note: BrowserView can access file:// directly, no need for devx-file://
    */
   private async openPdf(path: string, title?: string): Promise<string> {
     const tabId = generateTabId()
@@ -547,7 +552,7 @@ class CanvasLifecycle {
     const tab = this.tabs.get(tabId)
     if (!tab) return
 
-    // Images use halo-file:// protocol directly (no content loading needed)
+    // Images use devx-file:// protocol directly (no content loading needed)
     if (type === 'image') {
       tab.isLoading = false
       this.notifyTabsChange()
@@ -699,6 +704,36 @@ class CanvasLifecycle {
       language,
       isDirty: false,
       isLoading: false,
+    }
+
+    this.tabs.set(tabId, tab)
+    this.setOpen(true)
+    this.notifyTabsChange()
+
+    await this.switchTab(tabId)
+
+    return tabId
+  }
+
+  /**
+   * Open a Git diff in the canvas (side-by-side / unified viewer)
+   */
+  async openGitDiffTab(
+    fileName: string,
+    oldString: string,
+    newString: string,
+    isBinary: boolean
+  ): Promise<string> {
+    const tabId = generateTabId()
+    const tab: TabState = {
+      id: tabId,
+      type: 'diff',
+      title: fileName,
+      isDirty: false,
+      isLoading: false,
+      diffOldString: oldString,
+      diffNewString: newString,
+      diffIsBinary: isBinary,
     }
 
     this.tabs.set(tabId, tab)

@@ -5,7 +5,7 @@
  */
 
 // Main canvas component
-export { ContentCanvas, CollapsibleCanvas, CanvasToggleButton } from './ContentCanvas'
+export { ContentCanvas, CollapsibleCanvas, CanvasToggleButton, CanvasRestoreButton } from './ContentCanvas'
 
 // Tab bar
 export { CanvasTabs, CanvasTabBar } from './CanvasTabs'

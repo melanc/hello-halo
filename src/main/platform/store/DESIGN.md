@@ -49,13 +49,13 @@ unnecessary abstraction layers.
 
 ### 2.4 Database path resolution
 
-The project uses `getHaloDir()` from `config.service.ts` which resolves to:
+The project uses `getDevXDir()` from `config.service.ts` which resolves to:
 - Production: `~/.halo/`
 - Development: `~/.halo-dev/` (when `app.isPackaged === false`)
 - Custom: `HALO_DATA_DIR` env var
 - Tests: overridden via `os.homedir()` mock
 
-For the store module, we use `getHaloDir()` to get the base path, then append
+For the store module, we use `getDevXDir()` to get the base path, then append
 `halo.db`. This keeps consistency with the existing data path strategy.
 
 ### 2.5 Electron build pipeline
@@ -101,7 +101,7 @@ The entire migration sequence for a namespace runs in a single transaction.
 | App-level | `{haloDir}/halo.db` | Active |
 | Space-level | `{space}/data.db` | Interface only, not created |
 
-We use `getHaloDir()` from config.service.ts for path resolution. This respects
+We use `getDevXDir()` from config.service.ts for path resolution. This respects
 `HALO_DATA_DIR` env var, dev mode separation, and test isolation.
 
 ### 3.3 better-sqlite3 in Electron main process

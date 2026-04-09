@@ -434,7 +434,7 @@ export function StoreDetail() {
                 ))}
               </div>
               <p className="text-xs text-muted-foreground">
-                {t('This automation requires you to be logged in to the above websites in the Halo browser.')}
+                {t('This automation requires you to be logged in to the above websites in the DevX browser.')}
               </p>
             </div>
           )}

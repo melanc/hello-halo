@@ -1,12 +1,12 @@
 {
   "$schema": "./product.schema.json",
-  "name": "Halo",
-  "dataFolderName": "halo",
+  "name": "DevX",
+  "dataFolderName": "devx",
   "version": "1.0.0",
   "updateConfig": {
     "provider": "github",
     "owner": "openkursar",
-    "repo": "hello-halo"
+    "repo": "devx"
   },
   "authProviders": [
     {

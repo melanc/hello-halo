@@ -40,10 +40,10 @@ module.exports = {
           foreground: 'hsl(var(--card-foreground))',
         },
         // Halo brand colors
-        'halo-glow': 'hsl(var(--halo-glow))',
-        'halo-success': 'hsl(var(--halo-success))',
-        'halo-warning': 'hsl(var(--halo-warning))',
-        'halo-error': 'hsl(var(--halo-error))',
+        'devx-glow': 'hsl(var(--devx-glow))',
+        'devx-success': 'hsl(var(--devx-success))',
+        'devx-warning': 'hsl(var(--devx-warning))',
+        'devx-error': 'hsl(var(--devx-error))',
       },
       borderRadius: {
         lg: 'var(--radius)',

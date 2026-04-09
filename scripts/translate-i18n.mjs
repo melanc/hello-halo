@@ -7,10 +7,10 @@
  *   npm run i18n:translate -- --force  # Full translation
  *
  * Environment variables (from .env.local):
- *   HALO_TEST_API_KEY    - API Key
- *   HALO_TEST_API_URL    - API URL
- *   HALO_TEST_MODEL      - Model name
- *   HALO_TEST_API_FORMAT - API format: 'anthropic' or 'openai' (default: auto-detect)
+ *   DEVX_TEST_API_KEY    - API Key
+ *   DEVX_TEST_API_URL    - API URL
+ *   DEVX_TEST_MODEL      - Model name
+ *   DEVX_TEST_API_FORMAT - API format: 'anthropic' or 'openai' (default: auto-detect)
  */
 
 import fs from 'node:fs'
@@ -117,7 +117,7 @@ function getKeysToTranslate(sourceJson, targetJson, force = false) {
 
 // Detect API format based on URL or explicit config
 function detectApiFormat(apiUrl) {
-  const explicit = process.env.HALO_TEST_API_FORMAT?.toLowerCase()
+  const explicit = process.env.DEVX_TEST_API_FORMAT?.toLowerCase()
   if (explicit === 'anthropic' || explicit === 'openai') {
     return explicit
   }
@@ -132,12 +132,12 @@ function detectApiFormat(apiUrl) {
 
 // Call LLM API for translation (supports both Anthropic and OpenAI formats)
 async function translateBatch(texts, targetLocale) {
-  const apiKey = process.env.HALO_TEST_API_KEY
-  const apiUrl = process.env.HALO_TEST_API_URL
-  const model = process.env.HALO_TEST_MODEL
+  const apiKey = process.env.DEVX_TEST_API_KEY
+  const apiUrl = process.env.DEVX_TEST_API_URL
+  const model = process.env.DEVX_TEST_MODEL
 
   if (!apiKey || !apiUrl) {
-    throw new Error('Missing HALO_TEST_API_KEY or HALO_TEST_API_URL in .env.local')
+    throw new Error('Missing DEVX_TEST_API_KEY or DEVX_TEST_API_URL in .env.local')
   }
 
   const apiFormat = detectApiFormat(apiUrl)
@@ -331,9 +331,9 @@ async function main() {
 
   console.log('\n🌍 i18n Auto Translator\n')
   console.log(`   Mode: ${force ? 'Force (translate all)' : 'Incremental (empty values only)'}`)
-  console.log(`   API: ${process.env.HALO_TEST_API_URL}`)
-  console.log(`   Model: ${process.env.HALO_TEST_MODEL}`)
-  console.log(`   Format: ${detectApiFormat(process.env.HALO_TEST_API_URL)}\n`)
+  console.log(`   API: ${process.env.DEVX_TEST_API_URL}`)
+  console.log(`   Model: ${process.env.DEVX_TEST_MODEL}`)
+  console.log(`   Format: ${detectApiFormat(process.env.DEVX_TEST_API_URL)}\n`)
 
   // Read source file
   const sourceFile = path.join(CONFIG.localesDir, `${CONFIG.sourceLocale}.json`)

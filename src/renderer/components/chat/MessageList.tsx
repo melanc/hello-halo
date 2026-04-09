@@ -51,6 +51,8 @@ export interface MessageListProps {
 export interface MessageListHandle {
   scrollToIndex: (index: number, behavior?: ScrollBehavior) => void
   scrollToBottom: (behavior?: ScrollBehavior) => void
+  /** Virtuoso scroll root — for listeners (e.g. dismiss selection toolbar on scroll). */
+  getScrollerElement: () => HTMLElement | null
 }
 
 /**
@@ -158,6 +160,7 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
         el.scrollTo({ top: el.scrollHeight, behavior })
       }
     },
+    getScrollerElement: () => scrollerRef.current,
   }), [])
 
   // Filter out empty assistant placeholder message during generation

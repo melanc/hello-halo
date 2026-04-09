@@ -1,7 +1,7 @@
 /**
  * platform/store -- Public API
  *
- * SQLite persistence foundation for the Halo platform layer.
+ * SQLite persistence foundation for the DevX platform layer.
  * This is the lowest module in the dependency chain: scheduler,
  * apps/manager, and apps/runtime all depend on this module for database access.
  *
@@ -34,8 +34,9 @@
  *   }
  */
 
+import { existsSync, renameSync } from 'fs'
 import { join } from 'path'
-import { getHaloDir } from '../../services/config.service'
+import { getDevXDir } from '../../services/config.service'
 import { createDatabaseManager } from './database-manager'
 import type { DatabaseManager, Migration } from './types'
 
@@ -45,14 +46,17 @@ export type { DatabaseManager, Migration }
 // Re-export createDatabaseManager for testing with :memory: databases
 export { createDatabaseManager }
 
+/** Legacy DB filename (pre–DevX branding). Migrated once to {@link APP_DB_FILENAME}. */
+const LEGACY_APP_DB_FILENAME = 'halo.db'
+
 /** Name of the application-level database file. */
-const APP_DB_FILENAME = 'halo.db'
+const APP_DB_FILENAME = 'devx.db'
 
 /**
  * Initialize the platform store module.
  *
- * Creates and returns a DatabaseManager configured for the Halo data directory.
- * The app-level database is located at `{haloDir}/halo.db`.
+ * Creates and returns a DatabaseManager configured for the DevX data directory.
+ * The app-level database is located at `{dataDir}/devx.db` (migrated from `halo.db` if present).
  *
  * This function must be called first in the platform initialization sequence
  * (bootstrap Phase 3), before any other platform or apps module.
@@ -62,8 +66,18 @@ const APP_DB_FILENAME = 'halo.db'
 export async function initStore(): Promise<DatabaseManager> {
   const start = performance.now()
 
-  const haloDir = getHaloDir()
-  const appDbPath = join(haloDir, APP_DB_FILENAME)
+  const dataDir = getDevXDir()
+  const appDbPath = join(dataDir, APP_DB_FILENAME)
+  const legacyPath = join(dataDir, LEGACY_APP_DB_FILENAME)
+
+  if (!existsSync(appDbPath) && existsSync(legacyPath)) {
+    try {
+      renameSync(legacyPath, appDbPath)
+      console.log(`[Store] Migrated ${LEGACY_APP_DB_FILENAME} → ${APP_DB_FILENAME}`)
+    } catch (e) {
+      console.error('[Store] Failed to migrate legacy DB file:', e)
+    }
+  }
 
   console.log(`[Store] Initializing store at: ${appDbPath}`)
 

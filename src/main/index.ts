@@ -45,7 +45,7 @@ Object.assign(console, log.functions)
 // Executed after page load to avoid blocking startup
 // Note: fix-path is ESM-only, loaded dynamically to support both CJS and ESM builds
 
-import { app, BrowserWindow, Menu } from 'electron'
+import { app, BrowserWindow, Menu, session } from 'electron'
 import open from 'open'
 
 // GPU compatibility: Disable hardware acceleration on Windows to prevent blank window issues
@@ -406,7 +406,16 @@ function createWindow(): void {
 // Initialize application
 app.whenReady().then(async () => {
   // Set app user model id for windows
-  electronApp.setAppUserModelId('com.halo.app')
+  electronApp.setAppUserModelId('com.devx.app')
+
+  // Microphone for renderer Web Speech API (chat voice input)
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    if (permission === 'media' || permission === 'audioCapture') {
+      callback(true)
+      return
+    }
+    callback(false)
+  })
 
   // Register custom protocols (halo-file://, etc.)
   registerProtocols()
@@ -426,18 +435,18 @@ app.whenReady().then(async () => {
   // Create application menu
   createAppMenu()
 
-  // Create window first (before analytics, so Baidu provider can find the window)
-  createWindow()
-
   // ========================================
   // PHASED INITIALIZATION
   // ========================================
   // See src/main/bootstrap/index.ts for architecture documentation
 
   // Phase 1: Essential Services (synchronous, required for first screen)
-  // These services are needed for the initial UI render
-  // Window reference is managed by window.service.ts
+  // MUST run before createWindow(): loadURL/loadFile starts the renderer immediately;
+  // otherwise IPC (e.g. git-workspace:status) can be invoked before handlers exist.
   initializeEssentialServices()
+
+  // Create window after IPC is registered (analytics still runs after ready-to-show)
+  createWindow()
 
   // Phase 2: Extended Services (deferred until window is visible)
   // This ensures Extended initialization NEVER affects startup speed

@@ -24,7 +24,7 @@
  */
 
 import { useState, useRef, useCallback, useEffect, forwardRef } from 'react'
-import { X, Loader2, AlertCircle, Plus, XCircle, Maximize2, Minimize2 } from 'lucide-react'
+import { X, Loader2, AlertCircle, Plus, XCircle, Maximize2, Minimize2, PanelRightClose } from 'lucide-react'
 import { type TabState } from '../../services/canvas-lifecycle'
 import { useCanvasLifecycle } from '../../hooks/useCanvasLifecycle'
 import { useCanvasStore } from '../../stores/canvas.store'
@@ -55,7 +55,8 @@ export function CanvasTabs({
   onNewTab,
   onCloseAll,
   isMaximized = false,
-  onToggleMaximize
+  onToggleMaximize,
+  onCollapseCanvas
 }: CanvasTabsProps) {
   const { t } = useTranslation()
   const { reorderTabs } = useCanvasLifecycle()
@@ -314,6 +315,17 @@ export function CanvasTabs({
           </button>
         )}
 
+        {onCollapseCanvas && tabs.length > 0 && (
+          <button
+            type="button"
+            onClick={onCollapseCanvas}
+            className="canvas-tab-bar-action"
+            title={t('Minimize editor')}
+          >
+            <PanelRightClose className="w-4 h-4" />
+          </button>
+        )}
+
         {/* Close all tabs button */}
         {onCloseAll && tabs.length > 0 && (
           <button
@@ -454,7 +466,8 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(function TabItem({
  */
 export function CanvasTabBar() {
   const { t } = useTranslation()
-  const { tabs, activeTabId, switchTab, closeTab, closeAllTabs, refreshTab, openUrl } = useCanvasLifecycle()
+  const { tabs, activeTabId, switchTab, closeTab, closeAllTabs, refreshTab, openUrl, setOpen } =
+    useCanvasLifecycle()
   const isCanvasMaximized = useCanvasStore(state => state.isMaximized)
   const toggleCanvasMaximized = useCanvasStore(state => state.toggleMaximized)
   const { isMaximized: isWindowMaximized, toggleMaximize: toggleWindowMaximize } = useWindowMaximize()
@@ -495,6 +508,7 @@ export function CanvasTabBar() {
       onCloseAll={closeAllTabs}
       isMaximized={isFullyMaximized}
       onToggleMaximize={handleToggleMaximize}
+      onCollapseCanvas={() => setOpen(false)}
     />
   )
 }

@@ -185,14 +185,14 @@ function McpForm({ onClose, installApp, loadApps }: FormProps) {
   const [editMode, setEditMode] = useState<EditMode>('visual')
 
   // Space selector
-  const haloSpace = useSpaceStore(state => state.haloSpace)
+  const devxSpace = useSpaceStore(state => state.devxSpace)
   const spaces = useSpaceStore(state => state.spaces)
   const allSpaces = useMemo(() => {
     const result: Array<{ id: string; name: string }> = []
-    if (haloSpace) result.push(haloSpace)
+    if (devxSpace) result.push(devxSpace)
     result.push(...spaces)
     return result
-  }, [haloSpace, spaces])
+  }, [devxSpace, spaces])
   const [selectedSpaceId, setSelectedSpaceId] = useState(GLOBAL_SCOPE)
 
   // Visual fields

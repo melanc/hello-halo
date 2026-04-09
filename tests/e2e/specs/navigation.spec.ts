@@ -21,7 +21,9 @@ test.describe('Home Page', () => {
     expect(appsText).toBeTruthy()
 
     // "Dedicated Spaces" section should be visible (supports EN/CN)
-    const spacesSection = await window.$('text=/Dedicated Spaces|专属空间/i')
+    const spacesSection = await window.$(
+      'text=/Dedicated Spaces|Workspaces|专属空间|工作空间|Espaces de travail/i'
+    )
     expect(spacesSection).toBeTruthy()
 
     await window.screenshot({ path: 'tests/e2e/results/nav-home-page.png' })

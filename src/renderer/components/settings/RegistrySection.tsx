@@ -9,15 +9,15 @@ import { useTranslation } from '../../i18n'
 import { api } from '../../api'
 import type { RegistrySource } from '../../../shared/store/store-types'
 
-const SOURCE_TYPE_LABELS: Record<string, string> = {
-  'halo': 'Halo',
-  'mcp-registry': 'MCP',
-  'smithery': 'Smithery',
-  'claude-skills': 'Claude Skills',
-}
-
 export function RegistrySection() {
   const { t } = useTranslation()
+
+  const sourceTypeLabels: Record<string, string> = {
+    'halo': t('DevX'),
+    'mcp-registry': 'MCP',
+    'smithery': 'Smithery',
+    'claude-skills': 'Claude Skills',
+  }
 
   // State
   const [registries, setRegistries] = useState<RegistrySource[]>([])
@@ -188,7 +188,7 @@ export function RegistrySection() {
                       <span className="text-sm font-medium truncate">{registry.name}</span>
                       {registry.sourceType && (
                         <span className="inline-flex items-center px-1.5 py-0.5 text-xs rounded-full bg-primary/10 text-primary">
-                          {SOURCE_TYPE_LABELS[registry.sourceType] ?? registry.sourceType}
+                          {sourceTypeLabels[registry.sourceType] ?? registry.sourceType}
                         </span>
                       )}
                       {registry.isDefault && !registry.sourceType && (

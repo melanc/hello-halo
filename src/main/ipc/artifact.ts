@@ -208,7 +208,7 @@ export function registerArtifactHandlers(): void {
     'artifact:git-command',
     async (_event, spaceId: string, targetPath: string, action: GitArtifactAction) => {
       try {
-        const allowed: GitArtifactAction[] = ['status', 'add', 'pull', 'push', 'diff']
+        const allowed: GitArtifactAction[] = ['status', 'add', 'pull', 'pull-rebase', 'push', 'diff']
         if (!allowed.includes(action)) {
           return { success: false, error: 'Invalid git action' }
         }

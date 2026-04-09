@@ -1,11 +1,11 @@
 ---
-name: halo-dev
+name: devx-dev
 description: important!!! Must read before writing/editing any code, and follow it. Covers architecture, conventions, quality standards, and responsive design requirements.
 allowed-tools: Read, Write, Edit, Bash
 user-invocable: true
 ---
 
-# Halo Development Context v3
+# DevX Development Context v3
 
 ## Mandatory Entry (Read in Order)
 
