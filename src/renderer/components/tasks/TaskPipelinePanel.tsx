@@ -514,7 +514,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       {!collapsed && (
         <div className="flex flex-col">
           {/* Tab content */}
-          <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ maxHeight: 240 }}>
+          <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ maxHeight: 440 }}>
             {selectedTab === 1 && (
               <Tab1Requirements
                 task={task}
