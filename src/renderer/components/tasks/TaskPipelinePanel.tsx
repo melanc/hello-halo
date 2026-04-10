@@ -18,6 +18,7 @@ import {
   ScanText,
   FolderOpen,
   Code2,
+  FileText,
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
@@ -139,10 +140,12 @@ function SubtaskItem({
 
 /** Tab 1 — 需求理解 */
 function Tab1Requirements({
+  requirementDocName,
   requirementText,
   stage,
   onBreakdown,
 }: {
+  requirementDocName: string
   requirementText: string
   stage: PipelineStage
   onBreakdown: () => void
@@ -150,17 +153,34 @@ function Tab1Requirements({
   const { t } = useTranslation()
   return (
     <div className="space-y-3">
+      {/* Requirement document — shown above description when a doc was uploaded */}
+      {requirementDocName && (
+        <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-secondary/60 border border-border/50">
+          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted/80">
+            <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
+              {t('需求文档')}
+            </p>
+            <p className="text-xs font-medium text-foreground truncate">{requirementDocName}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Requirement description */}
       {requirementText ? (
         <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{requirementText}</p>
       ) : (
         <p className="text-xs text-muted-foreground/50 italic">{t('暂无需求描述')}</p>
       )}
+
       {stage === 1 && (
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBreakdown}
-            disabled={!requirementText}
+            disabled={!requirementText && !requirementDocName}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <ClipboardList className="w-3 h-3" />
@@ -413,6 +433,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ maxHeight: 240 }}>
             {selectedTab === 1 && (
               <Tab1Requirements
+                requirementDocName={task.requirementDocName ?? ''}
                 requirementText={requirementText}
                 stage={stage}
                 onBreakdown={handleBreakdown}
