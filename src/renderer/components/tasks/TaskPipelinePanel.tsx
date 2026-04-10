@@ -27,7 +27,9 @@ import {
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
+import { useChatStore } from '../../stores/chat.store'
 import { extractWordDocument, DOC_IMG_PLACEHOLDER_PREFIX } from '../../utils/wordDocumentExtract'
+import { buildRequirementIdentifyMessage } from '../../lib/workspace-task-messages'
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask } from '../../types'
 
 // ─────────────────────────────────────────────
@@ -505,6 +507,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const [selectedTab, setSelectedTab] = useState<PipelineStage>(stage)
   const [collapsed, setCollapsed] = useState(false)
   const [checkResult, setCheckResult] = useState<{ ok: boolean; message: string } | null>(null)
+  const [isSendingMessage, setIsSendingMessage] = useState(false)
 
   // When progress advances, follow it
   useEffect(() => {
@@ -576,12 +579,20 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     }
   }, [task, subtasks, t])
 
-  const handleStartWork = useCallback(() => {
+  const handleStartWork = useCallback(async () => {
     const check = getTabCheck(selectedTab)
     setCheckResult(check)
     if (!check.ok) return
+
     if (selectedTab === 1) {
-      setSelectedTab(2)
+      // Send requirement doc/description to AI for analysis
+      setIsSendingMessage(true)
+      try {
+        const chat = useChatStore.getState()
+        await chat.sendMessage(buildRequirementIdentifyMessage(task, t))
+      } finally {
+        setIsSendingMessage(false)
+      }
     } else if (selectedTab === 2 && stage <= 2) {
       updateTaskPipelineState(task.id, { stage: 3, pipelineResumeHint: t('等待你确认影响范围') })
       setSelectedTab(3)
@@ -592,7 +603,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('等待验收') })
       setSelectedTab(5)
     }
-  }, [selectedTab, stage, task.id, task.requirementDocName, task.requirementDescription, task.pipelineDevPlan, subtasks, getTabCheck, updateTaskPipelineState, t])
+  }, [selectedTab, stage, task, getTabCheck, updateTaskPipelineState, t])
 
   const handleSaveDevPlan = useCallback(
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
@@ -679,9 +690,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
               <button
                 type="button"
-                onClick={handleStartWork}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => void handleStartWork()}
+                disabled={isSendingMessage}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
               >
+                {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
                 {t('开始工作')}
               </button>
             </div>

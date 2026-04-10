@@ -7,6 +7,39 @@ import type { WorkspaceTask } from '../types'
 
 const DOC_EXCERPT_LEN = 600
 const DESC_EXCERPT_LEN = 400
+const REQ_IDENTIFY_LEN = 3000
+
+/**
+ * Message that asks the AI to identify and analyse requirements from the uploaded doc / description.
+ * The full doc content (up to REQ_IDENTIFY_LEN chars) is included so the AI can extract key points.
+ */
+export function buildRequirementIdentifyMessage(task: WorkspaceTask, t: TFunction): string {
+  const blocks: string[] = [
+    t('请识别并分析以下需求，输出结构化的需求要点。'),
+    '',
+    t('任务名称：{{name}}', { name: task.name }),
+  ]
+
+  if (task.requirementDocName?.trim()) {
+    blocks.push(t('需求文档：{{name}}', { name: task.requirementDocName.trim() }))
+  }
+
+  const content = task.requirementDocContent?.trim() || task.requirementDescription?.trim()
+  if (content) {
+    blocks.push('', t('需求内容：'), content.slice(0, REQ_IDENTIFY_LEN))
+  }
+
+  blocks.push(
+    '',
+    t('请按以下结构输出：'),
+    t('1. 需求背景与目标'),
+    t('2. 核心功能要点（逐条列出，每条一行，以 - 开头）'),
+    t('3. 涉及的系统模块或技术范围'),
+    t('4. 注意事项或潜在风险'),
+  )
+
+  return blocks.join('\n')
+}
 
 /** Multiline label prepended as a composer reference chip (sent as first block of the user message). */
 export function buildWorkspaceTaskComposerReferenceLabel(task: WorkspaceTask, t: TFunction): string {
