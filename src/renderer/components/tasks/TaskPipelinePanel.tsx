@@ -687,11 +687,12 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     const startY = e.clientY
     const startH = contentHeightRef.current
 
-    // Lock cursor and disable pointer events on everything else so
-    // textareas / iframes / other elements don't swallow mousemove
-    document.body.style.cursor = 'ns-resize'
-    document.body.style.userSelect = 'none'
-    document.body.style.pointerEvents = 'none'
+    // Inject a global style that forces ns-resize cursor on every element
+    // and disables user-select/pointer-events during the drag.
+    // This is more reliable than setting body styles, which child elements can override.
+    const dragStyle = document.createElement('style')
+    dragStyle.textContent = '* { cursor: ns-resize !important; user-select: none !important; }'
+    document.head.appendChild(dragStyle)
 
     const onMove = (ev: MouseEvent) => {
       const newH = Math.max(120, startH + ev.clientY - startY)
@@ -699,9 +700,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       setContentHeight(newH)
     }
     const onUp = () => {
-      document.body.style.cursor = ''
-      document.body.style.userSelect = ''
-      document.body.style.pointerEvents = ''
+      dragStyle.remove()
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
     }
@@ -907,7 +906,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       {!collapsed && (
         <div className="flex flex-col">
           {/* Tab content */}
-          <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ maxHeight: contentHeight }}>
+          <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ height: contentHeight }}>
             {selectedTab === 1 && (
               <Tab1Requirements
                 task={task}
