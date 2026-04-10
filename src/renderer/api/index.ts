@@ -2139,37 +2139,37 @@ export const api = {
 
   // ===== Pipeline (Tasks & Requirements) =====
   pipelineListTasks: async (spaceId: string): Promise<ApiResponse> => {
-    if (isElectron()) return window.halo.pipelineListTasks(spaceId)
+    if (isElectron()) return window.devx.pipelineListTasks(spaceId)
     return { success: false, error: 'Pipeline only available in desktop app' }
   },
 
   pipelineGetTask: async (taskId: string): Promise<ApiResponse> => {
-    if (isElectron()) return window.halo.pipelineGetTask(taskId)
+    if (isElectron()) return window.devx.pipelineGetTask(taskId)
     return { success: false, error: 'Pipeline only available in desktop app' }
   },
 
   pipelineCreateTask: async (input: { spaceId: string; title: string; requirement: string }): Promise<ApiResponse> => {
-    if (isElectron()) return window.halo.pipelineCreateTask(input)
+    if (isElectron()) return window.devx.pipelineCreateTask(input)
     return { success: false, error: 'Pipeline only available in desktop app' }
   },
 
   pipelineUpdateTask: async (input: { taskId: string; updates: Record<string, unknown> }): Promise<ApiResponse> => {
-    if (isElectron()) return window.halo.pipelineUpdateTask(input)
+    if (isElectron()) return window.devx.pipelineUpdateTask(input)
     return { success: false, error: 'Pipeline only available in desktop app' }
   },
 
   pipelineDeleteTask: async (taskId: string): Promise<ApiResponse> => {
-    if (isElectron()) return window.halo.pipelineDeleteTask(taskId)
+    if (isElectron()) return window.devx.pipelineDeleteTask(taskId)
     return { success: false, error: 'Pipeline only available in desktop app' }
   },
 
   pipelineUpsertSubtasks: async (input: { taskId: string; subtasks: Array<{ title: string; description: string }> }): Promise<ApiResponse> => {
-    if (isElectron()) return window.halo.pipelineUpsertSubtasks(input)
+    if (isElectron()) return window.devx.pipelineUpsertSubtasks(input)
     return { success: false, error: 'Pipeline only available in desktop app' }
   },
 
   pipelineUpdateSubtaskStatus: async (input: { subtaskId: string; status: string }): Promise<ApiResponse> => {
-    if (isElectron()) return window.halo.pipelineUpdateSubtaskStatus(input)
+    if (isElectron()) return window.devx.pipelineUpdateSubtaskStatus(input)
     return { success: false, error: 'Pipeline only available in desktop app' }
   },
 }
