@@ -1371,7 +1371,12 @@ function InputToolbar({
       <div className="flex items-center gap-1">
         {speechMicVisible && !isGenerating && !isOnboarding && (
           <div className="flex items-center gap-1.5 shrink-0" aria-live="polite">
-            {speechListening && <SpeechVolumeMeter className="shrink-0" />}
+            {speechListening && (
+              <SpeechVolumeMeter
+                className="shrink-0"
+                stream={useOfflineDictation ? offlineSpeech.stream : undefined}
+              />
+            )}
             <button
               type="button"
               onClick={onVoiceClick}

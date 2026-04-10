@@ -43,10 +43,12 @@ export function useOfflineWhisperSpeech(options: {
   onError: (code: string) => void
 }): {
   listening: boolean
+  stream: MediaStream | null
   start: () => Promise<void>
   stop: () => void
 } {
   const [listening, setListening] = useState(false)
+  const [stream, setStream] = useState<MediaStream | null>(null)
   const activeRef = useRef(false)
   const chunksRef = useRef<Float32Array[]>([])
   const inputRateRef = useRef(48000)
@@ -93,7 +95,7 @@ export function useOfflineWhisperSpeech(options: {
   }, [])
 
   const runVadTick = useCallback(() => {
-    if (!activeRef.current || flushingRef.current) return
+    if (!activeRef.current) return
     if (chunksRef.current.length === 0) return
 
     const merged = mergeChunks(chunksRef.current)
@@ -148,6 +150,7 @@ export function useOfflineWhisperSpeech(options: {
     chunksRef.current = []
     const rate = inputRateRef.current
     setListening(false)
+    setStream(null)
 
     if (merged.length >= Math.floor(rate * MIN_AUDIO_SEC)) {
       void transcribeMerged(merged, rate)
@@ -176,6 +179,7 @@ export function useOfflineWhisperSpeech(options: {
     }
 
     streamRef.current = stream
+    setStream(stream)
     const audioCtx = new AudioContext()
     ctxRef.current = audioCtx
     inputRateRef.current = audioCtx.sampleRate
@@ -203,5 +207,5 @@ export function useOfflineWhisperSpeech(options: {
 
   useEffect(() => () => stop(), [stop])
 
-  return { listening, start, stop }
+  return { listening, stream, start, stop }
 }

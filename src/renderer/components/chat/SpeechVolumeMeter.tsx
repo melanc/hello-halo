@@ -7,6 +7,8 @@ import { useEffect, useRef } from 'react'
 
 type SpeechVolumeMeterProps = {
   className?: string
+  /** If provided, reuse this stream instead of calling getUserMedia again. */
+  stream?: MediaStream | null
 }
 
 /** Sized to sit beside the 32px mic control in the input toolbar */
@@ -18,7 +20,7 @@ function readPrimaryParts(): string {
   return getComputedStyle(document.documentElement).getPropertyValue('--primary').trim() || '217 91% 60%'
 }
 
-export function SpeechVolumeMeter({ className }: SpeechVolumeMeterProps) {
+export function SpeechVolumeMeter({ className, stream: externalStream }: SpeechVolumeMeterProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafRef = useRef<number>(0)
 
@@ -27,15 +29,16 @@ export function SpeechVolumeMeter({ className }: SpeechVolumeMeterProps) {
     if (!canvas) return
 
     let cancelled = false
-    let stream: MediaStream | null = null
+    let ownedStream: MediaStream | null = null  // only set when we called getUserMedia
     let audioCtx: AudioContext | null = null
 
     const stopAll = () => {
       cancelled = true
       if (rafRef.current) cancelAnimationFrame(rafRef.current)
       rafRef.current = 0
-      stream?.getTracks().forEach((t) => t.stop())
-      stream = null
+      // Only stop tracks we acquired ourselves — never stop an external stream
+      ownedStream?.getTracks().forEach((t) => t.stop())
+      ownedStream = null
       void audioCtx?.close()
       audioCtx = null
       const ctx = canvas.getContext('2d')
@@ -46,15 +49,23 @@ export function SpeechVolumeMeter({ className }: SpeechVolumeMeterProps) {
     }
 
     const run = async () => {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true },
-        })
-      } catch {
-        return
+      let stream: MediaStream
+      if (externalStream) {
+        // Reuse the caller's stream — no extra getUserMedia
+        stream = externalStream
+      } else {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({
+            audio: { echoCancellation: true, noiseSuppression: true },
+          })
+          ownedStream = stream
+        } catch {
+          return
+        }
       }
       if (cancelled) {
-        stream.getTracks().forEach((t) => t.stop())
+        ownedStream?.getTracks().forEach((t) => t.stop())
+        ownedStream = null
         return
       }
 
@@ -62,7 +73,8 @@ export function SpeechVolumeMeter({ className }: SpeechVolumeMeterProps) {
         audioCtx = new AudioContext()
         if (audioCtx.state === 'suspended') await audioCtx.resume()
       } catch {
-        stream.getTracks().forEach((t) => t.stop())
+        ownedStream?.getTracks().forEach((t) => t.stop())
+        ownedStream = null
         return
       }
       if (cancelled) {
@@ -140,7 +152,7 @@ export function SpeechVolumeMeter({ className }: SpeechVolumeMeterProps) {
     return () => {
       stopAll()
     }
-  }, [])
+  }, [externalStream])
 
   return (
     <canvas

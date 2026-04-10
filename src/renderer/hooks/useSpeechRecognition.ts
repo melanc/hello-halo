@@ -131,24 +131,21 @@ export function useSpeechRecognition({
       r.onresult = (event: SpeechRecognitionEvent) => {
         networkFailCountRef.current = 0
 
+        // Scan only from resultIndex so stale non-final entries from earlier
+        // in the session (before the current change) are not re-included.
         let interim = ''
-        for (let i = 0; i < event.results.length; i += 1) {
-          const res = event.results[i]
-          if (!res.isFinal) {
-            interim += res[0]?.transcript ?? ''
-          }
-        }
-        const interimTrim = interim.trim()
-        setInterimText(interimTrim)
-
         const finals: string[] = []
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
           const res = event.results[i]
           if (res.isFinal) {
             const piece = res[0]?.transcript
             if (piece) finals.push(piece)
+          } else {
+            interim += res[0]?.transcript ?? ''
           }
         }
+        const interimTrim = interim.trim()
+        setInterimText(interimTrim)
 
         onSpeechUpdateRef.current?.({ finals, interim: interimTrim })
       }
