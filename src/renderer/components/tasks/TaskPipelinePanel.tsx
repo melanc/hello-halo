@@ -694,7 +694,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     document.body.style.pointerEvents = 'none'
 
     const onMove = (ev: MouseEvent) => {
-      const newH = Math.max(120, Math.min(800, startH + ev.clientY - startY))
+      const newH = Math.max(120, startH + ev.clientY - startY)
       contentHeightRef.current = newH
       setContentHeight(newH)
     }
