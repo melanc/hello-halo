@@ -33,6 +33,59 @@ import { buildRequirementIdentifyMessage } from '../../lib/workspace-task-messag
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask } from '../../types'
 
 // ─────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────
+
+/** Extract bullet-point lines (- / • / *) from AI response text as key points. */
+function extractKeyPoints(text: string): string[] {
+  return text
+    .split('\n')
+    .filter((line) => /^\s*[-•*]\s+.+/.test(line))
+    .map((line) => line.trim().replace(/^[-•*]\s+/, '').trim())
+    .filter((pt) => pt.length > 0 && pt.length < 300)
+}
+
+/**
+ * Waits for a conversation session to finish generating, then returns
+ * the content of the last assistant message.
+ * Resolves with undefined on timeout (90 s).
+ */
+function waitForAssistantReply(conversationId: string): Promise<string | undefined> {
+  return new Promise<string | undefined>((resolve) => {
+    let resolved = false
+    const done = (content?: string) => {
+      if (resolved) return
+      resolved = true
+      clearTimeout(timer)
+      unsub()
+      resolve(content)
+    }
+
+    const timer = setTimeout(() => done(undefined), 90_000)
+
+    const unsub = useChatStore.subscribe((state) => {
+      const session = state.sessions.get(conversationId)
+      if (!session?.isGenerating) {
+        const conv = state.conversationCache.get(conversationId)
+        const msgs = conv?.messages ?? []
+        const last = [...msgs].reverse().find((m) => m.role === 'assistant')
+        done(last?.content)
+      }
+    })
+
+    // Guard: if generation already finished before we subscribed
+    const s = useChatStore.getState()
+    const sess = s.sessions.get(conversationId)
+    if (!sess?.isGenerating) {
+      const conv = s.conversationCache.get(conversationId)
+      const msgs = conv?.messages ?? []
+      const last = [...msgs].reverse().find((m) => m.role === 'assistant')
+      done(last?.content)
+    }
+  })
+}
+
+// ─────────────────────────────────────────────
 // Stage metadata
 // ─────────────────────────────────────────────
 
@@ -585,11 +638,19 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     if (!check.ok) return
 
     if (selectedTab === 1) {
-      // Send requirement doc/description to AI for analysis
+      // Send requirement to AI for analysis, then auto-populate key points
       setIsSendingMessage(true)
       try {
         const chat = useChatStore.getState()
         await chat.sendMessage(buildRequirementIdentifyMessage(task, t))
+        // Wait for the AI to finish and parse the bullet points from its reply
+        const reply = await waitForAssistantReply(task.conversationId)
+        if (reply) {
+          const points = extractKeyPoints(reply)
+          if (points.length > 0) {
+            useTaskStore.getState().updateTaskRequirementKeyPoints(task.id, points)
+          }
+        }
       } finally {
         setIsSendingMessage(false)
       }
