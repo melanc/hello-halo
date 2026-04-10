@@ -632,7 +632,7 @@ function Tab3DevPlan({
         </div>
         <textarea
           className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed"
-          rows={3}
+          rows={6}
           placeholder={t('描述要改哪些模块、文件或接口，AI 会帮你填写...')}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
