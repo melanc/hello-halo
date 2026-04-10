@@ -21,6 +21,8 @@ import {
   FileText,
   Upload,
   AlertCircle,
+  Pencil,
+  Plus,
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
@@ -179,12 +181,98 @@ function StageTabBar({
 function SubtaskItem({
   subtask,
   onToggle,
+  onEdit,
+  onRemove,
 }: {
   subtask: PipelineSubtask
   onToggle: (id: string, next: PipelineSubtaskStatus) => void
+  onEdit: (id: string, title: string, description: string) => void
+  onRemove?: (id: string) => void
 }) {
+  const { t } = useTranslation()
+  const isNewEmpty = subtask.title === ''
+  const [isEditing, setIsEditing] = useState(isNewEmpty)
+  const [titleDraft, setTitleDraft] = useState(subtask.title)
+  const [descDraft, setDescDraft] = useState(subtask.description ?? '')
+  const titleInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (isEditing) titleInputRef.current?.focus()
+  }, [isEditing])
+
+  // Sync drafts when subtask is updated externally (e.g. after AI re-generates)
+  useEffect(() => {
+    if (!isEditing) {
+      setTitleDraft(subtask.title)
+      setDescDraft(subtask.description ?? '')
+    }
+  }, [subtask.title, subtask.description, isEditing])
+
+  const handleSave = useCallback(() => {
+    const title = titleDraft.trim()
+    if (!title) return
+    onEdit(subtask.id, title, descDraft.trim())
+    setIsEditing(false)
+  }, [titleDraft, descDraft, subtask.id, onEdit])
+
+  const handleCancel = useCallback(() => {
+    if (isNewEmpty && onRemove) {
+      onRemove(subtask.id)
+      return
+    }
+    setTitleDraft(subtask.title)
+    setDescDraft(subtask.description ?? '')
+    setIsEditing(false)
+  }, [isNewEmpty, onRemove, subtask.id, subtask.title, subtask.description])
+
   const isDone = subtask.status === 'done'
   const isRunning = subtask.status === 'in_progress'
+
+  if (isEditing) {
+    return (
+      <div className="flex flex-col gap-1.5 px-2 py-2 rounded-lg bg-secondary/60 border border-border/50">
+        <input
+          ref={titleInputRef}
+          className="w-full text-xs bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring"
+          placeholder={t('子任务标题')}
+          value={titleDraft}
+          onChange={(e) => setTitleDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave()
+            if (e.key === 'Escape') handleCancel()
+          }}
+        />
+        <input
+          className="w-full text-[11px] bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+          placeholder={t('简要说明（可选）')}
+          value={descDraft}
+          onChange={(e) => setDescDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSave()
+            if (e.key === 'Escape') handleCancel()
+          }}
+        />
+        <div className="flex gap-1.5">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!titleDraft.trim()}
+            className="px-2.5 py-0.5 text-[11px] bg-primary text-primary-foreground rounded hover:bg-primary/90 disabled:opacity-50 transition-colors"
+          >
+            {t('保存')}
+          </button>
+          <button
+            type="button"
+            onClick={handleCancel}
+            className="px-2.5 py-0.5 text-[11px] border border-border rounded hover:bg-secondary text-muted-foreground transition-colors"
+          >
+            {t('取消')}
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex items-start gap-2 px-2 py-1.5 rounded-lg hover:bg-secondary/60 group">
       <button
@@ -209,6 +297,14 @@ function SubtaskItem({
           <p className="text-[11px] text-muted-foreground/70 mt-0.5 leading-snug">{subtask.description}</p>
         )}
       </div>
+      <button
+        type="button"
+        onClick={() => setIsEditing(true)}
+        className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+        aria-label={t('Edit')}
+      >
+        <Pencil className="w-3 h-3" />
+      </button>
     </div>
   )
 }
@@ -406,11 +502,17 @@ function Tab2Breakdown({
   stage,
   onBreakdown,
   onToggle,
+  onEdit,
+  onAdd,
+  onRemove,
 }: {
   subtasks: PipelineSubtask[]
   stage: PipelineStage
   onBreakdown: () => void
   onToggle: (id: string, next: PipelineSubtaskStatus) => void
+  onEdit: (id: string, title: string, description: string) => void
+  onAdd: () => void
+  onRemove: (id: string) => void
 }) {
   const { t } = useTranslation()
   if (subtasks.length === 0) {
@@ -431,17 +533,27 @@ function Tab2Breakdown({
   return (
     <div className="space-y-0.5">
       {subtasks.map((st) => (
-        <SubtaskItem key={st.id} subtask={st} onToggle={onToggle} />
+        <SubtaskItem key={st.id} subtask={st} onToggle={onToggle} onEdit={onEdit} onRemove={onRemove} />
       ))}
-      {stage === 1 && (
+      <div className="flex items-center gap-2 pt-1">
         <button
           type="button"
-          onClick={onBreakdown}
-          className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+          onClick={onAdd}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-dashed border-border rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
         >
-          {t('重新拆解')}
+          <Plus className="w-3 h-3" />
+          {t('添加子任务')}
         </button>
-      )}
+        {stage === 1 && (
+          <button
+            type="button"
+            onClick={onBreakdown}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-border rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+          >
+            {t('重新拆解')}
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -556,6 +668,27 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isIdentifying, setIsIdentifying] = useState(false)
 
+  // Resizable content area
+  const [contentHeight, setContentHeight] = useState(440)
+  const dragStartRef = useRef<{ y: number; h: number } | null>(null)
+
+  const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault()
+    dragStartRef.current = { y: e.clientY, h: contentHeight }
+    const onMove = (ev: MouseEvent) => {
+      if (!dragStartRef.current) return
+      const delta = ev.clientY - dragStartRef.current.y
+      setContentHeight(Math.max(120, Math.min(800, dragStartRef.current.h + delta)))
+    }
+    const onUp = () => {
+      dragStartRef.current = null
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }, [contentHeight])
+
   // When progress advances, follow it
   useEffect(() => {
     setSelectedTab(stage)
@@ -574,6 +707,31 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     (subtaskId: string, next: PipelineSubtaskStatus) => {
       const updated = subtasks.map((s) => (s.id === subtaskId ? { ...s, status: next } : s))
       updateTaskPipelineState(task.id, { pipelineSubtasks: updated })
+    },
+    [subtasks, task.id, updateTaskPipelineState]
+  )
+
+  const handleEditSubtask = useCallback(
+    (subtaskId: string, title: string, description: string) => {
+      const updated = subtasks.map((s) => (s.id === subtaskId ? { ...s, title, description } : s))
+      updateTaskPipelineState(task.id, { pipelineSubtasks: updated })
+    },
+    [subtasks, task.id, updateTaskPipelineState]
+  )
+
+  const handleAddSubtask = useCallback(() => {
+    const newSubtask: PipelineSubtask = {
+      id: `st-${Date.now()}-new`,
+      title: '',
+      description: '',
+      status: 'pending',
+    }
+    updateTaskPipelineState(task.id, { pipelineSubtasks: [...subtasks, newSubtask] })
+  }, [subtasks, task.id, updateTaskPipelineState])
+
+  const handleRemoveSubtask = useCallback(
+    (subtaskId: string) => {
+      updateTaskPipelineState(task.id, { pipelineSubtasks: subtasks.filter((s) => s.id !== subtaskId) })
     },
     [subtasks, task.id, updateTaskPipelineState]
   )
@@ -657,8 +815,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         if (reply?.trim()) {
           useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
         }
-        updateTaskPipelineState(task.id, { stage: Math.max(stage, 2) as PipelineStage })
-        setSelectedTab(2)
+        // Stay on Tab1 so the user can review the generated analysis before proceeding
 
       } else if (selectedTab === 2) {
         // AI generates subtask breakdown
@@ -730,7 +887,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       {!collapsed && (
         <div className="flex flex-col">
           {/* Tab content */}
-          <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ maxHeight: 440 }}>
+          <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ maxHeight: contentHeight }}>
             {selectedTab === 1 && (
               <Tab1Requirements
                 task={task}
@@ -744,6 +901,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 stage={stage}
                 onBreakdown={handleBreakdown}
                 onToggle={handleToggleSubtask}
+                onEdit={handleEditSubtask}
+                onAdd={handleAddSubtask}
+                onRemove={handleRemoveSubtask}
               />
             )}
             {selectedTab === 3 && (
@@ -799,6 +959,15 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 <span className="leading-snug">{checkResult.message}</span>
               </div>
             )}
+          </div>
+
+          {/* Resize handle */}
+          <div
+            onMouseDown={handleResizeMouseDown}
+            className="h-2 cursor-ns-resize flex items-center justify-center group select-none border-t border-border/30 hover:border-border/60 transition-colors"
+            aria-hidden="true"
+          >
+            <div className="w-10 h-0.5 rounded-full bg-border/50 group-hover:bg-muted-foreground/40 transition-colors" />
           </div>
         </div>
       )}
