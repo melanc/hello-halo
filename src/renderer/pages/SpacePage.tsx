@@ -24,6 +24,7 @@ import { ChatView } from '../components/chat/ChatView'
 import { ArtifactRail } from '../components/artifact/ArtifactRail'
 import { ConversationList } from '../components/chat/ConversationList'
 import { TaskListSidebar } from '../components/tasks/TaskListSidebar'
+import { TaskPipelinePanel } from '../components/tasks/TaskPipelinePanel'
 import { ChatHistoryPanel } from '../components/chat/ChatHistoryPanel'
 import { Header } from '../components/layout/Header'
 import { SidebarToggle } from '../components/layout/SidebarToggle'
@@ -34,7 +35,7 @@ import { GitBashWarningBanner } from '../components/setup/GitBashWarningBanner'
 import { api } from '../api'
 import { useLayoutPreferences } from '../hooks/useLayoutPreferences'
 import { useWindowMaximize } from '../components/canvas/viewers/useWindowMaximize'
-import { X, MessageSquare, ClipboardList } from 'lucide-react'
+import { X, MessageSquare } from 'lucide-react'
 import { SearchIcon } from '../components/search/SearchIcon'
 import { useSearchShortcuts } from '../hooks/useSearchShortcuts'
 import { useTranslation } from '../i18n'
@@ -395,14 +396,6 @@ export function SpacePage() {
             <ModelSelector />
 
             <button
-              onClick={() => setView('tasks')}
-              className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
-              title={t('Tasks & Requirements')}
-            >
-              <ClipboardList className="w-5 h-5" />
-            </button>
-
-            <button
               onClick={() => setView('settings')}
               className="p-1.5 hover:bg-secondary rounded-lg transition-colors"
               title={t('Settings')}
@@ -462,6 +455,7 @@ export function SpacePage() {
                   maxWidth: isCanvasOpen ? chatWidthMax : undefined,
                 }}
               >
+                {taskFocusMode && <TaskPipelinePanel />}
                 <ChatView isCompact={isCanvasOpen} isTaskFocusComposer={taskFocusMode} />
 
                 {/* Restore editor when canvas collapsed (desktop — was missing; must sit above ChatView stack) */}
@@ -514,6 +508,7 @@ export function SpacePage() {
             <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] right-3 z-[100] pointer-events-auto">
               <CanvasRestoreButton />
             </div>
+            {taskFocusMode && <TaskPipelinePanel />}
             <ChatView isCompact={false} isTaskFocusComposer={taskFocusMode} />
           </div>
         )}

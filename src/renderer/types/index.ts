@@ -294,6 +294,16 @@ export interface CreateSpaceInput {
   customPath?: string;
 }
 
+// Pipeline stage for the inline task workflow
+export type PipelineStage = 1 | 2 | 3 | 4 | 5
+export type PipelineSubtaskStatus = 'pending' | 'in_progress' | 'done'
+export interface PipelineSubtask {
+  id: string;
+  title: string;
+  description: string;
+  status: PipelineSubtaskStatus;
+}
+
 /**
  * User-defined work item: one space + one main conversation + planned projects + branch name.
  * Persisted locally until backend storage exists.
@@ -324,6 +334,12 @@ export interface WorkspaceTask {
   requirementBreakdownUsed?: boolean;
   /** Last assistant breakdown reply (Markdown), for sub-task actions */
   breakdownPlanMarkdown?: string;
+  /** Current pipeline stage (1=需求理解, 2=任务拆解, 3=意图确认, 4=编码实现, 5=验证收尾) */
+  pipelineStage?: PipelineStage;
+  /** Structured subtasks produced during task breakdown */
+  pipelineSubtasks?: PipelineSubtask[];
+  /** Short status hint shown next to action button (e.g. "正在分析..." or "子任务已生成") */
+  pipelineResumeHint?: string;
 }
 
 // ============================================

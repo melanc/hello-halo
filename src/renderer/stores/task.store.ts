@@ -6,7 +6,7 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import { api } from '../api'
-import type { WorkspaceTask } from '../types'
+import type { WorkspaceTask, PipelineStage, PipelineSubtask } from '../types'
 import { appendConversationExcerptToBreakdownMarkdown } from '../lib/parse-implementation-breakdown'
 import { useChatStore } from './chat.store'
 
@@ -68,8 +68,15 @@ interface TaskState {
   /** Append a Markdown block to the saved breakdown plan. */
   appendBreakdownPlanSection: (taskId: string, sectionMarkdown: string) => void
 
-  /** Append chat selection into one shared “conversation excerpts” section (no new top-level item each time). */
+  /** Append chat selection into one shared "conversation excerpts" section (no new top-level item each time). */
   appendConversationExcerptToBreakdownPlan: (taskId: string, excerpt: string) => void
+
+  /** Update pipeline stage, subtasks, and/or resume hint for inline pipeline panel */
+  updateTaskPipelineState: (taskId: string, updates: {
+    stage?: PipelineStage
+    pipelineSubtasks?: PipelineSubtask[]
+    pipelineResumeHint?: string
+  }) => void
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -306,6 +313,21 @@ export const useTaskStore = create<TaskState>()(
             if (t.id !== taskId) return t
             const next = appendConversationExcerptToBreakdownMarkdown(t.breakdownPlanMarkdown, text).trim()
             return { ...t, breakdownPlanMarkdown: next.length > 0 ? next : undefined, updatedAt: Date.now() }
+          }),
+        }))
+      },
+
+      updateTaskPipelineState: (taskId, updates) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (t.id !== taskId) return t
+            return {
+              ...t,
+              ...(updates.stage !== undefined && { pipelineStage: updates.stage }),
+              ...(updates.pipelineSubtasks !== undefined && { pipelineSubtasks: updates.pipelineSubtasks }),
+              ...(updates.pipelineResumeHint !== undefined && { pipelineResumeHint: updates.pipelineResumeHint }),
+              updatedAt: Date.now(),
+            }
           }),
         }))
       },
