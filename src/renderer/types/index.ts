@@ -342,6 +342,8 @@ export interface WorkspaceTask {
   pipelineResumeHint?: string;
   /** AI-generated / user-edited development plan: which code areas to change */
   pipelineDevPlan?: string;
+  /** Identified requirement key points (AI-extracted or user-added) */
+  requirementKeyPoints?: string[];
 }
 
 // ============================================

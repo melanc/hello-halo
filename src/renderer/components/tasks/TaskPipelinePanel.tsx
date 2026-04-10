@@ -4,7 +4,7 @@
  * Stage bar doubles as a tab navigator — clicking any stage switches
  * the body to show that stage's content regardless of current progress.
  *
- * Stages: 1=需求理解  2=任务拆解  3=开发计划  4=编码实现  5=验证收尾
+ * Stages: 1=需求识别  2=任务拆解  3=开发计划  4=编码实现  5=验证收尾
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react'
@@ -20,6 +20,10 @@ import {
   Code2,
   FileText,
   Upload,
+  Plus,
+  X,
+  AlertCircle,
+  ListChecks,
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
@@ -31,7 +35,7 @@ import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTa
 // ─────────────────────────────────────────────
 
 const STAGES: { id: PipelineStage; label: string }[] = [
-  { id: 1, label: '需求理解' },
+  { id: 1, label: '需求识别' },
   { id: 2, label: '任务拆解' },
   { id: 3, label: '开发计划' },
   { id: 4, label: '编码实现' },
@@ -140,7 +144,7 @@ function SubtaskItem({
 // Tab bodies
 // ─────────────────────────────────────────────
 
-/** Tab 1 — 需求理解 */
+/** Tab 1 — 需求识别 */
 function Tab1Requirements({
   task,
   stage,
@@ -152,11 +156,13 @@ function Tab1Requirements({
 }) {
   const { t } = useTranslation()
   const updateTaskRequirementDoc = useTaskStore((s) => s.updateTaskRequirementDoc)
+  const updateTaskRequirementKeyPoints = useTaskStore((s) => s.updateTaskRequirementKeyPoints)
 
   const [descDraft, setDescDraft] = useState(task.requirementDescription ?? '')
   const savedDescRef = useRef(task.requirementDescription ?? '')
   const [isParsingDoc, setIsParsingDoc] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const [newPoint, setNewPoint] = useState('')
 
   // Sync description draft when task updates externally
   useEffect(() => {
@@ -195,6 +201,23 @@ function Tab1Requirements({
       setIsParsingDoc(false)
     }
   }, [task.id, task.requirementDescription, updateTaskRequirementDoc, t])
+
+  const keyPoints: string[] = task.requirementKeyPoints ?? []
+
+  const handleAddPoint = useCallback(() => {
+    const trimmed = newPoint.trim()
+    if (!trimmed) return
+    updateTaskRequirementKeyPoints(task.id, [...keyPoints, trimmed])
+    setNewPoint('')
+  }, [newPoint, keyPoints, task.id, updateTaskRequirementKeyPoints])
+
+  const handleRemovePoint = useCallback((idx: number) => {
+    updateTaskRequirementKeyPoints(task.id, keyPoints.filter((_, i) => i !== idx))
+  }, [keyPoints, task.id, updateTaskRequirementKeyPoints])
+
+  const handlePointKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') { e.preventDefault(); handleAddPoint() }
+  }, [handleAddPoint])
 
   const hasContent = !!task.requirementDocName || descDraft.trim().length > 0
 
@@ -261,6 +284,51 @@ function Tab1Requirements({
           onChange={(e) => setDescDraft(e.target.value)}
           onBlur={handleDescBlur}
         />
+      </div>
+
+      {/* Requirement key points */}
+      <div>
+        <div className="flex items-center gap-1 mb-1.5">
+          <ListChecks className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('需求要点')}</span>
+        </div>
+        {keyPoints.length > 0 && (
+          <ul className="space-y-1 mb-1.5">
+            {keyPoints.map((pt, idx) => (
+              <li key={idx} className="flex items-start gap-1.5 group">
+                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-primary/50 flex-shrink-0" />
+                <span className="flex-1 text-xs leading-snug text-foreground/80">{pt}</span>
+                <button
+                  type="button"
+                  onClick={() => handleRemovePoint(idx)}
+                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
+                  aria-label={t('Remove')}
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <div className="flex items-center gap-1">
+          <input
+            type="text"
+            className="flex-1 text-xs bg-secondary/40 border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+            placeholder={t('添加需求要点，按 Enter 确认')}
+            value={newPoint}
+            onChange={(e) => setNewPoint(e.target.value)}
+            onKeyDown={handlePointKeyDown}
+          />
+          <button
+            type="button"
+            onClick={handleAddPoint}
+            disabled={!newPoint.trim()}
+            className="flex-shrink-0 p-1 rounded-md border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+            aria-label={t('Add point')}
+          >
+            <Plus className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
       {/* Breakdown trigger — stage 1 only */}
@@ -436,11 +504,17 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   // selectedTab follows progress stage, but user can freely switch
   const [selectedTab, setSelectedTab] = useState<PipelineStage>(stage)
   const [collapsed, setCollapsed] = useState(false)
+  const [checkResult, setCheckResult] = useState<{ ok: boolean; message: string } | null>(null)
 
   // When progress advances, follow it
   useEffect(() => {
     setSelectedTab(stage)
   }, [stage])
+
+  // Clear check result when tab changes
+  useEffect(() => {
+    setCheckResult(null)
+  }, [selectedTab])
 
   const doneCount = subtasks.filter((s) => s.status === 'done').length
 
@@ -477,11 +551,48 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     updateTaskPipelineState(task.id, { pipelineResumeHint: t('意图已识别，可以开始工作') })
   }, [identifyDone, task.id, markRequirementIdentifyUsed, updateTaskPipelineState, t])
 
-  const handleStartWork = useCallback(() => {
-    if (stage === 2) {
-      updateTaskPipelineState(task.id, { stage: 3, pipelineResumeHint: t('等待你确认影响范围') })
+  const getTabCheck = useCallback((tab: PipelineStage): { ok: boolean; message: string } => {
+    switch (tab) {
+      case 1: {
+        const hasContent = !!task.requirementDocName || (task.requirementDescription?.trim() ?? '').length > 0
+        if (!hasContent) return { ok: false, message: t('请填写需求描述或上传需求文档') }
+        return { ok: true, message: t('需求已就绪，接下来拆解任务，将需求分解为可执行的子任务') }
+      }
+      case 2: {
+        if (subtasks.length === 0) return { ok: false, message: t('请先拆解任务，点击「拆解任务」按钮生成子任务') }
+        return { ok: true, message: t('任务拆解完成，接下来制定开发计划，明确涉及项目和改动范围') }
+      }
+      case 3: {
+        const hasPlan = (task.pipelineDevPlan?.trim() ?? '').length > 0
+        if (!hasPlan) return { ok: false, message: t('请填写代码改动范围，描述要改哪些模块、文件或接口') }
+        return { ok: true, message: t('开发计划已确认，接下来进入编码实现阶段') }
+      }
+      case 4:
+        return { ok: true, message: t('编码任务进行中，完成后进入验证收尾阶段') }
+      case 5:
+        return { ok: true, message: t('任务已完成，请检查代码质量并提交') }
+      default:
+        return { ok: true, message: '' }
     }
-  }, [stage, task.id, updateTaskPipelineState, t])
+  }, [task, subtasks, t])
+
+  const handleStartWork = useCallback(() => {
+    const check = getTabCheck(selectedTab)
+    setCheckResult(check)
+    if (!check.ok) return
+    if (selectedTab === 1) {
+      setSelectedTab(2)
+    } else if (selectedTab === 2 && stage <= 2) {
+      updateTaskPipelineState(task.id, { stage: 3, pipelineResumeHint: t('等待你确认影响范围') })
+      setSelectedTab(3)
+    } else if (selectedTab === 3 && stage <= 3) {
+      updateTaskPipelineState(task.id, { stage: 4, pipelineResumeHint: t('进入编码阶段') })
+      setSelectedTab(4)
+    } else if (selectedTab === 4 && stage <= 4) {
+      updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('等待验收') })
+      setSelectedTab(5)
+    }
+  }, [selectedTab, stage, task.id, task.requirementDocName, task.requirementDescription, task.pipelineDevPlan, subtasks, getTabCheck, updateTaskPipelineState, t])
 
   const handleSaveDevPlan = useCallback(
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
@@ -537,48 +648,58 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             {selectedTab === 5 && <Tab5Review />}
           </div>
 
-          {/* Action row — always shown when stage ≥ 2 */}
-          {stage >= 2 && (
-            <div className="flex items-center gap-2 px-3 py-2 border-t border-border/50 flex-wrap">
-              <button
-                type="button"
-                onClick={handleIdentify}
-                disabled={identifyDone}
-                className={`
-                  flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
-                  ${identifyDone
-                    ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200 dark:border-sky-700 cursor-default'
-                    : 'border border-border hover:bg-secondary text-foreground'
+          {/* Action row — always visible */}
+          <div className="flex flex-col border-t border-border/50">
+            <div className="flex items-center gap-2 px-3 py-2 flex-wrap">
+              {stage >= 2 && (
+                <button
+                  type="button"
+                  onClick={handleIdentify}
+                  disabled={identifyDone}
+                  className={`
+                    flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+                    ${identifyDone
+                      ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200 dark:border-sky-700 cursor-default'
+                      : 'border border-border hover:bg-secondary text-foreground'
+                    }
+                  `}
+                >
+                  {identifyDone
+                    ? <CheckCircle2 className="w-3 h-3" />
+                    : <ScanText className="w-3 h-3 opacity-70" />
                   }
-                `}
-              >
-                {identifyDone
-                  ? <CheckCircle2 className="w-3 h-3" />
-                  : <ScanText className="w-3 h-3 opacity-70" />
-                }
-                {identifyDone ? t('意图已识别') : t('意图识别')}
-              </button>
+                  {identifyDone ? t('意图已识别') : t('意图识别')}
+                </button>
+              )}
 
               <button
                 type="button"
                 onClick={handleStartWork}
-                disabled={stage >= 3}
-                className={`
-                  flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
-                  ${stage >= 3
-                    ? 'bg-primary/10 text-primary cursor-default border border-primary/20'
-                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  }
-                `}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {t('开始工作')}
               </button>
 
-              {resumeHint && (
+              {resumeHint && !checkResult && (
                 <span className="text-[11px] text-muted-foreground">{resumeHint}</span>
               )}
             </div>
-          )}
+
+            {/* Check result banner */}
+            {checkResult && (
+              <div className={`mx-3 mb-2 flex items-start gap-1.5 px-2.5 py-1.5 rounded-lg text-xs ${
+                checkResult.ok
+                  ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300'
+                  : 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300'
+              }`}>
+                {checkResult.ok
+                  ? <CheckCircle2 className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                  : <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                }
+                <span className="leading-snug">{checkResult.message}</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

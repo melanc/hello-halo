@@ -78,6 +78,9 @@ interface TaskState {
     pipelineResumeHint?: string
     pipelineDevPlan?: string
   }) => void
+
+  /** Persist identified requirement key points */
+  updateTaskRequirementKeyPoints: (taskId: string, points: string[]) => void
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -331,6 +334,14 @@ export const useTaskStore = create<TaskState>()(
               updatedAt: Date.now(),
             }
           }),
+        }))
+      },
+
+      updateTaskRequirementKeyPoints: (taskId, points) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId ? { ...t, requirementKeyPoints: points, updatedAt: Date.now() } : t
+          ),
         }))
       },
     }),
