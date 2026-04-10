@@ -1195,6 +1195,7 @@ export function InputArea({
             speechMicVisible={showSpeechMic}
             speechMicBlockedOffline={micBlockedOffline}
             speechListening={speechListening}
+            offlineSpeechStream={offlineSpeech.stream}
             onVoiceClick={handleVoiceInputClick}
           />
         </div>
@@ -1231,6 +1232,7 @@ interface InputToolbarProps {
   speechMicVisible: boolean
   speechMicBlockedOffline: boolean
   speechListening: boolean
+  offlineSpeechStream: MediaStream | null
   onVoiceClick: () => void
 }
 
@@ -1256,6 +1258,7 @@ function InputToolbar({
   speechMicVisible,
   speechMicBlockedOffline,
   speechListening,
+  offlineSpeechStream,
   onVoiceClick,
 }: InputToolbarProps) {
   const { t } = useTranslation()
@@ -1374,7 +1377,7 @@ function InputToolbar({
             {speechListening && (
               <SpeechVolumeMeter
                 className="shrink-0"
-                stream={useOfflineDictation ? offlineSpeech.stream : undefined}
+                stream={offlineSpeechStream}
               />
             )}
             <button
