@@ -680,24 +680,34 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
   // Resizable content area
   const [contentHeight, setContentHeight] = useState(440)
-  const dragStartRef = useRef<{ y: number; h: number } | null>(null)
+  const contentHeightRef = useRef(440)
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
-    dragStartRef.current = { y: e.clientY, h: contentHeight }
+    const startY = e.clientY
+    const startH = contentHeightRef.current
+
+    // Lock cursor and disable pointer events on everything else so
+    // textareas / iframes / other elements don't swallow mousemove
+    document.body.style.cursor = 'ns-resize'
+    document.body.style.userSelect = 'none'
+    document.body.style.pointerEvents = 'none'
+
     const onMove = (ev: MouseEvent) => {
-      if (!dragStartRef.current) return
-      const delta = ev.clientY - dragStartRef.current.y
-      setContentHeight(Math.max(120, Math.min(800, dragStartRef.current.h + delta)))
+      const newH = Math.max(120, Math.min(800, startH + ev.clientY - startY))
+      contentHeightRef.current = newH
+      setContentHeight(newH)
     }
     const onUp = () => {
-      dragStartRef.current = null
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      document.body.style.pointerEvents = ''
       document.removeEventListener('mousemove', onMove)
       document.removeEventListener('mouseup', onUp)
     }
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
-  }, [contentHeight])
+  }, []) // stable — reads height from ref, not from state
 
   // When progress advances, follow it
   useEffect(() => {
@@ -974,7 +984,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           {/* Resize handle */}
           <div
             onMouseDown={handleResizeMouseDown}
-            className="h-2 cursor-ns-resize flex items-center justify-center group select-none border-t border-border/30 hover:border-border/60 transition-colors"
+            className="h-3 cursor-ns-resize flex items-center justify-center group select-none border-t border-border/30 hover:border-border/60 transition-colors"
             aria-hidden="true"
           >
             <div className="w-10 h-0.5 rounded-full bg-border/50 group-hover:bg-muted-foreground/40 transition-colors" />
