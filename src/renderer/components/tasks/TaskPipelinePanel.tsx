@@ -20,10 +20,7 @@ import {
   Code2,
   FileText,
   Upload,
-  Plus,
-  X,
   AlertCircle,
-  ListChecks,
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
@@ -232,13 +229,17 @@ function Tab1Requirements({
 }) {
   const { t } = useTranslation()
   const updateTaskRequirementDoc = useTaskStore((s) => s.updateTaskRequirementDoc)
-  const updateTaskRequirementKeyPoints = useTaskStore((s) => s.updateTaskRequirementKeyPoints)
+  const updateTaskRequirementAnalysis = useTaskStore((s) => s.updateTaskRequirementAnalysis)
 
+  // Requirement description draft
   const [descDraft, setDescDraft] = useState(task.requirementDescription ?? '')
   const savedDescRef = useRef(task.requirementDescription ?? '')
   const [isParsingDoc, setIsParsingDoc] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const [newPoint, setNewPoint] = useState('')
+
+  // Requirement analysis draft (full structured text from AI)
+  const [analysisDraft, setAnalysisDraft] = useState(task.requirementAnalysis ?? '')
+  const savedAnalysisRef = useRef(task.requirementAnalysis ?? '')
 
   // Sync description draft when task updates externally
   useEffect(() => {
@@ -249,6 +250,15 @@ function Tab1Requirements({
     }
   }, [task.requirementDescription])
 
+  // Sync analysis draft when task updates externally (e.g. after AI writes it)
+  useEffect(() => {
+    const incoming = task.requirementAnalysis ?? ''
+    if (incoming !== savedAnalysisRef.current) {
+      savedAnalysisRef.current = incoming
+      setAnalysisDraft(incoming)
+    }
+  }, [task.requirementAnalysis])
+
   const handleDescBlur = useCallback(() => {
     const trimmed = descDraft.trim()
     if (trimmed !== savedDescRef.current) {
@@ -256,6 +266,14 @@ function Tab1Requirements({
       updateTaskRequirementDoc(task.id, task.requirementDocName, task.requirementDocContent, trimmed)
     }
   }, [descDraft, task.id, task.requirementDocName, task.requirementDocContent, updateTaskRequirementDoc])
+
+  const handleAnalysisBlur = useCallback(() => {
+    const trimmed = analysisDraft.trim()
+    if (trimmed !== savedAnalysisRef.current) {
+      savedAnalysisRef.current = trimmed
+      updateTaskRequirementAnalysis(task.id, trimmed)
+    }
+  }, [analysisDraft, task.id, updateTaskRequirementAnalysis])
 
   const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -277,23 +295,6 @@ function Tab1Requirements({
       setIsParsingDoc(false)
     }
   }, [task.id, task.requirementDescription, updateTaskRequirementDoc, t])
-
-  const keyPoints: string[] = task.requirementKeyPoints ?? []
-
-  const handleAddPoint = useCallback(() => {
-    const trimmed = newPoint.trim()
-    if (!trimmed) return
-    updateTaskRequirementKeyPoints(task.id, [...keyPoints, trimmed])
-    setNewPoint('')
-  }, [newPoint, keyPoints, task.id, updateTaskRequirementKeyPoints])
-
-  const handleRemovePoint = useCallback((idx: number) => {
-    updateTaskRequirementKeyPoints(task.id, keyPoints.filter((_, i) => i !== idx))
-  }, [keyPoints, task.id, updateTaskRequirementKeyPoints])
-
-  const handlePointKeyDown = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') { e.preventDefault(); handleAddPoint() }
-  }, [handleAddPoint])
 
   const hasContent = !!task.requirementDocName || descDraft.trim().length > 0
 
@@ -362,49 +363,22 @@ function Tab1Requirements({
         />
       </div>
 
-      {/* Requirement key points */}
+      {/* Requirement analysis — full structured AI output, editable */}
       <div>
-        <div className="flex items-center gap-1 mb-1.5">
-          <ListChecks className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('需求要点')}</span>
-        </div>
-        {keyPoints.length > 0 && (
-          <ul className="space-y-1 mb-1.5">
-            {keyPoints.map((pt, idx) => (
-              <li key={idx} className="flex items-start gap-1.5 group">
-                <span className="mt-1 w-1.5 h-1.5 rounded-full bg-primary/50 flex-shrink-0" />
-                <span className="flex-1 text-xs leading-snug text-foreground/80">{pt}</span>
-                <button
-                  type="button"
-                  onClick={() => handleRemovePoint(idx)}
-                  className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-secondary text-muted-foreground hover:text-foreground"
-                  aria-label={t('Remove')}
-                >
-                  <X className="w-2.5 h-2.5" />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        <div className="flex items-center gap-1">
-          <input
-            type="text"
-            className="flex-1 text-xs bg-secondary/40 border border-border rounded-md px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
-            placeholder={t('添加需求要点，按 Enter 确认')}
-            value={newPoint}
-            onChange={(e) => setNewPoint(e.target.value)}
-            onKeyDown={handlePointKeyDown}
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('需求分析')}</p>
+        {analysisDraft ? (
+          <textarea
+            className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring leading-relaxed font-[inherit]"
+            rows={12}
+            value={analysisDraft}
+            onChange={(e) => setAnalysisDraft(e.target.value)}
+            onBlur={handleAnalysisBlur}
           />
-          <button
-            type="button"
-            onClick={handleAddPoint}
-            disabled={!newPoint.trim()}
-            className="flex-shrink-0 p-1 rounded-md border border-border hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
-            aria-label={t('Add point')}
-          >
-            <Plus className="w-3 h-3" />
-          </button>
-        </div>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/50 italic px-0.5">
+            {t('Click "Start" to let AI analyse the requirement and fill this section')}
+          </p>
+        )}
       </div>
 
       {/* Breakdown trigger — stage 1 only */}
@@ -677,14 +651,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       const chat = useChatStore.getState()
 
       if (selectedTab === 1) {
-        // AI identifies requirement key points
+        // AI analyses requirement and returns structured 4-section text
         await chat.sendMessage(buildRequirementIdentifyMessage(task, t))
         const reply = await waitForAssistantReply(task.conversationId)
-        if (reply) {
-          const points = extractKeyPoints(reply)
-          if (points.length > 0) {
-            useTaskStore.getState().updateTaskRequirementKeyPoints(task.id, points)
-          }
+        if (reply?.trim()) {
+          useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
         }
         updateTaskPipelineState(task.id, { stage: Math.max(stage, 2) as PipelineStage })
         setSelectedTab(2)

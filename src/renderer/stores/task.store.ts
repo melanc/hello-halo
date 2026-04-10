@@ -81,6 +81,8 @@ interface TaskState {
 
   /** Persist identified requirement key points */
   updateTaskRequirementKeyPoints: (taskId: string, points: string[]) => void
+  /** Persist full AI-generated requirement analysis text */
+  updateTaskRequirementAnalysis: (taskId: string, analysis: string) => void
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -341,6 +343,14 @@ export const useTaskStore = create<TaskState>()(
         set((s) => ({
           tasks: s.tasks.map((t) =>
             t.id === taskId ? { ...t, requirementKeyPoints: points, updatedAt: Date.now() } : t
+          ),
+        }))
+      },
+
+      updateTaskRequirementAnalysis: (taskId, analysis) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId ? { ...t, requirementAnalysis: analysis, updatedAt: Date.now() } : t
           ),
         }))
       },

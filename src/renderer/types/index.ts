@@ -344,6 +344,8 @@ export interface WorkspaceTask {
   pipelineDevPlan?: string;
   /** Identified requirement key points (AI-extracted or user-added) */
   requirementKeyPoints?: string[];
+  /** Full structured requirement analysis text produced by AI (4-section format) */
+  requirementAnalysis?: string;
 }
 
 // ============================================
