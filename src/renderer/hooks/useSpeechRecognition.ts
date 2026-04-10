@@ -45,7 +45,7 @@ export interface UseSpeechRecognitionOptions {
   onError?: (code: string) => void
 }
 
-const NETWORK_RETRIES = 4
+const NETWORK_RETRIES = 2
 const networkRetryDelayMs = (attempt: number) => 350 + attempt * 200
 
 export function useSpeechRecognition({

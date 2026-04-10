@@ -291,9 +291,13 @@ export function InputArea({
         showError(t('Microphone permission denied'))
       } else if (code === 'network') {
         showError(
-          t(
-            'Voice input requires an Internet connection. Speech is processed online — check network, firewall, or region.'
-          )
+          isElectron()
+            ? t(
+                'Online voice input could not reach the speech server (firewall / region). Enable offline speech in Settings → Advanced to use whisper.cpp locally.'
+              )
+            : t(
+                'Voice input requires an Internet connection. Speech is processed online — check network, firewall, or region.'
+              )
         )
       } else if (code === 'start-failed') {
         showError(t('Voice input could not start. Try again.'))
