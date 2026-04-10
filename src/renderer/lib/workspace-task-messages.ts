@@ -176,6 +176,35 @@ export function buildDevPlanExecuteMessage(t: TFunction): string {
   ].join('\n')
 }
 
+/**
+ * 开始工作 Tab 4 — kicks off the actual coding phase.
+ * Includes the dev plan so the AI has full context to start implementing.
+ */
+export function buildCodingKickoffMessage(task: WorkspaceTask, t: TFunction): string {
+  const blocks: string[] = [
+    ROLE_PREAMBLE,
+    '',
+    t('现在进入编码实现阶段。请根据以下开发计划，开始逐步执行代码改动。'),
+    t('执行要求：'),
+    t('1. 按照开发计划中的模块和文件范围进行修改'),
+    t('2. 每完成一个模块或文件，简要说明改动内容'),
+    t('3. 遇到不确定的地方，先列出问题再继续'),
+    '',
+    t('任务名称：{{name}}', { name: task.name }),
+  ]
+
+  if (task.pipelineDevPlan?.trim()) {
+    blocks.push('', t('开发计划：'), task.pipelineDevPlan.trim())
+  } else if (task.pipelineSubtasks?.length) {
+    blocks.push('', t('子任务列表：'))
+    task.pipelineSubtasks.forEach((st) =>
+      blocks.push(`- ${st.title}${st.description ? '：' + st.description : ''}`)
+    )
+  }
+
+  return blocks.join('\n')
+}
+
 /** Multiline label prepended as a composer reference chip (sent as first block of the user message). */
 export function buildWorkspaceTaskComposerReferenceLabel(task: WorkspaceTask, t: TFunction): string {
   const lines: string[] = []

@@ -33,6 +33,7 @@ import {
   buildIntentAnalysisMessage,
   buildTaskBreakdownExecuteMessage,
   buildDevPlanExecuteMessage,
+  buildCodingKickoffMessage,
 } from '../../lib/workspace-task-messages'
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask } from '../../types'
 
@@ -864,8 +865,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         setSelectedTab(3)
 
       } else if (selectedTab === 4) {
-        updateTaskPipelineState(task.id, { stage: Math.max(stage, 4) as PipelineStage, pipelineResumeHint: t('进入编码阶段') })
-        setSelectedTab(5)
+        // Advance stage and send coding kickoff message with the dev plan
+        updateTaskPipelineState(task.id, { stage: Math.max(stage, 4) as PipelineStage, pipelineResumeHint: t('正在编写代码') })
+        await chat.sendMessage(buildCodingKickoffMessage(task, t))
 
       } else if (selectedTab === 5) {
         updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('等待验收') })
