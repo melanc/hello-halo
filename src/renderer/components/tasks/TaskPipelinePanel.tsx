@@ -19,9 +19,11 @@ import {
   FolderOpen,
   Code2,
   FileText,
+  Upload,
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
+import { extractWordDocument, DOC_IMG_PLACEHOLDER_PREFIX } from '../../utils/wordDocumentExtract'
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask } from '../../types'
 
 // ─────────────────────────────────────────────
@@ -140,21 +142,75 @@ function SubtaskItem({
 
 /** Tab 1 — 需求理解 */
 function Tab1Requirements({
-  requirementDocName,
-  requirementText,
+  task,
   stage,
   onBreakdown,
 }: {
-  requirementDocName: string
-  requirementText: string
+  task: WorkspaceTask
   stage: PipelineStage
   onBreakdown: () => void
 }) {
   const { t } = useTranslation()
+  const updateTaskRequirementDoc = useTaskStore((s) => s.updateTaskRequirementDoc)
+
+  const [descDraft, setDescDraft] = useState(task.requirementDescription ?? '')
+  const savedDescRef = useRef(task.requirementDescription ?? '')
+  const [isParsingDoc, setIsParsingDoc] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Sync description draft when task updates externally
+  useEffect(() => {
+    const incoming = task.requirementDescription ?? ''
+    if (incoming !== savedDescRef.current) {
+      savedDescRef.current = incoming
+      setDescDraft(incoming)
+    }
+  }, [task.requirementDescription])
+
+  const handleDescBlur = useCallback(() => {
+    const trimmed = descDraft.trim()
+    if (trimmed !== savedDescRef.current) {
+      savedDescRef.current = trimmed
+      updateTaskRequirementDoc(task.id, task.requirementDocName, task.requirementDocContent, trimmed)
+    }
+  }, [descDraft, task.id, task.requirementDocName, task.requirementDocContent, updateTaskRequirementDoc])
+
+  const handleFileChange = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    if (!file.name.toLowerCase().endsWith('.docx')) return
+    setIsParsingDoc(true)
+    try {
+      const arrayBuffer = await file.arrayBuffer()
+      const { textWithPlaceholders } = await extractWordDocument(arrayBuffer, {
+        unsupportedImageLabel: t('Word document image omitted'),
+      })
+      const normalized = textWithPlaceholders
+        .replace(new RegExp(`\\n?\\${DOC_IMG_PLACEHOLDER_PREFIX}\\d+\\]\\n?`, 'g'), '\n')
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+      updateTaskRequirementDoc(task.id, file.name, normalized, task.requirementDescription ?? '')
+    } finally {
+      setIsParsingDoc(false)
+    }
+  }, [task.id, task.requirementDescription, updateTaskRequirementDoc, t])
+
+  const hasContent = !!task.requirementDocName || descDraft.trim().length > 0
+
   return (
     <div className="space-y-3">
-      {/* Requirement document — shown above description when a doc was uploaded */}
-      {requirementDocName && (
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        onChange={(e) => void handleFileChange(e)}
+        className="hidden"
+      />
+
+      {/* Requirement document card — shown when a doc was uploaded */}
+      {task.requirementDocName ? (
         <div className="flex items-center gap-2 px-2.5 py-2 rounded-lg bg-secondary/60 border border-border/50">
           <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-muted/80">
             <FileText className="w-3.5 h-3.5 text-muted-foreground" />
@@ -163,24 +219,57 @@ function Tab1Requirements({
             <p className="text-[10px] uppercase tracking-wider text-muted-foreground leading-none mb-0.5">
               {t('需求文档')}
             </p>
-            <p className="text-xs font-medium text-foreground truncate">{requirementDocName}</p>
+            <p className="text-xs font-medium text-foreground truncate">{task.requirementDocName}</p>
           </div>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isParsingDoc}
+            className="flex-shrink-0 flex items-center gap-1 px-2 py-1 text-[11px] text-muted-foreground border border-border/60 rounded-md hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50"
+          >
+            {isParsingDoc
+              ? <Loader2 className="w-3 h-3 animate-spin" />
+              : <Upload className="w-3 h-3" />
+            }
+            {t('重新上传')}
+          </button>
         </div>
-      )}
-
-      {/* Requirement description */}
-      {requirementText ? (
-        <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{requirementText}</p>
       ) : (
-        <p className="text-xs text-muted-foreground/50 italic">{t('暂无需求描述')}</p>
+        /* Upload button when no doc yet */
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isParsingDoc}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-dashed border-border rounded-lg hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50 w-full justify-center"
+        >
+          {isParsingDoc
+            ? <Loader2 className="w-3 h-3 animate-spin" />
+            : <Upload className="w-3 h-3" />
+          }
+          {isParsingDoc ? t('正在解析文档...') : t('上传需求文档 (.docx)')}
+        </button>
       )}
 
+      {/* Requirement description — editable textarea */}
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('需求描述')}</p>
+        <textarea
+          className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed"
+          rows={4}
+          placeholder={t('描述需求，或通过上传文档补充...')}
+          value={descDraft}
+          onChange={(e) => setDescDraft(e.target.value)}
+          onBlur={handleDescBlur}
+        />
+      </div>
+
+      {/* Breakdown trigger — stage 1 only */}
       {stage === 1 && (
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={onBreakdown}
-            disabled={!requirementText && !requirementDocName}
+            disabled={!hasContent}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <ClipboardList className="w-3 h-3" />
@@ -353,11 +442,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     setSelectedTab(stage)
   }, [stage])
 
-  const requirementText =
-    task.requirementDescription?.trim() ||
-    task.requirementDocContent?.trim() ||
-    ''
-
   const doneCount = subtasks.filter((s) => s.status === 'done').length
 
   // ── handlers ──
@@ -433,8 +517,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ maxHeight: 240 }}>
             {selectedTab === 1 && (
               <Tab1Requirements
-                requirementDocName={task.requirementDocName ?? ''}
-                requirementText={requirementText}
+                task={task}
                 stage={stage}
                 onBreakdown={handleBreakdown}
               />
