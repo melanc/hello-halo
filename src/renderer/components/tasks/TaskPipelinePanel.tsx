@@ -195,10 +195,19 @@ function SubtaskItem({
   const [titleDraft, setTitleDraft] = useState(subtask.title)
   const [descDraft, setDescDraft] = useState(subtask.description ?? '')
   const titleInputRef = useRef<HTMLInputElement>(null)
+  const descTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (isEditing) titleInputRef.current?.focus()
   }, [isEditing])
+
+  // Auto-resize description textarea whenever its content changes
+  useEffect(() => {
+    const el = descTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [descDraft, isEditing])
 
   // Sync drafts when subtask is updated externally (e.g. after AI re-generates)
   useEffect(() => {
@@ -242,13 +251,14 @@ function SubtaskItem({
             if (e.key === 'Escape') handleCancel()
           }}
         />
-        <input
-          className="w-full text-[11px] bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50"
+        <textarea
+          ref={descTextareaRef}
+          className="w-full text-[11px] bg-background border border-border rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 resize-none overflow-hidden leading-relaxed"
+          rows={3}
           placeholder={t('简要说明（可选）')}
           value={descDraft}
           onChange={(e) => setDescDraft(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSave()
             if (e.key === 'Escape') handleCancel()
           }}
         />
