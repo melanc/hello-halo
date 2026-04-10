@@ -3,7 +3,7 @@
  */
 
 import type { TFunction } from 'i18next'
-import type { WorkspaceTask } from '../types'
+import type { PipelineStage, PipelineSubtask, WorkspaceTask } from '../types'
 
 const DOC_EXCERPT_LEN = 600
 const DESC_EXCERPT_LEN = 400
@@ -39,6 +39,118 @@ export function buildRequirementIdentifyMessage(task: WorkspaceTask, t: TFunctio
   )
 
   return blocks.join('\n')
+}
+
+/**
+ * 意图识别 — per-tab planning message.
+ * Asks the AI to describe what it plans to do for this pipeline step,
+ * and to surface any questions or ambiguities before execution.
+ */
+export function buildIntentAnalysisMessage(
+  tab: PipelineStage,
+  task: WorkspaceTask,
+  opts: { subtasks?: PipelineSubtask[]; keyPoints?: string[] },
+  t: TFunction
+): string {
+  const header = `任务名称：${task.name}`
+
+  switch (tab) {
+    case 1: {
+      const blocks = [
+        t('请分析以下需求，告诉我：'),
+        t('1. 你理解到的需求背景和目标是什么'),
+        t('2. 你打算提取哪些核心功能要点'),
+        t('3. 有哪些地方不清楚，需要进一步确认'),
+        '',
+        header,
+      ]
+      if (task.requirementDocName?.trim()) {
+        blocks.push(`需求文档：${task.requirementDocName.trim()}`)
+      }
+      const content = task.requirementDocContent?.trim() || task.requirementDescription?.trim()
+      if (content) blocks.push('', '需求内容：', content.slice(0, REQ_IDENTIFY_LEN))
+      return blocks.join('\n')
+    }
+    case 2: {
+      const blocks = [
+        t('请根据以下需求要点，列出你的任务拆解方案：'),
+        t('1. 打算拆分哪些子任务，每个子任务的目标是什么'),
+        t('2. 子任务之间的依赖关系和执行顺序'),
+        t('3. 有哪些不确定的地方需要先确认'),
+        '',
+        header,
+      ]
+      if (opts.keyPoints?.length) {
+        blocks.push('', '需求要点：')
+        opts.keyPoints.forEach((pt) => blocks.push(`- ${pt}`))
+      } else {
+        const content = task.requirementDocContent?.trim() || task.requirementDescription?.trim()
+        if (content) blocks.push('', '需求内容：', content.slice(0, REQ_IDENTIFY_LEN))
+      }
+      return blocks.join('\n')
+    }
+    case 3: {
+      const blocks = [
+        t('请根据以下子任务列表，说明你的开发计划：'),
+        t('1. 涉及哪些项目 / 代码模块'),
+        t('2. 主要代码改动范围和实现思路'),
+        t('3. 有哪些需要用户确认或存在风险的地方'),
+        '',
+        header,
+      ]
+      if (opts.subtasks?.length) {
+        blocks.push('', '子任务列表：')
+        opts.subtasks.forEach((st) => blocks.push(`- ${st.title}${st.description ? '：' + st.description : ''}`))
+      }
+      return blocks.join('\n')
+    }
+    case 4: {
+      const blocks = [
+        t('请根据当前任务的开发计划，说明你将如何执行编码：'),
+        t('1. 具体实现步骤'),
+        t('2. 要修改的关键文件和接口'),
+        t('3. 需要用户确认或可能有风险的地方，请先列出问题'),
+        '',
+        header,
+      ]
+      return blocks.join('\n')
+    }
+    case 5: {
+      const blocks = [
+        t('请说明你的验证收尾计划：'),
+        t('1. 要检查哪些代码逻辑和边界情况'),
+        t('2. 要运行哪些测试'),
+        t('3. 有哪些已知风险点'),
+        '',
+        header,
+      ]
+      return blocks.join('\n')
+    }
+    default:
+      return header
+  }
+}
+
+/**
+ * 开始工作 Tab 2 — asks AI to output the final task breakdown list for parsing.
+ * Must be called after 意图识别 so the AI already has context from the conversation.
+ */
+export function buildTaskBreakdownExecuteMessage(t: TFunction): string {
+  return [
+    t('请按照我们刚才讨论的方案，输出任务拆解结果。'),
+    t('格式要求：每个子任务单独一行，以 - 开头，格式为「- 子任务标题: 简要说明」。'),
+    t('不需要其他说明，直接输出子任务列表。'),
+  ].join('\n')
+}
+
+/**
+ * 开始工作 Tab 3 — asks AI to output the final dev plan text for saving.
+ */
+export function buildDevPlanExecuteMessage(t: TFunction): string {
+  return [
+    t('请按照我们刚才讨论的方案，输出最终的开发计划。'),
+    t('包括：1. 涉及的项目和代码模块（每项以 - 开头）；2. 具体代码改动范围说明。'),
+  ].join('\n')
 }
 
 /** Multiline label prepended as a composer reference chip (sent as first block of the user message). */

@@ -29,7 +29,12 @@ import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
 import { useChatStore } from '../../stores/chat.store'
 import { extractWordDocument, DOC_IMG_PLACEHOLDER_PREFIX } from '../../utils/wordDocumentExtract'
-import { buildRequirementIdentifyMessage } from '../../lib/workspace-task-messages'
+import {
+  buildRequirementIdentifyMessage,
+  buildIntentAnalysisMessage,
+  buildTaskBreakdownExecuteMessage,
+  buildDevPlanExecuteMessage,
+} from '../../lib/workspace-task-messages'
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask } from '../../types'
 
 // ─────────────────────────────────────────────
@@ -43,6 +48,22 @@ function extractKeyPoints(text: string): string[] {
     .filter((line) => /^\s*[-•*]\s+.+/.test(line))
     .map((line) => line.trim().replace(/^[-•*]\s+/, '').trim())
     .filter((pt) => pt.length > 0 && pt.length < 300)
+}
+
+/** Parse bullet-point lines from AI breakdown reply into PipelineSubtask objects. */
+function extractSubtasks(text: string): PipelineSubtask[] {
+  const now = Date.now()
+  return text
+    .split('\n')
+    .filter((line) => /^\s*[-•*]\s+.+/.test(line))
+    .map((line, i) => {
+      const raw = line.trim().replace(/^[-•*]\s+/, '').trim()
+      const colonIdx = raw.search(/[:：]/)
+      const title = colonIdx > 0 ? raw.slice(0, colonIdx).trim() : raw
+      const description = colonIdx > 0 ? raw.slice(colonIdx + 1).trim() : ''
+      return { id: `st-${now}-${i}`, title, description, status: 'pending' as PipelineSubtaskStatus }
+    })
+    .filter((st) => st.title.length > 0 && st.title.length < 200)
 }
 
 /**
@@ -549,18 +570,17 @@ function Tab5Review() {
 function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const { t } = useTranslation()
   const updateTaskPipelineState = useTaskStore((s) => s.updateTaskPipelineState)
-  const markRequirementIdentifyUsed = useTaskStore((s) => s.markRequirementIdentifyUsed)
 
   const stage: PipelineStage = task.pipelineStage ?? 1
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
   const resumeHint = task.pipelineResumeHint ?? ''
-  const identifyDone = task.requirementIdentifyUsed ?? false
 
   // selectedTab follows progress stage, but user can freely switch
   const [selectedTab, setSelectedTab] = useState<PipelineStage>(stage)
   const [collapsed, setCollapsed] = useState(false)
   const [checkResult, setCheckResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
+  const [isIdentifying, setIsIdentifying] = useState(false)
 
   // When progress advances, follow it
   useEffect(() => {
@@ -601,32 +621,47 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     setSelectedTab(2)
   }, [task.id, updateTaskPipelineState, t])
 
-  const handleIdentify = useCallback(() => {
-    if (identifyDone) return
-    markRequirementIdentifyUsed(task.id)
-    updateTaskPipelineState(task.id, { pipelineResumeHint: t('意图已识别，可以开始工作') })
-  }, [identifyDone, task.id, markRequirementIdentifyUsed, updateTaskPipelineState, t])
+  const handleIdentifyIntent = useCallback(async () => {
+    if (isIdentifying || isSendingMessage) return
+    setIsIdentifying(true)
+    try {
+      const chat = useChatStore.getState()
+      await chat.sendMessage(
+        buildIntentAnalysisMessage(
+          selectedTab,
+          task,
+          { subtasks, keyPoints: task.requirementKeyPoints ?? [] },
+          t
+        )
+      )
+    } finally {
+      setIsIdentifying(false)
+    }
+  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t])
 
   const getTabCheck = useCallback((tab: PipelineStage): { ok: boolean; message: string } => {
     switch (tab) {
       case 1: {
         const hasContent = !!task.requirementDocName || (task.requirementDescription?.trim() ?? '').length > 0
         if (!hasContent) return { ok: false, message: t('请填写需求描述或上传需求文档') }
-        return { ok: true, message: t('需求已就绪，接下来拆解任务，将需求分解为可执行的子任务') }
+        return { ok: true, message: t('AI 将识别需求要点，自动填入列表') }
       }
       case 2: {
-        if (subtasks.length === 0) return { ok: false, message: t('请先拆解任务，点击「拆解任务」按钮生成子任务') }
-        return { ok: true, message: t('任务拆解完成，接下来制定开发计划，明确涉及项目和改动范围') }
+        const hasContext =
+          (task.requirementKeyPoints?.length ?? 0) > 0 ||
+          !!task.requirementDocContent?.trim() ||
+          !!task.requirementDescription?.trim()
+        if (!hasContext) return { ok: false, message: t('请先在需求识别中上传文档或填写描述') }
+        return { ok: true, message: t('AI 将按讨论结果生成子任务列表') }
       }
       case 3: {
-        const hasPlan = (task.pipelineDevPlan?.trim() ?? '').length > 0
-        if (!hasPlan) return { ok: false, message: t('请填写代码改动范围，描述要改哪些模块、文件或接口') }
-        return { ok: true, message: t('开发计划已确认，接下来进入编码实现阶段') }
+        if (subtasks.length === 0) return { ok: false, message: t('请先在任务拆解中生成子任务') }
+        return { ok: true, message: t('AI 将按讨论结果生成开发计划') }
       }
       case 4:
-        return { ok: true, message: t('编码任务进行中，完成后进入验证收尾阶段') }
+        return { ok: true, message: t('AI 将按照当前计划执行编码') }
       case 5:
-        return { ok: true, message: t('任务已完成，请检查代码质量并提交') }
+        return { ok: true, message: t('AI 将进行代码审查和测试') }
       default:
         return { ok: true, message: '' }
     }
@@ -637,13 +672,13 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     setCheckResult(check)
     if (!check.ok) return
 
-    if (selectedTab === 1) {
-      // Send requirement to AI for analysis, then auto-populate key points
-      setIsSendingMessage(true)
-      try {
-        const chat = useChatStore.getState()
+    setIsSendingMessage(true)
+    try {
+      const chat = useChatStore.getState()
+
+      if (selectedTab === 1) {
+        // AI identifies requirement key points
         await chat.sendMessage(buildRequirementIdentifyMessage(task, t))
-        // Wait for the AI to finish and parse the bullet points from its reply
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {
           const points = extractKeyPoints(reply)
@@ -651,18 +686,45 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             useTaskStore.getState().updateTaskRequirementKeyPoints(task.id, points)
           }
         }
-      } finally {
-        setIsSendingMessage(false)
+        updateTaskPipelineState(task.id, { stage: Math.max(stage, 2) as PipelineStage })
+        setSelectedTab(2)
+
+      } else if (selectedTab === 2) {
+        // AI generates subtask breakdown
+        await chat.sendMessage(buildTaskBreakdownExecuteMessage(t))
+        const reply = await waitForAssistantReply(task.conversationId)
+        if (reply) {
+          const generated = extractSubtasks(reply)
+          if (generated.length > 0) {
+            updateTaskPipelineState(task.id, {
+              pipelineSubtasks: generated,
+              stage: Math.max(stage, 2) as PipelineStage,
+            })
+          }
+        }
+        setSelectedTab(2)
+
+      } else if (selectedTab === 3) {
+        // AI generates dev plan
+        await chat.sendMessage(buildDevPlanExecuteMessage(t))
+        const reply = await waitForAssistantReply(task.conversationId)
+        if (reply) {
+          updateTaskPipelineState(task.id, {
+            pipelineDevPlan: reply.trim(),
+            stage: Math.max(stage, 3) as PipelineStage,
+          })
+        }
+        setSelectedTab(3)
+
+      } else if (selectedTab === 4) {
+        updateTaskPipelineState(task.id, { stage: Math.max(stage, 4) as PipelineStage, pipelineResumeHint: t('进入编码阶段') })
+        setSelectedTab(5)
+
+      } else if (selectedTab === 5) {
+        updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('等待验收') })
       }
-    } else if (selectedTab === 2 && stage <= 2) {
-      updateTaskPipelineState(task.id, { stage: 3, pipelineResumeHint: t('等待你确认影响范围') })
-      setSelectedTab(3)
-    } else if (selectedTab === 3 && stage <= 3) {
-      updateTaskPipelineState(task.id, { stage: 4, pipelineResumeHint: t('进入编码阶段') })
-      setSelectedTab(4)
-    } else if (selectedTab === 4 && stage <= 4) {
-      updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('等待验收') })
-      setSelectedTab(5)
+    } finally {
+      setIsSendingMessage(false)
     }
   }, [selectedTab, stage, task, getTabCheck, updateTaskPipelineState, t])
 
@@ -728,26 +790,18 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               )}
               {(!resumeHint || checkResult) && <span className="flex-1" />}
 
-              {stage >= 2 && (
-                <button
-                  type="button"
-                  onClick={handleIdentify}
-                  disabled={identifyDone}
-                  className={`
-                    flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
-                    ${identifyDone
-                      ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200 dark:border-sky-700 cursor-default'
-                      : 'border border-border hover:bg-secondary text-foreground'
-                    }
-                  `}
-                >
-                  {identifyDone
-                    ? <CheckCircle2 className="w-3 h-3" />
-                    : <ScanText className="w-3 h-3 opacity-70" />
-                  }
-                  {identifyDone ? t('意图已识别') : t('意图识别')}
-                </button>
-              )}
+              <button
+                type="button"
+                onClick={() => void handleIdentifyIntent()}
+                disabled={isIdentifying || isSendingMessage}
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
+              >
+                {isIdentifying
+                  ? <Loader2 className="w-3 h-3 animate-spin" />
+                  : <ScanText className="w-3 h-3 opacity-70" />
+                }
+                {t('意图识别')}
+              </button>
 
               <button
                 type="button"
