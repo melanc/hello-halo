@@ -340,6 +340,8 @@ export interface WorkspaceTask {
   pipelineSubtasks?: PipelineSubtask[];
   /** Short status hint shown next to action button (e.g. "正在分析..." or "子任务已生成") */
   pipelineResumeHint?: string;
+  /** AI-generated / user-edited development plan: which code areas to change */
+  pipelineDevPlan?: string;
 }
 
 // ============================================

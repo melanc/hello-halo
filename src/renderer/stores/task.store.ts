@@ -71,11 +71,12 @@ interface TaskState {
   /** Append chat selection into one shared "conversation excerpts" section (no new top-level item each time). */
   appendConversationExcerptToBreakdownPlan: (taskId: string, excerpt: string) => void
 
-  /** Update pipeline stage, subtasks, and/or resume hint for inline pipeline panel */
+  /** Update pipeline stage, subtasks, resume hint, and/or dev plan for inline pipeline panel */
   updateTaskPipelineState: (taskId: string, updates: {
     stage?: PipelineStage
     pipelineSubtasks?: PipelineSubtask[]
     pipelineResumeHint?: string
+    pipelineDevPlan?: string
   }) => void
 }
 
@@ -325,6 +326,7 @@ export const useTaskStore = create<TaskState>()(
               ...t,
               ...(updates.stage !== undefined && { pipelineStage: updates.stage }),
               ...(updates.pipelineSubtasks !== undefined && { pipelineSubtasks: updates.pipelineSubtasks }),
+              ...(updates.pipelineDevPlan !== undefined && { pipelineDevPlan: updates.pipelineDevPlan }),
               ...(updates.pipelineResumeHint !== undefined && { pipelineResumeHint: updates.pipelineResumeHint }),
               updatedAt: Date.now(),
             }
