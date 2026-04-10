@@ -1,10 +1,13 @@
 /**
  * Inline pipeline panel shown above ChatView when in task-focus mode.
- * Displays the 5-stage workflow (requirements → breakdown → intent → coding → review)
- * with subtasks, dev plan, and action buttons.
+ *
+ * Stage bar doubles as a tab navigator — clicking any stage switches
+ * the body to show that stage's content regardless of current progress.
+ *
+ * Stages: 1=需求理解  2=任务拆解  3=开发计划  4=编码实现  5=验证收尾
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   ChevronDown,
   ChevronUp,
@@ -27,28 +30,47 @@ import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTa
 const STAGES: { id: PipelineStage; label: string }[] = [
   { id: 1, label: '需求理解' },
   { id: 2, label: '任务拆解' },
-  { id: 3, label: '意图确认' },
+  { id: 3, label: '开发计划' },
   { id: 4, label: '编码实现' },
   { id: 5, label: '验证收尾' },
 ]
 
 // ─────────────────────────────────────────────
-// StageBar
+// StageTabBar — progress indicator + tab clicks
 // ─────────────────────────────────────────────
 
-function StageBar({ stage }: { stage: PipelineStage }) {
+function StageTabBar({
+  stage,
+  selectedTab,
+  onSelect,
+}: {
+  stage: PipelineStage
+  selectedTab: PipelineStage
+  onSelect: (id: PipelineStage) => void
+}) {
   return (
     <div className="flex items-center gap-0 flex-1 min-w-0">
       {STAGES.map((s, i) => {
         const isDone = s.id < stage
         const isCurrent = s.id === stage
+        const isSelected = s.id === selectedTab
+
         return (
           <div key={s.id} className="flex items-center flex-1 min-w-0">
-            <div
+            <button
+              type="button"
+              onClick={() => onSelect(s.id)}
               className={`
-                flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium
-                flex-1 justify-center min-w-0
-                ${isDone ? 'text-primary' : isCurrent ? 'text-foreground' : 'text-muted-foreground/40'}
+                flex items-center gap-1 px-1.5 py-1 rounded text-[11px] font-medium
+                flex-1 justify-center min-w-0 transition-colors
+                ${isSelected
+                  ? 'bg-secondary text-foreground'
+                  : isDone
+                    ? 'text-primary hover:bg-secondary/60'
+                    : isCurrent
+                      ? 'text-foreground hover:bg-secondary/60'
+                      : 'text-muted-foreground/40 hover:text-muted-foreground hover:bg-secondary/40'
+                }
               `}
             >
               {isDone ? (
@@ -58,8 +80,8 @@ function StageBar({ stage }: { stage: PipelineStage }) {
               ) : (
                 <Circle className="w-3 h-3 flex-shrink-0" />
               )}
-              <span className="hidden md:inline truncate">{s.label}</span>
-            </div>
+              <span className="hidden sm:inline truncate">{s.label}</span>
+            </button>
             {i < STAGES.length - 1 && (
               <div className={`h-px w-2 flex-shrink-0 ${s.id < stage ? 'bg-primary/40' : 'bg-border'}`} />
             )}
@@ -112,10 +134,93 @@ function SubtaskItem({
 }
 
 // ─────────────────────────────────────────────
-// DevPlanSection — 开发计划
+// Tab bodies
 // ─────────────────────────────────────────────
 
-function DevPlanSection({
+/** Tab 1 — 需求理解 */
+function Tab1Requirements({
+  requirementText,
+  stage,
+  onBreakdown,
+}: {
+  requirementText: string
+  stage: PipelineStage
+  onBreakdown: () => void
+}) {
+  const { t } = useTranslation()
+  return (
+    <div className="space-y-3">
+      {requirementText ? (
+        <p className="text-xs text-foreground/80 leading-relaxed whitespace-pre-wrap">{requirementText}</p>
+      ) : (
+        <p className="text-xs text-muted-foreground/50 italic">{t('暂无需求描述')}</p>
+      )}
+      {stage === 1 && (
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={onBreakdown}
+            disabled={!requirementText}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <ClipboardList className="w-3 h-3" />
+            {t('拆解任务')}
+          </button>
+          <span className="text-[11px] text-muted-foreground">{t('AI 自动拆解子任务，分析影响范围')}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Tab 2 — 任务拆解 */
+function Tab2Breakdown({
+  subtasks,
+  stage,
+  onBreakdown,
+  onToggle,
+}: {
+  subtasks: PipelineSubtask[]
+  stage: PipelineStage
+  onBreakdown: () => void
+  onToggle: (id: string, next: PipelineSubtaskStatus) => void
+}) {
+  const { t } = useTranslation()
+  if (subtasks.length === 0) {
+    return (
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={onBreakdown}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+        >
+          <ClipboardList className="w-3 h-3" />
+          {t('拆解任务')}
+        </button>
+        <span className="text-[11px] text-muted-foreground">{t('AI 自动拆解子任务，分析影响范围')}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="space-y-0.5">
+      {subtasks.map((st) => (
+        <SubtaskItem key={st.id} subtask={st} onToggle={onToggle} />
+      ))}
+      {stage === 1 && (
+        <button
+          type="button"
+          onClick={onBreakdown}
+          className="mt-2 flex items-center gap-1.5 px-3 py-1.5 text-xs border border-border rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+        >
+          {t('重新拆解')}
+        </button>
+      )}
+    </div>
+  )
+}
+
+/** Tab 3 — 开发计划 */
+function Tab3DevPlan({
   task,
   onSaveDevPlan,
 }: {
@@ -126,6 +231,15 @@ function DevPlanSection({
   const [draft, setDraft] = useState(task.pipelineDevPlan ?? '')
   const savedRef = useRef(task.pipelineDevPlan ?? '')
 
+  // Sync when task changes externally
+  useEffect(() => {
+    const incoming = task.pipelineDevPlan ?? ''
+    if (incoming !== savedRef.current) {
+      savedRef.current = incoming
+      setDraft(incoming)
+    }
+  }, [task.pipelineDevPlan])
+
   const handleBlur = useCallback(() => {
     if (draft !== savedRef.current) {
       savedRef.current = draft
@@ -133,20 +247,15 @@ function DevPlanSection({
     }
   }, [draft, onSaveDevPlan])
 
-  // Merge planned + touched dirs, deduplicated
   const allDirs = Array.from(
     new Set([...(task.projectDirs ?? []), ...(task.touchedProjectDirs ?? [])])
   ).filter(Boolean)
 
   return (
-    <div className="space-y-2">
-      <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
-        {t('开发计划')}
-      </p>
-
-      {/* Project list */}
+    <div className="space-y-3">
+      {/* 涉及项目 */}
       <div>
-        <div className="flex items-center gap-1 mb-1">
+        <div className="flex items-center gap-1 mb-1.5">
           <FolderOpen className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
           <span className="text-[11px] text-muted-foreground">{t('涉及项目')}</span>
         </div>
@@ -166,9 +275,9 @@ function DevPlanSection({
         )}
       </div>
 
-      {/* Code change area — editable */}
+      {/* 代码改动范围 */}
       <div>
-        <div className="flex items-center gap-1 mb-1">
+        <div className="flex items-center gap-1 mb-1.5">
           <Code2 className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
           <span className="text-[11px] text-muted-foreground">{t('代码改动范围')}</span>
         </div>
@@ -182,6 +291,22 @@ function DevPlanSection({
         />
       </div>
     </div>
+  )
+}
+
+/** Tab 4 — 编码实现 (placeholder) */
+function Tab4Coding() {
+  const { t } = useTranslation()
+  return (
+    <p className="text-xs text-muted-foreground/60 italic">{t('AI 将在此阶段自动执行编码任务')}</p>
+  )
+}
+
+/** Tab 5 — 验证收尾 (placeholder) */
+function Tab5Review() {
+  const { t } = useTranslation()
+  return (
+    <p className="text-xs text-muted-foreground/60 italic">{t('AI 将在此阶段进行静态审查和单元测试')}</p>
   )
 }
 
@@ -199,7 +324,14 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const resumeHint = task.pipelineResumeHint ?? ''
   const identifyDone = task.requirementIdentifyUsed ?? false
 
+  // selectedTab follows progress stage, but user can freely switch
+  const [selectedTab, setSelectedTab] = useState<PipelineStage>(stage)
   const [collapsed, setCollapsed] = useState(false)
+
+  // When progress advances, follow it
+  useEffect(() => {
+    setSelectedTab(stage)
+  }, [stage])
 
   const requirementText =
     task.requirementDescription?.trim() ||
@@ -218,7 +350,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     [subtasks, task.id, updateTaskPipelineState]
   )
 
-  // Placeholder breakdown — will be replaced with real AI call
   const handleBreakdown = useCallback(() => {
     const now = Date.now()
     const placeholders: PipelineSubtask[] = [
@@ -233,9 +364,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       pipelineSubtasks: placeholders,
       pipelineResumeHint: t('子任务已生成，请确认后开始工作'),
     })
+    setSelectedTab(2)
   }, [task.id, updateTaskPipelineState, t])
 
-  // Intent identification — stub; will trigger AI in the chat later
   const handleIdentify = useCallback(() => {
     if (identifyDone) return
     markRequirementIdentifyUsed(task.id)
@@ -249,9 +380,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   }, [stage, task.id, updateTaskPipelineState, t])
 
   const handleSaveDevPlan = useCallback(
-    (text: string) => {
-      updateTaskPipelineState(task.id, { pipelineDevPlan: text })
-    },
+    (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
     [task.id, updateTaskPipelineState]
   )
 
@@ -259,9 +388,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
   return (
     <div className="border-b border-border bg-card/60 flex flex-col">
-      {/* Header — always visible */}
+      {/* Header: tab bar + progress badge + collapse toggle */}
       <div className="flex items-center gap-2 px-3 py-2 min-h-[40px]">
-        <StageBar stage={stage} />
+        <StageTabBar stage={stage} selectedTab={selectedTab} onSelect={setSelectedTab} />
         {subtasks.length > 0 && (
           <span className="flex-shrink-0 text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-secondary">
             {doneCount}/{subtasks.length}
@@ -277,107 +406,75 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         </button>
       </div>
 
-      {/* Body — collapsible */}
+      {/* Body */}
       {!collapsed && (
-        <div className="overflow-y-auto" style={{ maxHeight: 320 }}>
-          <div className="px-3 pb-3 space-y-3">
-
-            {/* Requirement summary */}
-            {requirementText && (
-              <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                  {t('需求描述')}
-                </p>
-                <p className="text-xs text-foreground/80 leading-relaxed line-clamp-3 whitespace-pre-wrap">
-                  {requirementText}
-                </p>
-              </div>
+        <div className="flex flex-col">
+          {/* Tab content */}
+          <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ maxHeight: 240 }}>
+            {selectedTab === 1 && (
+              <Tab1Requirements
+                requirementText={requirementText}
+                stage={stage}
+                onBreakdown={handleBreakdown}
+              />
             )}
-
-            {/* Stage 1: breakdown trigger */}
-            {stage === 1 && subtasks.length === 0 && (
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleBreakdown}
-                  disabled={!requirementText}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  <ClipboardList className="w-3 h-3" />
-                  {t('拆解任务')}
-                </button>
-                <span className="text-[11px] text-muted-foreground">
-                  {t('AI 自动拆解子任务，分析影响范围')}
-                </span>
-              </div>
+            {selectedTab === 2 && (
+              <Tab2Breakdown
+                subtasks={subtasks}
+                stage={stage}
+                onBreakdown={handleBreakdown}
+                onToggle={handleToggleSubtask}
+              />
             )}
-
-            {/* Subtasks */}
-            {subtasks.length > 0 && (
-              <div>
-                <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">
-                  {t('子任务')}
-                </p>
-                <div className="space-y-0.5">
-                  {subtasks.map((st) => (
-                    <SubtaskItem key={st.id} subtask={st} onToggle={handleToggleSubtask} />
-                  ))}
-                </div>
-              </div>
+            {selectedTab === 3 && (
+              <Tab3DevPlan task={task} onSaveDevPlan={handleSaveDevPlan} />
             )}
-
-            {/* Dev plan — shown after breakdown (stage ≥ 2) */}
-            {stage >= 2 && (
-              <DevPlanSection task={task} onSaveDevPlan={handleSaveDevPlan} />
-            )}
-
-            {/* Action row — shown after breakdown (stage ≥ 2) */}
-            {stage >= 2 && (
-              <div className="flex items-center gap-2 pt-1 flex-wrap">
-                {/* 意图识别 — left of 开始工作 */}
-                <button
-                  type="button"
-                  onClick={handleIdentify}
-                  disabled={identifyDone}
-                  className={`
-                    flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
-                    ${identifyDone
-                      ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200 dark:border-sky-700 cursor-default'
-                      : 'border border-border hover:bg-secondary text-foreground'
-                    }
-                  `}
-                >
-                  {identifyDone ? (
-                    <CheckCircle2 className="w-3 h-3" />
-                  ) : (
-                    <ScanText className="w-3 h-3 opacity-70" />
-                  )}
-                  {identifyDone ? t('意图已识别') : t('意图识别')}
-                </button>
-
-                {/* 开始工作 */}
-                <button
-                  type="button"
-                  onClick={handleStartWork}
-                  disabled={stage >= 3}
-                  className={`
-                    flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
-                    ${stage >= 3
-                      ? 'bg-primary/10 text-primary cursor-default border border-primary/20'
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                    }
-                  `}
-                >
-                  {t('开始工作')}
-                </button>
-
-                {resumeHint && (
-                  <span className="text-[11px] text-muted-foreground">{resumeHint}</span>
-                )}
-              </div>
-            )}
-
+            {selectedTab === 4 && <Tab4Coding />}
+            {selectedTab === 5 && <Tab5Review />}
           </div>
+
+          {/* Action row — always shown when stage ≥ 2 */}
+          {stage >= 2 && (
+            <div className="flex items-center gap-2 px-3 py-2 border-t border-border/50 flex-wrap">
+              <button
+                type="button"
+                onClick={handleIdentify}
+                disabled={identifyDone}
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+                  ${identifyDone
+                    ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200 dark:border-sky-700 cursor-default'
+                    : 'border border-border hover:bg-secondary text-foreground'
+                  }
+                `}
+              >
+                {identifyDone
+                  ? <CheckCircle2 className="w-3 h-3" />
+                  : <ScanText className="w-3 h-3 opacity-70" />
+                }
+                {identifyDone ? t('意图已识别') : t('意图识别')}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleStartWork}
+                disabled={stage >= 3}
+                className={`
+                  flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+                  ${stage >= 3
+                    ? 'bg-primary/10 text-primary cursor-default border border-primary/20'
+                    : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                  }
+                `}
+              >
+                {t('开始工作')}
+              </button>
+
+              {resumeHint && (
+                <span className="text-[11px] text-muted-foreground">{resumeHint}</span>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
