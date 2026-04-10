@@ -650,14 +650,19 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
           {/* Action row — always visible */}
           <div className="flex flex-col border-t border-border/50">
-            <div className="flex items-center gap-2 px-3 py-2 flex-wrap">
+            <div className="flex items-center gap-2 px-3 py-2">
+              {resumeHint && !checkResult && (
+                <span className="flex-1 text-[11px] text-muted-foreground truncate">{resumeHint}</span>
+              )}
+              {(!resumeHint || checkResult) && <span className="flex-1" />}
+
               {stage >= 2 && (
                 <button
                   type="button"
                   onClick={handleIdentify}
                   disabled={identifyDone}
                   className={`
-                    flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
+                    flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors
                     ${identifyDone
                       ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300 border border-sky-200 dark:border-sky-700 cursor-default'
                       : 'border border-border hover:bg-secondary text-foreground'
@@ -675,14 +680,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               <button
                 type="button"
                 onClick={handleStartWork}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
+                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 {t('开始工作')}
               </button>
-
-              {resumeHint && !checkResult && (
-                <span className="text-[11px] text-muted-foreground">{resumeHint}</span>
-              )}
             </div>
 
             {/* Check result banner */}
