@@ -10,11 +10,20 @@ const DESC_EXCERPT_LEN = 400
 const REQ_IDENTIFY_LEN = 3000
 
 /**
+ * Shared role preamble prepended to every task-pipeline message.
+ * Gives the AI a consistent identity and scope for the entire workflow.
+ */
+const ROLE_PREAMBLE =
+  '你是一名软件需求开发工程师，你的职责是：识别和分析需求、拆解开发任务、生成开发计划、指导代码实现。'
+
+/**
  * Message that asks the AI to identify and analyse requirements from the uploaded doc / description.
  * The full doc content (up to REQ_IDENTIFY_LEN chars) is included so the AI can extract key points.
  */
 export function buildRequirementIdentifyMessage(task: WorkspaceTask, t: TFunction): string {
   const blocks: string[] = [
+    ROLE_PREAMBLE,
+    '',
     t('请识别并分析以下需求，输出结构化的需求要点。'),
     '',
     t('任务名称：{{name}}', { name: task.name }),
@@ -57,6 +66,8 @@ export function buildIntentAnalysisMessage(
   switch (tab) {
     case 1: {
       const blocks = [
+        ROLE_PREAMBLE,
+        '',
         t('请分析以下需求，告诉我：'),
         t('1. 你理解到的需求背景和目标是什么'),
         t('2. 你打算提取哪些核心功能要点'),
@@ -73,6 +84,8 @@ export function buildIntentAnalysisMessage(
     }
     case 2: {
       const blocks = [
+        ROLE_PREAMBLE,
+        '',
         t('请根据以下需求要点，列出你的任务拆解方案：'),
         t('1. 打算拆分哪些子任务，每个子任务的目标是什么'),
         t('2. 子任务之间的依赖关系和执行顺序'),
@@ -91,6 +104,8 @@ export function buildIntentAnalysisMessage(
     }
     case 3: {
       const blocks = [
+        ROLE_PREAMBLE,
+        '',
         t('请根据以下子任务列表，说明你的开发计划：'),
         t('1. 涉及哪些项目 / 代码模块'),
         t('2. 主要代码改动范围和实现思路'),
@@ -106,6 +121,8 @@ export function buildIntentAnalysisMessage(
     }
     case 4: {
       const blocks = [
+        ROLE_PREAMBLE,
+        '',
         t('请根据当前任务的开发计划，说明你将如何执行编码：'),
         t('1. 具体实现步骤'),
         t('2. 要修改的关键文件和接口'),
@@ -117,6 +134,8 @@ export function buildIntentAnalysisMessage(
     }
     case 5: {
       const blocks = [
+        ROLE_PREAMBLE,
+        '',
         t('请说明你的验证收尾计划：'),
         t('1. 要检查哪些代码逻辑和边界情况'),
         t('2. 要运行哪些测试'),
@@ -137,6 +156,8 @@ export function buildIntentAnalysisMessage(
  */
 export function buildTaskBreakdownExecuteMessage(t: TFunction): string {
   return [
+    ROLE_PREAMBLE,
+    '',
     t('请按照我们刚才讨论的方案，输出任务拆解结果。'),
     t('格式要求：每个子任务单独一行，以 - 开头，格式为「- 子任务标题: 简要说明」。'),
     t('不需要其他说明，直接输出子任务列表。'),
@@ -148,6 +169,8 @@ export function buildTaskBreakdownExecuteMessage(t: TFunction): string {
  */
 export function buildDevPlanExecuteMessage(t: TFunction): string {
   return [
+    ROLE_PREAMBLE,
+    '',
     t('请按照我们刚才讨论的方案，输出最终的开发计划。'),
     t('包括：1. 涉及的项目和代码模块（每项以 - 开头）；2. 具体代码改动范围说明。'),
   ].join('\n')
