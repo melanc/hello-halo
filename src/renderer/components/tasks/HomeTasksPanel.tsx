@@ -17,6 +17,9 @@ import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 
 const isWebMode = api.isRemoteMode()
 
+/** Sentinel for <select> "none" — avoids controlled-select glitches when clearing the other field. */
+const SPACE_SELECT_NONE = '__none__'
+
 function isKnowledgeBaseSpace(s: Space): boolean {
   return s.workspaceKind === 'knowledge_base'
 }
@@ -79,19 +82,28 @@ export function HomeTasksPanel() {
     [removeTask, showConfirm, t]
   )
 
-  const regularSpaces: Space[] = useMemo(() => {
-    const list: Space[] = []
-    if (devxSpace && !isKnowledgeBaseSpace(devxSpace)) list.push(devxSpace)
-    for (const s of spaces) {
-      if (!isKnowledgeBaseSpace(s)) list.push(s)
-    }
-    return list
-  }, [devxSpace, spaces])
-
   const knowledgeBaseSpaces: Space[] = useMemo(
     () => spaces.filter((s) => isKnowledgeBaseSpace(s)),
     [spaces]
   )
+
+  const knowledgeBaseIdSet = useMemo(
+    () => new Set(knowledgeBaseSpaces.map((s) => s.id)),
+    [knowledgeBaseSpaces]
+  )
+
+  /** Disjoint from `knowledgeBaseSpaces` by id so only one dropdown can match `spaceId`. */
+  const regularSpaces: Space[] = useMemo(() => {
+    const list: Space[] = []
+    if (devxSpace && !knowledgeBaseIdSet.has(devxSpace.id) && !isKnowledgeBaseSpace(devxSpace)) {
+      list.push(devxSpace)
+    }
+    for (const s of spaces) {
+      if (knowledgeBaseIdSet.has(s.id) || isKnowledgeBaseSpace(s)) continue
+      list.push(s)
+    }
+    return list
+  }, [devxSpace, spaces, knowledgeBaseIdSet])
 
   const allSpaces: Space[] = useMemo(() => {
     const list: Space[] = []
@@ -279,8 +291,8 @@ export function HomeTasksPanel() {
 
   const canPickSpace = regularSpaces.length > 0 || knowledgeBaseSpaces.length > 0
 
-  const regularSelectValue = regularSpaces.some((s) => s.id === spaceId) ? spaceId : ''
-  const kbSelectValue = knowledgeBaseSpaces.some((s) => s.id === spaceId) ? spaceId : ''
+  const regularSelectValue = regularSpaces.some((s) => s.id === spaceId) ? spaceId : SPACE_SELECT_NONE
+  const kbSelectValue = knowledgeBaseSpaces.some((s) => s.id === spaceId) ? spaceId : SPACE_SELECT_NONE
 
   const selectInvalidClass = !workspaceValid
     ? 'border-destructive focus:border-destructive'
@@ -467,16 +479,21 @@ export function HomeTasksPanel() {
             <div className="mb-4">
               <label className="block text-sm text-muted-foreground mb-2">{t('常规空间')}</label>
               <select
+                key={`task-regular-select-${spaceId}-${editingTaskId ?? 'new'}`}
                 value={regularSelectValue}
                 onChange={(e) => {
                   const v = e.target.value
-                  if (v) setSpaceId(v)
-                  else setSpaceId('')
+                  if (v === SPACE_SELECT_NONE) {
+                    setSpaceId('')
+                    return
+                  }
+                  // Choosing a regular space clears knowledge base binding (single spaceId).
+                  setSpaceId(v)
                 }}
                 disabled={regularSpaces.length === 0}
                 className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
               >
-                <option value="">{t('无')}</option>
+                <option value={SPACE_SELECT_NONE}>{t('无')}</option>
                 {regularSpaces.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.isTemp ? t('DevX') : s.name}
@@ -488,16 +505,21 @@ export function HomeTasksPanel() {
             <div className="mb-4">
               <label className="block text-sm text-muted-foreground mb-2">{t('知识库')}</label>
               <select
+                key={`task-kb-select-${spaceId}-${editingTaskId ?? 'new'}`}
                 value={kbSelectValue}
                 onChange={(e) => {
                   const v = e.target.value
-                  if (v) setSpaceId(v)
-                  else setSpaceId('')
+                  if (v === SPACE_SELECT_NONE) {
+                    setSpaceId('')
+                    return
+                  }
+                  // Choosing a knowledge base clears regular workspace binding (single spaceId).
+                  setSpaceId(v)
                 }}
                 disabled={knowledgeBaseSpaces.length === 0}
                 className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
               >
-                <option value="">{t('无')}</option>
+                <option value={SPACE_SELECT_NONE}>{t('无')}</option>
                 {knowledgeBaseSpaces.map((s) => (
                   <option key={s.id} value={s.id}>
                     {s.name}
