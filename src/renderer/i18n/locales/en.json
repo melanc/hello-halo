@@ -1109,6 +1109,7 @@
   "Task Complete": "Task Complete",
   "Task list": "Task list",
   "Both dropdowns keep your choices. The task binds to the last space you selected; None falls back to the other side when possible.": "Both dropdowns keep your choices. The task binds to the last space you selected; None falls back to the other side when possible.",
+  "--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---": "--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---",
   "Task name: {{name}}": "Task name: {{name}}",
   "Task Notifications": "Task Notifications",
   "Task plan": "Task plan",

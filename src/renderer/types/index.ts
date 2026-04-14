@@ -321,6 +321,11 @@ export interface WorkspaceTask {
   id: string;
   name: string;
   spaceId: string;
+  /**
+   * Optional linked knowledge-base space (Markdown docs: business, architecture, call graph).
+   * When set, pipeline prompts append excerpts from this space to help the model understand context.
+   */
+  knowledgeBaseSpaceId?: string;
   /** Requirement document filename uploaded at task creation */
   requirementDocName: string;
   /** Plain text extracted from the requirement document */

@@ -178,11 +178,26 @@ function pipelineOpeningLines(t: TFunction): string[] {
   return [ROLE_PREAMBLE, '', replyLanguageConstraint(t), '']
 }
 
+function appendKnowledgeBaseMarkdownBlock(blocks: string[], markdown: string | undefined, t: TFunction): void {
+  const m = markdown?.trim()
+  if (!m) return
+  blocks.push(
+    '',
+    t('--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---'),
+    '',
+    m
+  )
+}
+
 /**
  * Message that asks the AI to identify and analyse requirements from the uploaded doc / description.
  * The full doc content (up to REQ_IDENTIFY_LEN chars) is included so the AI can extract key points.
  */
-export function buildRequirementIdentifyMessage(task: WorkspaceTask, t: TFunction): string {
+export function buildRequirementIdentifyMessage(
+  task: WorkspaceTask,
+  t: TFunction,
+  opts?: { knowledgeBaseMarkdown?: string }
+): string {
   const blocks: string[] = [
     ...pipelineOpeningLines(t),
     t('请识别并分析以下需求，输出结构化的需求要点。'),
@@ -198,6 +213,8 @@ export function buildRequirementIdentifyMessage(task: WorkspaceTask, t: TFunctio
   if (content) {
     blocks.push('', t('需求内容：'), content.slice(0, REQ_IDENTIFY_LEN))
   }
+
+  appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
 
   blocks.push(
     '',
@@ -224,6 +241,7 @@ export function buildIntentAnalysisMessage(
     keyPoints?: string[]
     codingWorkspaceRoot?: string
     codingProjectPaths?: string[]
+    knowledgeBaseMarkdown?: string
   },
   t: TFunction
 ): string {
@@ -245,6 +263,7 @@ export function buildIntentAnalysisMessage(
       }
       const content = task.requirementDocContent?.trim() || task.requirementDescription?.trim()
       if (content) blocks.push('', '需求内容：', content.slice(0, REQ_IDENTIFY_LEN))
+      appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
       return blocks.join('\n')
     }
     case 2: {
@@ -264,6 +283,7 @@ export function buildIntentAnalysisMessage(
         const content = task.requirementDocContent?.trim() || task.requirementDescription?.trim()
         if (content) blocks.push('', '需求内容：', content.slice(0, REQ_IDENTIFY_LEN))
       }
+      appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
       return blocks.join('\n')
     }
     case 3: {
@@ -280,6 +300,7 @@ export function buildIntentAnalysisMessage(
         blocks.push('', '子任务列表：')
         opts.subtasks.forEach((st) => blocks.push(`- ${st.title}${st.description ? '：' + st.description : ''}`))
       }
+      appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
       return blocks.join('\n')
     }
     case 4: {
@@ -324,6 +345,7 @@ export function buildIntentAnalysisMessage(
         '',
         t('Then output a concise “planned changes” section for the immediate next coding slice — do not modify files yet.')
       )
+      appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
       return blocks.join('\n')
     }
     case 5: {
@@ -336,6 +358,7 @@ export function buildIntentAnalysisMessage(
         '',
         header,
       ]
+      appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
       return blocks.join('\n')
     }
     default:
@@ -347,24 +370,31 @@ export function buildIntentAnalysisMessage(
  * 开始工作 Tab 2 — asks AI to output the final task breakdown list for parsing.
  * Must be called after 意图识别 so the AI already has context from the conversation.
  */
-export function buildTaskBreakdownExecuteMessage(t: TFunction): string {
-  return [
+export function buildTaskBreakdownExecuteMessage(
+  t: TFunction,
+  opts?: { knowledgeBaseMarkdown?: string }
+): string {
+  const blocks = [
     ...pipelineOpeningLines(t),
     t('请按照我们刚才讨论的方案，输出任务拆解结果。'),
     t('格式要求：每个子任务单独一行，以 - 开头，格式为「- 子任务标题: 简要说明」。'),
     t('不需要其他说明，直接输出子任务列表。'),
-  ].join('\n')
+  ]
+  appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
+  return blocks.join('\n')
 }
 
 /**
  * 开始工作 Tab 3 — asks AI to output the final dev plan text for saving.
  */
-export function buildDevPlanExecuteMessage(t: TFunction): string {
-  return [
+export function buildDevPlanExecuteMessage(t: TFunction, opts?: { knowledgeBaseMarkdown?: string }): string {
+  const blocks = [
     ...pipelineOpeningLines(t),
     t('请按照我们刚才讨论的方案，输出最终的开发计划。'),
     t('包括：1. 涉及的项目和代码模块（每项以 - 开头）；2. 具体代码改动范围说明。'),
-  ].join('\n')
+  ]
+  appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
+  return blocks.join('\n')
 }
 
 /**
@@ -374,7 +404,7 @@ export function buildDevPlanExecuteMessage(t: TFunction): string {
 export function buildCodingKickoffMessage(
   task: WorkspaceTask,
   t: TFunction,
-  ctx?: { workspaceRoot?: string; projectPaths?: string[] }
+  ctx?: { workspaceRoot?: string; projectPaths?: string[]; knowledgeBaseMarkdown?: string }
 ): string {
   const blocks: string[] = [
     ...pipelineOpeningLines(t),
@@ -417,6 +447,8 @@ export function buildCodingKickoffMessage(
     t('If every subtask is already marked done, confirm against the plan; only fix residual gaps or run checks.'),
     t('After substantive edits, remind the user to update subtask checkmarks so the next Intent / Start work stays accurate.')
   )
+
+  appendKnowledgeBaseMarkdownBlock(blocks, ctx?.knowledgeBaseMarkdown, t)
 
   return blocks.join('\n')
 }

@@ -41,6 +41,7 @@ import {
   buildProjectDisplayPaths,
   getSubtaskProgressStats,
 } from '../../lib/workspace-task-messages'
+import { loadKnowledgeBaseContextForTask } from '../../lib/knowledge-base-prompt-context'
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask } from '../../types'
 import { useSpaceStore } from '../../stores/space.store'
 
@@ -1058,6 +1059,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       const dirNames = getInvolvedProjectDirNames(task)
       const codingProjectPaths =
         workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirNames) : dirNames
+      const knowledgeBaseMarkdown = await loadKnowledgeBaseContextForTask(task)
 
       await chat.sendMessage(
         buildIntentAnalysisMessage(
@@ -1066,6 +1068,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           {
             subtasks,
             keyPoints: task.requirementKeyPoints ?? [],
+            knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined,
             ...(selectedTab === 4
               ? {
                   codingWorkspaceRoot: workspaceRoot || undefined,
@@ -1089,10 +1092,12 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     setIsSendingMessage(true)
     try {
       const chat = useChatStore.getState()
+      const knowledgeBaseMarkdown = await loadKnowledgeBaseContextForTask(task)
+      const kbOpts = knowledgeBaseMarkdown ? { knowledgeBaseMarkdown } : undefined
 
       if (selectedTab === 1) {
         // AI analyses requirement and returns structured 4-section text
-        await chat.sendMessage(buildRequirementIdentifyMessage(task, t))
+        await chat.sendMessage(buildRequirementIdentifyMessage(task, t, kbOpts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply?.trim()) {
           useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
@@ -1101,7 +1106,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       } else if (selectedTab === 2) {
         // AI generates subtask breakdown
-        await chat.sendMessage(buildTaskBreakdownExecuteMessage(t))
+        await chat.sendMessage(buildTaskBreakdownExecuteMessage(t, kbOpts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {
           const generated = extractSubtasks(reply)
@@ -1116,7 +1121,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       } else if (selectedTab === 3) {
         // AI generates dev plan
-        await chat.sendMessage(buildDevPlanExecuteMessage(t))
+        await chat.sendMessage(buildDevPlanExecuteMessage(t, kbOpts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {
           updateTaskPipelineState(task.id, {
@@ -1145,6 +1150,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           buildCodingKickoffMessage(task, t, {
             workspaceRoot: workspaceRoot || undefined,
             projectPaths: projectPaths.length ? projectPaths : undefined,
+            knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined,
           })
         )
 

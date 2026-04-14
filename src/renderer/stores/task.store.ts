@@ -31,6 +31,7 @@ interface TaskState {
   addTask: (input: {
     name: string
     spaceId: string
+    knowledgeBaseSpaceId?: string
     requirementDocName: string
     requirementDocContent: string
     requirementDescription: string
@@ -54,6 +55,9 @@ interface TaskState {
    * Returns false if conversation could not be created.
    */
   moveTaskToSpace: (taskId: string, newSpaceId: string) => Promise<boolean>
+
+  /** Link or clear optional knowledge-base space (Markdown docs) for pipeline context */
+  updateTaskKnowledgeBaseSpaceId: (taskId: string, knowledgeBaseSpaceId: string | null) => void
 
   /** Record first-level project dir from artifact relativePath for the active task */
   recordArtifactTouch: (spaceId: string, relativePath: string) => void
@@ -126,6 +130,8 @@ export const useTaskStore = create<TaskState>()(
 
         const branchName = input.branchName.trim()
         const projectDirs = input.projectDirs.map((d) => d.trim()).filter(Boolean)
+        const kbRaw = (input as { knowledgeBaseSpaceId?: string }).knowledgeBaseSpaceId?.trim()
+        const knowledgeBaseSpaceId = kbRaw || undefined
 
         const conv = await useChatStore.getState().createConversation(spaceId, input.name)
         if (!conv) return null
@@ -135,6 +141,7 @@ export const useTaskStore = create<TaskState>()(
           id: newTaskId(),
           name: input.name.trim(),
           spaceId,
+          ...(knowledgeBaseSpaceId ? { knowledgeBaseSpaceId } : {}),
           requirementDocName,
           requirementDocContent,
           requirementDescription,
@@ -209,6 +216,7 @@ export const useTaskStore = create<TaskState>()(
                   spaceId: sid,
                   conversationId: conv.id,
                   updatedAt: Date.now(),
+                  knowledgeBaseSpaceId: t.knowledgeBaseSpaceId,
                   requirementIdentifyUsed: false,
                   requirementBreakdownUsed: false,
                   breakdownPlanMarkdown: undefined,
@@ -226,6 +234,21 @@ export const useTaskStore = create<TaskState>()(
           ),
         }))
         return true
+      },
+
+      updateTaskKnowledgeBaseSpaceId: (taskId, knowledgeBaseSpaceId) => {
+        const kb = knowledgeBaseSpaceId?.trim()
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId
+              ? {
+                  ...t,
+                  ...(kb ? { knowledgeBaseSpaceId: kb } : { knowledgeBaseSpaceId: undefined }),
+                  updatedAt: Date.now(),
+                }
+              : t
+          ),
+        }))
       },
 
       recordArtifactTouch: (spaceId, relativePath) => {

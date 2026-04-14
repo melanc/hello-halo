@@ -1147,6 +1147,7 @@
   "Task Complete": "Tarea completada",
   "Task list": "Lista de tareas",
   "Both dropdowns keep your choices. The task binds to the last space you selected; None falls back to the other side when possible.": "",
+  "--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---": "",
   "Task name: {{name}}": "",
   "Task Notifications": "Notificaciones de tareas",
   "Task plan": "Plan de tareas",

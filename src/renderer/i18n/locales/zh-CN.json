@@ -1108,6 +1108,7 @@
   "Task Complete": "任务完成",
   "Task list": "任务列表",
   "Both dropdowns keep your choices. The task binds to the last space you selected; None falls back to the other side when possible.": "两个下拉会分别记住你的选择。任务实际绑定到你最近一次点选的具体空间；若一侧选「无」，在另一侧仍选中时会自动用另一侧作为绑定。",
+  "--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---": "--- 关联知识库（Markdown 节选：业务、架构、调用关系等上下文）---",
   "Task name: {{name}}": "",
   "Task Notifications": "任务通知",
   "Task plan": "任务计划",

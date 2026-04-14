@@ -1108,6 +1108,7 @@
   "Task Complete": "タスク完了",
   "Task list": "タスクリスト",
   "Both dropdowns keep your choices. The task binds to the last space you selected; None falls back to the other side when possible.": "",
+  "--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---": "",
   "Task name: {{name}}": "",
   "Task Notifications": "タスク通知",
   "Task plan": "タスクプラン",
