@@ -108,9 +108,30 @@ export async function runGitArtifactCommand(
         break
       }
       case 'push': {
-        const r = await execFileAsync('git', ['-C', toplevel, 'push'], GIT_EXEC_OPTS)
-        stdout = r.stdout.toString()
-        stderr = r.stderr.toString()
+        const runPush = async (gitArgs: string[]) => {
+          const r = await execFileAsync('git', ['-C', toplevel, ...gitArgs], GIT_EXEC_OPTS)
+          return { stdout: r.stdout.toString(), stderr: r.stderr.toString() }
+        }
+        try {
+          const r = await runPush(['push'])
+          stdout = r.stdout
+          stderr = r.stderr
+        } catch (first: unknown) {
+          const err = first as { stderr?: Buffer | string; stdout?: Buffer | string; message?: string }
+          const errOut = (typeof err.stderr === 'string' ? err.stderr : err.stderr?.toString()) ?? ''
+          const out = (typeof err.stdout === 'string' ? err.stdout : err.stdout?.toString()) ?? ''
+          const combined = `${errOut}\n${out}\n${err.message ?? ''}`
+          const noUpstream =
+            /no upstream branch/i.test(combined) ||
+            /has no upstream branch/i.test(combined) ||
+            /没有对应的上游分支/.test(combined) ||
+            /did not specify upstream/i.test(combined) ||
+            /no tracking information for the current branch/i.test(combined)
+          if (!noUpstream) throw first
+          const r2 = await runPush(['push', '-u', 'origin', 'HEAD'])
+          stdout = r2.stdout
+          stderr = r2.stderr
+        }
         break
       }
       case 'diff': {
