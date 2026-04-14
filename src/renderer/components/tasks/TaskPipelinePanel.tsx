@@ -382,6 +382,14 @@ function Tab1Requirements({
     el.style.height = `${el.scrollHeight}px`
   }, [descDraft])
 
+  const analysisTextareaRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = analysisTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [analysisDraft])
+
   // Sync analysis draft when task updates externally (e.g. after AI writes it)
   useEffect(() => {
     const incoming = task.requirementAnalysis ?? ''
@@ -501,8 +509,9 @@ function Tab1Requirements({
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('需求分析')}</p>
         {analysisDraft ? (
           <textarea
-            className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring leading-relaxed font-[inherit]"
-            rows={12}
+            ref={analysisTextareaRef}
+            className="w-full min-h-[6rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring leading-relaxed font-[inherit] overflow-hidden"
+            rows={1}
             value={analysisDraft}
             onChange={(e) => setAnalysisDraft(e.target.value)}
             onBlur={handleAnalysisBlur}
