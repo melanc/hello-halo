@@ -1108,6 +1108,7 @@
   "Task Complete": "任务完成",
   "Task list": "任务列表",
   "Task binding": "任务绑定",
+  "Pick either a regular workspace or a knowledge base (one of the two).": "请二选一：绑定常规空间或知识库。",
   "Task name: {{name}}": "",
   "Task Notifications": "任务通知",
   "Task plan": "任务计划",

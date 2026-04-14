@@ -17,8 +17,6 @@ import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 
 const isWebMode = api.isRemoteMode()
 
-type TaskLinkMode = 'regular' | 'knowledge_base'
-
 function isKnowledgeBaseSpace(s: Space): boolean {
   return s.workspaceKind === 'knowledge_base'
 }
@@ -54,7 +52,6 @@ export function HomeTasksPanel() {
 
   const [showDialog, setShowDialog] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
-  const [taskLinkMode, setTaskLinkMode] = useState<TaskLinkMode>('regular')
   const [taskName, setTaskName] = useState('')
   const [spaceId, setSpaceId] = useState<string>('')
   const [requirementDocName, setRequirementDocName] = useState('')
@@ -109,8 +106,6 @@ export function HomeTasksPanel() {
     return m
   }, [allSpaces, t])
 
-  const pickerSpaces = taskLinkMode === 'regular' ? regularSpaces : knowledgeBaseSpaces
-
   const openCreateDialog = () => {
     setEditingTaskId(null)
     setTaskName('')
@@ -118,13 +113,10 @@ export function HomeTasksPanel() {
     setRequirementDocContent('')
     setRequirementDescription('')
     if (regularSpaces.length > 0) {
-      setTaskLinkMode('regular')
       setSpaceId(regularSpaces[0]!.id)
     } else if (knowledgeBaseSpaces.length > 0) {
-      setTaskLinkMode('knowledge_base')
       setSpaceId(knowledgeBaseSpaces[0]!.id)
     } else {
-      setTaskLinkMode('regular')
       setSpaceId('')
     }
     setShowDialog(true)
@@ -133,7 +125,6 @@ export function HomeTasksPanel() {
   const resetDialog = () => {
     setShowDialog(false)
     setEditingTaskId(null)
-    setTaskLinkMode('regular')
     setTaskName('')
     setRequirementDocName('')
     setRequirementDocContent('')
@@ -171,7 +162,10 @@ export function HomeTasksPanel() {
     const requirementContent = requirementDocContent.trim()
     const requirementDesc = requirementDescription.trim()
     const hasDoc = Boolean(requirementName && requirementContent)
-    if (!name || !sid || !pickerSpaces.some((s) => s.id === sid) || (!hasDoc && !requirementDesc)) return
+    const sidOk =
+      Boolean(sid) &&
+      (regularSpaces.some((s) => s.id === sid) || knowledgeBaseSpaces.some((s) => s.id === sid))
+    if (!name || !sidOk || (!hasDoc && !requirementDesc)) return
     setCreating(true)
     try {
       const task = await addTask({
@@ -193,10 +187,7 @@ export function HomeTasksPanel() {
     (taskId: string) => {
       const task = tasks.find((x) => x.id === taskId)
       if (!task) return
-      const sp = [...(devxSpace ? [devxSpace] : []), ...spaces].find((s) => s.id === task.spaceId)
-      const mode: TaskLinkMode = sp && isKnowledgeBaseSpace(sp) ? 'knowledge_base' : 'regular'
       setEditingTaskId(task.id)
-      setTaskLinkMode(mode)
       setTaskName(task.name)
       setSpaceId(task.spaceId)
       setRequirementDocName(task.requirementDocName || '')
@@ -204,7 +195,7 @@ export function HomeTasksPanel() {
       setRequirementDescription(task.requirementDescription || '')
       setShowDialog(true)
     },
-    [tasks, devxSpace, spaces]
+    [tasks]
   )
 
   const handleSaveTask = async () => {
@@ -217,7 +208,10 @@ export function HomeTasksPanel() {
     const requirementContent = requirementDocContent.trim()
     const requirementDesc = requirementDescription.trim()
     const hasDoc = Boolean(requirementName && requirementContent)
-    if (!name || !sid || !pickerSpaces.some((s) => s.id === sid) || (!hasDoc && !requirementDesc)) return
+    const sidOk =
+      Boolean(sid) &&
+      (regularSpaces.some((s) => s.id === sid) || knowledgeBaseSpaces.some((s) => s.id === sid))
+    if (!name || !sidOk || (!hasDoc && !requirementDesc)) return
     setCreating(true)
     try {
       updateTaskName(editingTaskId, name)
@@ -274,23 +268,23 @@ export function HomeTasksPanel() {
     [tasks, allSpaces, setCurrentSpace, refreshCurrentSpace, setActiveTask, setView, openEditTaskDialog]
   )
 
-  const setLinkMode = (mode: TaskLinkMode) => {
-    setTaskLinkMode(mode)
-    if (mode === 'regular') {
-      setSpaceId(regularSpaces[0]?.id ?? '')
-    } else {
-      setSpaceId(knowledgeBaseSpaces[0]?.id ?? '')
-    }
-  }
-
   const spaceIdTrimmed = spaceId.trim()
   const workspaceValid =
-    Boolean(spaceIdTrimmed) && pickerSpaces.some((s) => s.id === spaceIdTrimmed)
+    Boolean(spaceIdTrimmed) &&
+    (regularSpaces.some((s) => s.id === spaceIdTrimmed) ||
+      knowledgeBaseSpaces.some((s) => s.id === spaceIdTrimmed))
   const requirementReady =
     (requirementDocName.trim().length > 0 && requirementDocContent.trim().length > 0) ||
     requirementDescription.trim().length > 0
 
-  const canPickSpace = pickerSpaces.length > 0
+  const canPickSpace = regularSpaces.length > 0 || knowledgeBaseSpaces.length > 0
+
+  const regularSelectValue = regularSpaces.some((s) => s.id === spaceId) ? spaceId : ''
+  const kbSelectValue = knowledgeBaseSpaces.some((s) => s.id === spaceId) ? spaceId : ''
+
+  const selectInvalidClass = !workspaceValid
+    ? 'border-destructive focus:border-destructive'
+    : 'border-border focus:border-primary'
 
   if (isWebMode) {
     return null
@@ -342,7 +336,7 @@ export function HomeTasksPanel() {
                       </span>
                     </div>
                     <div className="text-xs mt-1">
-                      <span className="text-foreground">{t('工作空间')}：</span>
+                      <span className="text-foreground">{t('常规空间')}：</span>
                       <span className="text-muted-foreground">
                         {boundKb ? t('无') : displayName}
                       </span>
@@ -470,79 +464,50 @@ export function HomeTasksPanel() {
               />
             </div>
 
-            <div className="mb-4 flex flex-col gap-2" role="radiogroup" aria-label={t('Task binding')}>
-              <span className="text-sm text-muted-foreground">{t('Task binding')}</span>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="task-link-mode"
-                  checked={taskLinkMode === 'regular'}
-                  onChange={() => setLinkMode('regular')}
-                  className="accent-primary"
-                />
-                {t('常规空间')}
-              </label>
-              <label className="flex items-center gap-2 text-sm cursor-pointer">
-                <input
-                  type="radio"
-                  name="task-link-mode"
-                  checked={taskLinkMode === 'knowledge_base'}
-                  onChange={() => setLinkMode('knowledge_base')}
-                  className="accent-primary"
-                />
-                {t('知识库')}
-              </label>
-            </div>
-
             <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">{t('工作空间')}</label>
-              {taskLinkMode === 'regular' ? (
-                <select
-                  value={spaceId}
-                  onChange={(e) => setSpaceId(e.target.value)}
-                  className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors ${
-                    !workspaceValid
-                      ? 'border-destructive focus:border-destructive'
-                      : 'border-border focus:border-primary'
-                  }`}
-                >
-                  {regularSpaces.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.isTemp ? t('DevX') : s.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="w-full px-4 py-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
-                  {t('无')}
-                </div>
-              )}
+              <label className="block text-sm text-muted-foreground mb-2">{t('常规空间')}</label>
+              <select
+                value={regularSelectValue}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v) setSpaceId(v)
+                  else setSpaceId('')
+                }}
+                disabled={regularSpaces.length === 0}
+                className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
+              >
+                <option value="">{t('无')}</option>
+                {regularSpaces.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.isTemp ? t('DevX') : s.name}
+                  </option>
+                ))}
+              </select>
             </div>
 
             <div className="mb-4">
               <label className="block text-sm text-muted-foreground mb-2">{t('知识库')}</label>
-              {taskLinkMode === 'knowledge_base' ? (
-                <select
-                  value={spaceId}
-                  onChange={(e) => setSpaceId(e.target.value)}
-                  className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors ${
-                    !workspaceValid
-                      ? 'border-destructive focus:border-destructive'
-                      : 'border-border focus:border-primary'
-                  }`}
-                >
-                  {knowledgeBaseSpaces.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <div className="w-full px-4 py-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
-                  {t('无')}
-                </div>
-              )}
+              <select
+                value={kbSelectValue}
+                onChange={(e) => {
+                  const v = e.target.value
+                  if (v) setSpaceId(v)
+                  else setSpaceId('')
+                }}
+                disabled={knowledgeBaseSpaces.length === 0}
+                className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
+              >
+                <option value="">{t('无')}</option>
+                {knowledgeBaseSpaces.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
             </div>
+            <p className="mb-4 text-xs text-muted-foreground">
+              {t('Pick either a regular workspace or a knowledge base (one of the two).')}
+            </p>
 
             {editingTaskId && !requirementReady && (
               <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">

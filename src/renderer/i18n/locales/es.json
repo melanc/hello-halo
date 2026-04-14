@@ -1147,6 +1147,7 @@
   "Task Complete": "Tarea completada",
   "Task list": "Lista de tareas",
   "Task binding": "",
+  "Pick either a regular workspace or a knowledge base (one of the two).": "",
   "Task name: {{name}}": "",
   "Task Notifications": "Notificaciones de tareas",
   "Task plan": "Plan de tareas",
