@@ -7,7 +7,7 @@
  * Stages: 1=需求识别  2=任务拆解  3=开发计划  4=编码实现  5=验证收尾
  */
 
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import {
   ChevronDown,
   ChevronUp,
@@ -36,6 +36,7 @@ import {
   buildDevPlanExecuteMessage,
   buildCodingKickoffMessage,
   evaluateCodingPrereqs,
+  assertPreviousPipelineStepReady,
   getInvolvedProjectDirNames,
   buildProjectDisplayPaths,
   getSubtaskProgressStats,
@@ -373,6 +374,14 @@ function Tab1Requirements({
     }
   }, [task.requirementDescription])
 
+  const descTextareaRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = descTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [descDraft])
+
   // Sync analysis draft when task updates externally (e.g. after AI writes it)
   useEffect(() => {
     const incoming = task.requirementAnalysis ?? ''
@@ -477,8 +486,9 @@ function Tab1Requirements({
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('需求描述')}</p>
         <textarea
-          className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed"
-          rows={4}
+          ref={descTextareaRef}
+          className="w-full min-h-[6rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed overflow-hidden"
+          rows={1}
           placeholder={t('描述需求，或通过上传文档补充...')}
           value={descDraft}
           onChange={(e) => setDescDraft(e.target.value)}
@@ -634,6 +644,14 @@ function Tab3DevPlan({
     }
   }, [branchDraft, onSaveBranchName])
 
+  const devPlanTextareaRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = devPlanTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [draft])
+
   const allDirs = getInvolvedProjectDirNames(task)
 
   return (
@@ -683,8 +701,9 @@ function Tab3DevPlan({
           <span className="text-[11px] text-muted-foreground">{t('代码改动范围')}</span>
         </div>
         <textarea
-          className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed"
-          rows={12}
+          ref={devPlanTextareaRef}
+          className="w-full min-h-[6rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed overflow-hidden"
+          rows={1}
           placeholder={t('描述要改哪些模块、文件或接口，AI 会帮你填写...')}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
@@ -710,7 +729,21 @@ function Tab4Coding({
   const paths = workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirs) : dirs
   const prereq = evaluateCodingPrereqs(task, t)
   const logLines = task.pipelineCodingLogLines ?? []
-  const planPreview = (task.pipelineDevPlan ?? '').trim().slice(0, 1200)
+  const planExcerptDisplay = useMemo(() => {
+    const raw = (task.pipelineDevPlan ?? '').trim()
+    const head = raw.slice(0, 1200)
+    const tail = raw.length > 1200 ? `\n…\n${t('(truncated)')}` : ''
+    return head + tail
+  }, [task.pipelineDevPlan, t])
+
+  const excerptTextareaRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    const el = excerptTextareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [planExcerptDisplay])
+
   const progress = getSubtaskProgressStats(subtasks)
 
   return (
@@ -790,11 +823,16 @@ function Tab4Coding({
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
           {t('Development plan excerpt')}
         </p>
-        {planPreview ? (
-          <pre className="text-[11px] whitespace-pre-wrap break-words text-foreground/80 bg-secondary/30 border border-border/60 rounded-lg px-2 py-2 max-h-40 overflow-y-auto leading-relaxed">
-            {planPreview}
-            {(task.pipelineDevPlan ?? '').trim().length > 1200 ? `…\n${t('(truncated)')}` : ''}
-          </pre>
+        {planExcerptDisplay ? (
+          <textarea
+            ref={excerptTextareaRef}
+            readOnly
+            tabIndex={-1}
+            aria-readonly={true}
+            className="w-full min-h-[4.5rem] text-[11px] whitespace-pre-wrap break-words text-foreground/80 bg-secondary/30 border border-border/60 rounded-lg px-2.5 py-2 leading-relaxed resize-none overflow-hidden cursor-default focus:outline-none"
+            rows={1}
+            value={planExcerptDisplay}
+          />
         ) : (
           <p className="text-[11px] text-muted-foreground/60 italic">{t('No development plan text yet')}</p>
         )}
@@ -960,45 +998,12 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     setSelectedTab(2)
   }, [task.id, updateTaskPipelineState, t])
 
-  const handleIdentifyIntent = useCallback(async () => {
-    if (isIdentifying || isSendingMessage) return
-    if (selectedTab === 4) {
-      const pre = evaluateCodingPrereqs(task, t)
-      if (!pre.ok) {
-        setCheckResult({ ok: false, message: pre.message })
-        return
-      }
-    }
-    setIsIdentifying(true)
-    try {
-      const chat = useChatStore.getState()
-      const dirNames = getInvolvedProjectDirNames(task)
-      const codingProjectPaths =
-        workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirNames) : dirNames
-
-      await chat.sendMessage(
-        buildIntentAnalysisMessage(
-          selectedTab,
-          task,
-          {
-            subtasks,
-            keyPoints: task.requirementKeyPoints ?? [],
-            ...(selectedTab === 4
-              ? {
-                  codingWorkspaceRoot: workspaceRoot || undefined,
-                  codingProjectPaths: codingProjectPaths.length ? codingProjectPaths : undefined,
-                }
-              : {}),
-          },
-          t
-        )
-      )
-    } finally {
-      setIsIdentifying(false)
-    }
-  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t, workspaceRoot])
-
   const getTabCheck = useCallback((tab: PipelineStage): { ok: boolean; message: string } => {
+    const prev = assertPreviousPipelineStepReady(tab, task, subtasks, t)
+    if (!prev.ok) {
+      return { ok: false, message: prev.message }
+    }
+
     switch (tab) {
       case 1: {
         const hasContent = !!task.requirementDocName || (task.requirementDescription?.trim() ?? '').length > 0
@@ -1031,6 +1036,41 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         return { ok: true, message: '' }
     }
   }, [task, subtasks, t])
+
+  const handleIdentifyIntent = useCallback(async () => {
+    if (isIdentifying || isSendingMessage) return
+    const gate = getTabCheck(selectedTab)
+    setCheckResult(gate)
+    if (!gate.ok) return
+
+    setIsIdentifying(true)
+    try {
+      const chat = useChatStore.getState()
+      const dirNames = getInvolvedProjectDirNames(task)
+      const codingProjectPaths =
+        workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirNames) : dirNames
+
+      await chat.sendMessage(
+        buildIntentAnalysisMessage(
+          selectedTab,
+          task,
+          {
+            subtasks,
+            keyPoints: task.requirementKeyPoints ?? [],
+            ...(selectedTab === 4
+              ? {
+                  codingWorkspaceRoot: workspaceRoot || undefined,
+                  codingProjectPaths: codingProjectPaths.length ? codingProjectPaths : undefined,
+                }
+              : {}),
+          },
+          t
+        )
+      )
+    } finally {
+      setIsIdentifying(false)
+    }
+  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t, workspaceRoot, getTabCheck])
 
   const handleStartWork = useCallback(async () => {
     const check = getTabCheck(selectedTab)

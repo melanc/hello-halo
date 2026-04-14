@@ -46,6 +46,71 @@ export function evaluateCodingPrereqs(task: WorkspaceTask, t: TFunction): { ok: 
   return { ok: true, message: '' }
 }
 
+/**
+ * Linear pipeline: tab N may only run after tab N−1 is ready.
+ * Use before Intent / Start work (combined with per-tab checks in getTabCheck).
+ */
+export function assertPreviousPipelineStepReady(
+  tab: PipelineStage,
+  task: WorkspaceTask,
+  subtasks: PipelineSubtask[],
+  t: TFunction
+): { ok: true } | { ok: false; message: string } {
+  if (tab <= 1) return { ok: true }
+
+  if (tab === 2) {
+    if (!task.requirementAnalysis?.trim()) {
+      return {
+        ok: false,
+        message: t(
+          'Finish requirement identification on tab 1 first: run Start work to generate requirement analysis, or paste the analysis text, then continue.'
+        ),
+      }
+    }
+    return { ok: true }
+  }
+
+  if (tab === 3) {
+    const titled = subtasks.filter((s) => s.title.trim().length > 0)
+    if (titled.length === 0) {
+      return {
+        ok: false,
+        message: t(
+          'Finish task breakdown on tab 2 first: generate subtasks with titles (or add them manually), then continue.'
+        ),
+      }
+    }
+    return { ok: true }
+  }
+
+  if (tab === 4) {
+    if (!task.pipelineDevPlan?.trim()) {
+      return {
+        ok: false,
+        message: t(
+          'Finish development planning on tab 3 first: save a development plan (use Start work or edit the plan text), then continue.'
+        ),
+      }
+    }
+    return { ok: true }
+  }
+
+  if (tab === 5) {
+    const st = task.pipelineStage ?? 1
+    if (st < 4) {
+      return {
+        ok: false,
+        message: t(
+          'Finish coding on tab 4 first: run Start work there at least once so the pipeline reaches the coding stage, then continue to verification.'
+        ),
+      }
+    }
+    return { ok: true }
+  }
+
+  return { ok: true }
+}
+
 /** Derive done / next / allDone from pipeline subtask statuses (user-updated in the task panel). */
 export function getSubtaskProgressStats(subtasks: PipelineSubtask[] | undefined) {
   const list = subtasks ?? []
@@ -101,14 +166,25 @@ export function formatSubtasksProgressForPrompt(subtasks: PipelineSubtask[] | un
 const ROLE_PREAMBLE =
   '你是一名软件需求开发工程师，你的职责是：识别和分析需求、拆解开发任务、生成开发计划、指导代码实现。'
 
+/** Prefer Chinese model replies in task-pipeline messages (English i18n key per project rules). */
+function replyLanguageConstraint(t: TFunction): string {
+  return t(
+    'Please respond mainly in Simplified Chinese except inside code blocks, file paths, identifiers, and unavoidable English technical terms.'
+  )
+}
+
+/** Role line + language preference, inserted at the start of pipeline prompts. */
+function pipelineOpeningLines(t: TFunction): string[] {
+  return [ROLE_PREAMBLE, '', replyLanguageConstraint(t), '']
+}
+
 /**
  * Message that asks the AI to identify and analyse requirements from the uploaded doc / description.
  * The full doc content (up to REQ_IDENTIFY_LEN chars) is included so the AI can extract key points.
  */
 export function buildRequirementIdentifyMessage(task: WorkspaceTask, t: TFunction): string {
   const blocks: string[] = [
-    ROLE_PREAMBLE,
-    '',
+    ...pipelineOpeningLines(t),
     t('请识别并分析以下需求，输出结构化的需求要点。'),
     '',
     t('任务名称：{{name}}', { name: task.name }),
@@ -156,8 +232,7 @@ export function buildIntentAnalysisMessage(
   switch (tab) {
     case 1: {
       const blocks = [
-        ROLE_PREAMBLE,
-        '',
+        ...pipelineOpeningLines(t),
         t('请分析以下需求，告诉我：'),
         t('1. 你理解到的需求背景和目标是什么'),
         t('2. 你打算提取哪些核心功能要点'),
@@ -174,8 +249,7 @@ export function buildIntentAnalysisMessage(
     }
     case 2: {
       const blocks = [
-        ROLE_PREAMBLE,
-        '',
+        ...pipelineOpeningLines(t),
         t('请根据以下需求要点，列出你的任务拆解方案：'),
         t('1. 打算拆分哪些子任务，每个子任务的目标是什么'),
         t('2. 子任务之间的依赖关系和执行顺序'),
@@ -194,8 +268,7 @@ export function buildIntentAnalysisMessage(
     }
     case 3: {
       const blocks = [
-        ROLE_PREAMBLE,
-        '',
+        ...pipelineOpeningLines(t),
         t('请根据以下子任务列表，说明你的开发计划：'),
         t('1. 涉及哪些项目 / 代码模块'),
         t('2. 主要代码改动范围和实现思路'),
@@ -211,8 +284,7 @@ export function buildIntentAnalysisMessage(
     }
     case 4: {
       const blocks = [
-        ROLE_PREAMBLE,
-        '',
+        ...pipelineOpeningLines(t),
         t('Review the development plan and the recorded subtask completion status, then judge what is left to do.'),
         t('1. Verdict vs plan: finished or not; gaps between plan bullets and done subtasks'),
         t('2. If work remains: ordered next steps and concrete files or modules to touch'),
@@ -256,8 +328,7 @@ export function buildIntentAnalysisMessage(
     }
     case 5: {
       const blocks = [
-        ROLE_PREAMBLE,
-        '',
+        ...pipelineOpeningLines(t),
         t('请说明你的验证收尾计划：'),
         t('1. 要检查哪些代码逻辑和边界情况'),
         t('2. 要运行哪些测试'),
@@ -278,8 +349,7 @@ export function buildIntentAnalysisMessage(
  */
 export function buildTaskBreakdownExecuteMessage(t: TFunction): string {
   return [
-    ROLE_PREAMBLE,
-    '',
+    ...pipelineOpeningLines(t),
     t('请按照我们刚才讨论的方案，输出任务拆解结果。'),
     t('格式要求：每个子任务单独一行，以 - 开头，格式为「- 子任务标题: 简要说明」。'),
     t('不需要其他说明，直接输出子任务列表。'),
@@ -291,8 +361,7 @@ export function buildTaskBreakdownExecuteMessage(t: TFunction): string {
  */
 export function buildDevPlanExecuteMessage(t: TFunction): string {
   return [
-    ROLE_PREAMBLE,
-    '',
+    ...pipelineOpeningLines(t),
     t('请按照我们刚才讨论的方案，输出最终的开发计划。'),
     t('包括：1. 涉及的项目和代码模块（每项以 - 开头）；2. 具体代码改动范围说明。'),
   ].join('\n')
@@ -308,8 +377,7 @@ export function buildCodingKickoffMessage(
   ctx?: { workspaceRoot?: string; projectPaths?: string[] }
 ): string {
   const blocks: string[] = [
-    ROLE_PREAMBLE,
-    '',
+    ...pipelineOpeningLines(t),
     t('现在进入编码实现阶段。请根据以下开发计划，开始逐步执行代码改动。'),
     t('执行要求：'),
     t('1. 按照开发计划中的模块和文件范围进行修改'),
@@ -369,12 +437,15 @@ export function buildWorkspaceTaskComposerReferenceLabel(task: WorkspaceTask, t:
   }
   lines.push('')
   lines.push(t('I am adding supplements or clarifications below for this task.'))
+  lines.push('', replyLanguageConstraint(t))
   return lines.join('\n')
 }
 
 /** User message that asks the agent for a review-only implementation plan first. */
 export function buildImplementationPlanKickoffMessage(task: WorkspaceTask, t: TFunction): string {
   const blocks: string[] = [
+    replyLanguageConstraint(t),
+    '',
     t('Start the implementation workflow for this workspace task.'),
     t(
       'Phase 1: Output an implementation plan only (Markdown): goals, scope, files or modules to touch, risks, testing notes, and ordered steps.'
@@ -433,6 +504,7 @@ export function buildSubTaskComposerReferenceLabel(
   }
   lines.push('')
   lines.push(t('I am adding supplements or clarifications below for this task.'))
+  lines.push('', replyLanguageConstraint(t))
   return lines.join('\n')
 }
 
@@ -444,6 +516,8 @@ export function buildSubTaskImplementationPlanKickoffMessage(
 ): string {
   const subTitle = sub.title?.trim() || t('Full breakdown')
   const blocks: string[] = [
+    replyLanguageConstraint(t),
+    '',
     t('Start the implementation workflow for this workspace task.'),
     t(
       'Scope: implement only the following breakdown sub-task unless I explicitly ask to expand scope.'
