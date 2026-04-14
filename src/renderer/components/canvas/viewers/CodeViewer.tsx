@@ -3,7 +3,7 @@
  *
  * Features:
  * - Syntax highlighting, folding, search (Cmd+F), line numbers
- * - Files with a path are editable; ⌘/Ctrl+S saves, Esc reverts unsaved edits
+ * - Editor is always writable; ⌘/Ctrl+S persists when `tab.path` exists, Esc reverts unsaved edits
  * - Scroll position preservation
  * - Add selection to chat (composer reference chips)
  */
@@ -41,8 +41,6 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
   const addComposerReferenceChip = useChatStore((s) => s.addComposerReferenceChip)
   const editorRef = useRef<CodeMirrorEditorRef>(null)
   const [isSaving, setIsSaving] = useState(false)
-
-  const canEdit = Boolean(tab.path)
 
   const handleAddSelectionToChat = useCallback(
     ({ startLine, endLine }: AddSelectionToChatPayload) => {
@@ -106,7 +104,7 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
-      if (!canEdit || isSaving) return
+      if (isSaving) return
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
         e.preventDefault()
         void handleSave()
@@ -116,15 +114,15 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
         handleCancelEdit()
       }
     },
-    [canEdit, isSaving, handleSave, handleCancelEdit]
+    [isSaving, handleSave, handleCancelEdit]
   )
 
   // Focus editor when tab becomes active / content loads so ⌘S targets the file
   useEffect(() => {
-    if (!tab.isLoading && canEdit) {
+    if (!tab.isLoading) {
       editorRef.current?.focus()
     }
-  }, [tab.id, tab.isLoading, canEdit])
+  }, [tab.id, tab.isLoading])
 
   return (
     <div className="relative flex flex-col h-full min-h-0 bg-background" onKeyDown={handleKeyDown}>
@@ -133,8 +131,8 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
           ref={editorRef}
           content={tab.content || ''}
           language={tab.language}
-          readOnly={!canEdit}
-          onChange={canEdit ? onContentChange : undefined}
+          readOnly={false}
+          onChange={onContentChange}
           onScroll={handleScroll}
           scrollPosition={tab.scrollPosition}
           onAddSelectionToChat={handleAddSelectionToChat}
