@@ -30,7 +30,7 @@ export function evaluateCodingPrereqs(task: WorkspaceTask, t: TFunction): { ok: 
   if (!plan) {
     return {
       ok: false,
-      message: t('Complete the development plan and code scope on tab 3 before coding.'),
+      message: t('编码前请先在标签 3 完成开发计划与代码范围。'),
     }
   }
   const dirs = getInvolvedProjectDirNames(task)
@@ -38,9 +38,7 @@ export function evaluateCodingPrereqs(task: WorkspaceTask, t: TFunction): { ok: 
   if (dirs.length === 0 || !branch) {
     return {
       ok: false,
-      message: t(
-        'Set at least one involved project and the development branch on tab 3, then confirm before coding.'
-      ),
+      message: t('请先在标签 3 设置至少一个涉及项目和开发分支，确认后再开始编码。'),
     }
   }
   return { ok: true, message: '' }

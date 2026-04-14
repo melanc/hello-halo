@@ -692,7 +692,7 @@ function Tab3DevPlan({
       <div>
         <div className="flex items-center gap-1 mb-1.5">
           <GitBranch className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[11px] text-muted-foreground">{t('Development branch')}</span>
+          <span className="text-[11px] text-muted-foreground">{t('开发分支')}</span>
         </div>
         <input
           type="text"
@@ -760,12 +760,12 @@ function Tab4Coding({
     <div className="space-y-3">
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('Subtask progress vs development plan')}
+          {t('子任务进度对照开发计划')}
         </p>
         {progress.total === 0 ? (
           <p className="text-[11px] text-muted-foreground/80 leading-snug">
             {t(
-              'No subtasks on record. Intent / Start work will compare only against the development plan; add subtasks on tab 2 to track completion.'
+              '当前暂无子任务记录。意图识别 / 开始工作将仅依据开发计划进行比对；请在标签 2 添加子任务以跟踪完成情况。'
             )}
           </p>
         ) : (
@@ -775,15 +775,15 @@ function Tab4Coding({
             </p>
             {progress.allDone ? (
               <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-snug">
-                {t('All subtasks are done. Use Intent to confirm nothing in the plan is still missing.')}
+                {t('所有子任务均已完成。可先执行意图识别，确认开发计划中没有遗漏。')}
               </p>
             ) : progress.nextSubtask ? (
               <p className="text-[11px] text-foreground/85 leading-snug">
-                {t('Suggested next focus: {{title}}', { title: progress.nextSubtask.title })}
+                {t('建议下一个关注点：{{title}}', { title: progress.nextSubtask.title })}
               </p>
             ) : null}
             <p className="text-[10px] text-muted-foreground/75 leading-snug">
-              {t('Intent and Start work messages include this progress so the model can judge what is left to do.')}
+              {t('意图识别与开始工作消息会附带该进度，便于模型判断剩余工作。')}
             </p>
           </div>
         )}
@@ -791,29 +791,29 @@ function Tab4Coding({
 
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('Coding prerequisites')}
+          {t('编码前置条件')}
         </p>
         {!prereq.ok ? (
           <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-snug">{prereq.message}</p>
         ) : (
           <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-snug">
-            {t('Development plan, projects, and branch are set. Use Intent then Start work.')}
+            {t('开发计划、涉及项目和开发分支已就绪。请先执行意图识别，再开始工作。')}
           </p>
         )}
       </div>
 
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('Development branch')}
+          {t('开发分支')}
         </p>
         <p className="text-xs font-mono text-foreground/90 break-all">
-          {task.branchName?.trim() ? task.branchName.trim() : t('Not set')}
+          {task.branchName?.trim() ? task.branchName.trim() : t('未设置')}
         </p>
       </div>
 
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('Involved project paths')}
+          {t('涉及项目路径')}
         </p>
         {paths.length > 0 ? (
           <ul className="text-[11px] font-mono text-foreground/85 space-y-0.5 break-all">
@@ -822,16 +822,16 @@ function Tab4Coding({
             ))}
           </ul>
         ) : (
-          <p className="text-[11px] text-muted-foreground/60 italic">{t('No projects linked yet')}</p>
+          <p className="text-[11px] text-muted-foreground/60 italic">{t('尚未关联项目')}</p>
         )}
         {!workspaceRoot && dirs.length > 0 && (
-          <p className="text-[10px] text-muted-foreground/70 mt-1">{t('Workspace path unavailable; showing folder names only.')}</p>
+          <p className="text-[10px] text-muted-foreground/70 mt-1">{t('工作区路径不可用，仅显示目录名称。')}</p>
         )}
       </div>
 
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('Development plan excerpt')}
+          {t('开发计划摘录')}
         </p>
         {planExcerptDisplay ? (
           <textarea
@@ -844,17 +844,17 @@ function Tab4Coding({
             value={planExcerptDisplay}
           />
         ) : (
-          <p className="text-[11px] text-muted-foreground/60 italic">{t('No development plan text yet')}</p>
+          <p className="text-[11px] text-muted-foreground/60 italic">{t('暂无开发计划文本')}</p>
         )}
       </div>
 
       <div>
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('Coding activity log')}
+          {t('编码活动日志')}
         </p>
         {logLines.length === 0 ? (
           <p className="text-[11px] text-muted-foreground/60 italic">
-            {t('After you click Start work, a line is saved here (subtask and projects).')}
+            {t('点击开始工作后，会在此记录一条日志（子任务与项目）。')}
           </p>
         ) : (
           <ul className="text-[11px] text-foreground/85 space-y-1 max-h-36 overflow-y-auto border border-border/50 rounded-lg px-2 py-2 bg-secondary/20">
@@ -868,9 +868,7 @@ function Tab4Coding({
       </div>
 
       <p className="text-[11px] text-muted-foreground/70 leading-snug">
-        {t(
-          'Intent identification asks the model to compare the plan with done subtasks and list next steps. Start work sends the coding message with the same context.'
-        )}
+        {t('意图识别会让模型对照开发计划与已完成子任务，并给出下一步；开始工作会携带相同上下文发送编码消息。')}
       </p>
     </div>
   )
