@@ -3,25 +3,15 @@
  *
  * Features:
  * - CodeMirror 6 powered with virtual scrolling (large file support)
- * - Can open in edit mode when tab.openDefaultEditable (e.g. from artifact rail)
- * - View mode with explicit edit / save / cancel
+ * - Files with a path are editable in the editor; Save / Cancel stay in the toolbar
  * - Syntax highlighting for 20+ languages
  * - Code folding, search (Cmd+F), line numbers
  * - Scroll position preservation
- * - Copy to clipboard, open external
  * - Add to Chat: adds a removable reference chip in the main composer (not raw textarea text)
  */
 
 import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
-import {
-  Copy,
-  Check,
-  ExternalLink,
-  Pencil,
-  Save,
-  X,
-  FileCode,
-} from 'lucide-react'
+import { Save, X, FileCode } from 'lucide-react'
 import { api } from '../../../api'
 import type { CanvasTab } from '../../../stores/canvas.store'
 import { useChatStore } from '../../../stores/chat.store'
@@ -73,59 +63,23 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
     [tab.path, tab.title, addComposerReferenceChip, t]
   )
 
-  // State
-  const [copied, setCopied] = useState(false)
-  const [isEditing, setIsEditing] = useState(() => Boolean(tab.path && tab.openDefaultEditable))
+  // State — files with a path are editable in-place (no separate “view then edit” step)
+  const [isEditing, setIsEditing] = useState(() => Boolean(tab.path))
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Computed values
-  const canOpenExternal = !api.isRemoteMode() && tab.path
   const canEdit = !!tab.path // Can only edit files with a path
 
   useEffect(() => {
-    setIsEditing(Boolean(tab.path && tab.openDefaultEditable))
+    setIsEditing(Boolean(tab.path))
     setSaveError(null)
-  }, [tab.id, tab.path, tab.openDefaultEditable])
+  }, [tab.id, tab.path])
   const lineCount = useMemo(() => (tab.content || '').split('\n').length, [tab.content])
 
   // ============================================
   // Handlers
   // ============================================
-
-  // Copy content to clipboard
-  const handleCopy = useCallback(async () => {
-    const content = editorRef.current?.getContent() || tab.content
-    if (!content) return
-
-    try {
-      await navigator.clipboard.writeText(content)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy:', err)
-    }
-  }, [tab.content])
-
-  // Open with external application
-  const handleOpenExternal = useCallback(async () => {
-    if (!tab.path) return
-    try {
-      await api.openArtifact(tab.path)
-    } catch (err) {
-      console.error('Failed to open with external app:', err)
-    }
-  }, [tab.path])
-
-  // Enter edit mode
-  const handleEnterEdit = useCallback(() => {
-    setIsEditing(true)
-    setSaveError(null)
-    // Focus editor after mode switch
-    setTimeout(() => {
-      editorRef.current?.focus()
-    }, 100)
-  }, [])
 
   // Cancel edit mode
   const handleCancelEdit = useCallback(() => {
@@ -231,82 +185,36 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
           )}
         </div>
 
-        {/* Right: Actions */}
-        <div className="flex items-center gap-1">
-          {isEditing ? (
-            // Edit mode actions
-            <>
-              {/* Save error message */}
-              {saveError && (
-                <span className="text-xs text-destructive mr-2">{saveError}</span>
-              )}
-
-              {/* Cancel button */}
-              <button
-                onClick={handleCancelEdit}
-                disabled={isSaving}
-                className="flex items-center gap-1.5 px-2 py-1 text-xs rounded
+        {/* Right: save / cancel when the tab is backed by a file path */}
+        {canEdit && isEditing ? (
+          <div className="flex items-center gap-1">
+            {saveError && <span className="text-xs text-destructive mr-2">{saveError}</span>}
+            <button
+              onClick={handleCancelEdit}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs rounded
                          hover:bg-secondary transition-colors text-muted-foreground
                          disabled:opacity-50 disabled:cursor-not-allowed"
-                title={t('Cancel (Esc)')}
-              >
-                <X className="w-3.5 h-3.5" />
-                <span>{t('Cancel')}</span>
-              </button>
-
-              {/* Save button */}
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="flex items-center gap-1.5 px-2 py-1 text-xs rounded
+              title={t('Cancel (Esc)')}
+              type="button"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>{t('Cancel')}</span>
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-1.5 px-2 py-1 text-xs rounded
                          bg-primary text-primary-foreground hover:bg-primary/90
                          transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                title={t('Save (⌘S)')}
-              >
-                <Save className="w-3.5 h-3.5" />
-                <span>{isSaving ? t('Saving...') : t('Save')}</span>
-              </button>
-            </>
-          ) : (
-            // View mode actions
-            <>
-              {/* Edit button */}
-              {canEdit && (
-                <button
-                  onClick={handleEnterEdit}
-                  className="p-1.5 rounded hover:bg-secondary transition-colors"
-                  title={t('Edit file')}
-                >
-                  <Pencil className="w-4 h-4 text-muted-foreground" />
-                </button>
-              )}
-
-              {/* Copy button */}
-              <button
-                onClick={handleCopy}
-                className="p-1.5 rounded hover:bg-secondary transition-colors"
-                title={t('Copy code')}
-              >
-                {copied ? (
-                  <Check className="w-4 h-4 text-green-500" />
-                ) : (
-                  <Copy className="w-4 h-4 text-muted-foreground" />
-                )}
-              </button>
-
-              {/* Open with external app */}
-              {canOpenExternal && (
-                <button
-                  onClick={handleOpenExternal}
-                  className="p-1.5 rounded hover:bg-secondary transition-colors"
-                  title={t('Open in external application')}
-                >
-                  <ExternalLink className="w-4 h-4 text-muted-foreground" />
-                </button>
-              )}
-            </>
-          )}
-        </div>
+              title={t('Save (⌘S)')}
+              type="button"
+            >
+              <Save className="w-3.5 h-3.5" />
+              <span>{isSaving ? t('Saving...') : t('Save')}</span>
+            </button>
+          </div>
+        ) : null}
       </div>
 
       {/* Code Editor */}
