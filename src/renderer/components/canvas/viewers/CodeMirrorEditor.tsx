@@ -25,7 +25,8 @@ import {
   memo,
   useState,
 } from 'react'
-import { EditorView } from '@codemirror/view'
+import { Prec } from '@codemirror/state'
+import { EditorView, keymap } from '@codemirror/view'
 import { MessageSquare } from 'lucide-react'
 import {
   createEditorState,
@@ -64,6 +65,8 @@ export interface CodeMirrorEditorProps {
   className?: string
   /** When set, a non-empty selection shows an “Add to Chat” control (canvas code viewer) */
   onAddSelectionToChat?: (payload: AddSelectionToChatPayload) => void
+  /** Cmd/Ctrl+S from inside the editor (bubbles do not reliably reach a parent div) */
+  onRequestSave?: () => void
 }
 
 export interface CodeMirrorEditorRef {
@@ -83,6 +86,8 @@ export interface CodeMirrorEditorRef {
   setScrollPosition: (position: number) => void
   /** Get the EditorView instance */
   getView: () => EditorView | null
+  /** Align change tracking with disk/store after a successful save */
+  setSavedBaseline: () => void
 }
 
 // ============================================
@@ -100,6 +105,7 @@ export const CodeMirrorEditor = memo(
       scrollPosition,
       className = '',
       onAddSelectionToChat,
+      onRequestSave,
     },
     ref
   ) {
@@ -138,10 +144,29 @@ export const CodeMirrorEditor = memo(
       onScrollRef.current = onScroll
     }, [onScroll])
 
+    const onRequestSaveRef = useRef(onRequestSave)
+    useEffect(() => {
+      onRequestSaveRef.current = onRequestSave
+    }, [onRequestSave])
+
     // Build extensions array - stable across re-renders using refs
     const extensions = useMemo(() => {
       let addToChatRaf = 0
       return [
+        Prec.high(
+          keymap.of([
+            {
+              key: 'Mod-s',
+              run: () => {
+                const fn = onRequestSaveRef.current
+                if (!fn) return false
+                fn()
+                return true
+              },
+            },
+          ])
+        ),
+
         EditorView.updateListener.of((update) => {
           const cb = onAddToChatRef.current
           const setPop = setAddToChatPopupRef.current
@@ -327,6 +352,13 @@ export const CodeMirrorEditor = memo(
         },
 
         getView: () => viewRef.current,
+
+        setSavedBaseline: () => {
+          const view = viewRef.current
+          if (view) {
+            originalContentRef.current = view.state.doc.toString()
+          }
+        },
       }),
       [content]
     )

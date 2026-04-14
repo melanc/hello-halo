@@ -3,7 +3,7 @@
  *
  * Features:
  * - Syntax highlighting, folding, search (Cmd+F), line numbers
- * - Editor is always writable; ⌘/Ctrl+S persists when `tab.path` exists, Esc reverts unsaved edits
+ * - Editor is always writable; ⌘/Ctrl+S persists when `tab.path` exists (handled inside CodeMirror), Esc reverts unsaved edits
  * - Scroll position preservation
  * - Add selection to chat (composer reference chips)
  */
@@ -62,6 +62,7 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
 
   const handleSave = useCallback(async () => {
     if (!tab.path || !editorRef.current) return
+    if (isSaving) return
 
     if (!editorRef.current.hasChanges()) {
       return
@@ -73,6 +74,7 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
       const result = await api.saveArtifactContent(tab.path, newContent)
 
       if (result.success) {
+        editorRef.current?.setSavedBaseline()
         onSaveComplete?.(newContent)
       } else {
         useNotificationStore.getState().show({
@@ -93,7 +95,7 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
     } finally {
       setIsSaving(false)
     }
-  }, [tab.path, onSaveComplete, t])
+  }, [tab.path, onSaveComplete, t, isSaving])
 
   const handleScroll = useCallback(
     (position: number) => {
@@ -105,16 +107,12 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (isSaving) return
-      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-        e.preventDefault()
-        void handleSave()
-      }
       if (e.key === 'Escape') {
         e.preventDefault()
         handleCancelEdit()
       }
     },
-    [isSaving, handleSave, handleCancelEdit]
+    [isSaving, handleCancelEdit]
   )
 
   // Focus editor when tab becomes active / content loads so ⌘S targets the file
@@ -136,6 +134,9 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
           onScroll={handleScroll}
           scrollPosition={tab.scrollPosition}
           onAddSelectionToChat={handleAddSelectionToChat}
+          onRequestSave={() => {
+            void handleSave()
+          }}
         />
       </div>
     </div>
