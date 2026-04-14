@@ -145,6 +145,8 @@ export function ArtifactRail({
   const [railMainTab, setRailMainTab] = useState<RailMainTab>(getInitialRailMainTab)
   const [mobileOverlayOpen, setMobileOverlayOpen] = useState(false)
   const railRef = useRef<HTMLDivElement>(null)
+  /** Tracks last task session for this rail; `undefined` = not yet seeded (incl. after space change). */
+  const prevRailTaskSessionRef = useRef<string | null | undefined>(undefined)
   const onWidthChangeRef = useRef(onWidthChange)
   onWidthChangeRef.current = onWidthChange
   const isGenerating = useIsGenerating()
@@ -235,6 +237,24 @@ export function ArtifactRail({
       setInternalExpanded(true)
     }
   }, [isControlled, onExpandedChange, setRailMainTabPersist])
+
+  useEffect(() => {
+    prevRailTaskSessionRef.current = undefined
+  }, [spaceId])
+
+  // After entering or switching the active task for this space, default rail to workspace files
+  useEffect(() => {
+    const sid = activeTaskForSpace?.id ?? null
+    const prev = prevRailTaskSessionRef.current
+    if (prev === undefined) {
+      prevRailTaskSessionRef.current = sid
+      return
+    }
+    if (sid != null && sid !== prev) {
+      setRailMainTabPersist('files')
+    }
+    prevRailTaskSessionRef.current = sid
+  }, [activeTaskForSpace?.id, setRailMainTabPersist])
 
   // Handle drag resize (desktop only)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
