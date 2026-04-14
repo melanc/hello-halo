@@ -394,6 +394,7 @@ export function ArtifactRail({
       ) : railMainTab === 'knowledge-base' ? (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <ArtifactTree
+            key={`rail-knowledge-base-${linkedKnowledgeBaseSpaceId}`}
             spaceId={linkedKnowledgeBaseSpaceId}
             taskProjectRootSet={null}
             taskFocusSessionId={null}
@@ -405,6 +406,7 @@ export function ArtifactRail({
       ) : (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <ArtifactTree
+            key={`rail-workspace-${spaceId}-${activeTaskForSpace?.id ?? 'none'}`}
             spaceId={spaceId}
             taskProjectRootSet={taskProjectRootSetForSpace}
             taskFocusSessionId={activeTaskForSpace?.id ?? null}

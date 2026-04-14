@@ -313,14 +313,19 @@ export function ArtifactTree({
   // Revision counter — incrementing triggers react-arborist to pick up mutated data
   const [revision, setRevision] = useState(0)
 
+  /** Discards out-of-order listArtifactsTree responses when spaceId or load calls race. */
+  const latestTreeLoadIdRef = useRef(0)
+
   const openFile = useCanvasStore(state => state.openFile)
 
   // Load tree data (root level only for lazy loading)
   const loadTree = useCallback(async () => {
     if (!spaceId) return
+    const loadId = ++latestTreeLoadIdRef.current
 
     try {
       const response = await api.listArtifactsTree(spaceId)
+      if (loadId !== latestTreeLoadIdRef.current) return
       if (response.success && response.data) {
         const { workspaceRoot, nodes } = response.data as { workspaceRoot: string; nodes: ArtifactTreeNode[] }
         workspaceRootRef.current = workspaceRoot
@@ -335,7 +340,9 @@ export function ArtifactTree({
     } catch (error) {
       console.error('[ArtifactTree] Failed to load tree:', error)
     } finally {
-      setHasLoaded(true)
+      if (loadId === latestTreeLoadIdRef.current) {
+        setHasLoaded(true)
+      }
     }
   }, [spaceId])
 
