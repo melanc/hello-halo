@@ -83,6 +83,12 @@ interface TaskState {
   updateTaskRequirementKeyPoints: (taskId: string, points: string[]) => void
   /** Persist full AI-generated requirement analysis text */
   updateTaskRequirementAnalysis: (taskId: string, analysis: string) => void
+
+  /** Update development branch name (shared across involved projects) */
+  updateTaskBranchName: (taskId: string, branchName: string) => void
+
+  /** Append one line to the coding-phase activity log (capped) */
+  appendPipelineCodingLog: (taskId: string, line: string) => void
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -352,6 +358,29 @@ export const useTaskStore = create<TaskState>()(
           tasks: s.tasks.map((t) =>
             t.id === taskId ? { ...t, requirementAnalysis: analysis, updatedAt: Date.now() } : t
           ),
+        }))
+      },
+
+      updateTaskBranchName: (taskId, branchName) => {
+        const name = branchName.trim()
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId ? { ...t, branchName: name, updatedAt: Date.now() } : t
+          ),
+        }))
+      },
+
+      appendPipelineCodingLog: (taskId, line) => {
+        const text = line.trim()
+        if (!text) return
+        const maxLines = 80
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (t.id !== taskId) return t
+            const prev = t.pipelineCodingLogLines ?? []
+            const next = [...prev, text].slice(-maxLines)
+            return { ...t, pipelineCodingLogLines: next, updatedAt: Date.now() }
+          }),
         }))
       },
     }),

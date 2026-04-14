@@ -346,6 +346,8 @@ export interface WorkspaceTask {
   requirementKeyPoints?: string[];
   /** Full structured requirement analysis text produced by AI (4-section format) */
   requirementAnalysis?: string;
+  /** Short lines appended when starting coding from the pipeline (subtask + projects) */
+  pipelineCodingLogLines?: string[];
 }
 
 // ============================================

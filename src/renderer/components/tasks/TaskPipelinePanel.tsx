@@ -23,6 +23,7 @@ import {
   AlertCircle,
   Pencil,
   Plus,
+  GitBranch,
 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
@@ -34,8 +35,13 @@ import {
   buildTaskBreakdownExecuteMessage,
   buildDevPlanExecuteMessage,
   buildCodingKickoffMessage,
+  evaluateCodingPrereqs,
+  getInvolvedProjectDirNames,
+  buildProjectDisplayPaths,
+  getSubtaskProgressStats,
 } from '../../lib/workspace-task-messages'
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask } from '../../types'
+import { useSpaceStore } from '../../stores/space.store'
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -51,6 +57,16 @@ function extractKeyPoints(text: string): string[] {
 }
 
 /** Parse bullet-point lines from AI breakdown reply into PipelineSubtask objects. */
+function pickFocusSubtask(list: PipelineSubtask[]): PipelineSubtask | null {
+  if (!list.length) return null
+  return (
+    list.find((s) => s.status === 'pending') ??
+    list.find((s) => s.status === 'in_progress') ??
+    list[0] ??
+    null
+  )
+}
+
 function extractSubtasks(text: string): PipelineSubtask[] {
   const now = Date.now()
   return text
@@ -573,13 +589,17 @@ function Tab2Breakdown({
 function Tab3DevPlan({
   task,
   onSaveDevPlan,
+  onSaveBranchName,
 }: {
   task: WorkspaceTask
   onSaveDevPlan: (text: string) => void
+  onSaveBranchName: (branch: string) => void
 }) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState(task.pipelineDevPlan ?? '')
   const savedRef = useRef(task.pipelineDevPlan ?? '')
+  const [branchDraft, setBranchDraft] = useState(task.branchName ?? '')
+  const savedBranchRef = useRef(task.branchName ?? '')
 
   // Sync when task changes externally
   useEffect(() => {
@@ -590,6 +610,14 @@ function Tab3DevPlan({
     }
   }, [task.pipelineDevPlan])
 
+  useEffect(() => {
+    const incoming = task.branchName ?? ''
+    if (incoming !== savedBranchRef.current) {
+      savedBranchRef.current = incoming
+      setBranchDraft(incoming)
+    }
+  }, [task.branchName])
+
   const handleBlur = useCallback(() => {
     if (draft !== savedRef.current) {
       savedRef.current = draft
@@ -597,9 +625,16 @@ function Tab3DevPlan({
     }
   }, [draft, onSaveDevPlan])
 
-  const allDirs = Array.from(
-    new Set([...(task.projectDirs ?? []), ...(task.touchedProjectDirs ?? [])])
-  ).filter(Boolean)
+  const handleBranchBlur = useCallback(() => {
+    const trimmed = branchDraft.trim()
+    if (trimmed !== savedBranchRef.current) {
+      savedBranchRef.current = trimmed
+      setBranchDraft(trimmed)
+      onSaveBranchName(trimmed)
+    }
+  }, [branchDraft, onSaveBranchName])
+
+  const allDirs = getInvolvedProjectDirNames(task)
 
   return (
     <div className="space-y-3">
@@ -625,6 +660,22 @@ function Tab3DevPlan({
         )}
       </div>
 
+      {/* 开发分支 */}
+      <div>
+        <div className="flex items-center gap-1 mb-1.5">
+          <GitBranch className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[11px] text-muted-foreground">{t('Development branch')}</span>
+        </div>
+        <input
+          type="text"
+          className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono"
+          placeholder={t('e.g. feature/your-branch')}
+          value={branchDraft}
+          onChange={(e) => setBranchDraft(e.target.value)}
+          onBlur={handleBranchBlur}
+        />
+      </div>
+
       {/* 代码改动范围 */}
       <div>
         <div className="flex items-center gap-1 mb-1.5">
@@ -644,11 +695,136 @@ function Tab3DevPlan({
   )
 }
 
-/** Tab 4 — 编码实现 (placeholder) */
-function Tab4Coding() {
+/** Tab 4 — 编码实现：依赖开发计划、涉及项目与分支；展示活动记录 */
+function Tab4Coding({
+  task,
+  workspaceRoot,
+  subtasks,
+}: {
+  task: WorkspaceTask
+  workspaceRoot: string | null
+  subtasks: PipelineSubtask[]
+}) {
   const { t } = useTranslation()
+  const dirs = getInvolvedProjectDirNames(task)
+  const paths = workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirs) : dirs
+  const prereq = evaluateCodingPrereqs(task, t)
+  const logLines = task.pipelineCodingLogLines ?? []
+  const planPreview = (task.pipelineDevPlan ?? '').trim().slice(0, 1200)
+  const progress = getSubtaskProgressStats(subtasks)
+
   return (
-    <p className="text-xs text-muted-foreground/60 italic">{t('AI 将在此阶段自动执行编码任务')}</p>
+    <div className="space-y-3">
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+          {t('Subtask progress vs development plan')}
+        </p>
+        {progress.total === 0 ? (
+          <p className="text-[11px] text-muted-foreground/80 leading-snug">
+            {t(
+              'No subtasks on record. Intent / Start work will compare only against the development plan; add subtasks on tab 2 to track completion.'
+            )}
+          </p>
+        ) : (
+          <div className="space-y-1.5">
+            <p className="text-[11px] text-foreground/90">
+              {t('{{done}} / {{total}} subtasks marked done', { done: progress.doneCount, total: progress.total })}
+            </p>
+            {progress.allDone ? (
+              <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-snug">
+                {t('All subtasks are done. Use Intent to confirm nothing in the plan is still missing.')}
+              </p>
+            ) : progress.nextSubtask ? (
+              <p className="text-[11px] text-foreground/85 leading-snug">
+                {t('Suggested next focus: {{title}}', { title: progress.nextSubtask.title })}
+              </p>
+            ) : null}
+            <p className="text-[10px] text-muted-foreground/75 leading-snug">
+              {t('Intent and Start work messages include this progress so the model can judge what is left to do.')}
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+          {t('Coding prerequisites')}
+        </p>
+        {!prereq.ok ? (
+          <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-snug">{prereq.message}</p>
+        ) : (
+          <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-snug">
+            {t('Development plan, projects, and branch are set. Use Intent then Start work.')}
+          </p>
+        )}
+      </div>
+
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+          {t('Development branch')}
+        </p>
+        <p className="text-xs font-mono text-foreground/90 break-all">
+          {task.branchName?.trim() ? task.branchName.trim() : t('Not set')}
+        </p>
+      </div>
+
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+          {t('Involved project paths')}
+        </p>
+        {paths.length > 0 ? (
+          <ul className="text-[11px] font-mono text-foreground/85 space-y-0.5 break-all">
+            {paths.map((p) => (
+              <li key={p}>- {p}</li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/60 italic">{t('No projects linked yet')}</p>
+        )}
+        {!workspaceRoot && dirs.length > 0 && (
+          <p className="text-[10px] text-muted-foreground/70 mt-1">{t('Workspace path unavailable; showing folder names only.')}</p>
+        )}
+      </div>
+
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+          {t('Development plan excerpt')}
+        </p>
+        {planPreview ? (
+          <pre className="text-[11px] whitespace-pre-wrap break-words text-foreground/80 bg-secondary/30 border border-border/60 rounded-lg px-2 py-2 max-h-40 overflow-y-auto leading-relaxed">
+            {planPreview}
+            {(task.pipelineDevPlan ?? '').trim().length > 1200 ? `…\n${t('(truncated)')}` : ''}
+          </pre>
+        ) : (
+          <p className="text-[11px] text-muted-foreground/60 italic">{t('No development plan text yet')}</p>
+        )}
+      </div>
+
+      <div>
+        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
+          {t('Coding activity log')}
+        </p>
+        {logLines.length === 0 ? (
+          <p className="text-[11px] text-muted-foreground/60 italic">
+            {t('After you click Start work, a line is saved here (subtask and projects).')}
+          </p>
+        ) : (
+          <ul className="text-[11px] text-foreground/85 space-y-1 max-h-36 overflow-y-auto border border-border/50 rounded-lg px-2 py-2 bg-secondary/20">
+            {logLines.map((line, i) => (
+              <li key={`${i}-${line.slice(0, 24)}`} className="leading-snug break-words">
+                {line}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/70 leading-snug">
+        {t(
+          'Intent identification asks the model to compare the plan with done subtasks and list next steps. Start work sends the coding message with the same context.'
+        )}
+      </p>
+    </div>
   )
 }
 
@@ -667,6 +843,17 @@ function Tab5Review() {
 function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const { t } = useTranslation()
   const updateTaskPipelineState = useTaskStore((s) => s.updateTaskPipelineState)
+  const updateTaskBranchName = useTaskStore((s) => s.updateTaskBranchName)
+
+  const spaceForTask = useSpaceStore((s) => {
+    const hit = s.spaces.find((sp) => sp.id === task.spaceId)
+    if (hit) return hit
+    if (s.devxSpace?.id === task.spaceId) return s.devxSpace
+    if (s.currentSpace?.id === task.spaceId) return s.currentSpace
+    return null
+  })
+  const workspaceRoot = (spaceForTask?.workingDir || spaceForTask?.path || '').trim()
+  const workspaceRootForUi = workspaceRoot || null
 
   const stage: PipelineStage = task.pipelineStage ?? 1
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
@@ -775,21 +962,41 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
   const handleIdentifyIntent = useCallback(async () => {
     if (isIdentifying || isSendingMessage) return
+    if (selectedTab === 4) {
+      const pre = evaluateCodingPrereqs(task, t)
+      if (!pre.ok) {
+        setCheckResult({ ok: false, message: pre.message })
+        return
+      }
+    }
     setIsIdentifying(true)
     try {
       const chat = useChatStore.getState()
+      const dirNames = getInvolvedProjectDirNames(task)
+      const codingProjectPaths =
+        workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirNames) : dirNames
+
       await chat.sendMessage(
         buildIntentAnalysisMessage(
           selectedTab,
           task,
-          { subtasks, keyPoints: task.requirementKeyPoints ?? [] },
+          {
+            subtasks,
+            keyPoints: task.requirementKeyPoints ?? [],
+            ...(selectedTab === 4
+              ? {
+                  codingWorkspaceRoot: workspaceRoot || undefined,
+                  codingProjectPaths: codingProjectPaths.length ? codingProjectPaths : undefined,
+                }
+              : {}),
+          },
           t
         )
       )
     } finally {
       setIsIdentifying(false)
     }
-  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t])
+  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t, workspaceRoot])
 
   const getTabCheck = useCallback((tab: PipelineStage): { ok: boolean; message: string } => {
     switch (tab) {
@@ -810,8 +1017,14 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         if (subtasks.length === 0) return { ok: false, message: t('请先在任务拆解中生成子任务') }
         return { ok: true, message: t('AI 将按讨论结果生成开发计划') }
       }
-      case 4:
-        return { ok: true, message: t('AI 将按照当前计划执行编码') }
+      case 4: {
+        const pre = evaluateCodingPrereqs(task, t)
+        if (!pre.ok) return { ok: false, message: pre.message }
+        return {
+          ok: true,
+          message: t('AI will run coding using the saved development plan, projects, and branch.'),
+        }
+      }
       case 5:
         return { ok: true, message: t('AI 将进行代码审查和测试') }
       default:
@@ -865,9 +1078,26 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         setSelectedTab(3)
 
       } else if (selectedTab === 4) {
-        // Advance stage and send coding kickoff message with the dev plan
-        updateTaskPipelineState(task.id, { stage: Math.max(stage, 4) as PipelineStage, pipelineResumeHint: t('正在编写代码') })
-        await chat.sendMessage(buildCodingKickoffMessage(task, t))
+        const dirs = getInvolvedProjectDirNames(task)
+        const projectPaths = buildProjectDisplayPaths(workspaceRoot, dirs)
+        const focus = pickFocusSubtask(subtasks)
+        const logLine = t('Coding kickoff log line', {
+          time: new Date().toLocaleString(),
+          subtask: focus?.title?.trim() || t('No subtask'),
+          projects: dirs.length ? dirs.join(', ') : t('None'),
+        })
+        useTaskStore.getState().appendPipelineCodingLog(task.id, logLine)
+
+        updateTaskPipelineState(task.id, {
+          stage: Math.max(stage, 4) as PipelineStage,
+          pipelineResumeHint: t('正在编写代码'),
+        })
+        await chat.sendMessage(
+          buildCodingKickoffMessage(task, t, {
+            workspaceRoot: workspaceRoot || undefined,
+            projectPaths: projectPaths.length ? projectPaths : undefined,
+          })
+        )
 
       } else if (selectedTab === 5) {
         updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('等待验收') })
@@ -875,7 +1105,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     } finally {
       setIsSendingMessage(false)
     }
-  }, [selectedTab, stage, task, getTabCheck, updateTaskPipelineState, t])
+  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot])
 
   const handleSaveDevPlan = useCallback(
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
@@ -928,9 +1158,15 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               />
             )}
             {selectedTab === 3 && (
-              <Tab3DevPlan task={task} onSaveDevPlan={handleSaveDevPlan} />
+              <Tab3DevPlan
+                task={task}
+                onSaveDevPlan={handleSaveDevPlan}
+                onSaveBranchName={(b) => updateTaskBranchName(task.id, b)}
+              />
             )}
-            {selectedTab === 4 && <Tab4Coding />}
+            {selectedTab === 4 && (
+              <Tab4Coding task={task} workspaceRoot={workspaceRootForUi} subtasks={subtasks} />
+            )}
             {selectedTab === 5 && <Tab5Review />}
           </div>
 

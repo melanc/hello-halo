@@ -8,6 +8,91 @@ import type { PipelineStage, PipelineSubtask, WorkspaceTask } from '../types'
 const DOC_EXCERPT_LEN = 600
 const DESC_EXCERPT_LEN = 400
 const REQ_IDENTIFY_LEN = 3000
+const DEV_PLAN_EXCERPT_LEN = 12_000
+
+/** Top-level project directory names attached to the task (planned + touched). */
+export function getInvolvedProjectDirNames(task: WorkspaceTask): string[] {
+  return Array.from(new Set([...(task.projectDirs ?? []), ...(task.touchedProjectDirs ?? [])])).filter(Boolean)
+}
+
+/** Best-effort absolute-style paths for prompts (workspace root + each first-level dir). */
+export function buildProjectDisplayPaths(workspaceRoot: string, dirNames: string[]): string[] {
+  const root = workspaceRoot.trim()
+  if (!root) return dirNames
+  const sep = root.includes('\\') ? '\\' : '/'
+  const normalizedRoot = root.replace(/[\\/]+$/, '')
+  return dirNames.map((d) => `${normalizedRoot}${sep}${d.replace(/^[\\/]+/, '')}`)
+}
+
+/** Tab 4 — require saved dev plan text, at least one project dir, and a non-empty branch. */
+export function evaluateCodingPrereqs(task: WorkspaceTask, t: TFunction): { ok: boolean; message: string } {
+  const plan = task.pipelineDevPlan?.trim() ?? ''
+  if (!plan) {
+    return {
+      ok: false,
+      message: t('Complete the development plan and code scope on tab 3 before coding.'),
+    }
+  }
+  const dirs = getInvolvedProjectDirNames(task)
+  const branch = task.branchName?.trim() ?? ''
+  if (dirs.length === 0 || !branch) {
+    return {
+      ok: false,
+      message: t(
+        'Set at least one involved project and the development branch on tab 3, then confirm before coding.'
+      ),
+    }
+  }
+  return { ok: true, message: '' }
+}
+
+/** Derive done / next / allDone from pipeline subtask statuses (user-updated in the task panel). */
+export function getSubtaskProgressStats(subtasks: PipelineSubtask[] | undefined) {
+  const list = subtasks ?? []
+  const doneList = list.filter((s) => s.status === 'done')
+  const pendingList = list.filter((s) => s.status === 'pending')
+  const inProgressList = list.filter((s) => s.status === 'in_progress')
+  const allDone = list.length > 0 && list.every((s) => s.status === 'done')
+  const nextSubtask = inProgressList[0] ?? pendingList[0] ?? null
+  return {
+    total: list.length,
+    doneCount: doneList.length,
+    allDone,
+    nextSubtask,
+    doneList,
+    pendingList,
+    inProgressList,
+  }
+}
+
+/** Human-readable block for prompts: subtasks grouped by status (source of truth for “what is done”). */
+export function formatSubtasksProgressForPrompt(subtasks: PipelineSubtask[] | undefined, t: TFunction): string {
+  const list = subtasks ?? []
+  if (!list.length) {
+    return t(
+      'There are no breakdown subtasks on record; infer progress only from the development plan and conversation.'
+    )
+  }
+  const lines: string[] = []
+  const { doneCount, total } = getSubtaskProgressStats(list)
+  lines.push(
+    t('Subtask board: {{done}} / {{total}} marked done (pending and in_progress are not done).', {
+      done: doneCount,
+      total,
+    })
+  )
+  const appendGroup = (heading: string, items: PipelineSubtask[]) => {
+    if (!items.length) return
+    lines.push('', heading)
+    items.forEach((s) =>
+      lines.push(`- [${s.status}] ${s.title}${s.description ? ' — ' + s.description : ''}`)
+    )
+  }
+  appendGroup(t('Completed:'), list.filter((s) => s.status === 'done'))
+  appendGroup(t('In progress:'), list.filter((s) => s.status === 'in_progress'))
+  appendGroup(t('Pending:'), list.filter((s) => s.status === 'pending'))
+  return lines.join('\n')
+}
 
 /**
  * Shared role preamble prepended to every task-pipeline message.
@@ -58,7 +143,12 @@ export function buildRequirementIdentifyMessage(task: WorkspaceTask, t: TFunctio
 export function buildIntentAnalysisMessage(
   tab: PipelineStage,
   task: WorkspaceTask,
-  opts: { subtasks?: PipelineSubtask[]; keyPoints?: string[] },
+  opts: {
+    subtasks?: PipelineSubtask[]
+    keyPoints?: string[]
+    codingWorkspaceRoot?: string
+    codingProjectPaths?: string[]
+  },
   t: TFunction
 ): string {
   const header = `任务名称：${task.name}`
@@ -123,13 +213,45 @@ export function buildIntentAnalysisMessage(
       const blocks = [
         ROLE_PREAMBLE,
         '',
-        t('请根据当前任务的开发计划，说明你将如何执行编码：'),
-        t('1. 具体实现步骤'),
-        t('2. 要修改的关键文件和接口'),
-        t('3. 需要用户确认或可能有风险的地方，请先列出问题'),
+        t('Review the development plan and the recorded subtask completion status, then judge what is left to do.'),
+        t('1. Verdict vs plan: finished or not; gaps between plan bullets and done subtasks'),
+        t('2. If work remains: ordered next steps and concrete files or modules to touch'),
+        t('3. Risks or questions before any edits'),
         '',
         header,
       ]
+      const plan = task.pipelineDevPlan?.trim()
+      if (plan) {
+        blocks.push('', t('Development plan (must follow):'), plan.slice(0, DEV_PLAN_EXCERPT_LEN))
+      }
+      if (task.branchName?.trim()) {
+        blocks.push('', t('Development branch: {{branch}}', { branch: task.branchName.trim() }))
+      }
+      if (opts.codingWorkspaceRoot?.trim()) {
+        blocks.push('', t('Workspace root path: {{path}}', { path: opts.codingWorkspaceRoot.trim() }))
+      }
+      if (opts.codingProjectPaths?.length) {
+        blocks.push('', t('Involved project paths (top-level folders under workspace):'))
+        opts.codingProjectPaths.forEach((p) => blocks.push(`- ${p}`))
+      } else if (getInvolvedProjectDirNames(task).length) {
+        blocks.push('', t('Involved project folders (relative names):'))
+        getInvolvedProjectDirNames(task).forEach((d) => blocks.push(`- ${d}`))
+      }
+      blocks.push('', t('--- Subtask completion record (source of truth) ---'))
+      blocks.push(formatSubtasksProgressForPrompt(opts.subtasks, t))
+      blocks.push(
+        '',
+        t('Compare the development plan with the subtask completion record above.'),
+        t('Your reply must include:'),
+        t('• A clear verdict: all work complete / not complete, relative to both the plan and subtask statuses.'),
+        t(
+          '• If not complete: numbered “Next steps” that name specific pending or in-progress subtasks or plan sections still to implement.'
+        ),
+        t('• If you believe everything is done: say so and suggest what to verify (tests, manual checks) before closing.'),
+        t('• Call out any plan bullet not covered by a subtask, or any done subtask that still leaves a plan gap.'),
+        '',
+        t('Then output a concise “planned changes” section for the immediate next coding slice — do not modify files yet.')
+      )
       return blocks.join('\n')
     }
     case 5: {
@@ -180,7 +302,11 @@ export function buildDevPlanExecuteMessage(t: TFunction): string {
  * 开始工作 Tab 4 — kicks off the actual coding phase.
  * Includes the dev plan so the AI has full context to start implementing.
  */
-export function buildCodingKickoffMessage(task: WorkspaceTask, t: TFunction): string {
+export function buildCodingKickoffMessage(
+  task: WorkspaceTask,
+  t: TFunction,
+  ctx?: { workspaceRoot?: string; projectPaths?: string[] }
+): string {
   const blocks: string[] = [
     ROLE_PREAMBLE,
     '',
@@ -193,14 +319,36 @@ export function buildCodingKickoffMessage(task: WorkspaceTask, t: TFunction): st
     t('任务名称：{{name}}', { name: task.name }),
   ]
 
+  if (task.branchName?.trim()) {
+    blocks.push('', t('Development branch: {{branch}}', { branch: task.branchName.trim() }))
+  }
+  if (ctx?.workspaceRoot?.trim()) {
+    blocks.push('', t('Workspace root path: {{path}}', { path: ctx.workspaceRoot.trim() }))
+  }
+  if (ctx?.projectPaths?.length) {
+    blocks.push('', t('Involved project paths (work only inside these unless the plan says otherwise):'))
+    ctx.projectPaths.forEach((p) => blocks.push(`- ${p}`))
+  }
+
   if (task.pipelineDevPlan?.trim()) {
-    blocks.push('', t('开发计划：'), task.pipelineDevPlan.trim())
+    blocks.push('', t('开发计划：'), task.pipelineDevPlan.trim().slice(0, DEV_PLAN_EXCERPT_LEN))
   } else if (task.pipelineSubtasks?.length) {
     blocks.push('', t('子任务列表：'))
     task.pipelineSubtasks.forEach((st) =>
       blocks.push(`- ${st.title}${st.description ? '：' + st.description : ''}`)
     )
   }
+
+  const sts = task.pipelineSubtasks ?? []
+  blocks.push('', t('--- Subtask completion record (user marks done in task panel) ---'))
+  blocks.push(formatSubtasksProgressForPrompt(sts, t))
+  blocks.push(
+    '',
+    t('Use the development plan together with this completion record.'),
+    t('Implement remaining work first (pending / in_progress subtasks and any plan gaps).'),
+    t('If every subtask is already marked done, confirm against the plan; only fix residual gaps or run checks.'),
+    t('After substantive edits, remind the user to update subtask checkmarks so the next Intent / Start work stays accurate.')
+  )
 
   return blocks.join('\n')
 }
