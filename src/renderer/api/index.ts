@@ -295,6 +295,7 @@ export const api = {
     name: string
     icon: string
     customPath?: string
+    workspaceKind?: 'regular' | 'knowledge_base'
   }): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.devx.createSpace(input)

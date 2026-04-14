@@ -35,6 +35,7 @@ describe('Space Service', () => {
       expect(devxSpace.name).toBe('DevX')
       expect(devxSpace.isTemp).toBe(true)
       expect(devxSpace.icon).toBe('sparkles')
+      expect(devxSpace.workspaceKind).toBe('regular')
     })
 
     it('should have valid path', () => {
@@ -105,6 +106,19 @@ describe('Space Service', () => {
       expect(meta.name).toBe('Meta Test')
       expect(meta.icon).toBe('star')
       expect(meta.id).toBe(space.id)
+      expect(meta.workspaceKind).toBe('regular')
+      expect(space.workspaceKind).toBe('regular')
+    })
+
+    it('should persist knowledge_base workspace kind', async () => {
+      const space = await createSpace({
+        name: 'KB Space',
+        icon: 'folder',
+        workspaceKind: 'knowledge_base',
+      })
+      expect(space.workspaceKind).toBe('knowledge_base')
+      const meta = JSON.parse(fs.readFileSync(path.join(space.path, '.halo', 'meta.json'), 'utf-8'))
+      expect(meta.workspaceKind).toBe('knowledge_base')
     })
 
     it('should handle custom path', async () => {

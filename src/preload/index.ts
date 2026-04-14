@@ -60,7 +60,12 @@ export interface DevXAPI {
   // Space
   getDevXSpace: () => Promise<IpcResponse>
   listSpaces: () => Promise<IpcResponse>
-  createSpace: (input: { name: string; icon: string; customPath?: string }) => Promise<IpcResponse>
+  createSpace: (input: {
+    name: string
+    icon: string
+    customPath?: string
+    workspaceKind?: 'regular' | 'knowledge_base'
+  }) => Promise<IpcResponse>
   deleteSpace: (spaceId: string) => Promise<IpcResponse>
   getSpace: (spaceId: string) => Promise<IpcResponse>
   openSpaceFolder: (spaceId: string) => Promise<IpcResponse>

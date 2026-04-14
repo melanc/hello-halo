@@ -265,6 +265,11 @@ export interface DevXConfig {
 // Space Types
 // ============================================
 
+/** Dedicated space category: default project workspace vs knowledge-base style space */
+export type SpaceWorkspaceKind = 'regular' | 'knowledge_base'
+
+export const DEFAULT_SPACE_WORKSPACE_KIND: SpaceWorkspaceKind = 'regular'
+
 // Layout preferences for a space (persisted to meta.json)
 export interface SpaceLayoutPreferences {
   artifactRailExpanded?: boolean;  // Whether rail stays expanded when canvas is open
@@ -284,6 +289,8 @@ export interface Space {
   isTemp: boolean;
   createdAt: string;
   updatedAt: string;
+  /** Regular workspace vs knowledge base (existing data default to regular) */
+  workspaceKind: SpaceWorkspaceKind;
   preferences?: SpacePreferences;  // User preferences for this space
   workingDir?: string;  // Project directory for custom spaces (agent cwd, artifacts, file explorer)
 }
@@ -292,6 +299,8 @@ export interface CreateSpaceInput {
   name: string;
   icon: string;
   customPath?: string;
+  /** Omit or regular: default dedicated project space; knowledge_base for KB-style space */
+  workspaceKind?: SpaceWorkspaceKind;
 }
 
 // Pipeline stage for the inline task workflow

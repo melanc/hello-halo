@@ -147,6 +147,11 @@ export function SpaceSelector({ spaceSwitchLocked = false }: SpaceSelectorProps)
           {allSpaces.map(space => {
             const isActive = space.id === currentSpace?.id
             const name = space.isTemp ? t('DevX Space') : space.name
+            const kindLabel = space.isTemp
+              ? null
+              : space.workspaceKind === 'knowledge_base'
+                ? t('Knowledge base')
+                : t('Regular workspace')
 
             return (
               <button
@@ -156,10 +161,15 @@ export function SpaceSelector({ spaceSwitchLocked = false }: SpaceSelectorProps)
                   isActive ? 'text-primary bg-primary/5' : 'text-foreground'
                 }`}
               >
-                <SpaceIcon iconId={space.icon || (space.isTemp ? 'sparkles' : 'folder')} size={16} className="flex-shrink-0" />
-                <span className="truncate">{name}</span>
+                <SpaceIcon iconId={space.icon || (space.isTemp ? 'sparkles' : 'folder')} size={16} className="flex-shrink-0 self-start mt-0.5" />
+                <div className="min-w-0 flex-1 flex flex-col items-start gap-0.5">
+                  <span className="truncate w-full">{name}</span>
+                  {kindLabel && (
+                    <span className="text-[10px] text-muted-foreground truncate w-full">{kindLabel}</span>
+                  )}
+                </div>
                 {isActive && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 self-center" />
                 )}
               </button>
             )

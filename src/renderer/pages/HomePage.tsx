@@ -6,7 +6,8 @@ import React, { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '../stores/app.store'
 import { useSpaceStore } from '../stores/space.store'
 import { SPACE_ICONS, DEFAULT_SPACE_ICON } from '../types'
-import type { Space, CreateSpaceInput, SpaceIconId } from '../types'
+import type { Space, CreateSpaceInput, SpaceIconId, SpaceWorkspaceKind } from '../types'
+import { DEFAULT_SPACE_WORKSPACE_KIND } from '../types'
 import {
   SpaceIcon,
   Sparkles,
@@ -45,6 +46,7 @@ export function HomePage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newSpaceName, setNewSpaceName] = useState('')
   const [newSpaceIcon, setNewSpaceIcon] = useState<SpaceIconId>(DEFAULT_SPACE_ICON)
+  const [newWorkspaceKind, setNewWorkspaceKind] = useState<SpaceWorkspaceKind>(DEFAULT_SPACE_WORKSPACE_KIND)
 
   // Edit dialog state
   const [editingSpace, setEditingSpace] = useState<Space | null>(null)
@@ -105,6 +107,7 @@ export function HomePage() {
     setShowCreateDialog(false)
     setNewSpaceName('')
     setNewSpaceIcon(DEFAULT_SPACE_ICON)
+    setNewWorkspaceKind(DEFAULT_SPACE_WORKSPACE_KIND)
     setUseCustomPath(false)
     setCustomPath(null)
   }
@@ -126,7 +129,8 @@ export function HomePage() {
     const input: CreateSpaceInput = {
       name: newSpaceName.trim(),
       icon: newSpaceIcon,
-      customPath: useCustomPath && customPath ? customPath : undefined
+      customPath: useCustomPath && customPath ? customPath : undefined,
+      workspaceKind: newWorkspaceKind,
     }
 
     const newSpace = await createSpace(input)
@@ -357,7 +361,10 @@ export function HomePage() {
                     </button>
                   </div>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
+                <p className="text-[10px] text-muted-foreground mt-1.5">
+                  {space.workspaceKind === 'knowledge_base' ? t('Knowledge base') : t('Regular workspace')}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
                   {formatTimeAgo(space.updatedAt)}{t('active')}
                 </p>
               </div>
@@ -375,6 +382,45 @@ export function HomePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
             <h2 className="text-lg font-medium mb-4">{t('Create Dedicated Space')}</h2>
+
+            {/* Space type */}
+            <div className="mb-4">
+              <label className="block text-sm text-muted-foreground mb-2">{t('Space type')}</label>
+              <div className="space-y-2">
+                <label
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                    newWorkspaceKind === 'regular'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="workspaceKind"
+                    checked={newWorkspaceKind === 'regular'}
+                    onChange={() => setNewWorkspaceKind('regular')}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <span className="text-sm">{t('Regular workspace')}</span>
+                </label>
+                <label
+                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                    newWorkspaceKind === 'knowledge_base'
+                      ? 'border-primary bg-primary/5'
+                      : 'border-border hover:border-muted-foreground/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="workspaceKind"
+                    checked={newWorkspaceKind === 'knowledge_base'}
+                    onChange={() => setNewWorkspaceKind('knowledge_base')}
+                    className="w-4 h-4 text-primary"
+                  />
+                  <span className="text-sm">{t('Knowledge base')}</span>
+                </label>
+              </div>
+            </div>
 
             {/* Icon select */}
             <div className="mb-4">
