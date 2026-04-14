@@ -2,7 +2,7 @@
  * Home Page - Space list view
  */
 
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useMemo } from 'react'
 import { useAppStore } from '../stores/app.store'
 import { useSpaceStore } from '../stores/space.store'
 import { SPACE_ICONS, DEFAULT_SPACE_ICON } from '../types'
@@ -113,6 +113,15 @@ export function HomePage() {
   }
 
   const clearActiveTask = useTaskStore((s) => s.clearActiveTask)
+
+  const regularSpaces = useMemo(
+    () => spaces.filter((s) => s.workspaceKind !== 'knowledge_base'),
+    [spaces]
+  )
+  const knowledgeBaseSpaces = useMemo(
+    () => spaces.filter((s) => s.workspaceKind === 'knowledge_base'),
+    [spaces]
+  )
 
   // Handle space click - no reset needed, SpacePage handles its own state
   const handleSpaceClick = (space: Space) => {
@@ -332,43 +341,91 @@ export function HomePage() {
             <p className="text-sm">{t('No dedicated spaces yet')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-4">
-            {spaces.map((space, i) => (
-              <div
-                key={`${space.id}-${i}`}
-                onClick={() => handleSpaceClick(space)}
-                className="space-card p-4 group animate-fade-in"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <SpaceIcon iconId={space.icon} size={20} />
-                    <span className="font-medium truncate">{space.name}</span>
-                  </div>
-                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                    <button
-                      onClick={(e) => handleEditSpace(e, space)}
-                      className="p-1 hover:bg-secondary rounded transition-all"
-                      title={t('Edit Space')}
+          <div className="space-y-6">
+            {regularSpaces.length > 0 && (
+              <section>
+                <h4 className="text-xs font-medium text-muted-foreground mb-2">{t('常规空间')}</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {regularSpaces.map((space) => (
+                    <div
+                      key={space.id}
+                      onClick={() => handleSpaceClick(space)}
+                      className="space-card p-4 group animate-fade-in"
                     >
-                      <Pencil className="w-4 h-4 text-muted-foreground" />
-                    </button>
-                    <button
-                      onClick={(e) => handleDeleteSpace(e, space.id)}
-                      className="p-1 hover:bg-destructive/20 rounded transition-all"
-                      title={t('Delete space')}
-                    >
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </button>
-                  </div>
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <SpaceIcon iconId={space.icon} size={20} />
+                          <span className="font-medium truncate">{space.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            type="button"
+                            onClick={(e) => handleEditSpace(e, space)}
+                            className="p-1 hover:bg-secondary rounded transition-all"
+                            title={t('Edit Space')}
+                          >
+                            <Pencil className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSpace(e, space.id)}
+                            className="p-1 hover:bg-destructive/20 rounded transition-all"
+                            title={t('Delete space')}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {formatTimeAgo(space.updatedAt)}{t('active')}
+                      </p>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-1.5">
-                  {space.workspaceKind === 'knowledge_base' ? t('Knowledge base') : t('Regular workspace')}
-                </p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formatTimeAgo(space.updatedAt)}{t('active')}
-                </p>
-              </div>
-            ))}
+              </section>
+            )}
+            {knowledgeBaseSpaces.length > 0 && (
+              <section>
+                <h4 className="text-xs font-medium text-muted-foreground mb-2">{t('知识库')}</h4>
+                <div className="grid grid-cols-2 gap-4">
+                  {knowledgeBaseSpaces.map((space) => (
+                    <div
+                      key={space.id}
+                      onClick={() => handleSpaceClick(space)}
+                      className="space-card p-4 group animate-fade-in"
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2">
+                          <SpaceIcon iconId={space.icon} size={20} />
+                          <span className="font-medium truncate">{space.name}</span>
+                        </div>
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <button
+                            type="button"
+                            onClick={(e) => handleEditSpace(e, space)}
+                            className="p-1 hover:bg-secondary rounded transition-all"
+                            title={t('Edit Space')}
+                          >
+                            <Pencil className="w-4 h-4 text-muted-foreground" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSpace(e, space.id)}
+                            className="p-1 hover:bg-destructive/20 rounded transition-all"
+                            title={t('Delete space')}
+                          >
+                            <Trash2 className="w-4 h-4 text-destructive" />
+                          </button>
+                        </div>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        {formatTimeAgo(space.updatedAt)}{t('active')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
 
@@ -385,7 +442,7 @@ export function HomePage() {
 
             {/* Space type */}
             <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">{t('Space type')}</label>
+              <label className="block text-sm text-muted-foreground mb-2">{t('空间类型')}</label>
               <div className="space-y-2">
                 <label
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
@@ -401,7 +458,7 @@ export function HomePage() {
                     onChange={() => setNewWorkspaceKind('regular')}
                     className="w-4 h-4 text-primary"
                   />
-                  <span className="text-sm">{t('Regular workspace')}</span>
+                  <span className="text-sm">{t('常规空间')}</span>
                 </label>
                 <label
                   className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
@@ -417,7 +474,7 @@ export function HomePage() {
                     onChange={() => setNewWorkspaceKind('knowledge_base')}
                     className="w-4 h-4 text-primary"
                   />
-                  <span className="text-sm">{t('Knowledge base')}</span>
+                  <span className="text-sm">{t('知识库')}</span>
                 </label>
               </div>
             </div>

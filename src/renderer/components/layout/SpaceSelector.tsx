@@ -5,7 +5,7 @@
  * Bottom link navigates to HomePage for space management.
  */
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { ChevronDown, Settings2 } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { useSpaceStore } from '../../stores/space.store'
@@ -99,15 +99,30 @@ export function SpaceSelector({ spaceSwitchLocked = false }: SpaceSelectorProps)
     setView('home')
   }
 
-  // Build space list: Halo Space first, then dedicated spaces
-  // Fallback: if store hasn't loaded yet, at least show currentSpace
-  const storeSpaces: Space[] = [
-    ...(devxSpace ? [devxSpace] : []),
-    ...spaces
-  ]
-  const allSpaces: Space[] = storeSpaces.length > 0
-    ? storeSpaces
-    : (currentSpace ? [currentSpace] : [])
+  /** Include current space if not yet in list (e.g. right after switch) */
+  const spacesForDropdown = useMemo(() => {
+    if (currentSpace && !currentSpace.isTemp && !spaces.some((s) => s.id === currentSpace.id)) {
+      return [...spaces, currentSpace]
+    }
+    return spaces
+  }, [spaces, currentSpace])
+
+  const regularSpaces = useMemo(
+    () => spacesForDropdown.filter((s) => s.workspaceKind !== 'knowledge_base'),
+    [spacesForDropdown]
+  )
+  const knowledgeBaseSpaces = useMemo(
+    () => spacesForDropdown.filter((s) => s.workspaceKind === 'knowledge_base'),
+    [spacesForDropdown]
+  )
+
+  /** Halo first, then dedicated — for loading / empty checks */
+  const allSpaces: Space[] = useMemo(() => {
+    const dedicated = [...regularSpaces, ...knowledgeBaseSpaces]
+    const withDevx = devxSpace ? [devxSpace, ...dedicated] : dedicated
+    if (withDevx.length > 0) return withDevx
+    return currentSpace ? [currentSpace] : []
+  }, [devxSpace, regularSpaces, knowledgeBaseSpaces, currentSpace])
 
   const displayName = currentSpace
     ? (currentSpace.isTemp ? t('DevX') : currentSpace.name)
@@ -144,36 +159,89 @@ export function SpaceSelector({ spaceSwitchLocked = false }: SpaceSelectorProps)
           {isLoading && allSpaces.length === 0 && (
             <div className="px-3 py-2 text-xs text-muted-foreground">{t('Loading...')}</div>
           )}
-          {allSpaces.map(space => {
+          {devxSpace && (() => {
+            const space = devxSpace
             const isActive = space.id === currentSpace?.id
-            const name = space.isTemp ? t('DevX Space') : space.name
-            const kindLabel = space.isTemp
-              ? null
-              : space.workspaceKind === 'knowledge_base'
-                ? t('Knowledge base')
-                : t('Regular workspace')
-
+            const name = t('DevX Space')
             return (
               <button
                 key={space.id}
+                type="button"
                 onClick={() => handleSelectSpace(space)}
                 className={`w-full px-3 py-2.5 text-left text-sm hover:bg-secondary/80 transition-colors flex items-center gap-2.5 ${
                   isActive ? 'text-primary bg-primary/5' : 'text-foreground'
                 }`}
               >
-                <SpaceIcon iconId={space.icon || (space.isTemp ? 'sparkles' : 'folder')} size={16} className="flex-shrink-0 self-start mt-0.5" />
-                <div className="min-w-0 flex-1 flex flex-col items-start gap-0.5">
-                  <span className="truncate w-full">{name}</span>
-                  {kindLabel && (
-                    <span className="text-[10px] text-muted-foreground truncate w-full">{kindLabel}</span>
-                  )}
-                </div>
+                <SpaceIcon iconId={space.icon || 'sparkles'} size={16} className="flex-shrink-0 self-center" />
+                <span className="truncate flex-1 min-w-0">{name}</span>
                 {isActive && (
-                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0 self-center" />
+                  <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
                 )}
               </button>
             )
-          })}
+          })()}
+
+          {regularSpaces.length > 0 && (
+            <>
+              <div
+                className={`px-3 pb-1 text-[10px] font-semibold text-muted-foreground ${
+                  devxSpace ? 'border-t border-border/50 mt-1 pt-2' : 'pt-2'
+                }`}
+              >
+                {t('常规空间')}
+              </div>
+              {regularSpaces.map((space) => {
+                const isActive = space.id === currentSpace?.id
+                return (
+                  <button
+                    key={space.id}
+                    type="button"
+                    onClick={() => handleSelectSpace(space)}
+                    className={`w-full px-3 py-2.5 text-left text-sm hover:bg-secondary/80 transition-colors flex items-center gap-2.5 ${
+                      isActive ? 'text-primary bg-primary/5' : 'text-foreground'
+                    }`}
+                  >
+                    <SpaceIcon iconId={space.icon || 'folder'} size={16} className="flex-shrink-0 self-center" />
+                    <span className="truncate flex-1 min-w-0">{space.name}</span>
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                    )}
+                  </button>
+                )
+              })}
+            </>
+          )}
+
+          {knowledgeBaseSpaces.length > 0 && (
+            <>
+              <div
+                className={`px-3 pb-1 text-[10px] font-semibold text-muted-foreground ${
+                  devxSpace || regularSpaces.length > 0 ? 'border-t border-border/50 mt-1 pt-2' : 'pt-2'
+                }`}
+              >
+                {t('知识库')}
+              </div>
+              {knowledgeBaseSpaces.map((space) => {
+                const isActive = space.id === currentSpace?.id
+                return (
+                  <button
+                    key={space.id}
+                    type="button"
+                    onClick={() => handleSelectSpace(space)}
+                    className={`w-full px-3 py-2.5 text-left text-sm hover:bg-secondary/80 transition-colors flex items-center gap-2.5 ${
+                      isActive ? 'text-primary bg-primary/5' : 'text-foreground'
+                    }`}
+                  >
+                    <SpaceIcon iconId={space.icon || 'folder'} size={16} className="flex-shrink-0 self-center" />
+                    <span className="truncate flex-1 min-w-0">{space.name}</span>
+                    {isActive && (
+                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                    )}
+                  </button>
+                )
+              })}
+            </>
+          )}
 
           {/* Manage Spaces link */}
           <div className="border-t border-border/50 mt-1 pt-1">
