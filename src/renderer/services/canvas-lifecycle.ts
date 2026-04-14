@@ -74,10 +74,18 @@ export interface TabState {
   browserViewId?: string
   browserState?: BrowserState
   isEditMode?: boolean // For markdown tabs - switches between preview and editor
+  /** When true (e.g. opened from artifact rail), code/json/text viewers start in edit mode */
+  openDefaultEditable?: boolean
   /** Git diff tab (type === 'diff') */
   diffOldString?: string
   diffNewString?: string
   diffIsBinary?: boolean
+}
+
+/** Options for {@link CanvasLifecycle.openFile} */
+export type OpenFileOptions = {
+  /** Start in an editable viewer when supported (code / json / text / markdown source) */
+  openDefaultEditable?: boolean
 }
 
 // Callback types
@@ -433,7 +441,7 @@ class CanvasLifecycle {
    * Open a file in the canvas
    * Uses fast path for known extensions, backend detection for unknown ones
    */
-  async openFile(path: string, title?: string): Promise<string> {
+  async openFile(path: string, title?: string, options?: OpenFileOptions): Promise<string> {
     // Check if file is already open
     for (const [tabId, tab] of this.tabs) {
       if (tab.path === path) {
@@ -487,6 +495,7 @@ class CanvasLifecycle {
 
     // Create new tab
     const tabId = generateTabId()
+    const wantEdit = Boolean(options?.openDefaultEditable)
     const tab: TabState = {
       id: tabId,
       type,
@@ -495,6 +504,8 @@ class CanvasLifecycle {
       language,
       isDirty: false,
       isLoading: true,
+      ...(wantEdit ? { openDefaultEditable: true } : {}),
+      ...(wantEdit && type === 'markdown' ? { isEditMode: true } : {}),
     }
 
     this.tabs.set(tabId, tab)

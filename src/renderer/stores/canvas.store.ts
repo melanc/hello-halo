@@ -19,10 +19,11 @@ import {
   type TabState,
   type BrowserState,
   type ContentType,
+  type OpenFileOptions,
 } from '../services/canvas-lifecycle'
 
 // Re-export types for backward compatibility
-export type { BrowserState, ContentType }
+export type { BrowserState, ContentType, OpenFileOptions }
 export type CanvasTab = TabState
 
 // ============================================
@@ -44,7 +45,7 @@ interface CanvasState {
   getTabCount: () => number
 
   // Tab Actions (delegate to canvasLifecycle)
-  openFile: (path: string, title?: string) => Promise<void>
+  openFile: (path: string, title?: string, options?: OpenFileOptions) => Promise<void>
   openGitDiffTab: (
     fileName: string,
     oldString: string,
@@ -128,8 +129,8 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
     // Tab Actions (delegate to canvasLifecycle)
     // ============================================
 
-    openFile: async (path: string, title?: string) => {
-      await canvasLifecycle.openFile(path, title)
+    openFile: async (path: string, title?: string, options?: OpenFileOptions) => {
+      await canvasLifecycle.openFile(path, title, options)
     },
 
     openGitDiffTab: async (fileName: string, oldString: string, newString: string, isBinary: boolean) => {

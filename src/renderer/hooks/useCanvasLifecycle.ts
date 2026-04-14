@@ -17,6 +17,7 @@ import {
   type TabState,
   type BrowserState,
   type ContentType,
+  type OpenFileOptions,
 } from '../services/canvas-lifecycle'
 
 /**
@@ -49,7 +50,8 @@ export function useCanvasLifecycle() {
 
   // Expose actions (bound to singleton)
   const openFile = useCallback(
-    (path: string, title?: string) => canvasLifecycle.openFile(path, title),
+    (path: string, title?: string, options?: OpenFileOptions) =>
+      canvasLifecycle.openFile(path, title, options),
     []
   )
 
@@ -283,4 +285,4 @@ export function useActiveTab(): TabState | undefined {
 }
 
 // Re-export types for convenience
-export type { TabState, BrowserState, ContentType }
+export type { TabState, BrowserState, ContentType, OpenFileOptions }

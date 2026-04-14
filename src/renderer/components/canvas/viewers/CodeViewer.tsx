@@ -1,10 +1,10 @@
 /**
- * Code Viewer - Read-first code viewer with edit capability
+ * Code Viewer - Code viewer with optional read-only mode
  *
  * Features:
  * - CodeMirror 6 powered with virtual scrolling (large file support)
- * - Default read-only mode (99% use case)
- * - Optional edit mode with save/cancel
+ * - Can open in edit mode when tab.openDefaultEditable (e.g. from artifact rail)
+ * - View mode with explicit edit / save / cancel
  * - Syntax highlighting for 20+ languages
  * - Code folding, search (Cmd+F), line numbers
  * - Scroll position preservation
@@ -12,7 +12,7 @@
  * - Add to Chat: adds a removable reference chip in the main composer (not raw textarea text)
  */
 
-import { useRef, useState, useCallback, useMemo } from 'react'
+import { useRef, useState, useCallback, useMemo, useEffect } from 'react'
 import {
   Copy,
   Check,
@@ -75,13 +75,18 @@ export function CodeViewer({ tab, onScrollChange, onContentChange, onSaveComplet
 
   // State
   const [copied, setCopied] = useState(false)
-  const [isEditing, setIsEditing] = useState(false)
+  const [isEditing, setIsEditing] = useState(() => Boolean(tab.path && tab.openDefaultEditable))
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
 
   // Computed values
   const canOpenExternal = !api.isRemoteMode() && tab.path
   const canEdit = !!tab.path // Can only edit files with a path
+
+  useEffect(() => {
+    setIsEditing(Boolean(tab.path && tab.openDefaultEditable))
+    setSaveError(null)
+  }, [tab.id, tab.path, tab.openDefaultEditable])
   const lineCount = useMemo(() => (tab.content || '').split('\n').length, [tab.content])
 
   // ============================================

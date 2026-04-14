@@ -51,7 +51,7 @@ export function ArtifactCard({ artifact, onShowContextMenu }: ArtifactCardProps)
   const handleClick = async () => {
     // Try to open in Canvas first for viewable files
     if (canViewInCanvas) {
-      openFile(artifact.path, artifact.name)
+      void openFile(artifact.path, artifact.name, { openDefaultEditable: true })
       return
     }
 

@@ -315,7 +315,9 @@ export function RailWorkspaceFindPanel({
             }}
             onClick={() => {
               setActiveIdx(i)
-              void openFile(m.path, m.relativePath.split('/').pop() ?? m.relativePath)
+              void openFile(m.path, m.relativePath.split('/').pop() ?? m.relativePath, {
+                openDefaultEditable: true,
+              })
             }}
             className={`w-full text-left px-2 py-1.5 border-b border-border/30 flex gap-2 min-w-0 hover:bg-secondary/40 ${
               i === activeIdx ? 'bg-accent/25' : ''

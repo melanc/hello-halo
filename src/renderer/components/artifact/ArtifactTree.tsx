@@ -13,7 +13,7 @@
 import { useState, useCallback, useEffect, useLayoutEffect, useMemo, createContext, useContext, useRef } from 'react'
 import { Tree, NodeRendererProps, TreeApi, CreateHandler, RenameHandler, DeleteHandler, MoveHandler, NodeApi } from 'react-arborist'
 import { api } from '../../api'
-import { useCanvasStore } from '../../stores/canvas.store'
+import { useCanvasStore, type OpenFileOptions } from '../../stores/canvas.store'
 import type { ArtifactTreeNode, ArtifactTreeUpdateEvent } from '../../types'
 import { FileIcon } from '../icons/ToolIcons'
 import {
@@ -43,7 +43,7 @@ import { useFileOperations } from '../../hooks/useFileOperations'
 import { useTaskStore } from '../../stores/task.store'
 
 // Context to pass openFile function to tree nodes without each node subscribing to store
-type OpenFileFn = (path: string, title?: string) => Promise<void>
+type OpenFileFn = (path: string, title?: string, options?: OpenFileOptions) => Promise<void>
 const OpenFileContext = createContext<OpenFileFn | null>(null)
 const SpaceIdContext = createContext<string>('')
 
@@ -1192,7 +1192,7 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
     }
 
     if (canViewInCanvas && openFile) {
-      openFile(data.path, data.name)
+      void openFile(data.path, data.name, { openDefaultEditable: true })
       if (
         onboardingTree?.highlightFileName === data.name &&
         onboardingTree.onActivate
