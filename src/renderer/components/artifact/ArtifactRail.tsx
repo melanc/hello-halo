@@ -119,16 +119,6 @@ export function ArtifactRail({
     [activeTaskForSpace?.knowledgeBaseSpaceId]
   )
 
-  const showTaskKnowledgeBaseFileToggle = useMemo(
-    () =>
-      Boolean(
-        activeTaskForSpace &&
-          linkedKnowledgeBaseSpaceId &&
-          linkedKnowledgeBaseSpaceId !== spaceId
-      ),
-    [activeTaskForSpace, linkedKnowledgeBaseSpaceId, spaceId]
-  )
-
   /** Task-scoped file tree: always a Set when this space’s active task is open (may be empty). */
   const taskProjectRootSetForSpace = useMemo(() => {
     if (!activeTaskForSpace) return null
@@ -178,13 +168,6 @@ export function ArtifactRail({
   }, [folderTargetSpaceId])
 
   // ── Effects ──
-
-  // Linked KB tab is invalid without a separate linked space — fall back to Files
-  useEffect(() => {
-    if (railMainTab === 'knowledge-base' && !showTaskKnowledgeBaseFileToggle) {
-      setRailMainTab('files')
-    }
-  }, [railMainTab, showTaskKnowledgeBaseFileToggle])
 
   // Sync width when initialWidth arrives from async config load
   useEffect(() => {
@@ -243,6 +226,15 @@ export function ArtifactRail({
       /* ignore quota */
     }
   }, [])
+
+  const expandRailAndOpenKnowledgeBaseTab = useCallback(() => {
+    setRailMainTabPersist('knowledge-base')
+    if (isControlled) {
+      onExpandedChange?.(true)
+    } else {
+      setInternalExpanded(true)
+    }
+  }, [isControlled, onExpandedChange, setRailMainTabPersist])
 
   // Handle drag resize (desktop only)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -392,17 +384,21 @@ export function ArtifactRail({
       ) : railMainTab === 'workspace-find' ? (
         <RailWorkspaceFindPanel spaceId={spaceId} isWebMode={isWebMode} />
       ) : railMainTab === 'knowledge-base' ? (
-        <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-          <ArtifactTree
-            key={`rail-knowledge-base-${linkedKnowledgeBaseSpaceId}`}
-            spaceId={linkedKnowledgeBaseSpaceId}
-            taskProjectRootSet={null}
-            taskFocusSessionId={null}
-            taskNoExplicitProjectDirs={false}
-            onboardingHighlightFileName={isOnboardingViewStep ? ONBOARDING_ARTIFACT_NAME : undefined}
-            onboardingArtifactActivate={isOnboardingViewStep ? handleOnboardingArtifactClick : undefined}
-          />
-        </div>
+        linkedKnowledgeBaseSpaceId ? (
+          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+            <ArtifactTree
+              key={`rail-knowledge-base-${linkedKnowledgeBaseSpaceId}`}
+              spaceId={linkedKnowledgeBaseSpaceId}
+              taskProjectRootSet={null}
+              taskFocusSessionId={null}
+              taskNoExplicitProjectDirs={false}
+              onboardingHighlightFileName={isOnboardingViewStep ? ONBOARDING_ARTIFACT_NAME : undefined}
+              onboardingArtifactActivate={isOnboardingViewStep ? handleOnboardingArtifactClick : undefined}
+            />
+          </div>
+        ) : (
+          <div className="flex-1 min-h-0" aria-hidden />
+        )
       ) : (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <ArtifactTree
@@ -542,21 +538,19 @@ export function ArtifactRail({
                   >
                     <Search className="w-5 h-5" />
                   </button>
-                  {showTaskKnowledgeBaseFileToggle && (
-                    <button
-                      type="button"
-                      onClick={() => setRailMainTabPersist('knowledge-base')}
-                      className={`
-                        h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
-                        hover:bg-secondary/80
-                        ${railMainTab === 'knowledge-base' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
-                      `}
-                      title={t('Show linked knowledge base file tree')}
-                      aria-label={t('Show linked knowledge base file tree')}
-                    >
-                      <BookOpen className="w-5 h-5" aria-hidden />
-                    </button>
-                  )}
+                  <button
+                    type="button"
+                    onClick={() => setRailMainTabPersist('knowledge-base')}
+                    className={`
+                      h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
+                      hover:bg-secondary/80
+                      ${railMainTab === 'knowledge-base' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+                    `}
+                    title={t('Show linked knowledge base file tree')}
+                    aria-label={t('Show linked knowledge base file tree')}
+                  >
+                    <BookOpen className="w-5 h-5" aria-hidden />
+                  </button>
                 </div>
                 <button
                   onClick={() => setMobileOverlayOpen(false)}
@@ -643,21 +637,19 @@ export function ArtifactRail({
             >
               <Search className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
             </button>
-            {showTaskKnowledgeBaseFileToggle && (
-              <button
-                type="button"
-                onClick={() => setRailMainTabPersist('knowledge-base')}
-                className={`
-                  h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
-                  hover:bg-secondary/80
-                  ${railMainTab === 'knowledge-base' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
-                `}
-                title={t('Show linked knowledge base file tree')}
-                aria-label={t('Show linked knowledge base file tree')}
-              >
-                <BookOpen className="w-[18px] h-[18px] sm:w-5 sm:h-5" aria-hidden />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setRailMainTabPersist('knowledge-base')}
+              className={`
+                h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
+                hover:bg-secondary/80
+                ${railMainTab === 'knowledge-base' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+              `}
+              title={t('Show linked knowledge base file tree')}
+              aria-label={t('Show linked knowledge base file tree')}
+            >
+              <BookOpen className="w-[18px] h-[18px] sm:w-5 sm:h-5" aria-hidden />
+            </button>
           </div>
         )}
         <button
@@ -694,6 +686,15 @@ export function ArtifactRail({
                 title={t('Open folder')}
               >
                 <FolderOpen className="w-5 h-5 text-amber-500" />
+              </button>
+              <button
+                type="button"
+                onClick={expandRailAndOpenKnowledgeBaseTab}
+                className="p-2 hover:bg-secondary rounded-lg transition-colors"
+                title={t('Show linked knowledge base file tree')}
+                aria-label={t('Show linked knowledge base file tree')}
+              >
+                <BookOpen className="w-5 h-5 text-primary" aria-hidden />
               </button>
               <button
                 onClick={handleOpenBrowser}

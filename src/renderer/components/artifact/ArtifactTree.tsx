@@ -10,7 +10,7 @@
  * - Lazy loading: children fetched on-demand when expanding folders
  */
 
-import { useState, useCallback, useEffect, useMemo, createContext, useContext, useRef } from 'react'
+import { useState, useCallback, useEffect, useLayoutEffect, useMemo, createContext, useContext, useRef } from 'react'
 import { Tree, NodeRendererProps, TreeApi, CreateHandler, RenameHandler, DeleteHandler, MoveHandler, NodeApi } from 'react-arborist'
 import { api } from '../../api'
 import { useCanvasStore } from '../../stores/canvas.store'
@@ -286,7 +286,8 @@ export function ArtifactTree({
 
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set())
   const treeHeight = useTreeHeight()
-  const watcherInitialized = useRef(false)
+  /** Bumped on each spaceId change so in-flight loadChildren cannot mutate a stale tree. */
+  const spaceEpochRef = useRef(0)
   const treeRef = useRef<TreeApi<ArtifactTreeNode>>(null)
   const containerRef = useRef<HTMLDivElement>(null)
   const { showConfirm, DialogComponent } = useConfirmDialog()
@@ -315,17 +316,26 @@ export function ArtifactTree({
 
   /** Discards out-of-order listArtifactsTree responses when spaceId or load calls race. */
   const latestTreeLoadIdRef = useRef(0)
+  /** Watcher events always compared to latest space (stable handler + ref avoids stale closures). */
+  const treeBoundSpaceIdRef = useRef(spaceId)
+  treeBoundSpaceIdRef.current = spaceId
 
   const openFile = useCanvasStore(state => state.openFile)
+
+  useLayoutEffect(() => {
+    spaceEpochRef.current += 1
+  }, [spaceId])
 
   // Load tree data (root level only for lazy loading)
   const loadTree = useCallback(async () => {
     if (!spaceId) return
     const loadId = ++latestTreeLoadIdRef.current
+    const epochAtStart = spaceEpochRef.current
+    setHasLoaded(false)
 
     try {
       const response = await api.listArtifactsTree(spaceId)
-      if (loadId !== latestTreeLoadIdRef.current) return
+      if (loadId !== latestTreeLoadIdRef.current || epochAtStart !== spaceEpochRef.current) return
       if (response.success && response.data) {
         const { workspaceRoot, nodes } = response.data as { workspaceRoot: string; nodes: ArtifactTreeNode[] }
         workspaceRootRef.current = workspaceRoot
@@ -340,7 +350,7 @@ export function ArtifactTree({
     } catch (error) {
       console.error('[ArtifactTree] Failed to load tree:', error)
     } finally {
-      if (loadId === latestTreeLoadIdRef.current) {
+      if (loadId === latestTreeLoadIdRef.current && epochAtStart === spaceEpochRef.current) {
         setHasLoaded(true)
       }
     }
@@ -622,10 +632,13 @@ export function ArtifactTree({
   // Lazy load children for a folder — mutates ref in place, O(1) lookup
   const loadChildren = useCallback(async (dirPath: string): Promise<void> => {
     if (!spaceId) return
+    const epochAtStart = spaceEpochRef.current
 
     try {
       setLoadingPaths(prev => new Set(prev).add(dirPath))
       const response = await api.loadArtifactChildren(spaceId, dirPath)
+
+      if (epochAtStart !== spaceEpochRef.current) return
 
       if (response.success && response.data) {
         const children = response.data as ArtifactTreeNode[]
@@ -665,7 +678,7 @@ export function ArtifactTree({
       item?: unknown
     }>
   }) => {
-    if (data.spaceId !== spaceId || data.updatedDirs.length === 0) return
+    if (data.spaceId !== treeBoundSpaceIdRef.current || data.updatedDirs.length === 0) return
 
     for (const { dirPath, children } of data.updatedDirs) {
       const incomingChildren = children as ArtifactTreeNode[]
@@ -693,22 +706,20 @@ export function ArtifactTree({
     }
 
     setRevision(r => r + 1)
-  }, [spaceId])
+  }, [])
 
   // Initialize watcher and subscribe to changes
   useEffect(() => {
-    if (!spaceId || watcherInitialized.current) return
+    if (!spaceId) return
 
     api.initArtifactWatcher(spaceId).catch(err => {
       console.error('[ArtifactTree] Failed to init watcher:', err)
     })
 
     const cleanup = api.onArtifactTreeUpdate(handleTreeUpdate)
-    watcherInitialized.current = true
 
     return () => {
       cleanup()
-      watcherInitialized.current = false
     }
   }, [spaceId, handleTreeUpdate])
 
@@ -901,6 +912,7 @@ export function ArtifactTree({
           {/* Tree — uses window height based calculation */}
           <div className="flex-1 overflow-hidden">
             <Tree<ArtifactTreeNode>
+              key={`arborist-${spaceId}`}
               ref={treeRef}
               data={displayedRoots}
               openByDefault={false}
