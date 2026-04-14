@@ -119,6 +119,16 @@ export function ArtifactRail({
     [activeTaskForSpace?.knowledgeBaseSpaceId]
   )
 
+  /**
+   * Legacy guard: `WorkspaceTask.spaceId` must be a regular workspace. If persisted data still
+   * points at a knowledge-base space, do not show KB trees in the rail until the task is fixed.
+   */
+  const kbOnlyTaskFocus = useMemo(() => {
+    if (!activeTaskForSpace || !currentSpace) return false
+    if (activeTaskForSpace.spaceId !== currentSpace.id) return false
+    return currentSpace.workspaceKind === 'knowledge_base'
+  }, [activeTaskForSpace, currentSpace])
+
   /** Task-scoped file tree: always a Set when this space’s active task is open (may be empty). */
   const taskProjectRootSetForSpace = useMemo(() => {
     if (!activeTaskForSpace) return null
@@ -147,6 +157,7 @@ export function ArtifactRail({
   const railRef = useRef<HTMLDivElement>(null)
   /** Tracks last task session for this rail; `undefined` = not yet seeded (incl. after space change). */
   const prevRailTaskSessionRef = useRef<string | null | undefined>(undefined)
+  const prevKbOnlyTaskFocusRef = useRef(false)
   const onWidthChangeRef = useRef(onWidthChange)
   onWidthChangeRef.current = onWidthChange
   const isGenerating = useIsGenerating()
@@ -155,13 +166,13 @@ export function ArtifactRail({
 
   // ── Callbacks ──
 
-  const folderTargetSpaceId = useMemo(
-    () =>
-      railMainTab === 'knowledge-base' && linkedKnowledgeBaseSpaceId
-        ? linkedKnowledgeBaseSpaceId
-        : spaceId,
-    [railMainTab, linkedKnowledgeBaseSpaceId, spaceId]
-  )
+  const folderTargetSpaceId = useMemo(() => {
+    if (kbOnlyTaskFocus) return ''
+    if (railMainTab === 'knowledge-base' && linkedKnowledgeBaseSpaceId) {
+      return linkedKnowledgeBaseSpaceId
+    }
+    return spaceId
+  }, [kbOnlyTaskFocus, railMainTab, linkedKnowledgeBaseSpaceId, spaceId])
 
   const handleOpenFolder = useCallback(() => {
     if (folderTargetSpaceId) {
@@ -255,6 +266,13 @@ export function ArtifactRail({
     }
     prevRailTaskSessionRef.current = sid
   }, [activeTaskForSpace?.id, setRailMainTabPersist])
+
+  useEffect(() => {
+    if (kbOnlyTaskFocus && !prevKbOnlyTaskFocusRef.current) {
+      setRailMainTabPersist('files')
+    }
+    prevKbOnlyTaskFocusRef.current = kbOnlyTaskFocus
+  }, [kbOnlyTaskFocus, setRailMainTabPersist])
 
   // Handle drag resize (desktop only)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -404,7 +422,7 @@ export function ArtifactRail({
       ) : railMainTab === 'workspace-find' ? (
         <RailWorkspaceFindPanel spaceId={spaceId} isWebMode={isWebMode} />
       ) : railMainTab === 'knowledge-base' ? (
-        linkedKnowledgeBaseSpaceId ? (
+        !kbOnlyTaskFocus && linkedKnowledgeBaseSpaceId ? (
           <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
             <ArtifactTree
               key={`rail-knowledge-base-${linkedKnowledgeBaseSpaceId}`}
@@ -419,6 +437,8 @@ export function ArtifactRail({
         ) : (
           <div className="flex-1 min-h-0" aria-hidden />
         )
+      ) : kbOnlyTaskFocus ? (
+        <div className="flex-1 min-h-0" aria-hidden />
       ) : (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <ArtifactTree

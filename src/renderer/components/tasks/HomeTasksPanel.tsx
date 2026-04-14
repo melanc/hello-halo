@@ -57,9 +57,9 @@ export function HomeTasksPanel() {
   const [showDialog, setShowDialog] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [taskName, setTaskName] = useState('')
-  /** Bound space for create/save (one task → one space). */
+  /** Mirrors regular workspace choice (task `spaceId` is always a regular space). */
   const [spaceId, setSpaceId] = useState<string>('')
-  /** Regular-space dropdown; independent of `spaceId` so picking regular does not clear KB UI. */
+  /** Regular workspace for this task — sole source for `spaceId` on create/save. */
   const [regularSelection, setRegularSelection] = useState<string>(SPACE_SELECT_NONE)
   /** Knowledge-base dropdown; independent of `spaceId`. */
   const [kbSelection, setKbSelection] = useState<string>(SPACE_SELECT_NONE)
@@ -98,7 +98,6 @@ export function HomeTasksPanel() {
     [knowledgeBaseSpaces]
   )
 
-  /** Disjoint from `knowledgeBaseSpaces` by id so only one dropdown can match `spaceId`. */
   const regularSpaces: Space[] = useMemo(() => {
     const list: Space[] = []
     if (devxSpace && !knowledgeBaseIdSet.has(devxSpace.id) && !isKnowledgeBaseSpace(devxSpace)) {
@@ -135,7 +134,6 @@ export function HomeTasksPanel() {
     setRegularSelection(firstReg ?? SPACE_SELECT_NONE)
     setKbSelection(firstKb ?? SPACE_SELECT_NONE)
     if (firstReg) setSpaceId(firstReg)
-    else if (firstKb) setSpaceId(firstKb)
     else setSpaceId('')
     setShowDialog(true)
   }
@@ -177,14 +175,13 @@ export function HomeTasksPanel() {
 
   const handleCreate = async () => {
     const name = taskName.trim()
-    const sid = spaceId.trim()
+    const sid =
+      regularSelection !== SPACE_SELECT_NONE ? regularSelection.trim() : ''
     const requirementName = requirementDocName.trim()
     const requirementContent = requirementDocContent.trim()
     const requirementDesc = requirementDescription.trim()
     const hasDoc = Boolean(requirementName && requirementContent)
-    const sidOk =
-      Boolean(sid) &&
-      (regularSpaces.some((s) => s.id === sid) || knowledgeBaseSpaces.some((s) => s.id === sid))
+    const sidOk = Boolean(sid) && regularSpaces.some((s) => s.id === sid)
     if (!name || !sidOk || (!hasDoc && !requirementDesc)) return
     const kbPersist =
       kbSelection !== SPACE_SELECT_NONE && knowledgeBaseSpaces.some((s) => s.id === kbSelection)
@@ -219,7 +216,7 @@ export function HomeTasksPanel() {
       const linkedKbValid = Boolean(linkedKb && knowledgeBaseSpaces.some((s) => s.id === linkedKb))
       setEditingTaskId(task.id)
       setTaskName(task.name)
-      setSpaceId(sid)
+      setSpaceId(inRegular ? sid : '')
       setRegularSelection(inRegular ? sid : SPACE_SELECT_NONE)
       setKbSelection(linkedKbValid && linkedKb ? linkedKb : inKb ? sid : SPACE_SELECT_NONE)
       setRequirementDocName(task.requirementDocName || '')
@@ -235,14 +232,13 @@ export function HomeTasksPanel() {
     const orig = tasks.find((t) => t.id === editingTaskId)
     if (!orig) return
     const name = taskName.trim()
-    const sid = spaceId.trim()
+    const sid =
+      regularSelection !== SPACE_SELECT_NONE ? regularSelection.trim() : ''
     const requirementName = requirementDocName.trim()
     const requirementContent = requirementDocContent.trim()
     const requirementDesc = requirementDescription.trim()
     const hasDoc = Boolean(requirementName && requirementContent)
-    const sidOk =
-      Boolean(sid) &&
-      (regularSpaces.some((s) => s.id === sid) || knowledgeBaseSpaces.some((s) => s.id === sid))
+    const sidOk = Boolean(sid) && regularSpaces.some((s) => s.id === sid)
     if (!name || !sidOk || (!hasDoc && !requirementDesc)) return
     setCreating(true)
     try {
@@ -281,6 +277,10 @@ export function HomeTasksPanel() {
       }
       const space = allSpaces.find((s) => s.id === task.spaceId)
       if (!space) return
+      if (isKnowledgeBaseSpace(space)) {
+        openEditTaskDialog(task.id)
+        return
+      }
 
       const chatBefore = useChatStore.getState()
       const alreadyOnSpace = chatBefore.currentSpaceId === space.id
@@ -305,16 +305,14 @@ export function HomeTasksPanel() {
     [tasks, allSpaces, setCurrentSpace, refreshCurrentSpace, setActiveTask, setView, openEditTaskDialog]
   )
 
-  const spaceIdTrimmed = spaceId.trim()
   const workspaceValid =
-    Boolean(spaceIdTrimmed) &&
-    (regularSpaces.some((s) => s.id === spaceIdTrimmed) ||
-      knowledgeBaseSpaces.some((s) => s.id === spaceIdTrimmed))
+    regularSelection !== SPACE_SELECT_NONE &&
+    regularSpaces.some((s) => s.id === regularSelection)
   const requirementReady =
     (requirementDocName.trim().length > 0 && requirementDocContent.trim().length > 0) ||
     requirementDescription.trim().length > 0
 
-  const canPickSpace = regularSpaces.length > 0 || knowledgeBaseSpaces.length > 0
+  const canPickSpace = regularSpaces.length > 0
 
   const selectInvalidClass = !workspaceValid
     ? 'border-destructive focus:border-destructive'
@@ -334,7 +332,7 @@ export function HomeTasksPanel() {
         <button
           type="button"
           onClick={openCreateDialog}
-          disabled={regularSpaces.length === 0 && knowledgeBaseSpaces.length === 0}
+          disabled={regularSpaces.length === 0}
           className="flex items-center gap-1 px-3 py-1 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
           <Plus className="w-4 h-4" />
@@ -518,12 +516,7 @@ export function HomeTasksPanel() {
                     setSpaceId(v)
                     return
                   }
-                  setSpaceId(
-                    kbSelection !== SPACE_SELECT_NONE &&
-                      knowledgeBaseSpaces.some((s) => s.id === kbSelection)
-                      ? kbSelection
-                      : ''
-                  )
+                  setSpaceId('')
                 }}
                 disabled={regularSpaces.length === 0}
                 className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
@@ -544,16 +537,6 @@ export function HomeTasksPanel() {
                 onChange={(e) => {
                   const v = e.target.value
                   setKbSelection(v)
-                  if (v !== SPACE_SELECT_NONE) {
-                    setSpaceId(v)
-                    return
-                  }
-                  setSpaceId(
-                    regularSelection !== SPACE_SELECT_NONE &&
-                      regularSpaces.some((s) => s.id === regularSelection)
-                      ? regularSelection
-                      : ''
-                  )
                 }}
                 disabled={knowledgeBaseSpaces.length === 0}
                 className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
@@ -568,7 +551,7 @@ export function HomeTasksPanel() {
             </div>
             <p className="mb-4 text-xs text-muted-foreground">
               {t(
-                'Both dropdowns keep your choices. The task binds to the last space you selected; None falls back to the other side when possible.'
+                'Pick a regular workspace for implementation. Knowledge base is optional and only enriches prompts with existing docs — it is not the task workspace.'
               )}
             </p>
 

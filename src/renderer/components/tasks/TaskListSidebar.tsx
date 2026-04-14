@@ -9,7 +9,11 @@ import { useChatStore } from '../../stores/chat.store'
 import { useSpaceStore } from '../../stores/space.store'
 import { useAppStore } from '../../stores/app.store'
 import { useTaskStore } from '../../stores/task.store'
-import type { WorkspaceTask } from '../../types'
+import type { Space, WorkspaceTask } from '../../types'
+
+function isKnowledgeBaseSpace(s: Space): boolean {
+  return s.workspaceKind === 'knowledge_base'
+}
 
 const MIN_WIDTH = 140
 const MAX_WIDTH = 360
@@ -109,6 +113,12 @@ export const TaskListSidebar = memo(function TaskListSidebar({
       const spaceList = [...(devxSpace ? [devxSpace] : []), ...spaces]
       const space = spaceList.find((s) => s.id === task.spaceId)
       if (!space) return
+      if (isKnowledgeBaseSpace(space)) {
+        setPendingRequirementTask(task.id)
+        clearActiveTask()
+        setView('home')
+        return
+      }
 
       const chatBefore = useChatStore.getState()
       const alreadyOnSpace = chatBefore.currentSpaceId === space.id

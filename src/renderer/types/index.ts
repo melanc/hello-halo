@@ -320,6 +320,10 @@ export interface PipelineSubtask {
 export interface WorkspaceTask {
   id: string;
   name: string;
+  /**
+   * Regular workspace space only — code and requirements are implemented here.
+   * Knowledge bases are linked separately via `knowledgeBaseSpaceId` for prompt context only.
+   */
   spaceId: string;
   /**
    * Optional linked knowledge-base space (Markdown docs: business, architecture, call graph).
