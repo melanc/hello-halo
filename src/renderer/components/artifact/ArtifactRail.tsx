@@ -18,7 +18,7 @@ import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useCanvasLifecycle } from '../../hooks/useCanvasLifecycle'
 import { useCanvasStore } from '../../stores/canvas.store'
 import { useTaskStore } from '../../stores/task.store'
-import { ChevronRight, FolderOpen, Monitor, X, Globe, GitBranch, Search } from 'lucide-react'
+import { BookOpen, ChevronRight, FolderOpen, Monitor, X, Globe, GitBranch, Search } from 'lucide-react'
 import { GitSourceControlPanel } from '../git/GitSourceControlPanel'
 import { RailWorkspaceFindPanel } from './RailWorkspaceFindPanel'
 import { ONBOARDING_ARTIFACT_NAME } from '../onboarding/onboardingData'
@@ -32,13 +32,15 @@ const isWebMode = api.isRemoteMode()
 // Storage keys
 const RAIL_MAIN_TAB_KEY = 'devx:rail-main-tab'
 
-type RailMainTab = 'files' | 'source-control'
+type RailMainTab = 'files' | 'source-control' | 'workspace-find'
 
 function getInitialRailMainTab(): RailMainTab {
   if (typeof window === 'undefined') return 'files'
   const s =
     localStorage.getItem(RAIL_MAIN_TAB_KEY) ?? localStorage.getItem('halo:rail-main-tab')
-  return s === 'source-control' ? 'source-control' : 'files'
+  if (s === 'source-control') return 'source-control'
+  if (s === 'workspace-find') return 'workspace-find'
+  return 'files'
 }
 
 // Width constraints (in pixels) - Desktop only
@@ -111,6 +113,21 @@ export function ArtifactRail({
     return workspaceTasks.find((t) => t.id === activeTaskId && t.spaceId === spaceId) ?? null
   }, [spaceId, activeTaskId, workspaceTasks])
 
+  const linkedKnowledgeBaseSpaceId = useMemo(
+    () => activeTaskForSpace?.knowledgeBaseSpaceId?.trim() ?? '',
+    [activeTaskForSpace?.knowledgeBaseSpaceId]
+  )
+
+  const showTaskKnowledgeBaseFileToggle = useMemo(
+    () =>
+      Boolean(
+        activeTaskForSpace &&
+          linkedKnowledgeBaseSpaceId &&
+          linkedKnowledgeBaseSpaceId !== spaceId
+      ),
+    [activeTaskForSpace, linkedKnowledgeBaseSpaceId, spaceId]
+  )
+
   /** Task-scoped file tree: always a Set when this space’s active task is open (may be empty). */
   const taskProjectRootSetForSpace = useMemo(() => {
     if (!activeTaskForSpace) return null
@@ -135,6 +152,8 @@ export function ArtifactRail({
   const widthRef = useRef(width)
   const [isDragging, setIsDragging] = useState(false)
   const [railMainTab, setRailMainTab] = useState<RailMainTab>(getInitialRailMainTab)
+  /** When true, file tree lists the task’s linked knowledge-base space instead of the current workspace. */
+  const [taskRailShowsKnowledgeBase, setTaskRailShowsKnowledgeBase] = useState(false)
   const [mobileOverlayOpen, setMobileOverlayOpen] = useState(false)
   const railRef = useRef<HTMLDivElement>(null)
   const onWidthChangeRef = useRef(onWidthChange)
@@ -143,15 +162,52 @@ export function ArtifactRail({
   const { isActive: isOnboarding, currentStep, completeOnboarding } = useOnboardingStore()
   const isMobile = useIsMobile()
 
+  const fileTreeSpaceId = useMemo(() => {
+    if (showTaskKnowledgeBaseFileToggle && taskRailShowsKnowledgeBase && linkedKnowledgeBaseSpaceId) {
+      return linkedKnowledgeBaseSpaceId
+    }
+    return spaceId
+  }, [showTaskKnowledgeBaseFileToggle, taskRailShowsKnowledgeBase, linkedKnowledgeBaseSpaceId, spaceId])
+
+  const fileTreeTaskProjectRootSet = useMemo(() => {
+    if (showTaskKnowledgeBaseFileToggle && taskRailShowsKnowledgeBase) return null
+    return taskProjectRootSetForSpace
+  }, [showTaskKnowledgeBaseFileToggle, taskRailShowsKnowledgeBase, taskProjectRootSetForSpace])
+
+  const fileTreeTaskFocusSessionId = useMemo(() => {
+    if (showTaskKnowledgeBaseFileToggle && taskRailShowsKnowledgeBase) return null
+    return activeTaskForSpace?.id ?? null
+  }, [showTaskKnowledgeBaseFileToggle, taskRailShowsKnowledgeBase, activeTaskForSpace?.id])
+
+  const fileTreeNoExplicitProjectDirs = useMemo(
+    () =>
+      activeTaskForSpace != null &&
+      activeTaskForSpace.projectDirs.length === 0 &&
+      !(showTaskKnowledgeBaseFileToggle && taskRailShowsKnowledgeBase),
+    [activeTaskForSpace, showTaskKnowledgeBaseFileToggle, taskRailShowsKnowledgeBase]
+  )
+
   // ── Callbacks ──
 
+  const folderTargetSpaceId = useMemo(
+    () =>
+      showTaskKnowledgeBaseFileToggle && taskRailShowsKnowledgeBase && linkedKnowledgeBaseSpaceId
+        ? linkedKnowledgeBaseSpaceId
+        : spaceId,
+    [showTaskKnowledgeBaseFileToggle, taskRailShowsKnowledgeBase, linkedKnowledgeBaseSpaceId, spaceId]
+  )
+
   const handleOpenFolder = useCallback(() => {
-    if (spaceId) {
-      useSpaceStore.getState().openSpaceFolder(spaceId)
+    if (folderTargetSpaceId) {
+      useSpaceStore.getState().openSpaceFolder(folderTargetSpaceId)
     }
-  }, [spaceId])
+  }, [folderTargetSpaceId])
 
   // ── Effects ──
+
+  useEffect(() => {
+    setTaskRailShowsKnowledgeBase(false)
+  }, [activeTaskForSpace?.id, spaceId, linkedKnowledgeBaseSpaceId])
 
   // Sync width when initialWidth arrives from async config load
   useEffect(() => {
@@ -201,6 +257,9 @@ export function ArtifactRail({
   }, [isOnboardingViewStep, completeOnboarding])
 
   const setRailMainTabPersist = useCallback((tab: RailMainTab) => {
+    if (tab !== 'files') {
+      setTaskRailShowsKnowledgeBase(false)
+    }
     setRailMainTab(tab)
     try {
       localStorage.setItem(RAIL_MAIN_TAB_KEY, tab)
@@ -358,13 +417,43 @@ export function ArtifactRail({
         <RailWorkspaceFindPanel spaceId={spaceId} isWebMode={isWebMode} />
       ) : (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
+          {showTaskKnowledgeBaseFileToggle && (
+            <div className="flex-shrink-0 flex gap-1 p-1.5 border-b border-border/60 bg-muted/25">
+              <button
+                type="button"
+                onClick={() => setTaskRailShowsKnowledgeBase(false)}
+                className={`
+                  flex-1 min-w-0 flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[10px] sm:text-xs font-medium transition-colors
+                  ${!taskRailShowsKnowledgeBase
+                    ? 'bg-secondary text-primary shadow-sm'
+                    : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}
+                `}
+                title={t('Show this workspace file tree')}
+              >
+                <FolderOpen className="w-3.5 h-3.5 shrink-0 opacity-80" aria-hidden />
+                <span className="truncate">{t('Task workspace files')}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setTaskRailShowsKnowledgeBase(true)}
+                className={`
+                  flex-1 min-w-0 flex items-center justify-center gap-1 rounded-md px-2 py-1.5 text-[10px] sm:text-xs font-medium transition-colors
+                  ${taskRailShowsKnowledgeBase
+                    ? 'bg-secondary text-primary shadow-sm'
+                    : 'text-muted-foreground hover:bg-secondary/70 hover:text-foreground'}
+                `}
+                title={t('Show linked knowledge base file tree')}
+              >
+                <BookOpen className="w-3.5 h-3.5 shrink-0 opacity-80" aria-hidden />
+                <span className="truncate">{t('Linked knowledge base')}</span>
+              </button>
+            </div>
+          )}
           <ArtifactTree
-            spaceId={spaceId}
-            taskProjectRootSet={taskProjectRootSetForSpace}
-            taskFocusSessionId={activeTaskForSpace?.id ?? null}
-            taskNoExplicitProjectDirs={
-              activeTaskForSpace != null && activeTaskForSpace.projectDirs.length === 0
-            }
+            spaceId={fileTreeSpaceId}
+            taskProjectRootSet={fileTreeTaskProjectRootSet}
+            taskFocusSessionId={fileTreeTaskFocusSessionId}
+            taskNoExplicitProjectDirs={fileTreeNoExplicitProjectDirs}
             onboardingHighlightFileName={isOnboardingViewStep ? ONBOARDING_ARTIFACT_NAME : undefined}
             onboardingArtifactActivate={isOnboardingViewStep ? handleOnboardingArtifactClick : undefined}
           />
