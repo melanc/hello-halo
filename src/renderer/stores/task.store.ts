@@ -46,6 +46,15 @@ interface TaskState {
     requirementDescription: string
   ) => void
 
+  /** Rename a workspace task */
+  updateTaskName: (taskId: string, name: string) => void
+
+  /**
+   * Move task to another space: new conversation in target space, pipeline reset.
+   * Returns false if conversation could not be created.
+   */
+  moveTaskToSpace: (taskId: string, newSpaceId: string) => Promise<boolean>
+
   /** Record first-level project dir from artifact relativePath for the active task */
   recordArtifactTouch: (spaceId: string, relativePath: string) => void
 
@@ -173,6 +182,50 @@ export const useTaskStore = create<TaskState>()(
           pendingRequirementTaskId:
             s.pendingRequirementTaskId === taskId ? null : s.pendingRequirementTaskId,
         }))
+      },
+
+      updateTaskName: (taskId, name) => {
+        const n = name.trim()
+        if (!n) return
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId ? { ...t, name: n, updatedAt: Date.now() } : t
+          ),
+        }))
+      },
+
+      moveTaskToSpace: async (taskId, newSpaceId) => {
+        const sid = newSpaceId.trim()
+        const task = get().tasks.find((t) => t.id === taskId)
+        if (!task || task.spaceId === sid) return true
+        const conv = await useChatStore.getState().createConversation(sid, task.name)
+        if (!conv) return false
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id !== taskId
+              ? t
+              : {
+                  ...t,
+                  spaceId: sid,
+                  conversationId: conv.id,
+                  updatedAt: Date.now(),
+                  requirementIdentifyUsed: false,
+                  requirementBreakdownUsed: false,
+                  breakdownPlanMarkdown: undefined,
+                  pipelineStage: undefined,
+                  pipelineSubtasks: undefined,
+                  pipelineResumeHint: undefined,
+                  pipelineDevPlan: undefined,
+                  requirementKeyPoints: undefined,
+                  requirementAnalysis: undefined,
+                  pipelineCodingLogLines: undefined,
+                  touchedProjectDirs: [],
+                  branchName: '',
+                  projectDirs: [],
+                }
+          ),
+        }))
+        return true
       },
 
       recordArtifactTouch: (spaceId, relativePath) => {

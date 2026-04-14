@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react'
-import { FileText, HelpCircle, ListTodo, Plus, Trash2, Upload } from 'lucide-react'
+import { FileText, HelpCircle, ListTodo, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useAppStore } from '../../stores/app.store'
 import { useChatStore } from '../../stores/chat.store'
@@ -16,6 +16,12 @@ import { api } from '../../api'
 import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 
 const isWebMode = api.isRemoteMode()
+
+type TaskLinkMode = 'regular' | 'knowledge_base'
+
+function isKnowledgeBaseSpace(s: Space): boolean {
+  return s.workspaceKind === 'knowledge_base'
+}
 
 function formatTaskCreatedAt(ms: number, locale: string): string {
   try {
@@ -43,9 +49,12 @@ export function HomeTasksPanel() {
   const pendingRequirementTaskId = useTaskStore((s) => s.pendingRequirementTaskId)
   const clearPendingRequirementTask = useTaskStore((s) => s.clearPendingRequirementTask)
   const updateTaskRequirementDoc = useTaskStore((s) => s.updateTaskRequirementDoc)
+  const updateTaskName = useTaskStore((s) => s.updateTaskName)
+  const moveTaskToSpace = useTaskStore((s) => s.moveTaskToSpace)
 
   const [showDialog, setShowDialog] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
+  const [taskLinkMode, setTaskLinkMode] = useState<TaskLinkMode>('regular')
   const [taskName, setTaskName] = useState('')
   const [spaceId, setSpaceId] = useState<string>('')
   const [requirementDocName, setRequirementDocName] = useState('')
@@ -73,6 +82,20 @@ export function HomeTasksPanel() {
     [removeTask, showConfirm, t]
   )
 
+  const regularSpaces: Space[] = useMemo(() => {
+    const list: Space[] = []
+    if (devxSpace && !isKnowledgeBaseSpace(devxSpace)) list.push(devxSpace)
+    for (const s of spaces) {
+      if (!isKnowledgeBaseSpace(s)) list.push(s)
+    }
+    return list
+  }, [devxSpace, spaces])
+
+  const knowledgeBaseSpaces: Space[] = useMemo(
+    () => spaces.filter((s) => isKnowledgeBaseSpace(s)),
+    [spaces]
+  )
+
   const allSpaces: Space[] = useMemo(() => {
     const list: Space[] = []
     if (devxSpace) list.push(devxSpace)
@@ -86,23 +109,36 @@ export function HomeTasksPanel() {
     return m
   }, [allSpaces, t])
 
+  const pickerSpaces = taskLinkMode === 'regular' ? regularSpaces : knowledgeBaseSpaces
+
   const openCreateDialog = () => {
+    setEditingTaskId(null)
     setTaskName('')
     setRequirementDocName('')
     setRequirementDocContent('')
     setRequirementDescription('')
-    const first = allSpaces[0]?.id ?? ''
-    setSpaceId(first)
+    if (regularSpaces.length > 0) {
+      setTaskLinkMode('regular')
+      setSpaceId(regularSpaces[0]!.id)
+    } else if (knowledgeBaseSpaces.length > 0) {
+      setTaskLinkMode('knowledge_base')
+      setSpaceId(knowledgeBaseSpaces[0]!.id)
+    } else {
+      setTaskLinkMode('regular')
+      setSpaceId('')
+    }
     setShowDialog(true)
   }
 
   const resetDialog = () => {
     setShowDialog(false)
     setEditingTaskId(null)
+    setTaskLinkMode('regular')
     setTaskName('')
     setRequirementDocName('')
     setRequirementDocContent('')
     setRequirementDescription('')
+    setSpaceId('')
     setIsParsingDoc(false)
   }
 
@@ -135,7 +171,7 @@ export function HomeTasksPanel() {
     const requirementContent = requirementDocContent.trim()
     const requirementDesc = requirementDescription.trim()
     const hasDoc = Boolean(requirementName && requirementContent)
-    if (!name || !sid || !allSpaces.some((s) => s.id === sid) || (!hasDoc && !requirementDesc)) return
+    if (!name || !sid || !pickerSpaces.some((s) => s.id === sid) || (!hasDoc && !requirementDesc)) return
     setCreating(true)
     try {
       const task = await addTask({
@@ -153,11 +189,14 @@ export function HomeTasksPanel() {
     }
   }
 
-  const openEditRequirementDialog = useCallback(
+  const openEditTaskDialog = useCallback(
     (taskId: string) => {
       const task = tasks.find((x) => x.id === taskId)
       if (!task) return
+      const sp = [...(devxSpace ? [devxSpace] : []), ...spaces].find((s) => s.id === task.spaceId)
+      const mode: TaskLinkMode = sp && isKnowledgeBaseSpace(sp) ? 'knowledge_base' : 'regular'
       setEditingTaskId(task.id)
+      setTaskLinkMode(mode)
       setTaskName(task.name)
       setSpaceId(task.spaceId)
       setRequirementDocName(task.requirementDocName || '')
@@ -165,25 +204,39 @@ export function HomeTasksPanel() {
       setRequirementDescription(task.requirementDescription || '')
       setShowDialog(true)
     },
-    [tasks]
+    [tasks, devxSpace, spaces]
   )
 
-  const handleSaveRequirementDoc = () => {
+  const handleSaveTask = async () => {
     if (!editingTaskId) return
+    const orig = tasks.find((t) => t.id === editingTaskId)
+    if (!orig) return
+    const name = taskName.trim()
+    const sid = spaceId.trim()
     const requirementName = requirementDocName.trim()
     const requirementContent = requirementDocContent.trim()
     const requirementDesc = requirementDescription.trim()
     const hasDoc = Boolean(requirementName && requirementContent)
-    if (!hasDoc && !requirementDesc) return
-    updateTaskRequirementDoc(editingTaskId, requirementName, requirementContent, requirementDesc)
-    resetDialog()
+    if (!name || !sid || !pickerSpaces.some((s) => s.id === sid) || (!hasDoc && !requirementDesc)) return
+    setCreating(true)
+    try {
+      updateTaskName(editingTaskId, name)
+      if (sid !== orig.spaceId) {
+        const ok = await moveTaskToSpace(editingTaskId, sid)
+        if (!ok) return
+      }
+      updateTaskRequirementDoc(editingTaskId, requirementName, requirementContent, requirementDesc)
+      resetDialog()
+    } finally {
+      setCreating(false)
+    }
   }
 
   useEffect(() => {
     if (!pendingRequirementTaskId) return
-    openEditRequirementDialog(pendingRequirementTaskId)
+    openEditTaskDialog(pendingRequirementTaskId)
     clearPendingRequirementTask()
-  }, [pendingRequirementTaskId, openEditRequirementDialog, clearPendingRequirementTask])
+  }, [pendingRequirementTaskId, openEditTaskDialog, clearPendingRequirementTask])
 
   const handleOpenTask = useCallback(
     async (taskId: string) => {
@@ -192,7 +245,7 @@ export function HomeTasksPanel() {
       const hasDoc = Boolean(task.requirementDocName?.trim() && task.requirementDocContent?.trim())
       const hasDesc = Boolean(task.requirementDescription?.trim())
       if (!hasDoc && !hasDesc) {
-        openEditRequirementDialog(task.id)
+        openEditTaskDialog(task.id)
         return
       }
       const space = allSpaces.find((s) => s.id === task.spaceId)
@@ -218,15 +271,26 @@ export function HomeTasksPanel() {
       await useChatStore.getState().selectConversation(task.conversationId)
       setView('space')
     },
-    [tasks, allSpaces, setCurrentSpace, refreshCurrentSpace, setActiveTask, setView, openEditRequirementDialog]
+    [tasks, allSpaces, setCurrentSpace, refreshCurrentSpace, setActiveTask, setView, openEditTaskDialog]
   )
+
+  const setLinkMode = (mode: TaskLinkMode) => {
+    setTaskLinkMode(mode)
+    if (mode === 'regular') {
+      setSpaceId(regularSpaces[0]?.id ?? '')
+    } else {
+      setSpaceId(knowledgeBaseSpaces[0]?.id ?? '')
+    }
+  }
 
   const spaceIdTrimmed = spaceId.trim()
   const workspaceValid =
-    Boolean(spaceIdTrimmed) && allSpaces.some((s) => s.id === spaceIdTrimmed)
+    Boolean(spaceIdTrimmed) && pickerSpaces.some((s) => s.id === spaceIdTrimmed)
   const requirementReady =
     (requirementDocName.trim().length > 0 && requirementDocContent.trim().length > 0) ||
     requirementDescription.trim().length > 0
+
+  const canPickSpace = pickerSpaces.length > 0
 
   if (isWebMode) {
     return null
@@ -242,7 +306,7 @@ export function HomeTasksPanel() {
         <button
           type="button"
           onClick={openCreateDialog}
-          disabled={allSpaces.length === 0}
+          disabled={regularSpaces.length === 0 && knowledgeBaseSpaces.length === 0}
           className="flex items-center gap-1 px-3 py-1 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50 disabled:pointer-events-none"
         >
           <Plus className="w-4 h-4" />
@@ -255,6 +319,9 @@ export function HomeTasksPanel() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           {tasks.map((task) => {
+            const sp = allSpaces.find((s) => s.id === task.spaceId)
+            const boundKb = Boolean(sp && isKnowledgeBaseSpace(sp))
+            const displayName = spaceNameById[task.spaceId] ?? task.spaceId
             return (
               <div
                 key={task.id}
@@ -267,16 +334,23 @@ export function HomeTasksPanel() {
                     className="flex-1 min-w-0 text-left"
                   >
                     <div className="font-medium truncate">{task.name}</div>
-                    <div className="text-xs mt-1">
-                      <span className="text-foreground">{t('工作空间')}：</span>
-                      <span className="text-muted-foreground">
-                        {spaceNameById[task.spaceId] ?? task.spaceId}
-                      </span>
-                    </div>
                     <div className="text-xs mt-1 line-clamp-2">
                       <span className="text-foreground">{t('Requirement document')}：</span>
                       <span className="text-muted-foreground">
-                        {task.requirementDocName || (task.requirementDescription ? t('Requirement description') : t('无'))}
+                        {task.requirementDocName ||
+                          (task.requirementDescription ? t('Requirement description') : t('无'))}
+                      </span>
+                    </div>
+                    <div className="text-xs mt-1">
+                      <span className="text-foreground">{t('工作空间')}：</span>
+                      <span className="text-muted-foreground">
+                        {boundKb ? t('无') : displayName}
+                      </span>
+                    </div>
+                    <div className="text-xs mt-1">
+                      <span className="text-foreground">{t('知识库')}：</span>
+                      <span className="text-muted-foreground">
+                        {boundKb ? displayName : t('无')}
                       </span>
                     </div>
                     <div className="text-xs mt-1">
@@ -290,18 +364,32 @@ export function HomeTasksPanel() {
                       </span>
                     </div>
                   </button>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      void handleRequestDeleteTask(task.id, task.name)
-                    }}
-                    className="p-1 rounded opacity-0 group-hover:opacity-100 hover:bg-destructive/15 text-destructive transition-all shrink-0"
-                    title={t('Delete')}
-                    aria-label={t('Delete')}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex shrink-0 items-start gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        openEditTaskDialog(task.id)
+                      }}
+                      className="p-1 rounded hover:bg-secondary text-muted-foreground hover:text-foreground transition-colors"
+                      title={t('Edit task')}
+                      aria-label={t('Edit task')}
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        void handleRequestDeleteTask(task.id, task.name)
+                      }}
+                      className="p-1 rounded hover:bg-destructive/15 text-destructive transition-colors"
+                      title={t('Delete')}
+                      aria-label={t('Delete')}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
             )
@@ -327,7 +415,7 @@ export function HomeTasksPanel() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto animate-fade-in">
             <h2 className="text-lg font-medium mb-4">
-              {editingTaskId ? t('Edit requirement document') : t('新建任务')}
+              {editingTaskId ? t('Edit task') : t('新建任务')}
             </h2>
 
             <div className="mb-4">
@@ -337,41 +425,11 @@ export function HomeTasksPanel() {
                 value={taskName}
                 onChange={(e) => setTaskName(e.target.value)}
                 placeholder={t('例如：用户登录迭代')}
-                disabled={!!editingTaskId}
-                className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors disabled:opacity-70"
+                className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
               />
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">{t('工作空间')}</label>
-              <select
-                value={spaceId}
-                onChange={(e) => setSpaceId(e.target.value)}
-                disabled={!!editingTaskId}
-                className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors ${
-                  !workspaceValid
-                    ? 'border-destructive focus:border-destructive'
-                    : 'border-border focus:border-primary'
-                } disabled:opacity-70`}
-              >
-                {allSpaces.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.isTemp ? t('DevX') : s.name}
-                  </option>
-                ))}
-              </select>
-              <p className="mt-1.5 text-xs text-muted-foreground">
-                {t('A workspace is required.')}
-              </p>
-            </div>
-
-            {editingTaskId && !requirementReady && (
-              <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
-                {t('This task has no requirement document or description. Please provide one before opening the task conversation.')}
-              </div>
-            )}
-
-            <div className="mb-6">
               <label className="block text-sm text-muted-foreground mb-2">{t('Requirement document')}</label>
               <input
                 ref={requirementInputRef}
@@ -412,6 +470,88 @@ export function HomeTasksPanel() {
               />
             </div>
 
+            <div className="mb-4 flex flex-col gap-2" role="radiogroup" aria-label={t('Task binding')}>
+              <span className="text-sm text-muted-foreground">{t('Task binding')}</span>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="task-link-mode"
+                  checked={taskLinkMode === 'regular'}
+                  onChange={() => setLinkMode('regular')}
+                  className="accent-primary"
+                />
+                {t('常规空间')}
+              </label>
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="task-link-mode"
+                  checked={taskLinkMode === 'knowledge_base'}
+                  onChange={() => setLinkMode('knowledge_base')}
+                  className="accent-primary"
+                />
+                {t('知识库')}
+              </label>
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm text-muted-foreground mb-2">{t('工作空间')}</label>
+              {taskLinkMode === 'regular' ? (
+                <select
+                  value={spaceId}
+                  onChange={(e) => setSpaceId(e.target.value)}
+                  className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors ${
+                    !workspaceValid
+                      ? 'border-destructive focus:border-destructive'
+                      : 'border-border focus:border-primary'
+                  }`}
+                >
+                  {regularSpaces.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.isTemp ? t('DevX') : s.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full px-4 py-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+                  {t('无')}
+                </div>
+              )}
+            </div>
+
+            <div className="mb-4">
+              <label className="block text-sm text-muted-foreground mb-2">{t('知识库')}</label>
+              {taskLinkMode === 'knowledge_base' ? (
+                <select
+                  value={spaceId}
+                  onChange={(e) => setSpaceId(e.target.value)}
+                  className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors ${
+                    !workspaceValid
+                      ? 'border-destructive focus:border-destructive'
+                      : 'border-border focus:border-primary'
+                  }`}
+                >
+                  {knowledgeBaseSpaces.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              ) : (
+                <div className="w-full px-4 py-2 rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+                  {t('无')}
+                </div>
+              )}
+            </div>
+
+            {editingTaskId && !requirementReady && (
+              <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">
+                {t(
+                  'This task has no requirement document or description. Please provide one before opening the task conversation.'
+                )}
+              </div>
+            )}
+
             <div className="flex justify-end gap-3">
               <button
                 type="button"
@@ -422,16 +562,17 @@ export function HomeTasksPanel() {
               </button>
               <button
                 type="button"
-                onClick={() => void (editingTaskId ? handleSaveRequirementDoc() : handleCreate())}
+                onClick={() => void (editingTaskId ? handleSaveTask() : handleCreate())}
                 disabled={
                   creating ||
                   !taskName.trim() ||
                   !workspaceValid ||
-                  !requirementReady
+                  !requirementReady ||
+                  !canPickSpace
                 }
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {editingTaskId ? t('Save requirement document') : t('创建')}
+                {editingTaskId ? t('Save') : t('创建')}
               </button>
             </div>
           </div>
