@@ -56,7 +56,12 @@ export function HomeTasksPanel() {
   const [showDialog, setShowDialog] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
   const [taskName, setTaskName] = useState('')
+  /** Bound space for create/save (one task → one space). */
   const [spaceId, setSpaceId] = useState<string>('')
+  /** Regular-space dropdown; independent of `spaceId` so picking regular does not clear KB UI. */
+  const [regularSelection, setRegularSelection] = useState<string>(SPACE_SELECT_NONE)
+  /** Knowledge-base dropdown; independent of `spaceId`. */
+  const [kbSelection, setKbSelection] = useState<string>(SPACE_SELECT_NONE)
   const [requirementDocName, setRequirementDocName] = useState('')
   const [requirementDocContent, setRequirementDocContent] = useState('')
   const [requirementDescription, setRequirementDescription] = useState('')
@@ -124,13 +129,13 @@ export function HomeTasksPanel() {
     setRequirementDocName('')
     setRequirementDocContent('')
     setRequirementDescription('')
-    if (regularSpaces.length > 0) {
-      setSpaceId(regularSpaces[0]!.id)
-    } else if (knowledgeBaseSpaces.length > 0) {
-      setSpaceId(knowledgeBaseSpaces[0]!.id)
-    } else {
-      setSpaceId('')
-    }
+    const firstReg = regularSpaces[0]?.id
+    const firstKb = knowledgeBaseSpaces[0]?.id
+    setRegularSelection(firstReg ?? SPACE_SELECT_NONE)
+    setKbSelection(firstKb ?? SPACE_SELECT_NONE)
+    if (firstReg) setSpaceId(firstReg)
+    else if (firstKb) setSpaceId(firstKb)
+    else setSpaceId('')
     setShowDialog(true)
   }
 
@@ -142,6 +147,8 @@ export function HomeTasksPanel() {
     setRequirementDocContent('')
     setRequirementDescription('')
     setSpaceId('')
+    setRegularSelection(SPACE_SELECT_NONE)
+    setKbSelection(SPACE_SELECT_NONE)
     setIsParsingDoc(false)
   }
 
@@ -199,15 +206,20 @@ export function HomeTasksPanel() {
     (taskId: string) => {
       const task = tasks.find((x) => x.id === taskId)
       if (!task) return
+      const sid = task.spaceId
+      const inRegular = regularSpaces.some((s) => s.id === sid)
+      const inKb = knowledgeBaseSpaces.some((s) => s.id === sid)
       setEditingTaskId(task.id)
       setTaskName(task.name)
-      setSpaceId(task.spaceId)
+      setSpaceId(sid)
+      setRegularSelection(inRegular ? sid : SPACE_SELECT_NONE)
+      setKbSelection(inKb ? sid : SPACE_SELECT_NONE)
       setRequirementDocName(task.requirementDocName || '')
       setRequirementDocContent(task.requirementDocContent || '')
       setRequirementDescription(task.requirementDescription || '')
       setShowDialog(true)
     },
-    [tasks]
+    [tasks, regularSpaces, knowledgeBaseSpaces]
   )
 
   const handleSaveTask = async () => {
@@ -290,9 +302,6 @@ export function HomeTasksPanel() {
     requirementDescription.trim().length > 0
 
   const canPickSpace = regularSpaces.length > 0 || knowledgeBaseSpaces.length > 0
-
-  const regularSelectValue = regularSpaces.some((s) => s.id === spaceId) ? spaceId : SPACE_SELECT_NONE
-  const kbSelectValue = knowledgeBaseSpaces.some((s) => s.id === spaceId) ? spaceId : SPACE_SELECT_NONE
 
   const selectInvalidClass = !workspaceValid
     ? 'border-destructive focus:border-destructive'
@@ -479,16 +488,20 @@ export function HomeTasksPanel() {
             <div className="mb-4">
               <label className="block text-sm text-muted-foreground mb-2">{t('常规空间')}</label>
               <select
-                key={`task-regular-select-${spaceId}-${editingTaskId ?? 'new'}`}
-                value={regularSelectValue}
+                value={regularSelection}
                 onChange={(e) => {
                   const v = e.target.value
-                  if (v === SPACE_SELECT_NONE) {
-                    setSpaceId('')
+                  setRegularSelection(v)
+                  if (v !== SPACE_SELECT_NONE) {
+                    setSpaceId(v)
                     return
                   }
-                  // Choosing a regular space clears knowledge base binding (single spaceId).
-                  setSpaceId(v)
+                  setSpaceId(
+                    kbSelection !== SPACE_SELECT_NONE &&
+                      knowledgeBaseSpaces.some((s) => s.id === kbSelection)
+                      ? kbSelection
+                      : ''
+                  )
                 }}
                 disabled={regularSpaces.length === 0}
                 className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
@@ -505,16 +518,20 @@ export function HomeTasksPanel() {
             <div className="mb-4">
               <label className="block text-sm text-muted-foreground mb-2">{t('知识库')}</label>
               <select
-                key={`task-kb-select-${spaceId}-${editingTaskId ?? 'new'}`}
-                value={kbSelectValue}
+                value={kbSelection}
                 onChange={(e) => {
                   const v = e.target.value
-                  if (v === SPACE_SELECT_NONE) {
-                    setSpaceId('')
+                  setKbSelection(v)
+                  if (v !== SPACE_SELECT_NONE) {
+                    setSpaceId(v)
                     return
                   }
-                  // Choosing a knowledge base clears regular workspace binding (single spaceId).
-                  setSpaceId(v)
+                  setSpaceId(
+                    regularSelection !== SPACE_SELECT_NONE &&
+                      regularSpaces.some((s) => s.id === regularSelection)
+                      ? regularSelection
+                      : ''
+                  )
                 }}
                 disabled={knowledgeBaseSpaces.length === 0}
                 className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
@@ -528,7 +545,9 @@ export function HomeTasksPanel() {
               </select>
             </div>
             <p className="mb-4 text-xs text-muted-foreground">
-              {t('Pick either a regular workspace or a knowledge base (one of the two).')}
+              {t(
+                'Both dropdowns keep your choices. The task binds to the last space you selected; None falls back to the other side when possible.'
+              )}
             </p>
 
             {editingTaskId && !requirementReady && (
