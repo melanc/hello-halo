@@ -388,15 +388,33 @@ export function buildIntentAnalysisMessage(
  */
 export function buildTaskBreakdownExecuteMessage(
   t: TFunction,
-  opts?: { knowledgeBaseMarkdown?: string }
+  opts?: { knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string }
 ): string {
   const blocks = [
     ...pipelineOpeningLines(t),
+  ]
+
+  if (opts?.knowledgeBaseRoot?.trim()) {
+    blocks.push(
+      t('在生成任务拆解之前，请先执行以下步骤：'),
+      t('1. 使用你的工具（Read、Glob 等）浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
+      t('2. 找到任务拆解引导文件（文件名通常包含"任务拆解"、"task-breakdown"、"breakdown"等关键词），阅读其内容'),
+      t('3. 按照该引导文件的规范生成子任务列表'),
+      t('如果找不到引导文件，按通用方法处理。'),
+      '',
+    )
+  }
+
+  blocks.push(
     t('请按照我们刚才讨论的方案，输出任务拆解结果。'),
     t('格式要求：每个子任务单独一行，以 - 开头，格式为「- 子任务标题: 简要说明」。'),
     t('不需要其他说明，直接输出子任务列表。'),
-  ]
-  appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
+  )
+
+  if (!opts?.knowledgeBaseRoot?.trim()) {
+    appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
+  }
+
   return blocks.join('\n')
 }
 

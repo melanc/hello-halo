@@ -1120,7 +1120,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       } else if (selectedTab === 2) {
         // AI generates subtask breakdown
-        await chat.sendMessage(buildTaskBreakdownExecuteMessage(t, kbOpts))
+        const tab2Opts = knowledgeBaseRoot ? { knowledgeBaseRoot } : kbOpts
+        await chat.sendMessage(buildTaskBreakdownExecuteMessage(t, tab2Opts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {
           const generated = extractSubtasks(reply)
