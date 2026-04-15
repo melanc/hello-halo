@@ -608,10 +608,12 @@ function Tab2Breakdown({
 /** Tab 3 — 开发计划 */
 function Tab3DevPlan({
   task,
+  workspaceRoot,
   onSaveDevPlan,
   onSaveBranchName,
 }: {
   task: WorkspaceTask
+  workspaceRoot: string | null
   onSaveDevPlan: (text: string) => void
   onSaveBranchName: (branch: string) => void
 }) {
@@ -662,7 +664,10 @@ function Tab3DevPlan({
     el.style.height = `${el.scrollHeight}px`
   }, [draft])
 
-  const allDirs = getInvolvedProjectDirNames(task)
+  const allDirNames = getInvolvedProjectDirNames(task)
+  const allDirPaths = workspaceRoot
+    ? buildProjectDisplayPaths(workspaceRoot, allDirNames)
+    : allDirNames
 
   return (
     <div className="space-y-3">
@@ -672,14 +677,14 @@ function Tab3DevPlan({
           <FolderOpen className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
           <span className="text-[11px] text-muted-foreground">{t('涉及项目')}</span>
         </div>
-        {allDirs.length > 0 ? (
-          <div className="flex flex-wrap gap-1">
-            {allDirs.map((dir) => (
+        {allDirPaths.length > 0 ? (
+          <div className="flex flex-col gap-1">
+            {allDirPaths.map((p) => (
               <span
-                key={dir}
-                className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary text-[11px] text-foreground/80 font-mono"
+                key={p}
+                className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary text-[11px] text-foreground/80 font-mono break-all"
               >
-                {dir}
+                {p}
               </span>
             ))}
           </div>
@@ -1213,6 +1218,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             {selectedTab === 3 && (
               <Tab3DevPlan
                 task={task}
+                workspaceRoot={workspaceRootForUi}
                 onSaveDevPlan={handleSaveDevPlan}
                 onSaveBranchName={(b) => updateTaskBranchName(task.id, b)}
               />
