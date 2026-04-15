@@ -194,14 +194,29 @@ function appendKnowledgeBaseMarkdownBlock(blocks: string[], markdown: string | u
 export function buildRequirementIdentifyMessage(
   task: WorkspaceTask,
   t: TFunction,
-  opts?: { knowledgeBaseMarkdown?: string }
+  opts?: { knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string }
 ): string {
   const blocks: string[] = [
     ...pipelineOpeningLines(t),
+  ]
+
+  // If a knowledge base path is provided, ask the AI to actively explore it first
+  if (opts?.knowledgeBaseRoot?.trim()) {
+    blocks.push(
+      t('在开始识别需求之前，请先执行以下步骤：'),
+      t('1. 使用你的工具（Read、Glob 等）浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
+      t('2. 找到需求识别引导文件（文件名通常包含"需求识别"、"requirement"、"guide"等关键词），阅读其内容'),
+      t('3. 按照该引导文件的规范，对以下需求进行识别和分析'),
+      t('如果找不到引导文件，按通用需求分析方法处理。'),
+      '',
+    )
+  }
+
+  blocks.push(
     t('请识别并分析以下需求，输出结构化的需求要点。'),
     '',
     t('任务名称：{{name}}', { name: task.name }),
-  ]
+  )
 
   if (task.requirementDocName?.trim()) {
     blocks.push(t('需求文档：{{name}}', { name: task.requirementDocName.trim() }))
@@ -212,7 +227,10 @@ export function buildRequirementIdentifyMessage(
     blocks.push('', t('需求内容：'), content.slice(0, REQ_IDENTIFY_LEN))
   }
 
-  appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
+  // Only append pre-loaded KB markdown if no root path was given (fallback)
+  if (!opts?.knowledgeBaseRoot?.trim()) {
+    appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
+  }
 
   blocks.push(
     '',
@@ -385,13 +403,34 @@ export function buildTaskBreakdownExecuteMessage(
 /**
  * 开始工作 Tab 3 — asks AI to output the final dev plan text for saving.
  */
-export function buildDevPlanExecuteMessage(t: TFunction, opts?: { knowledgeBaseMarkdown?: string }): string {
+export function buildDevPlanExecuteMessage(
+  t: TFunction,
+  opts?: { knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string }
+): string {
   const blocks = [
     ...pipelineOpeningLines(t),
+  ]
+
+  if (opts?.knowledgeBaseRoot?.trim()) {
+    blocks.push(
+      t('在生成开发计划之前，请先执行以下步骤：'),
+      t('1. 使用你的工具（Read、Glob 等）浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
+      t('2. 找到开发计划引导文件（文件名通常包含"开发计划"、"dev-plan"、"planning"等关键词），阅读其内容'),
+      t('3. 按照该引导文件的规范生成开发计划'),
+      t('如果找不到引导文件，按通用方法处理。'),
+      '',
+    )
+  }
+
+  blocks.push(
     t('请按照我们刚才讨论的方案，输出最终的开发计划。'),
     t('包括：1. 涉及的项目和代码模块（每项以 - 开头）；2. 具体代码改动范围说明。'),
-  ]
-  appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
+  )
+
+  if (!opts?.knowledgeBaseRoot?.trim()) {
+    appendKnowledgeBaseMarkdownBlock(blocks, opts?.knowledgeBaseMarkdown, t)
+  }
+
   return blocks.join('\n')
 }
 
@@ -402,10 +441,24 @@ export function buildDevPlanExecuteMessage(t: TFunction, opts?: { knowledgeBaseM
 export function buildCodingKickoffMessage(
   task: WorkspaceTask,
   t: TFunction,
-  ctx?: { workspaceRoot?: string; projectPaths?: string[]; knowledgeBaseMarkdown?: string }
+  ctx?: { workspaceRoot?: string; projectPaths?: string[]; knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string }
 ): string {
   const blocks: string[] = [
     ...pipelineOpeningLines(t),
+  ]
+
+  if (ctx?.knowledgeBaseRoot?.trim()) {
+    blocks.push(
+      t('在开始编码之前，请先执行以下步骤：'),
+      t('1. 使用你的工具（Read、Glob 等）浏览知识库目录：{{path}}', { path: ctx.knowledgeBaseRoot.trim() }),
+      t('2. 找到编码实现引导文件（文件名通常包含"编码"、"coding"、"implementation"等关键词），阅读其内容'),
+      t('3. 按照该引导文件的编码规范进行代码实现'),
+      t('如果找不到引导文件，按通用编码规范处理。'),
+      '',
+    )
+  }
+
+  blocks.push(
     t('现在进入编码实现阶段。请根据以下开发计划，开始逐步执行代码改动。'),
     t('执行要求：'),
     t('1. 按照开发计划中的模块和文件范围进行修改'),
@@ -413,7 +466,7 @@ export function buildCodingKickoffMessage(
     t('3. 遇到不确定的地方，先列出问题再继续'),
     '',
     t('任务名称：{{name}}', { name: task.name }),
-  ]
+  )
 
   if (task.branchName?.trim()) {
     blocks.push('', t('Development branch: {{branch}}', { branch: task.branchName.trim() }))
@@ -446,7 +499,10 @@ export function buildCodingKickoffMessage(
     t('After substantive edits, remind the user to update subtask checkmarks so the next Intent / Start work stays accurate.')
   )
 
-  appendKnowledgeBaseMarkdownBlock(blocks, ctx?.knowledgeBaseMarkdown, t)
+  // Only append pre-loaded KB markdown if no root path was given (fallback)
+  if (!ctx?.knowledgeBaseRoot?.trim()) {
+    appendKnowledgeBaseMarkdownBlock(blocks, ctx?.knowledgeBaseMarkdown, t)
+  }
 
   return blocks.join('\n')
 }

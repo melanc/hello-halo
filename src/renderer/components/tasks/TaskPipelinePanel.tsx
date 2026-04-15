@@ -906,6 +906,13 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const workspaceRoot = (spaceForTask?.workingDir || spaceForTask?.path || '').trim()
   const workspaceRootForUi = workspaceRoot || null
 
+  const knowledgeBaseSpace = useSpaceStore((s) => {
+    const kbId = task.knowledgeBaseSpaceId?.trim()
+    if (!kbId) return null
+    return s.spaces.find((sp) => sp.id === kbId) ?? null
+  })
+  const knowledgeBaseRoot = (knowledgeBaseSpace?.workingDir || knowledgeBaseSpace?.path || '').trim() || null
+
   const stage: PipelineStage = task.pipelineStage ?? 1
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
   const resumeHint = task.pipelineResumeHint ?? ''
@@ -1100,7 +1107,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       if (selectedTab === 1) {
         // AI analyses requirement and returns structured 4-section text
-        await chat.sendMessage(buildRequirementIdentifyMessage(task, t, kbOpts))
+        // If KB path is known, instruct AI to explore it with tools; otherwise fall back to pre-loaded markdown
+        const tab1Opts = knowledgeBaseRoot
+          ? { knowledgeBaseRoot }
+          : kbOpts
+        await chat.sendMessage(buildRequirementIdentifyMessage(task, t, tab1Opts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply?.trim()) {
           useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
@@ -1124,7 +1135,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       } else if (selectedTab === 3) {
         // AI generates dev plan
-        await chat.sendMessage(buildDevPlanExecuteMessage(t, kbOpts))
+        const tab3Opts = knowledgeBaseRoot ? { knowledgeBaseRoot } : kbOpts
+        await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {
           updateTaskPipelineState(task.id, {
@@ -1153,7 +1165,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           buildCodingKickoffMessage(task, t, {
             workspaceRoot: workspaceRoot || undefined,
             projectPaths: projectPaths.length ? projectPaths : undefined,
-            knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined,
+            ...(knowledgeBaseRoot
+              ? { knowledgeBaseRoot }
+              : { knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined }),
           })
         )
 
@@ -1163,7 +1177,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     } finally {
       setIsSendingMessage(false)
     }
-  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot])
+  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, knowledgeBaseRoot])
 
   const handleSaveDevPlan = useCallback(
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
