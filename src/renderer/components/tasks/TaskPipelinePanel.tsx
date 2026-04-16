@@ -185,8 +185,8 @@ const STAGES: { id: PipelineStage; label: string; activeColor: string; mutedColo
   { id: 1, label: '需求识别', activeColor: 'text-violet-500',  mutedColor: 'text-violet-400/30',  selectedBg: 'bg-violet-500/15'  },
   { id: 2, label: '任务拆解', activeColor: 'text-blue-500',    mutedColor: 'text-blue-400/30',    selectedBg: 'bg-blue-500/15'    },
   { id: 3, label: '开发计划', activeColor: 'text-emerald-500', mutedColor: 'text-emerald-400/30', selectedBg: 'bg-emerald-500/15' },
-  { id: 4, label: '编码实现', activeColor: 'text-orange-700',  mutedColor: 'text-orange-400/30',  selectedBg: 'bg-orange-500/15'  },
-  { id: 5, label: '验证收尾', activeColor: 'text-pink-700',    mutedColor: 'text-pink-400/30',    selectedBg: 'bg-pink-500/15'    },
+  { id: 4, label: '编码实现', activeColor: 'text-red-500',     mutedColor: 'text-red-400/30',     selectedBg: 'bg-red-500/15'     },
+  { id: 5, label: '验证收尾', activeColor: 'text-fuchsia-500', mutedColor: 'text-fuchsia-400/30', selectedBg: 'bg-fuchsia-500/15' },
 ]
 
 // ─────────────────────────────────────────────
@@ -847,7 +847,7 @@ function Tab3DevPlan({
           devPlanEditing ? (
             <textarea
               ref={devPlanTextareaRef}
-              className="w-full min-h-[4rem] max-h-32 text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed overflow-y-auto"
+              className="w-full min-h-[4rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed"
               rows={1}
               value={draft}
               onChange={(e) => setDraft(e.target.value)}
@@ -855,7 +855,7 @@ function Tab3DevPlan({
             />
           ) : (
             <div
-              className="max-h-32 overflow-y-auto text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 cursor-pointer hover:bg-secondary/60 transition-colors prose prose-sm dark:prose-invert max-w-none"
+              className="text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 cursor-pointer hover:bg-secondary/60 transition-colors prose prose-sm dark:prose-invert max-w-none"
               onClick={() => setDevPlanEditing(true)}
             >
               <MarkdownRenderer content={draft} mode="static" />
@@ -864,7 +864,7 @@ function Tab3DevPlan({
         ) : (
           <textarea
             ref={devPlanTextareaRef}
-            className="w-full min-h-[4rem] max-h-32 text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed overflow-y-auto"
+            className="w-full min-h-[4rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed"
             rows={1}
             placeholder={t('描述要改哪些模块、文件或接口，AI 会帮你填写...')}
             value={draft}
