@@ -311,8 +311,10 @@ export interface PipelineSubtask {
   title: string;
   description: string;
   status: PipelineSubtaskStatus;
-  /** Optional category group assigned by AI during breakdown (e.g. "前端", "后端") */
+  /** Optional category group assigned by AI during breakdown (e.g. "修复编译问题", "移除旧逻辑") */
   group?: string;
+  /** Project names affected by this subtask (e.g. ["talcamp", "vote-service"]) */
+  projects?: string[];
 }
 
 /**
@@ -362,6 +364,8 @@ export interface WorkspaceTask {
   pipelineResumeHint?: string;
   /** AI-generated / user-edited development plan: which code areas to change */
   pipelineDevPlan?: string;
+  /** Per-project change breakdown generated during dev plan (markdown: ### ProjectName → bullet changes) */
+  pipelineProjectChanges?: string;
   /** Identified requirement key points (AI-extracted or user-added) */
   requirementKeyPoints?: string[];
   /** Full structured requirement analysis text produced by AI (4-section format) */

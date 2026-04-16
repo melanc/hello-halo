@@ -1048,6 +1048,25 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
         </div>
       </div>
 
+      {/* Active task context strip — shown above input so the user always knows which task they're in */}
+      {activeTask && (() => {
+        const stageLabels: Record<number, string> = {
+          1: t('需求识别'), 2: t('任务拆解'), 3: t('开发计划'), 4: t('编码实现'), 5: t('验证收尾'),
+        }
+        const stage = activeTask.pipelineStage ?? 1
+        return (
+          <div className="flex items-center gap-2 px-4 py-1.5 border-t border-primary/20 bg-primary/[0.04] select-none">
+            <ListChecks className="w-3 h-3 text-primary/60 flex-shrink-0" />
+            <span className="text-[11px] font-medium text-foreground/80 truncate flex-1 min-w-0">
+              {activeTask.name}
+            </span>
+            <span className="text-[10px] text-primary/60 flex-shrink-0 bg-primary/10 px-1.5 py-0.5 rounded">
+              {stageLabels[stage]}
+            </span>
+          </div>
+        )
+      })()}
+
       {/* Input area */}
       <InputArea
         onSend={handleSend}

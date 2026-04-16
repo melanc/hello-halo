@@ -90,6 +90,7 @@ interface TaskState {
     pipelineSubtasks?: PipelineSubtask[]
     pipelineResumeHint?: string
     pipelineDevPlan?: string
+    pipelineProjectChanges?: string
   }) => void
 
   /** Persist identified requirement key points */
@@ -414,6 +415,7 @@ export const useTaskStore = create<TaskState>()(
               ...(updates.stage !== undefined && { pipelineStage: updates.stage }),
               ...(updates.pipelineSubtasks !== undefined && { pipelineSubtasks: updates.pipelineSubtasks }),
               ...(updates.pipelineDevPlan !== undefined && { pipelineDevPlan: updates.pipelineDevPlan }),
+              ...(updates.pipelineProjectChanges !== undefined && { pipelineProjectChanges: updates.pipelineProjectChanges }),
               ...(updates.pipelineResumeHint !== undefined && { pipelineResumeHint: updates.pipelineResumeHint }),
               updatedAt: Date.now(),
             }

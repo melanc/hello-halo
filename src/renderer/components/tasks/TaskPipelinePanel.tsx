@@ -28,6 +28,7 @@ import {
   Activity,
   ShieldCheck,
   ScrollText,
+  Layers,
 } from 'lucide-react'
 import { MarkdownRenderer } from '../chat/MarkdownRenderer'
 import { useTranslation } from '../../i18n'
@@ -91,8 +92,14 @@ function extractSubtasks(text: string): PipelineSubtask[] {
     if (/^\s*[-•*]\s+.+/.test(line)) {
       const raw = line.trim().replace(/^[-•*]\s+/, '').trim()
       const colonIdx = raw.search(/[:：]/)
-      const title = colonIdx > 0 ? raw.slice(0, colonIdx).trim() : raw
+      const rawTitle = colonIdx > 0 ? raw.slice(0, colonIdx).trim() : raw
       const description = colonIdx > 0 ? raw.slice(colonIdx + 1).trim() : ''
+      // Extract "(proj1, proj2)" from the end of the title
+      const projMatch = rawTitle.match(/^(.*?)\s*\(([^)]+)\)\s*$/)
+      const title = projMatch ? projMatch[1].trim() : rawTitle
+      const projects = projMatch
+        ? projMatch[2].split(',').map((p) => p.trim()).filter(Boolean)
+        : undefined
       if (title.length > 0 && title.length < 200) {
         result.push({
           id: `st-${now}-${idx++}`,
@@ -100,11 +107,34 @@ function extractSubtasks(text: string): PipelineSubtask[] {
           description,
           status: 'pending' as PipelineSubtaskStatus,
           group: currentGroup || undefined,
+          projects: projects?.length ? projects : undefined,
         })
       }
     }
   }
   return result
+}
+
+/** Extract per-project changes and overall scope from the AI dev plan reply. */
+function parseDevPlanReply(reply: string): { projectChanges: string; scopeText: string } {
+  const projectChangesMarker = /^#{1,2}\s*(各项目改动点|Per.project Changes?)/im
+  const scopeMarker = /^#{1,2}\s*(整体改动说明|Overall.*|Code.*Scope|代码改动)/im
+  const lines = reply.split('\n')
+  let inProjectChanges = false
+  let inScope = false
+  const projectLines: string[] = []
+  const scopeLines: string[] = []
+  for (const line of lines) {
+    if (projectChangesMarker.test(line)) { inProjectChanges = true; inScope = false; continue }
+    if (scopeMarker.test(line)) { inScope = true; inProjectChanges = false; continue }
+    if (inProjectChanges) projectLines.push(line)
+    else if (inScope) scopeLines.push(line)
+  }
+  const projectChanges = projectLines.join('\n').trim()
+  const scopeText = scopeLines.join('\n').trim()
+  // If the AI didn't use the expected structure, treat the whole reply as scope
+  if (!projectChanges && !scopeText) return { projectChanges: '', scopeText: reply.trim() }
+  return { projectChanges, scopeText }
 }
 
 /**
@@ -347,6 +377,18 @@ function SubtaskItem({
         </p>
         {subtask.description && (
           <p className="text-[11px] text-muted-foreground/70 mt-0.5 leading-snug">{subtask.description}</p>
+        )}
+        {subtask.projects && subtask.projects.length > 0 && (
+          <div className="flex flex-wrap gap-1 mt-1">
+            {subtask.projects.map((proj) => (
+              <span
+                key={proj}
+                className="inline-flex items-center px-1.5 py-0 rounded text-[10px] bg-secondary text-muted-foreground font-mono leading-5"
+              >
+                {proj}
+              </span>
+            ))}
+          </div>
         )}
       </div>
       <button
@@ -769,6 +811,19 @@ function Tab3DevPlan({
           <p className="text-[11px] text-muted-foreground/50 italic">{t('暂无项目，AI 识别需求后自动填入')}</p>
         )}
       </div>
+
+      {/* 各项目改动点 */}
+      {task.pipelineProjectChanges && (
+        <div>
+          <div className="flex items-center gap-1 mb-1.5">
+            <Layers className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+            <span className="text-[11px] text-muted-foreground">{t('各项目改动点')}</span>
+          </div>
+          <div className="text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 prose prose-sm dark:prose-invert max-w-none">
+            <MarkdownRenderer content={task.pipelineProjectChanges} mode="static" />
+          </div>
+        </div>
+      )}
 
       {/* 开发分支 */}
       <div>
@@ -1248,8 +1303,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {
+          const { projectChanges, scopeText } = parseDevPlanReply(reply)
           updateTaskPipelineState(task.id, {
-            pipelineDevPlan: reply.trim(),
+            pipelineDevPlan: scopeText || reply.trim(),
+            pipelineProjectChanges: projectChanges || undefined,
             stage: Math.max(stage, 3) as PipelineStage,
           })
         }
