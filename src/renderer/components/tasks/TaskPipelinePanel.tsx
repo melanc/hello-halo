@@ -24,7 +24,9 @@ import {
   Pencil,
   Plus,
   GitBranch,
+  Eye,
 } from 'lucide-react'
+import { MarkdownRenderer } from '../chat/MarkdownRenderer'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
 import { useChatStore } from '../../stores/chat.store'
@@ -365,6 +367,7 @@ function Tab1Requirements({
   // Requirement analysis draft (full structured text from AI)
   const [analysisDraft, setAnalysisDraft] = useState(task.requirementAnalysis ?? '')
   const savedAnalysisRef = useRef(task.requirementAnalysis ?? '')
+  const [analysisEditing, setAnalysisEditing] = useState(false)
 
   // Sync description draft when task updates externally
   useEffect(() => {
@@ -392,11 +395,13 @@ function Tab1Requirements({
   }, [analysisDraft])
 
   // Sync analysis draft when task updates externally (e.g. after AI writes it)
+  // Auto-switch to preview when AI fills in fresh content
   useEffect(() => {
     const incoming = task.requirementAnalysis ?? ''
     if (incoming !== savedAnalysisRef.current) {
       savedAnalysisRef.current = incoming
       setAnalysisDraft(incoming)
+      if (incoming.trim()) setAnalysisEditing(false)
     }
   }, [task.requirementAnalysis])
 
@@ -505,18 +510,41 @@ function Tab1Requirements({
         />
       </div>
 
-      {/* Requirement analysis — full structured AI output, editable */}
+      {/* Requirement analysis — full structured AI output, preview/edit toggle */}
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">{t('需求分析')}</p>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('需求分析')}</p>
+          {analysisDraft ? (
+            <button
+              type="button"
+              onClick={() => setAnalysisEditing((v) => !v)}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {analysisEditing
+                ? <><Eye className="w-3 h-3" />{t('预览')}</>
+                : <><Pencil className="w-3 h-3" />{t('编辑')}</>
+              }
+            </button>
+          ) : null}
+        </div>
         {analysisDraft ? (
-          <textarea
-            ref={analysisTextareaRef}
-            className="w-full min-h-[6rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring leading-relaxed font-[inherit] overflow-hidden"
-            rows={1}
-            value={analysisDraft}
-            onChange={(e) => setAnalysisDraft(e.target.value)}
-            onBlur={handleAnalysisBlur}
-          />
+          analysisEditing ? (
+            <textarea
+              ref={analysisTextareaRef}
+              className="w-full min-h-[6rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring leading-relaxed font-[inherit] overflow-hidden"
+              rows={1}
+              value={analysisDraft}
+              onChange={(e) => setAnalysisDraft(e.target.value)}
+              onBlur={() => { handleAnalysisBlur(); setAnalysisEditing(false) }}
+            />
+          ) : (
+            <div
+              className="text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 cursor-pointer hover:bg-secondary/60 transition-colors prose prose-sm dark:prose-invert max-w-none"
+              onClick={() => setAnalysisEditing(true)}
+            >
+              <MarkdownRenderer content={analysisDraft} mode="static" />
+            </div>
+          )
         ) : (
           <p className="text-[11px] text-muted-foreground/50 italic px-0.5">
             {t('Click "Start" to let AI analyse the requirement and fill this section')}
@@ -620,15 +648,17 @@ function Tab3DevPlan({
   const { t } = useTranslation()
   const [draft, setDraft] = useState(task.pipelineDevPlan ?? '')
   const savedRef = useRef(task.pipelineDevPlan ?? '')
+  const [devPlanEditing, setDevPlanEditing] = useState(false)
   const [branchDraft, setBranchDraft] = useState(task.branchName ?? '')
   const savedBranchRef = useRef(task.branchName ?? '')
 
-  // Sync when task changes externally
+  // Sync when task changes externally; auto-switch to preview when AI fills it
   useEffect(() => {
     const incoming = task.pipelineDevPlan ?? ''
     if (incoming !== savedRef.current) {
       savedRef.current = incoming
       setDraft(incoming)
+      if (incoming.trim()) setDevPlanEditing(false)
     }
   }, [task.pipelineDevPlan])
 
@@ -711,19 +741,53 @@ function Tab3DevPlan({
 
       {/* 代码改动范围 */}
       <div>
-        <div className="flex items-center gap-1 mb-1.5">
-          <Code2 className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[11px] text-muted-foreground">{t('代码改动范围')}</span>
+        <div className="flex items-center justify-between mb-1.5">
+          <div className="flex items-center gap-1">
+            <Code2 className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+            <span className="text-[11px] text-muted-foreground">{t('代码改动范围')}</span>
+          </div>
+          {draft ? (
+            <button
+              type="button"
+              onClick={() => setDevPlanEditing((v) => !v)}
+              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {devPlanEditing
+                ? <><Eye className="w-3 h-3" />{t('预览')}</>
+                : <><Pencil className="w-3 h-3" />{t('编辑')}</>
+              }
+            </button>
+          ) : null}
         </div>
-        <textarea
-          ref={devPlanTextareaRef}
-          className="w-full min-h-[6rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed overflow-hidden"
-          rows={1}
-          placeholder={t('描述要改哪些模块、文件或接口，AI 会帮你填写...')}
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={handleBlur}
-        />
+        {draft ? (
+          devPlanEditing ? (
+            <textarea
+              ref={devPlanTextareaRef}
+              className="w-full min-h-[6rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed overflow-hidden"
+              rows={1}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={() => { handleBlur(); setDevPlanEditing(false) }}
+            />
+          ) : (
+            <div
+              className="text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 cursor-pointer hover:bg-secondary/60 transition-colors prose prose-sm dark:prose-invert max-w-none"
+              onClick={() => setDevPlanEditing(true)}
+            >
+              <MarkdownRenderer content={draft} mode="static" />
+            </div>
+          )
+        ) : (
+          <textarea
+            ref={devPlanTextareaRef}
+            className="w-full min-h-[6rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed overflow-hidden"
+            rows={1}
+            placeholder={t('描述要改哪些模块、文件或接口，AI 会帮你填写...')}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={handleBlur}
+          />
+        )}
       </div>
     </div>
   )
@@ -751,13 +815,6 @@ function Tab4Coding({
     return head + tail
   }, [task.pipelineDevPlan, t])
 
-  const excerptTextareaRef = useRef<HTMLTextAreaElement>(null)
-  useEffect(() => {
-    const el = excerptTextareaRef.current
-    if (!el) return
-    el.style.height = 'auto'
-    el.style.height = `${el.scrollHeight}px`
-  }, [planExcerptDisplay])
 
   const progress = getSubtaskProgressStats(subtasks)
 
@@ -839,15 +896,9 @@ function Tab4Coding({
           {t('开发计划摘录')}
         </p>
         {planExcerptDisplay ? (
-          <textarea
-            ref={excerptTextareaRef}
-            readOnly
-            tabIndex={-1}
-            aria-readonly={true}
-            className="w-full min-h-[4.5rem] text-[11px] whitespace-pre-wrap break-words text-foreground/80 bg-secondary/30 border border-border/60 rounded-lg px-2.5 py-2 leading-relaxed resize-none overflow-hidden cursor-default focus:outline-none"
-            rows={1}
-            value={planExcerptDisplay}
-          />
+          <div className="text-xs bg-secondary/30 border border-border/60 rounded-lg px-2.5 py-2 prose prose-sm dark:prose-invert max-w-none">
+            <MarkdownRenderer content={planExcerptDisplay} mode="static" />
+          </div>
         ) : (
           <p className="text-[11px] text-muted-foreground/60 italic">{t('暂无开发计划文本')}</p>
         )}
