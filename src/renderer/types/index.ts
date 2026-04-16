@@ -311,6 +311,8 @@ export interface PipelineSubtask {
   title: string;
   description: string;
   status: PipelineSubtaskStatus;
+  /** Optional category group assigned by AI during breakdown (e.g. "前端", "后端") */
+  group?: string;
 }
 
 /**

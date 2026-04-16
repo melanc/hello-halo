@@ -77,17 +77,34 @@ function pickFocusSubtask(list: PipelineSubtask[]): PipelineSubtask | null {
 
 function extractSubtasks(text: string): PipelineSubtask[] {
   const now = Date.now()
-  return text
-    .split('\n')
-    .filter((line) => /^\s*[-•*]\s+.+/.test(line))
-    .map((line, i) => {
+  const result: PipelineSubtask[] = []
+  let currentGroup = ''
+  let idx = 0
+  for (const line of text.split('\n')) {
+    // Detect ## group heading
+    const groupMatch = line.match(/^#{1,3}\s+(.+)/)
+    if (groupMatch) {
+      currentGroup = groupMatch[1].trim()
+      continue
+    }
+    // Detect bullet item
+    if (/^\s*[-•*]\s+.+/.test(line)) {
       const raw = line.trim().replace(/^[-•*]\s+/, '').trim()
       const colonIdx = raw.search(/[:：]/)
       const title = colonIdx > 0 ? raw.slice(0, colonIdx).trim() : raw
       const description = colonIdx > 0 ? raw.slice(colonIdx + 1).trim() : ''
-      return { id: `st-${now}-${i}`, title, description, status: 'pending' as PipelineSubtaskStatus }
-    })
-    .filter((st) => st.title.length > 0 && st.title.length < 200)
+      if (title.length > 0 && title.length < 200) {
+        result.push({
+          id: `st-${now}-${idx++}`,
+          title,
+          description,
+          status: 'pending' as PipelineSubtaskStatus,
+          group: currentGroup || undefined,
+        })
+      }
+    }
+  }
+  return result
 }
 
 /**
@@ -609,10 +626,36 @@ function Tab2Breakdown({
       </div>
     )
   }
+
+  // Group subtasks by their group field, preserving insertion order
+  const groupEntries: [string, PipelineSubtask[]][] = []
+  const groupMap = new Map<string, PipelineSubtask[]>()
+  for (const st of subtasks) {
+    const key = st.group ?? ''
+    if (!groupMap.has(key)) {
+      const bucket: PipelineSubtask[] = []
+      groupMap.set(key, bucket)
+      groupEntries.push([key, bucket])
+    }
+    groupMap.get(key)!.push(st)
+  }
+  const hasGroups = groupEntries.some(([key]) => key !== '')
+
   return (
-    <div className="space-y-0.5">
-      {subtasks.map((st) => (
-        <SubtaskItem key={st.id} subtask={st} onToggle={onToggle} onEdit={onEdit} onRemove={onRemove} />
+    <div className="space-y-3">
+      {groupEntries.map(([groupName, groupTasks]) => (
+        <div key={groupName || '__ungrouped'}>
+          {hasGroups && groupName && (
+            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 pb-1 mb-0.5 border-b border-border/40">
+              {groupName}
+            </div>
+          )}
+          <div className="space-y-0.5">
+            {groupTasks.map((st) => (
+              <SubtaskItem key={st.id} subtask={st} onToggle={onToggle} onEdit={onEdit} onRemove={onRemove} />
+            ))}
+          </div>
+        </div>
       ))}
       <div className="flex items-center gap-2 pt-1">
         <button
@@ -1069,11 +1112,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const handleBreakdown = useCallback(() => {
     const now = Date.now()
     const placeholders: PipelineSubtask[] = [
-      { id: `st-${now}-1`, title: t('分析现有代码结构'), description: t('扫描相关模块，了解当前实现'), status: 'pending' },
-      { id: `st-${now}-2`, title: t('设计接口方案'), description: t('确定 API 入参/出参，与前端对齐'), status: 'pending' },
-      { id: `st-${now}-3`, title: t('实现后端逻辑'), description: t('编写 handler、service、数据库操作'), status: 'pending' },
-      { id: `st-${now}-4`, title: t('前端页面实现'), description: t('新增或修改相关页面和组件'), status: 'pending' },
-      { id: `st-${now}-5`, title: t('编写单元测试'), description: t('覆盖核心逻辑和边界情况'), status: 'pending' },
+      { id: `st-${now}-1`, title: t('分析现有代码结构'), description: t('扫描相关模块，了解当前实现'), status: 'pending', group: t('准备') },
+      { id: `st-${now}-2`, title: t('设计接口方案'), description: t('确定 API 入参/出参，与前端对齐'), status: 'pending', group: t('后端') },
+      { id: `st-${now}-3`, title: t('实现后端逻辑'), description: t('编写 handler、service、数据库操作'), status: 'pending', group: t('后端') },
+      { id: `st-${now}-4`, title: t('前端页面实现'), description: t('新增或修改相关页面和组件'), status: 'pending', group: t('前端') },
+      { id: `st-${now}-5`, title: t('编写单元测试'), description: t('覆盖核心逻辑和边界情况'), status: 'pending', group: t('测试') },
     ]
     updateTaskPipelineState(task.id, {
       stage: 2,
