@@ -1001,22 +1001,7 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
     >
       {/* Task header (shrink) + messages (flex-1 min-h-0) so long breakdown lists do not hide chat */}
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
-        {/* Active task tab — top-left corner, visible while reading the conversation */}
-        {activeTask && (() => {
-          const stageLabels: Record<number, string> = {
-            1: t('需求识别'), 2: t('任务拆解'), 3: t('开发计划'), 4: t('编码实现'), 5: t('验证收尾'),
-          }
-          const stage = activeTask.pipelineStage ?? 1
-          return (
-            <div className="absolute top-0 left-0 z-10 flex items-center gap-1.5 px-2.5 py-1 bg-card/90 backdrop-blur-sm border-r border-b border-border/50 rounded-br-lg shadow-sm select-none pointer-events-none max-w-[55%]">
-              <ListChecks className="w-3 h-3 text-primary/60 flex-shrink-0" />
-              <span className="text-[11px] font-medium text-foreground/75 truncate">{activeTask.name}</span>
-              <span className="text-[10px] text-primary/60 bg-primary/10 px-1.5 py-px rounded flex-shrink-0">{stageLabels[stage]}</span>
-            </div>
-          )
-        })()}
-
-        <div className={`flex min-h-0 flex-1 flex-col ${isCompact ? 'px-3' : 'px-4'}`}>
+<div className={`flex min-h-0 flex-1 flex-col ${isCompact ? 'px-3' : 'px-4'}`}>
           <div className="relative min-h-0 flex-1">
             {isLoadingConversation ? (
               <LoadingState />
@@ -1062,6 +1047,25 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
           </div>
         </div>
       </div>
+
+      {/* Active task tab — sits on top-left of the input box, like a browser tab */}
+      {activeTask && (() => {
+        const stageLabels: Record<number, string> = {
+          1: t('需求识别'), 2: t('任务拆解'), 3: t('开发计划'), 4: t('编码实现'), 5: t('验证收尾'),
+        }
+        const stage = activeTask.pipelineStage ?? 1
+        return (
+          <div className={isCompact ? 'px-3' : 'px-4'}>
+            <div className="max-w-3xl mx-auto">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 -mb-px bg-background border border-b-0 border-border/50 rounded-t-md select-none pointer-events-none">
+                <ListChecks className="w-3 h-3 text-primary/60 flex-shrink-0" />
+                <span className="text-[11px] font-medium text-foreground/70 max-w-[200px] truncate">{activeTask.name}</span>
+                <span className="text-[10px] text-primary/60 bg-primary/10 px-1.5 py-px rounded flex-shrink-0">{stageLabels[stage]}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Input area */}
       <InputArea
