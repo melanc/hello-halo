@@ -13,8 +13,8 @@
  * Memory scope determines which memory file is targeted.
  *
  * - 'user':  Global user preferences, stored at {haloDir}/user-memory.md
- * - 'space': Per-space knowledge, stored at {spacePath}/.halo/memory.md
- * - 'app':   Per-app private memory, stored at {spacePath}/.halo/apps/{appId}/memory.md
+ * - 'space': Per-space knowledge, stored at {spacePath}/.devx/memory.md
+ * - 'app':   Per-app private memory, stored at {spacePath}/.devx/apps/{appId}/memory.md
  */
 export type MemoryScopeType = 'user' | 'space' | 'app'
 

@@ -525,6 +525,74 @@ export function buildCodingKickoffMessage(
   return blocks.join('\n')
 }
 
+/**
+ * 开始工作 Tab 5 — writes task completion conclusions to the space memory file.
+ * The AI reads the existing memory file, then appends a structured History entry.
+ */
+export function buildTaskCompletionMemoryMessage(
+  task: WorkspaceTask,
+  t: TFunction,
+  ctx: { spaceMemoryPath: string }
+): string {
+  const ts = new Date()
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace('T', '-')
+    .slice(0, 13) // e.g. 20260416-1430
+
+  const blocks: string[] = [
+    ...pipelineOpeningLines(t),
+    t('本次任务已完成验收。请将以下任务结论写入空间记忆文件，供后续任务参考。'),
+    '',
+    t('记忆文件路径：{{path}}', { path: ctx.spaceMemoryPath }),
+    '',
+    t('操作步骤：'),
+    t('1. 使用 Read 工具读取记忆文件，了解现有格式和内容'),
+    t('2. 在 `# History` 区块的最顶部插入一条新记录，格式如下：'),
+    '',
+    '```',
+    `## ${ts} | ${task.name}`,
+    t('### 需求摘要'),
+    t('（填入核心功能要点）'),
+    '',
+    t('### 子任务'),
+    t('（填入子任务列表及完成状态）'),
+    '',
+    t('### 开发计划要点'),
+    t('（填入涉及项目、主要改动范围）'),
+    '',
+    t('### 经验教训'),
+    t('（填入本次开发中遇到的问题和解决方案，无则留空）'),
+    '```',
+    '',
+    t('3. 使用 Edit 或 Write 工具将新记录写入文件，不要修改 `# now` 区块的其他内容'),
+    t('4. 写入完成后，简要告知用户已记录哪些内容'),
+    '',
+    t('--- 任务信息 ---'),
+    t('任务名称：{{name}}', { name: task.name }),
+  ]
+
+  if (task.requirementKeyPoints?.length) {
+    blocks.push('', t('需求要点：'))
+    task.requirementKeyPoints.forEach((p) => blocks.push(`- ${p}`))
+  } else if (task.requirementAnalysis?.trim()) {
+    blocks.push('', t('需求分析：'), task.requirementAnalysis.trim().slice(0, 800))
+  }
+
+  if (task.pipelineSubtasks?.length) {
+    blocks.push('', t('子任务列表：'))
+    task.pipelineSubtasks.forEach((st) =>
+      blocks.push(`- [${st.status}] ${st.title}${st.description ? '：' + st.description : ''}`)
+    )
+  }
+
+  if (task.pipelineDevPlan?.trim()) {
+    blocks.push('', t('开发计划：'), task.pipelineDevPlan.trim().slice(0, 1200))
+  }
+
+  return blocks.join('\n')
+}
+
 /** Multiline label prepended as a composer reference chip (sent as first block of the user message). */
 export function buildWorkspaceTaskComposerReferenceLabel(task: WorkspaceTask, t: TFunction): string {
   const lines: string[] = []

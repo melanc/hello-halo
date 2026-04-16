@@ -25,6 +25,9 @@ import {
   Plus,
   GitBranch,
   Eye,
+  Activity,
+  ShieldCheck,
+  ScrollText,
 } from 'lucide-react'
 import { MarkdownRenderer } from '../chat/MarkdownRenderer'
 import { useTranslation } from '../../i18n'
@@ -37,6 +40,7 @@ import {
   buildTaskBreakdownExecuteMessage,
   buildDevPlanExecuteMessage,
   buildCodingKickoffMessage,
+  buildTaskCompletionMemoryMessage,
   evaluateCodingPrereqs,
   assertPreviousPipelineStepReady,
   getInvolvedProjectDirNames,
@@ -821,9 +825,10 @@ function Tab4Coding({
   return (
     <div className="space-y-3">
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('子任务进度对照开发计划')}
-        </p>
+        <div className="flex items-center gap-1 mb-1">
+          <ClipboardList className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('子任务进度')}</span>
+        </div>
         {progress.total === 0 ? (
           <p className="text-[11px] text-muted-foreground/80 leading-snug">
             {t(
@@ -852,9 +857,10 @@ function Tab4Coding({
       </div>
 
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('编码前置条件')}
-        </p>
+        <div className="flex items-center gap-1 mb-1">
+          <ShieldCheck className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('编码前置条件')}</span>
+        </div>
         {!prereq.ok ? (
           <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-snug">{prereq.message}</p>
         ) : (
@@ -865,18 +871,10 @@ function Tab4Coding({
       </div>
 
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('开发分支')}
-        </p>
-        <p className="text-xs font-mono text-foreground/90 break-all">
-          {task.branchName?.trim() ? task.branchName.trim() : t('未设置')}
-        </p>
-      </div>
-
-      <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('涉及项目路径')}
-        </p>
+        <div className="flex items-center gap-1 mb-1">
+          <FolderOpen className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('涉及项目路径')}</span>
+        </div>
         {paths.length > 0 ? (
           <ul className="text-[11px] font-mono text-foreground/85 space-y-0.5 break-all">
             {paths.map((p) => (
@@ -892,9 +890,20 @@ function Tab4Coding({
       </div>
 
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('开发计划摘录')}
+        <div className="flex items-center gap-1 mb-1">
+          <GitBranch className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('开发分支')}</span>
+        </div>
+        <p className="text-xs font-mono text-foreground/90 break-all">
+          {task.branchName?.trim() ? task.branchName.trim() : t('未设置')}
         </p>
+      </div>
+
+      <div>
+        <div className="flex items-center gap-1 mb-1">
+          <ScrollText className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('开发计划摘录')}</span>
+        </div>
         {planExcerptDisplay ? (
           <div className="text-xs bg-secondary/30 border border-border/60 rounded-lg px-2.5 py-2 prose prose-sm dark:prose-invert max-w-none">
             <MarkdownRenderer content={planExcerptDisplay} mode="static" />
@@ -905,9 +914,10 @@ function Tab4Coding({
       </div>
 
       <div>
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-1">
-          {t('编码活动日志')}
-        </p>
+        <div className="flex items-center gap-1 mb-1">
+          <Activity className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('编码活动日志')}</span>
+        </div>
         {logLines.length === 0 ? (
           <p className="text-[11px] text-muted-foreground/60 italic">
             {t('点击开始工作后，会在此记录一条日志（子任务与项目）。')}
@@ -963,6 +973,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     return s.spaces.find((sp) => sp.id === kbId) ?? null
   })
   const knowledgeBaseRoot = (knowledgeBaseSpace?.workingDir || knowledgeBaseSpace?.path || '').trim() || null
+
+  // Space memory file path — used by Tab5 to write task completion conclusions
+  const spacePath = spaceForTask?.path?.trim() || ''
+  const spaceMemoryPath = spacePath ? `${spacePath.replace(/[\\/]+$/, '')}/.devx/memory.md` : null
 
   const stage: PipelineStage = task.pipelineStage ?? 1
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
@@ -1224,12 +1238,17 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         )
 
       } else if (selectedTab === 5) {
-        updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('等待验收') })
+        updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('正在写入记忆') })
+        if (spaceMemoryPath) {
+          await chat.sendMessage(buildTaskCompletionMemoryMessage(task, t, { spaceMemoryPath }))
+        } else {
+          updateTaskPipelineState(task.id, { pipelineResumeHint: t('验收完成') })
+        }
       }
     } finally {
       setIsSendingMessage(false)
     }
-  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, knowledgeBaseRoot])
+  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, knowledgeBaseRoot, spaceMemoryPath])
 
   const handleSaveDevPlan = useCallback(
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
