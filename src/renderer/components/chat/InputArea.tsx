@@ -20,7 +20,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
-import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X, FileText, Folder, Mic } from 'lucide-react'
+import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X, FileText, Folder, Mic, ListChecks } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { useChatStore } from '../../stores/chat.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
@@ -128,10 +128,12 @@ interface InputAreaProps {
   slashCommands?: SlashCommandItem[]
   /** Artifacts available for @ mention suggestions */
   mentionArtifacts?: Artifact[]
-  /** Main chat only: code reference chips from canvas “Add to Chat” */
+  /** Main chat only: code reference chips from canvas "Add to Chat" */
   composerReferenceChips?: Array<{ id: string; label: string }>
   onRemoveComposerReferenceChip?: (id: string) => void
   clearComposerReferenceChips?: () => void
+  /** Active task context shown as a small label inside the top-left of the input box */
+  taskContext?: { name: string; stage: string }
 }
 
 // Image constraints
@@ -156,6 +158,7 @@ export function InputArea({
   composerReferenceChips = [],
   onRemoveComposerReferenceChip,
   clearComposerReferenceChips,
+  taskContext,
 }: InputAreaProps) {
   const { t, i18n } = useTranslation()
   const textareaMaxHeightPx = 200 + (isTaskFocusComposer ? TASK_FOCUS_COMPOSER_EXTRA_HEIGHT_PX : 0)
@@ -1119,8 +1122,17 @@ export function InputArea({
             </div>
           )}
 
+          {/* Active task tag — top-left inside the rounded input box */}
+          {taskContext && (
+            <div className="px-3 pt-2 pb-0 flex items-center gap-1.5 select-none pointer-events-none">
+              <ListChecks className="w-2.5 h-2.5 text-primary/50 flex-shrink-0" />
+              <span className="text-[10px] text-muted-foreground/60 truncate max-w-[160px]">{taskContext.name}</span>
+              <span className="text-[10px] text-primary/50 bg-primary/8 px-1 py-px rounded flex-shrink-0">{taskContext.stage}</span>
+            </div>
+          )}
+
           {/* Textarea area */}
-          <div className="px-3 pt-3 pb-1">
+          <div className={`px-3 pb-1 ${taskContext ? 'pt-1' : 'pt-3'}`}>
             <textarea
               ref={textareaRef}
               value={displayContent}

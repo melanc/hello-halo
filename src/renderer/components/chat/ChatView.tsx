@@ -10,7 +10,7 @@
  */
 
 import { useState, useCallback, useEffect, useRef, useMemo, type MouseEvent } from 'react'
-import { ChevronDown, ChevronRight, ChevronUp, Check, FileText, ListChecks, Loader2, Pencil, Play, Plus, ScanText, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronUp, Check, FileText, Loader2, Pencil, Play, Plus, ScanText, Trash2 } from 'lucide-react'
 import { useSpaceStore } from '../../stores/space.store'
 import { useChatStore } from '../../stores/chat.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
@@ -1048,25 +1048,6 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
         </div>
       </div>
 
-      {/* Active task tab — sits on top-left of the input box, like a browser tab */}
-      {activeTask && (() => {
-        const stageLabels: Record<number, string> = {
-          1: t('需求识别'), 2: t('任务拆解'), 3: t('开发计划'), 4: t('编码实现'), 5: t('验证收尾'),
-        }
-        const stage = activeTask.pipelineStage ?? 1
-        return (
-          <div className={isCompact ? 'px-3' : 'px-4'}>
-            <div className="max-w-3xl mx-auto">
-              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 -mb-px bg-background border border-b-0 border-border/50 rounded-t-md select-none pointer-events-none">
-                <ListChecks className="w-3 h-3 text-primary/60 flex-shrink-0" />
-                <span className="text-[11px] font-medium text-foreground/70 max-w-[200px] truncate">{activeTask.name}</span>
-                <span className="text-[10px] text-primary/60 bg-primary/10 px-1.5 py-px rounded flex-shrink-0">{stageLabels[stage]}</span>
-              </div>
-            </div>
-          </div>
-        )
-      })()}
-
       {/* Input area */}
       <InputArea
         onSend={handleSend}
@@ -1080,6 +1061,10 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
         composerReferenceChips={composerReferenceChips}
         onRemoveComposerReferenceChip={removeComposerReferenceChip}
         clearComposerReferenceChips={clearComposerReferenceChips}
+        taskContext={activeTask ? {
+          name: activeTask.name,
+          stage: ({ 1: t('需求识别'), 2: t('任务拆解'), 3: t('开发计划'), 4: t('编码实现'), 5: t('验证收尾') } as Record<number, string>)[activeTask.pipelineStage ?? 1],
+        } : undefined}
       />
       {addToTaskPopover ? (
         <div
