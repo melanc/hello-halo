@@ -1125,9 +1125,8 @@ export function InputArea({
           {/* Active task tag — top-left inside the rounded input box */}
           {taskContext && (
             <div className="px-3 pt-2 pb-0 flex items-center gap-1.5 select-none pointer-events-none">
-              <ListChecks className="w-2.5 h-2.5 text-primary/50 flex-shrink-0" />
-              <span className="text-[10px] text-muted-foreground/60 truncate max-w-[160px]">{taskContext.name}</span>
-              <span className="text-[10px] text-primary/50 bg-primary/8 px-1 py-px rounded flex-shrink-0">{taskContext.stage}</span>
+              <ListChecks className="w-2.5 h-2.5 text-primary/70 flex-shrink-0" />
+              <span className="text-[10px] font-medium text-primary truncate max-w-[220px]">{taskContext.name}</span>
             </div>
           )}
 
