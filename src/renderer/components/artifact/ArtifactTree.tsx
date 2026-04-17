@@ -29,8 +29,6 @@ import {
   FolderOpen,
   Copy,
   GitBranch,
-  ListPlus,
-  ListMinus,
   LayoutGrid,
   ListFilter,
 } from 'lucide-react'
@@ -40,7 +38,6 @@ import { ContextMenu, type ContextMenuItem } from '../ui/ContextMenu'
 import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 import { useNotificationStore } from '../../stores/notification.store'
 import { useFileOperations } from '../../hooks/useFileOperations'
-import { useTaskStore } from '../../stores/task.store'
 
 // Context to pass openFile function to tree nodes without each node subscribing to store
 type OpenFileFn = (path: string, title?: string, options?: OpenFileOptions) => Promise<void>
@@ -49,9 +46,6 @@ const SpaceIdContext = createContext<string>('')
 
 /** Top-level project names in scope for the active task — null = no task highlighting */
 const TaskFileTreeContext = createContext<Set<string> | null>(null)
-
-/** Full effective root set for the active task (projectDirs ∪ touchedProjectDirs) — used to determine add/remove task menu items */
-const TaskEffectiveRootSetContext = createContext<Set<string> | null>(null)
 
 /** True when task has no folders added via "add to task" and the tree is showing all workspace roots — dim every row */
 const TaskDimAllWorkspaceRootsContext = createContext(false)
@@ -900,7 +894,6 @@ export function ArtifactTree({
 
   return (
     <TaskDimAllWorkspaceRootsContext.Provider value={dimAllWorkspaceRoots}>
-    <TaskEffectiveRootSetContext.Provider value={effectiveTaskRootSet}>
     <TaskFileTreeContext.Provider value={taskScopeForDimming}>
     <OpenFileContext.Provider value={openFile}>
       <SpaceIdContext.Provider value={spaceId}>
@@ -1014,7 +1007,6 @@ export function ArtifactTree({
       </SpaceIdContext.Provider>
     </OpenFileContext.Provider>
     </TaskFileTreeContext.Provider>
-    </TaskEffectiveRootSetContext.Provider>
     </TaskDimAllWorkspaceRootsContext.Provider>
   )
 }
@@ -1227,14 +1219,8 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
   const spaceId = useContext(SpaceIdContext)
   const lazyLoad = useContext(LazyLoadContext)
   const taskRootSet = useContext(TaskFileTreeContext)
-  const taskEffectiveRootSet = useContext(TaskEffectiveRootSetContext)
   const dimAllWorkspaceRoots = useContext(TaskDimAllWorkspaceRootsContext)
   const onboardingTree = useContext(OnboardingTreeContext)
-  const activeTaskRow = useTaskStore((s) => {
-    const id = s.activeTaskId
-    if (!id) return null
-    return s.tasks.find((x) => x.id === id) ?? null
-  })
   const data = node.data
   const topSeg = data.relativePath.split(/[/\\]/).filter(Boolean)[0] ?? ''
   const isFolder = data.type === 'folder'
@@ -1373,27 +1359,6 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
 
   const outOfTaskScope =
     dimAllWorkspaceRoots || !!(taskRootSet && topSeg && !taskRootSet.has(topSeg))
-  // Use the full effective root set (projectDirs ∪ touchedProjectDirs) when available so that
-  // folders added to the task only via AI touches (touchedProjectDirs) show the correct menu item.
-  const isInEffectiveTaskRoots = taskEffectiveRootSet
-    ? taskEffectiveRootSet.has(topSeg)
-    : activeTaskRow?.projectDirs.includes(topSeg) ?? false
-
-  const canAddDirToTask =
-    !isWebMode &&
-    isFolder &&
-    !!topSeg &&
-    !!activeTaskRow &&
-    activeTaskRow.spaceId === spaceId &&
-    !isInEffectiveTaskRoots
-
-  const canRemoveDirFromTask =
-    !isWebMode &&
-    isFolder &&
-    !!topSeg &&
-    !!activeTaskRow &&
-    activeTaskRow.spaceId === spaceId &&
-    isInEffectiveTaskRoots
 
   // Generate context menu items
   const menuItems: ContextMenuItem[] = [
@@ -1446,24 +1411,6 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
           console.error('Failed to copy relative path:', err)
         )
       }
-    },
-    {
-      label: t('添加到任务中'),
-      icon: <ListPlus className="w-4 h-4" />,
-      hidden: !canAddDirToTask,
-      onClick: () => {
-        const id = useTaskStore.getState().activeTaskId
-        if (id && topSeg) useTaskStore.getState().addProjectDirToTask(id, topSeg)
-      },
-    },
-    {
-      label: t('Remove from task'),
-      icon: <ListMinus className="w-4 h-4" />,
-      hidden: !canRemoveDirFromTask,
-      onClick: () => {
-        const id = useTaskStore.getState().activeTaskId
-        if (id && topSeg) useTaskStore.getState().removeProjectDirFromTask(id, topSeg)
-      },
     },
     // Git (desktop — sub-actions in secondary menu)
     {

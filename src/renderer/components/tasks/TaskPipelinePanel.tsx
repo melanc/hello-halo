@@ -23,6 +23,7 @@ import {
   AlertCircle,
   Pencil,
   Plus,
+  X,
   GitBranch,
   Eye,
   Activity,
@@ -51,6 +52,7 @@ import {
 import { loadKnowledgeBaseContextForTask } from '../../lib/knowledge-base-prompt-context'
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask, FileChangesSummary } from '../../types'
 import { useSpaceStore } from '../../stores/space.store'
+import { api } from '../../api'
 
 // ─────────────────────────────────────────────
 // Helpers
@@ -723,11 +725,15 @@ function Tab3DevPlan({
   workspaceRoot,
   onSaveDevPlan,
   onSaveBranchName,
+  onAddProject,
+  onRemoveProject,
 }: {
   task: WorkspaceTask
   workspaceRoot: string | null
   onSaveDevPlan: (text: string) => void
   onSaveBranchName: (branch: string) => void
+  onAddProject: (dir: string) => void
+  onRemoveProject: (dir: string) => void
 }) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState(task.pipelineDevPlan ?? '')
@@ -735,6 +741,18 @@ function Tab3DevPlan({
   const [devPlanEditing, setDevPlanEditing] = useState(false)
   const [branchDraft, setBranchDraft] = useState(task.branchName ?? '')
   const savedBranchRef = useRef(task.branchName ?? '')
+  const [availableRoots, setAvailableRoots] = useState<string[]>([])
+
+  // Fetch workspace root folder names for the project picker
+  useEffect(() => {
+    let cancelled = false
+    api.listArtifactsTree(task.spaceId).then((res) => {
+      if (cancelled || !res.success || !res.data) return
+      const nodes = (res.data as { nodes: { name: string }[] }).nodes ?? []
+      setAvailableRoots(nodes.map((n) => n.name).filter(Boolean))
+    }).catch(() => {/* ignore */})
+    return () => { cancelled = true }
+  }, [task.spaceId])
 
   // Sync when task changes externally; auto-switch to preview when AI fills it
   useEffect(() => {
@@ -778,10 +796,11 @@ function Tab3DevPlan({
     el.style.height = `${el.scrollHeight}px`
   }, [draft])
 
-  const allDirNames = getInvolvedProjectDirNames(task)
-  const allDirPaths = workspaceRoot
-    ? buildProjectDisplayPaths(workspaceRoot, allDirNames)
-    : allDirNames
+  // Merge available roots with already-added project dirs (in case workspace hasn't loaded yet)
+  const projectDirsSet = new Set(task.projectDirs)
+  const allRootsToShow = availableRoots.length > 0
+    ? Array.from(new Set([...availableRoots, ...task.projectDirs]))
+    : task.projectDirs
 
   return (
     <div className="space-y-3">
@@ -791,16 +810,38 @@ function Tab3DevPlan({
           <FolderOpen className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
           <span className="text-[11px] text-muted-foreground">{t('涉及项目')}</span>
         </div>
-        {allDirPaths.length > 0 ? (
-          <div className="flex flex-col gap-1">
-            {allDirPaths.map((p) => (
-              <span
-                key={p}
-                className="inline-flex items-center px-2 py-0.5 rounded-md bg-secondary text-[11px] text-foreground/80 font-mono break-all"
-              >
-                {p}
-              </span>
-            ))}
+        {allRootsToShow.length > 0 ? (
+          <div className="flex flex-wrap gap-1.5">
+            {allRootsToShow.map((name) => {
+              const added = projectDirsSet.has(name)
+              return added ? (
+                <span
+                  key={name}
+                  className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md bg-primary/15 border border-primary/30 text-[11px] text-foreground/90 font-mono"
+                >
+                  {name}
+                  <button
+                    type="button"
+                    onClick={() => onRemoveProject(name)}
+                    className="flex items-center justify-center w-3.5 h-3.5 rounded hover:bg-destructive/20 hover:text-destructive transition-colors text-muted-foreground"
+                    title={t('从任务中移除')}
+                  >
+                    <X className="w-2.5 h-2.5" />
+                  </button>
+                </span>
+              ) : (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => onAddProject(name)}
+                  className="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-md bg-secondary border border-border text-[11px] text-muted-foreground font-mono hover:bg-secondary/80 hover:text-foreground transition-colors"
+                  title={t('添加到任务中')}
+                >
+                  {name}
+                  <Plus className="w-2.5 h-2.5" />
+                </button>
+              )
+            })}
           </div>
         ) : (
           <p className="text-[11px] text-muted-foreground/50 italic">{t('暂无项目，AI 识别需求后自动填入')}</p>
@@ -1201,6 +1242,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const { t } = useTranslation()
   const updateTaskPipelineState = useTaskStore((s) => s.updateTaskPipelineState)
   const updateTaskBranchName = useTaskStore((s) => s.updateTaskBranchName)
+  const addProjectDirToTask = useTaskStore((s) => s.addProjectDirToTask)
+  const removeProjectDirFromTask = useTaskStore((s) => s.removeProjectDirFromTask)
 
   const spaceForTask = useSpaceStore((s) => {
     const hit = s.spaces.find((sp) => sp.id === task.spaceId)
@@ -1606,6 +1649,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 workspaceRoot={workspaceRootForUi}
                 onSaveDevPlan={handleSaveDevPlan}
                 onSaveBranchName={(b) => updateTaskBranchName(task.id, b)}
+                onAddProject={(dir) => addProjectDirToTask(task.id, dir)}
+                onRemoveProject={(dir) => removeProjectDirFromTask(task.id, dir)}
               />
             )}
             {selectedTab === 4 && (
