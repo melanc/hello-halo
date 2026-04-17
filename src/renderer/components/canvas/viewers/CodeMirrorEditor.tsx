@@ -128,6 +128,8 @@ export const CodeMirrorEditor = memo(
     // Keep refs up to date with latest callbacks
     const onChangeRef = useRef(onChange)
     const onScrollRef = useRef(onScroll)
+    // Suppresses onChange during programmatic content updates (e.g. tab switch)
+    const isProgrammaticUpdateRef = useRef(false)
 
     useEffect(() => {
       onAddToChatRef.current = onAddSelectionToChat
@@ -213,7 +215,7 @@ export const CodeMirrorEditor = memo(
 
         // Update listener for content changes
         EditorView.updateListener.of((update) => {
-          if (update.docChanged && onChangeRef.current) {
+          if (update.docChanged && onChangeRef.current && !isProgrammaticUpdateRef.current) {
             onChangeRef.current(update.state.doc.toString())
           }
         }),
@@ -268,14 +270,16 @@ export const CodeMirrorEditor = memo(
       // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []) // Intentionally empty - initialize once, update via separate effects
 
-    // Update content when prop changes
+    // Update content when prop changes (programmatic — must not trigger onChange)
     useEffect(() => {
       const view = viewRef.current
       if (!view) return
 
       const currentContent = view.state.doc.toString()
       if (currentContent !== content) {
+        isProgrammaticUpdateRef.current = true
         setContent(view, content)
+        isProgrammaticUpdateRef.current = false
         originalContentRef.current = content
       }
     }, [content])

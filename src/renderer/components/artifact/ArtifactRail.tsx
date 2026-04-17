@@ -556,18 +556,6 @@ export function ArtifactRail({
                   </button>
                   <button
                     type="button"
-                    onClick={() => setRailMainTabPersist('source-control')}
-                    className={`
-                      h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
-                      hover:bg-secondary/80
-                      ${railMainTab === 'source-control' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
-                    `}
-                    title={t('Git operations')}
-                  >
-                    <GitBranch className="w-5 h-5" />
-                  </button>
-                  <button
-                    type="button"
                     onClick={() => setRailMainTabPersist('workspace-find')}
                     className={`
                       h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
@@ -577,6 +565,18 @@ export function ArtifactRail({
                     title={t('Search in files')}
                   >
                     <Search className="w-5 h-5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setRailMainTabPersist('source-control')}
+                    className={`
+                      h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
+                      hover:bg-secondary/80
+                      ${railMainTab === 'source-control' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+                    `}
+                    title={t('Git operations')}
+                  >
+                    <GitBranch className="w-5 h-5" />
                   </button>
                   <button
                     type="button"
@@ -655,18 +655,6 @@ export function ArtifactRail({
             </button>
             <button
               type="button"
-              onClick={() => setRailMainTabPersist('source-control')}
-              className={`
-                h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
-                hover:bg-secondary/80
-                ${railMainTab === 'source-control' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
-              `}
-              title={t('Git operations')}
-            >
-              <GitBranch className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
-            </button>
-            <button
-              type="button"
               onClick={() => setRailMainTabPersist('workspace-find')}
               className={`
                 h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
@@ -676,6 +664,18 @@ export function ArtifactRail({
               title={t('Search in files')}
             >
               <Search className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+            </button>
+            <button
+              type="button"
+              onClick={() => setRailMainTabPersist('source-control')}
+              className={`
+                h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
+                hover:bg-secondary/80
+                ${railMainTab === 'source-control' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
+              `}
+              title={t('Git operations')}
+            >
+              <GitBranch className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
             </button>
             <button
               type="button"
@@ -721,9 +721,9 @@ export function ArtifactRail({
           ) : (
             <>
               <button
-                onClick={handleOpenFolder}
+                onClick={handleToggleExpanded}
                 className="p-2 hover:bg-secondary rounded-lg transition-colors"
-                title={t('Open folder')}
+                title={t('Expand')}
               >
                 <FolderOpen className="w-5 h-5 text-amber-500" />
               </button>

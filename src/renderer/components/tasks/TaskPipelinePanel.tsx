@@ -1365,7 +1365,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         <button
           type="button"
           onClick={() => setCollapsed((c) => !c)}
-          className="flex-shrink-0 p-1 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+          className="flex-shrink-0 px-2 py-1.5 rounded hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
           aria-label={collapsed ? t('Expand') : t('Collapse')}
         >
           {collapsed ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronUp className="w-3.5 h-3.5" />}
@@ -1438,6 +1438,15 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               >
                 {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
                 {t('开始工作')}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setCollapsed(true)}
+                className="flex-shrink-0 p-1.5 rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+                title={t('Collapse')}
+              >
+                <ChevronUp className="w-3.5 h-3.5" />
               </button>
             </div>
 
