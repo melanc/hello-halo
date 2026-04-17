@@ -49,7 +49,7 @@ import {
   getSubtaskProgressStats,
 } from '../../lib/workspace-task-messages'
 import { loadKnowledgeBaseContextForTask } from '../../lib/knowledge-base-prompt-context'
-import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask } from '../../types'
+import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask, FileChangesSummary } from '../../types'
 import { useSpaceStore } from '../../stores/space.store'
 
 // ─────────────────────────────────────────────
@@ -1098,7 +1098,7 @@ function Tab5Review({
         <input
           type="text"
           className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono"
-          placeholder="e.g. npm install --dry-run"
+          placeholder="e.g. go mod tidy"
           value={depDraft}
           onChange={(e) => setDepDraft(e.target.value)}
           onBlur={handleDepBlur}
@@ -1115,12 +1115,80 @@ function Tab5Review({
         <input
           type="text"
           className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono"
-          placeholder="e.g. npm run build"
+          placeholder="e.g. make"
           value={buildDraft}
           onChange={(e) => setBuildDraft(e.target.value)}
           onBlur={handleBuildBlur}
         />
       </div>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────
+// Session report
+// ─────────────────────────────────────────────
+
+interface SessionReport {
+  durationMs: number
+  inputTokens: number
+  outputTokens: number
+  fileChanges?: FileChangesSummary
+  stage: PipelineStage
+}
+
+function formatDuration(ms: number): string {
+  const s = Math.floor(ms / 1000)
+  if (s < 60) return `${s}秒`
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return rem > 0 ? `${m}分${rem}秒` : `${m}分钟`
+}
+
+function formatTokens(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return String(n)
+}
+
+function SessionReportCard({ report }: { report: SessionReport }) {
+  const { t } = useTranslation()
+  const showCodeStats = (report.stage === 4 || report.stage === 5) && report.fileChanges
+
+  return (
+    <div className="mx-3 mb-2 rounded-lg border border-border/50 bg-secondary/40 px-3 py-2 text-[11px] text-foreground/80 space-y-1.5">
+      {/* Row 1: duration + tokens */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="flex items-center gap-1">
+          <span className="text-muted-foreground">{t('耗时')}</span>
+          <span className="font-medium tabular-nums">{formatDuration(report.durationMs)}</span>
+        </span>
+        <span className="text-border/80">|</span>
+        <span className="flex items-center gap-1">
+          <span className="text-muted-foreground">{t('输入')}</span>
+          <span className="font-medium tabular-nums text-blue-500/90">{formatTokens(report.inputTokens)}</span>
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="text-muted-foreground">{t('输出')}</span>
+          <span className="font-medium tabular-nums text-violet-500/90">{formatTokens(report.outputTokens)}</span>
+        </span>
+      </div>
+
+      {/* Row 2: code change stats (stage 4 / 5 only) */}
+      {showCodeStats && report.fileChanges && (
+        <div className="flex items-center gap-3 flex-wrap">
+          <span className="flex items-center gap-1">
+            <span className="text-muted-foreground">{t('涉及文件')}</span>
+            <span className="font-medium tabular-nums">{report.fileChanges.totalFiles}</span>
+          </span>
+          <span className="text-border/80">|</span>
+          <span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
+            +{report.fileChanges.totalAdded}
+          </span>
+          <span className="font-medium tabular-nums text-red-500/90">
+            -{report.fileChanges.totalRemoved}
+          </span>
+        </div>
+      )}
     </div>
   )
 }
@@ -1161,6 +1229,42 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const [checkResult, setCheckResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isIdentifying, setIsIdentifying] = useState(false)
+  const [sessionReport, setSessionReport] = useState<SessionReport | null>(null)
+
+  // Refs for tracking session report
+  const reportStartTimeRef = useRef<number | null>(null)
+  const reportStageRef = useRef<PipelineStage>(1)
+  const wasGeneratingRef = useRef(false)
+
+  // Subscribe to chat store: when generation finishes after a "开始工作", compute report
+  useEffect(() => {
+    const unsub = useChatStore.subscribe((state) => {
+      const session = state.sessions.get(task.conversationId)
+      const isGenerating = session?.isGenerating ?? false
+
+      if (wasGeneratingRef.current && !isGenerating && reportStartTimeRef.current !== null) {
+        const startTime = reportStartTimeRef.current
+        const stage = reportStageRef.current
+        reportStartTimeRef.current = null
+
+        const conv = state.conversationCache.get(task.conversationId)
+        const msgs = conv?.messages ?? []
+        const last = [...msgs].reverse().find((m) => m.role === 'assistant')
+        if (last) {
+          setSessionReport({
+            durationMs: Date.now() - startTime,
+            inputTokens: last.tokenUsage?.inputTokens ?? 0,
+            outputTokens: last.tokenUsage?.outputTokens ?? 0,
+            fileChanges: last.metadata?.fileChanges ?? undefined,
+            stage,
+          })
+        }
+      }
+
+      wasGeneratingRef.current = isGenerating
+    })
+    return unsub
+  }, [task.conversationId])
 
   // Resizable content area
   const [contentHeight, setContentHeight] = useState(440)
@@ -1336,6 +1440,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     const check = getTabCheck(selectedTab)
     setCheckResult(check)
     if (!check.ok) return
+
+    // Begin session report tracking
+    setSessionReport(null)
+    reportStartTimeRef.current = Date.now()
+    reportStageRef.current = selectedTab
 
     setIsSendingMessage(true)
     try {
@@ -1560,6 +1669,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 }
                 <span className="leading-snug">{checkResult.message}</span>
               </div>
+            )}
+
+            {/* Session report card */}
+            {sessionReport && !isSendingMessage && (
+              <SessionReportCard report={sessionReport} />
             )}
           </div>
 
