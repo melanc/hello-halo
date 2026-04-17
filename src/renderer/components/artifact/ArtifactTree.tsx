@@ -421,7 +421,23 @@ export function ArtifactTree({
     const { id, name, node } = args
     const newName = name.trim()
 
-    if (!newName) return
+    if (!newName) {
+      // Clean up temp node if creation was cancelled with empty name
+      if (id.toString().startsWith('temp-')) {
+        const rootIdx = treeDataRef.current.findIndex(n => n.id === id)
+        if (rootIdx !== -1) {
+          treeDataRef.current.splice(rootIdx, 1)
+        } else if (node.parent?.data?.children) {
+          const childIdx = (node.parent.data.children as ArtifactTreeNode[]).findIndex(c => c.id === id)
+          if (childIdx !== -1) {
+            (node.parent.data.children as ArtifactTreeNode[]).splice(childIdx, 1)
+          }
+        }
+        nodeIndex.current.delete(node.data.path)
+        setRevision(r => r + 1)
+      }
+      return
+    }
 
     // Check if this is a new file (temp ID) or rename
     const isCreating = id.toString().startsWith('temp-')
@@ -556,44 +572,54 @@ export function ArtifactTree({
 
   // Toolbar button handlers
   const handleNewFile = useCallback(() => {
-    const focusedNode = treeRef.current?.focusedNode
-    
-    // Determine parent ID
-    let parentId: string | null = null
-    if (focusedNode) {
-      if (focusedNode.data.type === 'folder') {
-        // If folder is selected, create inside it
-        parentId = focusedNode.id
-        // Auto-expand folder
-        if (!focusedNode.isOpen) {
-          focusedNode.open()
-        }
+    const tree = treeRef.current
+    if (!tree) return
+    const focusedNode = tree.focusedNode
+
+    if (!focusedNode) {
+      // Nothing selected: create at root end
+      tree.create({ type: 'leaf', parentId: null, index: treeDataRef.current.length })
+      return
+    }
+
+    if (focusedNode.data.type === 'folder') {
+      // Focused folder: create inside it
+      if (!focusedNode.isOpen) focusedNode.open()
+      tree.create({ type: 'leaf', parentId: focusedNode.id })
+    } else {
+      // Focused file: create alongside it in the same folder
+      const parentNode = focusedNode.parent
+      const isRootLevel = !parentNode || parentNode.id === '__REACT_ARBORIST_INTERNAL_ROOT__'
+      if (isRootLevel) {
+        tree.create({ type: 'leaf', parentId: null, index: treeDataRef.current.length })
       } else {
-        // If file is selected, create in parent folder
-        parentId = focusedNode.parent?.id || null
+        tree.create({ type: 'leaf', parentId: parentNode.id })
       }
     }
-    
-    // Call tree.create()
-    treeRef.current?.create({ type: 'leaf', parentId })
   }, [])
 
   const handleNewFolder = useCallback(() => {
-    const focusedNode = treeRef.current?.focusedNode
-    
-    let parentId: string | null = null
-    if (focusedNode) {
-      if (focusedNode.data.type === 'folder') {
-        parentId = focusedNode.id
-        if (!focusedNode.isOpen) {
-          focusedNode.open()
-        }
+    const tree = treeRef.current
+    if (!tree) return
+    const focusedNode = tree.focusedNode
+
+    if (!focusedNode) {
+      tree.create({ type: 'internal', parentId: null, index: treeDataRef.current.length })
+      return
+    }
+
+    if (focusedNode.data.type === 'folder') {
+      if (!focusedNode.isOpen) focusedNode.open()
+      tree.create({ type: 'internal', parentId: focusedNode.id })
+    } else {
+      const parentNode = focusedNode.parent
+      const isRootLevel = !parentNode || parentNode.id === '__REACT_ARBORIST_INTERNAL_ROOT__'
+      if (isRootLevel) {
+        tree.create({ type: 'internal', parentId: null, index: treeDataRef.current.length })
       } else {
-        parentId = focusedNode.parent?.id || null
+        tree.create({ type: 'internal', parentId: parentNode.id })
       }
     }
-    
-    treeRef.current?.create({ type: 'internal', parentId })
   }, [])
 
   // Blank-area right-click handlers — always create at root (no focused node influence)
