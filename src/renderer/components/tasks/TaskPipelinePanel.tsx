@@ -1235,13 +1235,23 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const reportStartTimeRef = useRef<number | null>(null)
   const reportStageRef = useRef<PipelineStage>(1)
   const wasGeneratingRef = useRef(false)
+  const selectedTabRef = useRef<PipelineStage>(selectedTab)
+  useEffect(() => { selectedTabRef.current = selectedTab }, [selectedTab])
 
-  // Subscribe to chat store: when generation finishes after a "开始工作", compute report
+  // Subscribe to chat store: auto-track every generation start/end
   useEffect(() => {
     const unsub = useChatStore.subscribe((state) => {
       const session = state.sessions.get(task.conversationId)
       const isGenerating = session?.isGenerating ?? false
 
+      // Generation started — begin timing
+      if (!wasGeneratingRef.current && isGenerating) {
+        reportStartTimeRef.current = Date.now()
+        reportStageRef.current = selectedTabRef.current
+        setSessionReport(null)
+      }
+
+      // Generation finished — compute report
       if (wasGeneratingRef.current && !isGenerating && reportStartTimeRef.current !== null) {
         const startTime = reportStartTimeRef.current
         const stage = reportStageRef.current
@@ -1440,11 +1450,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     const check = getTabCheck(selectedTab)
     setCheckResult(check)
     if (!check.ok) return
-
-    // Begin session report tracking
-    setSessionReport(null)
-    reportStartTimeRef.current = Date.now()
-    reportStageRef.current = selectedTab
 
     setIsSendingMessage(true)
     try {
