@@ -221,8 +221,11 @@ function mergeChildren(
   return incoming.map(node => {
     const prev = existingByPath.get(node.path)
     if (prev) {
-      // Preserve react-arborist key
-      node.id = prev.id
+      // Preserve react-arborist key — but skip temp nodes so they get replaced
+      // with the real backend ID and don't pollute subsequent rename checks
+      if (!prev.id.startsWith('temp-')) {
+        node.id = prev.id
+      }
       // Preserve expanded state: keep children the user already loaded
       if (prev.childrenLoaded && prev.children) {
         node.children = prev.children
