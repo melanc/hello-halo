@@ -910,7 +910,21 @@ export function ArtifactTree({
           </div>
 
           {/* Tree — uses window height based calculation */}
-          <div className="flex-1 overflow-hidden">
+          <ContextMenu
+            className="flex-1 overflow-hidden"
+            items={[
+              {
+                label: t('New File'),
+                icon: <FilePlus className="w-4 h-4" />,
+                onClick: handleNewFile,
+              },
+              {
+                label: t('New Folder'),
+                icon: <FolderPlus className="w-4 h-4" />,
+                onClick: handleNewFolder,
+              },
+            ]}
+          >
             <Tree<ArtifactTreeNode>
               key={`arborist-${spaceId}`}
               ref={treeRef}
@@ -933,9 +947,9 @@ export function ArtifactTree({
             >
               {TreeNodeComponent}
             </Tree>
-          </div>
+          </ContextMenu>
         </div>
-        
+
         {/* Confirmation dialog */}
         {DialogComponent}
       </LazyLoadContext.Provider>

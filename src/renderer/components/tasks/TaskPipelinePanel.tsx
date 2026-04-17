@@ -185,8 +185,8 @@ const STAGES: { id: PipelineStage; label: string; activeColor: string; mutedColo
   { id: 1, label: '需求识别', activeColor: 'text-violet-500',  mutedColor: 'text-violet-400/30',  selectedBg: 'bg-violet-500/15'  },
   { id: 2, label: '任务拆解', activeColor: 'text-blue-500',    mutedColor: 'text-blue-400/30',    selectedBg: 'bg-blue-500/15'    },
   { id: 3, label: '开发计划', activeColor: 'text-emerald-500', mutedColor: 'text-emerald-400/30', selectedBg: 'bg-emerald-500/15' },
-  { id: 4, label: '编码实现', activeColor: 'text-red-500',     mutedColor: 'text-red-400/30',     selectedBg: 'bg-red-500/15'     },
-  { id: 5, label: '验证收尾', activeColor: 'text-fuchsia-500', mutedColor: 'text-fuchsia-400/30', selectedBg: 'bg-fuchsia-500/15' },
+  { id: 4, label: '编码实现', activeColor: 'text-orange-500',  mutedColor: 'text-orange-400/30',  selectedBg: 'bg-orange-500/15'  },
+  { id: 5, label: '验证收尾', activeColor: 'text-pink-500',    mutedColor: 'text-pink-400/30',    selectedBg: 'bg-pink-500/15'    },
 ]
 
 // ─────────────────────────────────────────────

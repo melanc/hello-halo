@@ -36,9 +36,10 @@ export interface ContextMenuItem {
 interface ContextMenuProps {
   children: React.ReactNode
   items: ContextMenuItem[]
+  className?: string
 }
 
-export function ContextMenu({ children, items }: ContextMenuProps) {
+export function ContextMenu({ children, items, className }: ContextMenuProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [position, setPosition] = useState({ x: 0, y: 0 })
   const [openSubmenuIndex, setOpenSubmenuIndex] = useState<number | null>(null)
@@ -147,7 +148,7 @@ export function ContextMenu({ children, items }: ContextMenuProps) {
 
   return (
     <>
-      <div onContextMenu={handleContextMenu}>{children}</div>
+      <div className={className} onContextMenu={handleContextMenu}>{children}</div>
 
       {isOpen &&
         createPortal(
