@@ -549,6 +549,56 @@ export function buildCodingKickoffMessage(
  * 开始工作 Tab 5 — writes task completion conclusions to the space memory file.
  * The AI reads the existing memory file, then appends a structured History entry.
  */
+export function buildVerificationExecuteMessage(
+  task: WorkspaceTask,
+  t: TFunction,
+  ctx: { depCheckCmd?: string; buildCheckCmd?: string }
+): string {
+  const blocks: string[] = [
+    ...pipelineOpeningLines(t),
+    t('请按以下步骤对当前任务进行验证检查，逐步执行并汇报每步结果：'),
+    '',
+    t('## 步骤 1：语法检查'),
+    t('对涉及项目的代码进行静态语法分析，报告所有错误和警告。'),
+    '',
+  ]
+
+  if (ctx.depCheckCmd?.trim()) {
+    blocks.push(
+      t('## 步骤 2：依赖检查'),
+      t('执行以下命令进行依赖检查，并报告结果（成功 / 失败 + 错误详情）：'),
+      '```',
+      ctx.depCheckCmd.trim(),
+      '```',
+      '',
+    )
+  }
+
+  if (ctx.buildCheckCmd?.trim()) {
+    blocks.push(
+      t('## 步骤 3：编译检查'),
+      t('执行以下命令进行编译检查，并报告结果（成功 / 失败 + 错误详情）：'),
+      '```',
+      ctx.buildCheckCmd.trim(),
+      '```',
+      '',
+    )
+  }
+
+  blocks.push(
+    t('所有步骤完成后，给出综合评估：是否可以合入主干，以及需要修复的问题列表。'),
+    '',
+    t('--- 任务信息 ---'),
+    t('任务名称：{{name}}', { name: task.name }),
+  )
+
+  if (task.pipelineDevPlan?.trim()) {
+    blocks.push('', t('开发计划：'), task.pipelineDevPlan.trim().slice(0, 1200))
+  }
+
+  return blocks.join('\n')
+}
+
 export function buildTaskCompletionMemoryMessage(
   task: WorkspaceTask,
   t: TFunction,

@@ -372,6 +372,10 @@ export interface WorkspaceTask {
   requirementAnalysis?: string;
   /** Short lines appended when starting coding from the pipeline (subtask + projects) */
   pipelineCodingLogLines?: string[];
+  /** Shell command for dependency check (stage 5) e.g. "npm install" */
+  pipelineDepCheckCmd?: string;
+  /** Shell command for build/compile check (stage 5) e.g. "npm run build" */
+  pipelineBuildCheckCmd?: string;
 }
 
 // ============================================

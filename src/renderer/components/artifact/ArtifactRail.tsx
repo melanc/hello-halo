@@ -721,7 +721,7 @@ export function ArtifactRail({
           ) : (
             <>
               <button
-                onClick={handleToggleExpanded}
+                onClick={() => { setRailMainTabPersist('files'); handleToggleExpanded() }}
                 className="p-2 hover:bg-secondary rounded-lg transition-colors"
                 title={t('Expand')}
               >

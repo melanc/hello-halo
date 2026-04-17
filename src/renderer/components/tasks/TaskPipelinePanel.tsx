@@ -4,7 +4,7 @@
  * Stage bar doubles as a tab navigator — clicking any stage switches
  * the body to show that stage's content regardless of current progress.
  *
- * Stages: 1=需求识别  2=任务拆解  3=开发计划  4=编码实现  5=验证收尾
+ * Stages: 1=需求识别  2=任务拆解  3=开发计划  4=编码实现  5=用例验证
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
@@ -41,7 +41,7 @@ import {
   buildTaskBreakdownExecuteMessage,
   buildDevPlanExecuteMessage,
   buildCodingKickoffMessage,
-  buildTaskCompletionMemoryMessage,
+  buildVerificationExecuteMessage,
   evaluateCodingPrereqs,
   assertPreviousPipelineStepReady,
   getInvolvedProjectDirNames,
@@ -186,7 +186,7 @@ const STAGES: { id: PipelineStage; label: string; activeColor: string; mutedColo
   { id: 2, label: '任务拆解', activeColor: 'text-blue-500',    mutedColor: 'text-blue-400/30',    selectedBg: 'bg-blue-500/15'    },
   { id: 3, label: '开发计划', activeColor: 'text-emerald-500', mutedColor: 'text-emerald-400/30', selectedBg: 'bg-emerald-500/15' },
   { id: 4, label: '编码实现', activeColor: 'text-orange-500',  mutedColor: 'text-orange-400/30',  selectedBg: 'bg-orange-500/15'  },
-  { id: 5, label: '验证收尾', activeColor: 'text-pink-500',    mutedColor: 'text-pink-400/30',    selectedBg: 'bg-pink-500/15'    },
+  { id: 5, label: '用例验证', activeColor: 'text-pink-500',    mutedColor: 'text-pink-400/30',    selectedBg: 'bg-pink-500/15'    },
 ]
 
 // ─────────────────────────────────────────────
@@ -1033,11 +1033,95 @@ function Tab4Coding({
   )
 }
 
-/** Tab 5 — 验证收尾 (placeholder) */
-function Tab5Review() {
+/** Tab 5 — 用例验证：依赖检查命令 + 编译检查命令 */
+function Tab5Review({
+  task,
+  onSaveDepCheckCmd,
+  onSaveBuildCheckCmd,
+}: {
+  task: WorkspaceTask
+  onSaveDepCheckCmd: (cmd: string) => void
+  onSaveBuildCheckCmd: (cmd: string) => void
+}) {
   const { t } = useTranslation()
+  const [depDraft, setDepDraft] = useState(task.pipelineDepCheckCmd ?? '')
+  const savedDepRef = useRef(task.pipelineDepCheckCmd ?? '')
+  const [buildDraft, setBuildDraft] = useState(task.pipelineBuildCheckCmd ?? '')
+  const savedBuildRef = useRef(task.pipelineBuildCheckCmd ?? '')
+
+  // Sync when task updates externally
+  useEffect(() => {
+    const incoming = task.pipelineDepCheckCmd ?? ''
+    if (incoming !== savedDepRef.current) {
+      savedDepRef.current = incoming
+      setDepDraft(incoming)
+    }
+  }, [task.pipelineDepCheckCmd])
+
+  useEffect(() => {
+    const incoming = task.pipelineBuildCheckCmd ?? ''
+    if (incoming !== savedBuildRef.current) {
+      savedBuildRef.current = incoming
+      setBuildDraft(incoming)
+    }
+  }, [task.pipelineBuildCheckCmd])
+
+  const handleDepBlur = useCallback(() => {
+    const trimmed = depDraft.trim()
+    if (trimmed !== savedDepRef.current) {
+      savedDepRef.current = trimmed
+      onSaveDepCheckCmd(trimmed)
+    }
+  }, [depDraft, onSaveDepCheckCmd])
+
+  const handleBuildBlur = useCallback(() => {
+    const trimmed = buildDraft.trim()
+    if (trimmed !== savedBuildRef.current) {
+      savedBuildRef.current = trimmed
+      onSaveBuildCheckCmd(trimmed)
+    }
+  }, [buildDraft, onSaveBuildCheckCmd])
+
   return (
-    <p className="text-xs text-muted-foreground/60 italic">{t('AI 将在此阶段进行静态审查和单元测试')}</p>
+    <div className="space-y-3">
+      <p className="text-[11px] text-muted-foreground/80 leading-snug">
+        {t('点击开始工作，AI 将依次执行语法检查、依赖检查（可选）、编译检查（可选），并汇报每步结果。')}
+      </p>
+
+      {/* 依赖检查命令 */}
+      <div>
+        <div className="flex items-center gap-1 mb-1.5">
+          <ShieldCheck className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[11px] text-muted-foreground">{t('依赖检查命令')}</span>
+          <span className="text-[10px] text-muted-foreground/50 ml-1">{t('（可选）')}</span>
+        </div>
+        <input
+          type="text"
+          className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono"
+          placeholder="e.g. npm install --dry-run"
+          value={depDraft}
+          onChange={(e) => setDepDraft(e.target.value)}
+          onBlur={handleDepBlur}
+        />
+      </div>
+
+      {/* 编译检查命令 */}
+      <div>
+        <div className="flex items-center gap-1 mb-1.5">
+          <Code2 className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[11px] text-muted-foreground">{t('编译检查命令')}</span>
+          <span className="text-[10px] text-muted-foreground/50 ml-1">{t('（可选）')}</span>
+        </div>
+        <input
+          type="text"
+          className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono"
+          placeholder="e.g. npm run build"
+          value={buildDraft}
+          onChange={(e) => setBuildDraft(e.target.value)}
+          onBlur={handleBuildBlur}
+        />
+      </div>
+    </div>
   )
 }
 
@@ -1066,10 +1150,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     return s.spaces.find((sp) => sp.id === kbId) ?? null
   })
   const knowledgeBaseRoot = (knowledgeBaseSpace?.workingDir || knowledgeBaseSpace?.path || '').trim() || null
-
-  // Space memory file path — used by Tab5 to write task completion conclusions
-  const spacePath = spaceForTask?.path?.trim() || ''
-  const spaceMemoryPath = spacePath ? `${spacePath.replace(/[\\/]+$/, '')}/.devx/memory.md` : null
 
   const stage: PipelineStage = task.pipelineStage ?? 1
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
@@ -1209,7 +1289,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         }
       }
       case 5:
-        return { ok: true, message: t('AI 将进行代码审查和测试') }
+        return { ok: true, message: t('AI 将执行语法检查、依赖检查和编译检查') }
       default:
         return { ok: true, message: '' }
     }
@@ -1333,20 +1413,31 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         )
 
       } else if (selectedTab === 5) {
-        updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('正在写入记忆') })
-        if (spaceMemoryPath) {
-          await chat.sendMessage(buildTaskCompletionMemoryMessage(task, t, { spaceMemoryPath }))
-        } else {
-          updateTaskPipelineState(task.id, { pipelineResumeHint: t('验收完成') })
-        }
+        updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('正在执行验证检查') })
+        await chat.sendMessage(
+          buildVerificationExecuteMessage(task, t, {
+            depCheckCmd: task.pipelineDepCheckCmd,
+            buildCheckCmd: task.pipelineBuildCheckCmd,
+          })
+        )
       }
     } finally {
       setIsSendingMessage(false)
     }
-  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, knowledgeBaseRoot, spaceMemoryPath])
+  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, knowledgeBaseRoot])
 
   const handleSaveDevPlan = useCallback(
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
+    [task.id, updateTaskPipelineState]
+  )
+
+  const handleSaveDepCheckCmd = useCallback(
+    (cmd: string) => updateTaskPipelineState(task.id, { pipelineDepCheckCmd: cmd }),
+    [task.id, updateTaskPipelineState]
+  )
+
+  const handleSaveBuildCheckCmd = useCallback(
+    (cmd: string) => updateTaskPipelineState(task.id, { pipelineBuildCheckCmd: cmd }),
     [task.id, updateTaskPipelineState]
   )
 
@@ -1406,7 +1497,13 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             {selectedTab === 4 && (
               <Tab4Coding task={task} workspaceRoot={workspaceRootForUi} subtasks={subtasks} />
             )}
-            {selectedTab === 5 && <Tab5Review />}
+            {selectedTab === 5 && (
+              <Tab5Review
+                task={task}
+                onSaveDepCheckCmd={handleSaveDepCheckCmd}
+                onSaveBuildCheckCmd={handleSaveBuildCheckCmd}
+              />
+            )}
           </div>
 
           {/* Action row — always visible */}
