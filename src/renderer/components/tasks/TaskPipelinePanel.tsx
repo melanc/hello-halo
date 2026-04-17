@@ -1646,7 +1646,14 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     <div className="border-b border-border bg-card/60 flex flex-col">
       {/* Header: tab bar + progress badge + collapse toggle */}
       <div className="flex items-center gap-2 px-3 py-2 min-h-[40px]">
-        <StageTabBar stage={stage} selectedTab={selectedTab} onSelect={setSelectedTab} />
+        <StageTabBar
+          stage={stage}
+          selectedTab={selectedTab}
+          onSelect={(id) => {
+            setSelectedTab(id)
+            if (collapsed && (id === 1 || id === 2)) setCollapsed(false)
+          }}
+        />
         {subtasks.length > 0 && (
           <span className="flex-shrink-0 text-[10px] text-muted-foreground px-1.5 py-0.5 rounded bg-secondary">
             {doneCount}/{subtasks.length}
