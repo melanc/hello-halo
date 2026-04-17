@@ -258,8 +258,22 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
       await navigator.clipboard.writeText(message.content)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Failed to copy message:', err)
+    } catch {
+      // Fallback for Electron/restricted contexts where clipboard API fails
+      try {
+        const textarea = document.createElement('textarea')
+        textarea.value = message.content
+        textarea.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+        document.body.appendChild(textarea)
+        textarea.focus()
+        textarea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textarea)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (fallbackErr) {
+        console.error('Failed to copy message:', fallbackErr)
+      }
     }
   }, [message.content])
 

@@ -1412,6 +1412,16 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
         )
       }
     },
+    // Copy absolute path
+    {
+      label: t('Copy absolute path'),
+      icon: <Copy className="w-4 h-4" />,
+      onClick: () => {
+        navigator.clipboard.writeText(data.path).catch(err =>
+          console.error('Failed to copy absolute path:', err)
+        )
+      }
+    },
     // Git (desktop — sub-actions in secondary menu)
     {
       label: t('Git'),
