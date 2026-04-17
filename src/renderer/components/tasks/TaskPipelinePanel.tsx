@@ -1651,7 +1651,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           selectedTab={selectedTab}
           onSelect={(id) => {
             setSelectedTab(id)
-            if (collapsed && (id === 1 || id === 2)) setCollapsed(false)
+            if (collapsed) setCollapsed(false)
           }}
         />
         {subtasks.length > 0 && (
