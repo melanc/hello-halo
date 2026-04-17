@@ -594,12 +594,13 @@ export function ArtifactTree({
   }, [])
 
   // Blank-area right-click handlers — always create at root (no focused node influence)
+  // Pass explicit index to bypass react-arborist's getInsertIndex which uses focusedNode
   const handleNewFileAtRoot = useCallback(() => {
-    treeRef.current?.create({ type: 'leaf', parentId: null })
+    treeRef.current?.create({ type: 'leaf', parentId: null, index: treeDataRef.current.length })
   }, [])
 
   const handleNewFolderAtRoot = useCallback(() => {
-    treeRef.current?.create({ type: 'internal', parentId: null })
+    treeRef.current?.create({ type: 'internal', parentId: null, index: treeDataRef.current.length })
   }, [])
 
   // Keyboard shortcuts — scoped to tree container to avoid conflicts with other inputs
