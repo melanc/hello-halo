@@ -742,6 +742,9 @@ function Tab3DevPlan({
   const [branchDraft, setBranchDraft] = useState(task.branchName ?? '')
   const savedBranchRef = useRef(task.branchName ?? '')
   const [availableRoots, setAvailableRoots] = useState<string[]>([])
+  // Collapsed by default; expand button shows non-added projects; never re-collapses on X click.
+  // Component remounts on tab switch, so this resets to false each time Tab3 is opened.
+  const [showAllRoots, setShowAllRoots] = useState(false)
 
   // Fetch workspace root folder names for the project picker
   useEffect(() => {
@@ -802,6 +805,8 @@ function Tab3DevPlan({
     ? Array.from(new Set([...availableRoots, ...task.projectDirs]))
     : task.projectDirs
 
+  const notAddedCount = allRootsToShow.filter((n) => !projectDirsSet.has(n)).length
+
   return (
     <div className="space-y-3">
       {/* 涉及项目 */}
@@ -814,6 +819,8 @@ function Tab3DevPlan({
           <div className="flex flex-wrap gap-1.5">
             {allRootsToShow.map((name) => {
               const added = projectDirsSet.has(name)
+              // When collapsed, hide non-added projects
+              if (!added && !showAllRoots) return null
               return added ? (
                 <span
                   key={name}
@@ -842,6 +849,19 @@ function Tab3DevPlan({
                 </button>
               )
             })}
+            {/* Toggle button for non-added projects */}
+            {notAddedCount > 0 && (
+              <button
+                type="button"
+                onClick={() => setShowAllRoots((v) => !v)}
+                className="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-md border border-dashed border-border text-[11px] text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors"
+              >
+                {showAllRoots
+                  ? <><ChevronUp className="w-2.5 h-2.5" />{t('收起')}</>
+                  : <><ChevronDown className="w-2.5 h-2.5" />{t('+{{n}} 个项目', { n: notAddedCount })}</>
+                }
+              </button>
+            )}
           </div>
         ) : (
           <p className="text-[11px] text-muted-foreground/50 italic">{t('暂无项目，AI 识别需求后自动填入')}</p>
@@ -942,8 +962,27 @@ function Tab4Coding({
   subtasks: PipelineSubtask[]
 }) {
   const { t } = useTranslation()
-  const dirs = getInvolvedProjectDirNames(task)
-  const paths = workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirs) : dirs
+
+  // Fetch workspace roots on each mount (each tab switch remounts this component)
+  // to get accurate absolute paths and reflect any changes made in the dev plan tab.
+  const [resolvedRoot, setResolvedRoot] = useState<string | null>(null)
+  const [availableRootNames, setAvailableRootNames] = useState<string[] | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    api.listArtifactsTree(task.spaceId).then((res) => {
+      if (cancelled || !res.success || !res.data) return
+      const data = res.data as { workspaceRoot: string; nodes: { name: string }[] }
+      setResolvedRoot(data.workspaceRoot || null)
+      setAvailableRootNames(data.nodes?.map((n) => n.name).filter(Boolean) ?? [])
+    }).catch(() => {/* ignore */})
+    return () => { cancelled = true }
+  }, [task.spaceId])
+
+  // Use the API-resolved root when available; fall back to the prop from spaceStore
+  const effectiveRoot = resolvedRoot ?? workspaceRoot
+  const dirs = task.projectDirs.filter(Boolean)
+  const paths = effectiveRoot ? buildProjectDisplayPaths(effectiveRoot, dirs) : dirs
   const prereq = evaluateCodingPrereqs(task, t)
   const logLines = task.pipelineCodingLogLines ?? []
   const planExcerptDisplay = useMemo(() => {
@@ -1008,6 +1047,9 @@ function Tab4Coding({
         <div className="flex items-center gap-1 mb-1">
           <FolderOpen className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('涉及项目路径')}</span>
+          {availableRootNames === null && (
+            <Loader2 className="w-3 h-3 text-muted-foreground/60 animate-spin ml-1" />
+          )}
         </div>
         {paths.length > 0 ? (
           <ul className="text-[11px] font-mono text-foreground/85 space-y-0.5 break-all">
@@ -1018,7 +1060,7 @@ function Tab4Coding({
         ) : (
           <p className="text-[11px] text-muted-foreground/60 italic">{t('尚未关联项目')}</p>
         )}
-        {!workspaceRoot && dirs.length > 0 && (
+        {!effectiveRoot && dirs.length > 0 && (
           <p className="text-[10px] text-muted-foreground/70 mt-1">{t('工作区路径不可用，仅显示目录名称。')}</p>
         )}
       </div>
