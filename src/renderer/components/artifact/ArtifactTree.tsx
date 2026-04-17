@@ -50,6 +50,9 @@ const SpaceIdContext = createContext<string>('')
 /** Top-level project names in scope for the active task — null = no task highlighting */
 const TaskFileTreeContext = createContext<Set<string> | null>(null)
 
+/** Full effective root set for the active task (projectDirs ∪ touchedProjectDirs) — used to determine add/remove task menu items */
+const TaskEffectiveRootSetContext = createContext<Set<string> | null>(null)
+
 /** True when task has no folders added via "add to task" and the tree is showing all workspace roots — dim every row */
 const TaskDimAllWorkspaceRootsContext = createContext(false)
 
@@ -577,8 +580,11 @@ export function ArtifactTree({
     const focusedNode = tree.focusedNode
 
     if (!focusedNode) {
-      // Nothing selected: create at root end
-      tree.create({ type: 'leaf', parentId: null, index: treeDataRef.current.length })
+      // Nothing selected: create at end of visible roots
+      // Use tree.root.children length (= displayedRoots count) so the temp node
+      // lands within the filtered view in task mode, not outside it.
+      const visibleRootCount = tree.root.children?.length ?? treeDataRef.current.length
+      tree.create({ type: 'leaf', parentId: null, index: visibleRootCount })
       return
     }
 
@@ -591,7 +597,8 @@ export function ArtifactTree({
       const parentNode = focusedNode.parent
       const isRootLevel = !parentNode || parentNode.id === '__REACT_ARBORIST_INTERNAL_ROOT__'
       if (isRootLevel) {
-        tree.create({ type: 'leaf', parentId: null, index: treeDataRef.current.length })
+        const visibleRootCount = tree.root.children?.length ?? treeDataRef.current.length
+        tree.create({ type: 'leaf', parentId: null, index: visibleRootCount })
       } else {
         tree.create({ type: 'leaf', parentId: parentNode.id })
       }
@@ -604,7 +611,8 @@ export function ArtifactTree({
     const focusedNode = tree.focusedNode
 
     if (!focusedNode) {
-      tree.create({ type: 'internal', parentId: null, index: treeDataRef.current.length })
+      const visibleRootCount = tree.root.children?.length ?? treeDataRef.current.length
+      tree.create({ type: 'internal', parentId: null, index: visibleRootCount })
       return
     }
 
@@ -615,7 +623,8 @@ export function ArtifactTree({
       const parentNode = focusedNode.parent
       const isRootLevel = !parentNode || parentNode.id === '__REACT_ARBORIST_INTERNAL_ROOT__'
       if (isRootLevel) {
-        tree.create({ type: 'internal', parentId: null, index: treeDataRef.current.length })
+        const visibleRootCount = tree.root.children?.length ?? treeDataRef.current.length
+        tree.create({ type: 'internal', parentId: null, index: visibleRootCount })
       } else {
         tree.create({ type: 'internal', parentId: parentNode.id })
       }
@@ -623,13 +632,19 @@ export function ArtifactTree({
   }, [])
 
   // Blank-area right-click handlers — always create at root (no focused node influence)
-  // Pass explicit index to bypass react-arborist's getInsertIndex which uses focusedNode
+  // Use visible root count so temp node lands within the filtered view in task mode
   const handleNewFileAtRoot = useCallback(() => {
-    treeRef.current?.create({ type: 'leaf', parentId: null, index: treeDataRef.current.length })
+    const tree = treeRef.current
+    if (!tree) return
+    const visibleRootCount = tree.root.children?.length ?? treeDataRef.current.length
+    tree.create({ type: 'leaf', parentId: null, index: visibleRootCount })
   }, [])
 
   const handleNewFolderAtRoot = useCallback(() => {
-    treeRef.current?.create({ type: 'internal', parentId: null, index: treeDataRef.current.length })
+    const tree = treeRef.current
+    if (!tree) return
+    const visibleRootCount = tree.root.children?.length ?? treeDataRef.current.length
+    tree.create({ type: 'internal', parentId: null, index: visibleRootCount })
   }, [])
 
   // Keyboard shortcuts — scoped to tree container to avoid conflicts with other inputs
@@ -818,6 +833,8 @@ export function ArtifactTree({
       return [...full]
     }
     return full.filter((n) => {
+      // Always show temp nodes (in-progress creation) so the rename input is visible
+      if (n.id.startsWith('temp-')) return true
       const top = topLevelWorkspaceName(n)
       return top && taskSet.has(top)
     })
@@ -883,6 +900,7 @@ export function ArtifactTree({
 
   return (
     <TaskDimAllWorkspaceRootsContext.Provider value={dimAllWorkspaceRoots}>
+    <TaskEffectiveRootSetContext.Provider value={effectiveTaskRootSet}>
     <TaskFileTreeContext.Provider value={taskScopeForDimming}>
     <OpenFileContext.Provider value={openFile}>
       <SpaceIdContext.Provider value={spaceId}>
@@ -996,6 +1014,7 @@ export function ArtifactTree({
       </SpaceIdContext.Provider>
     </OpenFileContext.Provider>
     </TaskFileTreeContext.Provider>
+    </TaskEffectiveRootSetContext.Provider>
     </TaskDimAllWorkspaceRootsContext.Provider>
   )
 }
@@ -1208,6 +1227,7 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
   const spaceId = useContext(SpaceIdContext)
   const lazyLoad = useContext(LazyLoadContext)
   const taskRootSet = useContext(TaskFileTreeContext)
+  const taskEffectiveRootSet = useContext(TaskEffectiveRootSetContext)
   const dimAllWorkspaceRoots = useContext(TaskDimAllWorkspaceRootsContext)
   const onboardingTree = useContext(OnboardingTreeContext)
   const activeTaskRow = useTaskStore((s) => {
@@ -1353,13 +1373,19 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
 
   const outOfTaskScope =
     dimAllWorkspaceRoots || !!(taskRootSet && topSeg && !taskRootSet.has(topSeg))
+  // Use the full effective root set (projectDirs ∪ touchedProjectDirs) when available so that
+  // folders added to the task only via AI touches (touchedProjectDirs) show the correct menu item.
+  const isInEffectiveTaskRoots = taskEffectiveRootSet
+    ? taskEffectiveRootSet.has(topSeg)
+    : activeTaskRow?.projectDirs.includes(topSeg) ?? false
+
   const canAddDirToTask =
     !isWebMode &&
     isFolder &&
     !!topSeg &&
     !!activeTaskRow &&
     activeTaskRow.spaceId === spaceId &&
-    !activeTaskRow.projectDirs.includes(topSeg)
+    !isInEffectiveTaskRoots
 
   const canRemoveDirFromTask =
     !isWebMode &&
@@ -1367,7 +1393,7 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
     !!topSeg &&
     !!activeTaskRow &&
     activeTaskRow.spaceId === spaceId &&
-    activeTaskRow.projectDirs.includes(topSeg)
+    isInEffectiveTaskRoots
 
   // Generate context menu items
   const menuItems: ContextMenuItem[] = [
