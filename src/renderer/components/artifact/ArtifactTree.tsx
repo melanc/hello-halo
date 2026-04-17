@@ -593,6 +593,15 @@ export function ArtifactTree({
     treeRef.current?.create({ type: 'internal', parentId })
   }, [])
 
+  // Blank-area right-click handlers — always create at root (no focused node influence)
+  const handleNewFileAtRoot = useCallback(() => {
+    treeRef.current?.create({ type: 'leaf', parentId: null })
+  }, [])
+
+  const handleNewFolderAtRoot = useCallback(() => {
+    treeRef.current?.create({ type: 'internal', parentId: null })
+  }, [])
+
   // Keyboard shortcuts — scoped to tree container to avoid conflicts with other inputs
   useEffect(() => {
     const container = containerRef.current
@@ -916,12 +925,12 @@ export function ArtifactTree({
               {
                 label: t('New File'),
                 icon: <FilePlus className="w-4 h-4" />,
-                onClick: handleNewFile,
+                onClick: handleNewFileAtRoot,
               },
               {
                 label: t('New Folder'),
                 icon: <FolderPlus className="w-4 h-4" />,
-                onClick: handleNewFolder,
+                onClick: handleNewFolderAtRoot,
               },
             ]}
           >
