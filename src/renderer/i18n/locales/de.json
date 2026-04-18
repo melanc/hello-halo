@@ -310,6 +310,7 @@
   "Copy link": "Link kopieren",
   "Copy Link": "Link kopieren",
   "Copy message": "Nachricht kopieren",
+  "Copy absolute path": "Absoluten Pfad kopieren",
   "Copy relative path": "Relativen Pfad kopieren",
   "Copy Report": "Bericht kopieren",
   "Copy skills from your Claude CLI installation (~/.claude/skills/) into DevX's skill directory.": "Copy skills from your Claude CLI installation (~/.claude/skills/) into DevX's skill directory.",

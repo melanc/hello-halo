@@ -310,6 +310,7 @@
   "Copy link": "リンクをコピー",
   "Copy Link": "リンクをコピー",
   "Copy message": "メッセージをコピー",
+  "Copy absolute path": "絶対パスをコピー",
   "Copy relative path": "相対パスをコピー",
   "Copy Report": "レポートをコピー",
   "Copy skills from your Claude CLI installation (~/.claude/skills/) into DevX's skill directory.": "Copy skills from your Claude CLI installation (~/.claude/skills/) into DevX's skill directory.",

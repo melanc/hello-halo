@@ -1213,6 +1213,20 @@ function EditingNode({ node, style, dragHandle, tree }: NodeRendererProps<Artifa
   )
 }
 
+function copyToClipboard(text: string) {
+  navigator.clipboard.writeText(text).catch(() => {
+    // Fallback for Electron contexts where clipboard API may fail
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
+    document.body.appendChild(textarea)
+    textarea.focus()
+    textarea.select()
+    document.execCommand('copy')
+    document.body.removeChild(textarea)
+  })
+}
+
 function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<ArtifactTreeNode>) {
   const { t } = useTranslation()
   const openFile = useContext(OpenFileContext)
@@ -1406,21 +1420,13 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
     {
       label: t('Copy relative path'),
       icon: <Copy className="w-4 h-4" />,
-      onClick: () => {
-        navigator.clipboard.writeText(data.relativePath).catch(err =>
-          console.error('Failed to copy relative path:', err)
-        )
-      }
+      onClick: () => copyToClipboard(data.relativePath)
     },
     // Copy absolute path
     {
       label: t('Copy absolute path'),
       icon: <Copy className="w-4 h-4" />,
-      onClick: () => {
-        navigator.clipboard.writeText(data.path).catch(err =>
-          console.error('Failed to copy absolute path:', err)
-        )
-      }
+      onClick: () => copyToClipboard(data.path)
     },
     // Git (desktop — sub-actions in secondary menu)
     {
