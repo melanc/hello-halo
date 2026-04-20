@@ -540,7 +540,6 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
   const completeRequirementBreakdown = useTaskStore((s) => s.completeRequirementBreakdown)
   const replaceBreakdownPlanExcerpt = useTaskStore((s) => s.replaceBreakdownPlanExcerpt)
   const appendBreakdownPlanSection = useTaskStore((s) => s.appendBreakdownPlanSection)
-  const appendConversationExcerptToBreakdownPlan = useTaskStore((s) => s.appendConversationExcerptToBreakdownPlan)
 
   const conversationMessagesRef = useRef<HTMLDivElement>(null)
   const addToTaskToolbarRef = useRef<HTMLDivElement>(null)
@@ -549,6 +548,7 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
     left: number
     text: string
   } | null>(null)
+  const [appendInputBlock, setAppendInputBlock] = useState<string | null>(null)
   const [subtasksPanelCollapsed, setSubtasksPanelCollapsed] = useState(false)
   const [implementationKickoffTopIndices, setImplementationKickoffTopIndices] = useState<Set<number>>(
     () => new Set()
@@ -782,11 +782,11 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
   )
 
   const handleAddSelectionToTask = useCallback(() => {
-    if (!activeTask?.id || !addToTaskPopover?.text.trim()) return
-    appendConversationExcerptToBreakdownPlan(activeTask.id, addToTaskPopover.text.trim())
+    if (!addToTaskPopover?.text.trim()) return
+    setAppendInputBlock(addToTaskPopover.text.trim())
     setAddToTaskPopover(null)
     window.getSelection()?.removeAllRanges()
-  }, [activeTask?.id, addToTaskPopover, appendConversationExcerptToBreakdownPlan])
+  }, [addToTaskPopover])
 
   const openAddSubtask = useCallback(() => {
     setAddSubtaskTitle('')
@@ -1065,6 +1065,8 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
           name: activeTask.name,
           stage: ({ 1: t('需求识别'), 2: t('任务拆解'), 3: t('开发计划'), 4: t('编码实现'), 5: t('验证收尾') } as Record<number, string>)[activeTask.pipelineStage ?? 1],
         } : undefined}
+        appendBlock={appendInputBlock}
+        onAppendBlockConsumed={() => setAppendInputBlock(null)}
       />
       {addToTaskPopover ? (
         <div

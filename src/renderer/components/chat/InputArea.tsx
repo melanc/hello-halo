@@ -134,6 +134,9 @@ interface InputAreaProps {
   clearComposerReferenceChips?: () => void
   /** Active task context shown as a small label inside the top-left of the input box */
   taskContext?: { name: string; stage: string }
+  /** When set, appends the text as a blockquote into the textarea then calls the callback */
+  appendBlock?: string | null
+  onAppendBlockConsumed?: () => void
 }
 
 // Image constraints
@@ -159,6 +162,8 @@ export function InputArea({
   onRemoveComposerReferenceChip,
   clearComposerReferenceChips,
   taskContext,
+  appendBlock,
+  onAppendBlockConsumed,
 }: InputAreaProps) {
   const { t, i18n } = useTranslation()
   const textareaMaxHeightPx = 200 + (isTaskFocusComposer ? TASK_FOCUS_COMPOSER_EXTRA_HEIGHT_PX : 0)
@@ -198,6 +203,28 @@ export function InputArea({
   const webSpeechSupported = useMemo(() => isSpeechRecognitionSupported(), [])
   const offlineSpeechEnabled = appConfig?.offlineSpeech?.enabled === true
   const [offlineSpeechReady, setOfflineSpeechReady] = useState(false)
+
+  // Append a quoted block from an external caller (e.g. text selection popup)
+  useEffect(() => {
+    if (!appendBlock) return
+    const quoted = appendBlock
+      .split('\n')
+      .map((line) => `> ${line}`)
+      .join('\n')
+    setContent((prev) => {
+      const prefix = prev.trim() ? `${prev.trim()}\n\n` : ''
+      return `${prefix}${quoted}\n\n`
+    })
+    onAppendBlockConsumed?.()
+    requestAnimationFrame(() => {
+      const el = textareaRef.current
+      if (!el) return
+      el.focus()
+      const len = el.value.length
+      el.setSelectionRange(len, len)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appendBlock])
 
   useEffect(() => {
     if (composerFocusTick === prevComposerFocusTickRef.current) return
