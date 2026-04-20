@@ -1516,6 +1516,14 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             subtasks,
             keyPoints: task.requirementKeyPoints ?? [],
             knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined,
+            ...((selectedTab === 1 || selectedTab === 3) && knowledgeBaseRoot
+              ? {
+                  knowledgeBaseRoot,
+                  ...(selectedTab === 3
+                    ? { projectDirs: dirNames.length ? dirNames : undefined }
+                    : {}),
+                }
+              : {}),
             ...(selectedTab === 4
               ? {
                   codingWorkspaceRoot: workspaceRoot || undefined,
@@ -1573,7 +1581,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       } else if (selectedTab === 3) {
         // AI generates dev plan
-        const tab3Opts = knowledgeBaseRoot ? { knowledgeBaseRoot } : kbOpts
+        const tab3ProjectDirs = getInvolvedProjectDirNames(task)
+        const tab3Opts = knowledgeBaseRoot
+          ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
+          : kbOpts
         await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {

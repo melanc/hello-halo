@@ -212,19 +212,28 @@ export function buildRequirementIdentifyMessage(
     )
   }
 
-  blocks.push(
-    t('请识别并分析以下需求，输出结构化的需求要点。'),
-    '',
-    t('任务名称：{{name}}', { name: task.name }),
-  )
+  const hasDoc = !!(task.requirementDocName?.trim() || task.requirementDocContent?.trim())
 
-  if (task.requirementDocName?.trim()) {
-    blocks.push(t('需求文档：{{name}}', { name: task.requirementDocName.trim() }))
-  }
-
-  const content = task.requirementDocContent?.trim() || task.requirementDescription?.trim()
-  if (content) {
-    blocks.push('', t('需求内容：'), content.slice(0, REQ_IDENTIFY_LEN))
+  if (hasDoc) {
+    // After interactive confirmation, ask AI to finalize the structured output
+    blocks.push(
+      t('请根据我们刚才逐条确认的需求点，整理并输出最终的结构化需求分析。'),
+      '',
+      t('任务名称：{{name}}', { name: task.name }),
+    )
+    if (task.requirementDocName?.trim()) {
+      blocks.push(t('需求文档：{{name}}', { name: task.requirementDocName.trim() }))
+    }
+  } else {
+    blocks.push(
+      t('请识别并分析以下需求，输出结构化的需求要点。'),
+      '',
+      t('任务名称：{{name}}', { name: task.name }),
+    )
+    const content = task.requirementDocContent?.trim() || task.requirementDescription?.trim()
+    if (content) {
+      blocks.push('', t('需求内容：'), content.slice(0, REQ_IDENTIFY_LEN))
+    }
   }
 
   // Only append pre-loaded KB markdown if no root path was given (fallback)
@@ -258,6 +267,8 @@ export function buildIntentAnalysisMessage(
     codingWorkspaceRoot?: string
     codingProjectPaths?: string[]
     knowledgeBaseMarkdown?: string
+    knowledgeBaseRoot?: string
+    projectDirs?: string[]
   },
   t: TFunction
 ): string {
@@ -265,15 +276,38 @@ export function buildIntentAnalysisMessage(
 
   switch (tab) {
     case 1: {
+      const hasDoc = !!(task.requirementDocName?.trim() || task.requirementDocContent?.trim())
       const blocks = [
         ...pipelineOpeningLines(t),
-        t('请分析以下需求，告诉我：'),
-        t('1. 你理解到的需求背景和目标是什么'),
-        t('2. 你打算提取哪些核心功能要点'),
-        t('3. 有哪些地方不清楚，需要进一步确认'),
-        '',
-        header,
       ]
+      if (hasDoc) {
+        if (opts.knowledgeBaseRoot?.trim()) {
+          blocks.push(
+            t('在处理需求文档前，请先查阅知识库中的需求识别引导文档：'),
+            t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
+            t('2. 查找"需求识别引导"相关文档（文件名通常包含"需求识别"、"requirement"、"guide"等关键词），阅读其内容'),
+            t('3. 如果找到了引导文档，按其规范处理需求；如果没找到，按下述默认步骤处理'),
+            '',
+          )
+        }
+        blocks.push(
+          t('请按以下步骤处理这份需求文档：'),
+          t('1. 先整体阅读文档，用 2-3 句话概括整体目标和背景'),
+          t('2. 列出你从中识别出的所有需求点（每条以 - 开头）'),
+          t('3. 然后从第一条开始，逐条与我确认：每次只提出一个需求点，等我回复"确认"或给出修正意见后，再提下一条'),
+          t('4. 全部确认完成后告知我，我会点击"开始工作"让你整理最终结果'),
+          '',
+        )
+      } else {
+        blocks.push(
+          t('请分析以下需求，告诉我：'),
+          t('1. 你理解到的需求背景和目标是什么'),
+          t('2. 你打算提取哪些核心功能要点'),
+          t('3. 有哪些地方不清楚，需要进一步确认'),
+          '',
+        )
+      }
+      blocks.push(header)
       if (task.requirementDocName?.trim()) {
         blocks.push(`需求文档：${task.requirementDocName.trim()}`)
       }
@@ -305,13 +339,33 @@ export function buildIntentAnalysisMessage(
     case 3: {
       const blocks = [
         ...pipelineOpeningLines(t),
+      ]
+      if (opts.knowledgeBaseRoot?.trim()) {
+        const kbRoot = opts.knowledgeBaseRoot.trim()
+        const projectList = opts.projectDirs?.length
+          ? opts.projectDirs.join('、')
+          : t('涉及的项目')
+        blocks.push(
+          t('在开始制定开发计划前，请先按以下步骤查阅知识库：'),
+          t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: kbRoot }),
+          t('2. 优先查找"开发计划引导"文档（文件名通常包含"开发计划"、"dev-plan"、"planning"等关键词），如果找到则阅读并按其规范制定计划'),
+          t('3. 在 {{path}}/项目介绍/ 目录下查找涉及项目（{{projects}}）对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: kbRoot, projects: projectList }),
+          t('4. 如果某个项目的技术知识文档不存在，则先对该项目进行代码梳理：'),
+          t('   a. 使用 Glob 浏览项目目录结构，理解整体架构和核心模块'),
+          t('   b. 将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md（如 {{path}}/项目介绍/talcamp技术知识.md）', { path: kbRoot }),
+          t('   c. 写入完成后继续'),
+          t('5. 基于以上收集到的信息，再制定开发计划'),
+          '',
+        )
+      }
+      blocks.push(
         t('请根据以下子任务列表，说明你的开发计划：'),
         t('1. 涉及哪些项目 / 代码模块'),
         t('2. 主要代码改动范围和实现思路'),
         t('3. 有哪些需要用户确认或存在风险的地方'),
         '',
         header,
-      ]
+      )
       if (opts.subtasks?.length) {
         blocks.push('', '子任务列表：')
         opts.subtasks.forEach((st) => blocks.push(`- ${st.title}${st.description ? '：' + st.description : ''}`))
@@ -443,19 +497,27 @@ export function buildTaskBreakdownExecuteMessage(
  */
 export function buildDevPlanExecuteMessage(
   t: TFunction,
-  opts?: { knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string }
+  opts?: { knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string; projectDirs?: string[] }
 ): string {
   const blocks = [
     ...pipelineOpeningLines(t),
   ]
 
   if (opts?.knowledgeBaseRoot?.trim()) {
+    const kbRoot = opts.knowledgeBaseRoot.trim()
+    const projectList = opts.projectDirs?.length
+      ? opts.projectDirs.join('、')
+      : t('涉及的项目')
     blocks.push(
-      t('在生成开发计划之前，请先执行以下步骤：'),
-      t('1. 使用你的工具（Read、Glob 等）浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
-      t('2. 找到开发计划引导文件（文件名通常包含"开发计划"、"dev-plan"、"planning"等关键词），阅读其内容'),
-      t('3. 按照该引导文件的规范生成开发计划'),
-      t('如果找不到引导文件，按通用方法处理。'),
+      t('在生成开发计划之前，请先按以下步骤处理项目知识文档：'),
+      t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: kbRoot }),
+      t('2. 在知识库中查找涉及项目（{{projects}}）对应的知识文档（文件名通常包含项目名称，如 {{path}}/projectName.md）', { projects: projectList, path: kbRoot }),
+      t('3. 如果找到了对应项目的知识文档，阅读其内容，然后跳到第 5 步'),
+      t('4. 如果某个项目没有技术知识文档，则先对该项目进行代码梳理：'),
+      t('   a. 使用 Glob 浏览项目目录结构，理解整体架构和核心模块'),
+      t('   b. 将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md（如 {{path}}/项目介绍/talcamp技术知识.md）', { path: kbRoot }),
+      t('   c. 写入完成后继续'),
+      t('5. 基于读取到的项目知识文档，生成开发计划'),
       '',
     )
   }
