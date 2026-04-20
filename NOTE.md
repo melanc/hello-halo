@@ -16,16 +16,25 @@ npm run build
 
 3. 打桌面安装包（electron-builder）
 在对应系统上执行，例如：
-macOS：npm run build:mac（还有 build:mac-x64）
-Windows：npm run build:win / npm run build:win-x64
-Linux：npm run build:linux
+```
+# macOS（当前机器架构，Apple Silicon 下为 arm64）
+npm run build:mac
+# macOS Intel x64
+npm run build:mac-x64
+# Windows
+npm run build:win
+# Windows x64（明确指定）
+npm run build:win-x64
+# Linux
+npm run build:linux
+```
 这些脚本会先 bump-rc、再 npm run build、再跑 electron-builder。发布相关还有 release、release:mac 等。
+
 4. 移动端（Capacitor）
 先构建 Web 资源：npm run build:mobile
 同步到原生工程：npm run cap:sync
 Android/iOS 还有 cap:run:android、cap:run:ios、build:android:debug、release:android 等（Android 脚本里示例用了 ANDROID_HOME）。
 简要对照：想改代码调试 → install + prepare + dev；想确认能编过 → build；想得到 .dmg/.exe/.AppImage → 用各平台的 build:*；想多端打包 → 先 prepare:all。更细的贡献流程可见仓库根目录的 CONTRIBUTING.md。
-
 
 -------
 ## 任务的5个流程
