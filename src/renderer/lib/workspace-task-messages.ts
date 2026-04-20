@@ -132,14 +132,12 @@ export function getSubtaskProgressStats(subtasks: PipelineSubtask[] | undefined)
 export function formatSubtasksProgressForPrompt(subtasks: PipelineSubtask[] | undefined, t: TFunction): string {
   const list = subtasks ?? []
   if (!list.length) {
-    return t(
-      'There are no breakdown subtasks on record; infer progress only from the development plan and conversation.'
-    )
+    return t('暂无拆解子任务记录，请仅根据开发计划和对话内容推断进度。')
   }
   const lines: string[] = []
   const { doneCount, total } = getSubtaskProgressStats(list)
   lines.push(
-    t('Subtask board: {{done}} / {{total}} marked done (pending and in_progress are not done).', {
+    t('子任务看板：{{done}} / {{total}} 已完成（pending 和 in_progress 均为未完成）。', {
       done: doneCount,
       total,
     })
@@ -151,9 +149,9 @@ export function formatSubtasksProgressForPrompt(subtasks: PipelineSubtask[] | un
       lines.push(`- [${s.status}] ${s.title}${s.description ? ' — ' + s.description : ''}`)
     )
   }
-  appendGroup(t('Completed:'), list.filter((s) => s.status === 'done'))
-  appendGroup(t('In progress:'), list.filter((s) => s.status === 'in_progress'))
-  appendGroup(t('Pending:'), list.filter((s) => s.status === 'pending'))
+  appendGroup(t('已完成：'), list.filter((s) => s.status === 'done'))
+  appendGroup(t('进行中：'), list.filter((s) => s.status === 'in_progress'))
+  appendGroup(t('待处理：'), list.filter((s) => s.status === 'pending'))
   return lines.join('\n')
 }
 
@@ -164,11 +162,9 @@ export function formatSubtasksProgressForPrompt(subtasks: PipelineSubtask[] | un
 const ROLE_PREAMBLE =
   '你是一名软件需求开发工程师，你的职责是：识别和分析需求、拆解开发任务、生成开发计划、指导代码实现。'
 
-/** Prefer Chinese model replies in task-pipeline messages (English i18n key per project rules). */
-function replyLanguageConstraint(t: TFunction): string {
-  return t(
-    'Please respond mainly in Simplified Chinese except inside code blocks, file paths, identifiers, and unavoidable English technical terms.'
-  )
+/** Prefer Chinese model replies in task-pipeline messages. */
+function replyLanguageConstraint(_t: TFunction): string {
+  return '请全程使用中文与我交流（代码块、文件路径、标识符及不可避免的英文技术术语除外）。'
 }
 
 /** Role line + language preference, inserted at the start of pipeline prompts. */
@@ -181,7 +177,7 @@ function appendKnowledgeBaseMarkdownBlock(blocks: string[], markdown: string | u
   if (!m) return
   blocks.push(
     '',
-    t('--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---'),
+    t('--- 已关联知识库（Markdown 摘录，供业务/架构参考）---'),
     '',
     m
   )
@@ -399,44 +395,42 @@ export function buildIntentAnalysisMessage(
         )
       }
       blocks.push(
-        t('Review the development plan and the recorded subtask completion status, then judge what is left to do.'),
-        t('1. Verdict vs plan: finished or not; gaps between plan bullets and done subtasks'),
-        t('2. If work remains: ordered next steps and concrete files or modules to touch'),
-        t('3. Risks or questions before any edits'),
+        t('请审查开发计划和子任务完成记录，判断还剩哪些工作未完成。'),
+        t('1. 对照计划判断：整体是否完成；计划条目与已完成子任务之间有哪些差距'),
+        t('2. 如有未完成工作：列出有序的下一步操作和具体涉及的文件或模块'),
+        t('3. 开始修改前，列出风险点或需要确认的问题'),
         '',
         header,
       )
       const plan = task.pipelineDevPlan?.trim()
       if (plan) {
-        blocks.push('', t('Development plan (must follow):'), plan.slice(0, DEV_PLAN_EXCERPT_LEN))
+        blocks.push('', t('开发计划（必须遵照执行）：'), plan.slice(0, DEV_PLAN_EXCERPT_LEN))
       }
       if (task.branchName?.trim()) {
-        blocks.push('', t('Development branch: {{branch}}', { branch: task.branchName.trim() }))
+        blocks.push('', t('开发分支：{{branch}}', { branch: task.branchName.trim() }))
       }
       if (opts.codingWorkspaceRoot?.trim()) {
-        blocks.push('', t('Workspace root path: {{path}}', { path: opts.codingWorkspaceRoot.trim() }))
+        blocks.push('', t('工作区根路径：{{path}}', { path: opts.codingWorkspaceRoot.trim() }))
       }
       if (opts.codingProjectPaths?.length) {
-        blocks.push('', t('Involved project paths (top-level folders under workspace):'))
+        blocks.push('', t('涉及的项目路径（工作区下的顶级目录）：'))
         opts.codingProjectPaths.forEach((p) => blocks.push(`- ${p}`))
       } else if (getInvolvedProjectDirNames(task).length) {
-        blocks.push('', t('Involved project folders (relative names):'))
+        blocks.push('', t('涉及的项目目录（相对名称）：'))
         getInvolvedProjectDirNames(task).forEach((d) => blocks.push(`- ${d}`))
       }
-      blocks.push('', t('--- Subtask completion record (source of truth) ---'))
+      blocks.push('', t('--- 子任务完成记录（以此为准）---'))
       blocks.push(formatSubtasksProgressForPrompt(opts.subtasks, t))
       blocks.push(
         '',
-        t('Compare the development plan with the subtask completion record above.'),
-        t('Your reply must include:'),
-        t('• A clear verdict: all work complete / not complete, relative to both the plan and subtask statuses.'),
-        t(
-          '• If not complete: numbered “Next steps” that name specific pending or in-progress subtasks or plan sections still to implement.'
-        ),
-        t('• If you believe everything is done: say so and suggest what to verify (tests, manual checks) before closing.'),
-        t('• Call out any plan bullet not covered by a subtask, or any done subtask that still leaves a plan gap.'),
+        t('请对照以上子任务完成记录与开发计划。'),
+        t('你的回复必须包含：'),
+        t('• 明确结论：相对于计划和子任务状态，整体是否全部完成。'),
+        t('• 如有未完成：列出编号的"下一步"，明确指出具体的待处理或进行中子任务或计划节点。'),
+        t('• 如果你认为全部完成：说明原因，并建议关闭前需要验证的内容（测试、手动检查等）。'),
+        t('• 指出任何未被子任务覆盖的计划条目，或已完成但仍存在计划缺口的子任务。'),
         '',
-        t('Then output a concise "planned changes" section for the immediate next coding slice — do not modify files yet.')
+        t('最后输出一个简洁的"本次计划改动"说明，针对即将进行的编码片段——暂不修改文件。')
       )
       if (!opts.knowledgeBaseRoot?.trim()) {
         appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
@@ -621,13 +615,13 @@ export function buildCodingKickoffMessage(
   )
 
   if (task.branchName?.trim()) {
-    blocks.push('', t('Development branch: {{branch}}', { branch: task.branchName.trim() }))
+    blocks.push('', t('开发分支：{{branch}}', { branch: task.branchName.trim() }))
   }
   if (ctx?.workspaceRoot?.trim()) {
-    blocks.push('', t('Workspace root path: {{path}}', { path: ctx.workspaceRoot.trim() }))
+    blocks.push('', t('工作区根路径：{{path}}', { path: ctx.workspaceRoot.trim() }))
   }
   if (ctx?.projectPaths?.length) {
-    blocks.push('', t('Involved project paths (work only inside these unless the plan says otherwise):'))
+    blocks.push('', t('涉及的项目路径（除非计划另有说明，只在这些范围内修改）：'))
     ctx.projectPaths.forEach((p) => blocks.push(`- ${p}`))
   }
 
@@ -641,14 +635,14 @@ export function buildCodingKickoffMessage(
   }
 
   const sts = task.pipelineSubtasks ?? []
-  blocks.push('', t('--- Subtask completion record (user marks done in task panel) ---'))
+  blocks.push('', t('--- 子任务完成记录（由用户在任务面板中标记）---'))
   blocks.push(formatSubtasksProgressForPrompt(sts, t))
   blocks.push(
     '',
-    t('Use the development plan together with this completion record.'),
-    t('Implement remaining work first (pending / in_progress subtasks and any plan gaps).'),
-    t('If every subtask is already marked done, confirm against the plan; only fix residual gaps or run checks.'),
-    t('After substantive edits, remind the user to update subtask checkmarks so the next Intent / Start work stays accurate.')
+    t('请结合开发计划和此完成记录进行工作。'),
+    t('优先实现剩余工作（待处理 / 进行中的子任务及计划中遗漏的部分）。'),
+    t('如果所有子任务已标记完成，请与计划核对；仅修复剩余差距或执行检查。'),
+    t('完成实质性修改后，提醒用户更新子任务勾选状态，以便下次开始工作时信息准确。')
   )
 
   // Only append pre-loaded KB markdown if no root path was given (fallback)
