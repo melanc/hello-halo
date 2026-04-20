@@ -93,6 +93,7 @@ interface TaskState {
     pipelineProjectChanges?: string
     pipelineDepCheckCmd?: string
     pipelineBuildCheckCmd?: string
+    pipelineApiTestCmd?: string
   }) => void
 
   /** Persist identified requirement key points */
@@ -421,6 +422,7 @@ export const useTaskStore = create<TaskState>()(
               ...(updates.pipelineResumeHint !== undefined && { pipelineResumeHint: updates.pipelineResumeHint }),
               ...(updates.pipelineDepCheckCmd !== undefined && { pipelineDepCheckCmd: updates.pipelineDepCheckCmd }),
               ...(updates.pipelineBuildCheckCmd !== undefined && { pipelineBuildCheckCmd: updates.pipelineBuildCheckCmd }),
+              ...(updates.pipelineApiTestCmd !== undefined && { pipelineApiTestCmd: updates.pipelineApiTestCmd }),
               updatedAt: Date.now(),
             }
           }),

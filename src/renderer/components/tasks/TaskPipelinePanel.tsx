@@ -1131,16 +1131,20 @@ function Tab5Review({
   task,
   onSaveDepCheckCmd,
   onSaveBuildCheckCmd,
+  onSaveApiTestCmd,
 }: {
   task: WorkspaceTask
   onSaveDepCheckCmd: (cmd: string) => void
   onSaveBuildCheckCmd: (cmd: string) => void
+  onSaveApiTestCmd: (cmd: string) => void
 }) {
   const { t } = useTranslation()
   const [depDraft, setDepDraft] = useState(task.pipelineDepCheckCmd ?? '')
   const savedDepRef = useRef(task.pipelineDepCheckCmd ?? '')
   const [buildDraft, setBuildDraft] = useState(task.pipelineBuildCheckCmd ?? '')
   const savedBuildRef = useRef(task.pipelineBuildCheckCmd ?? '')
+  const [apiDraft, setApiDraft] = useState(task.pipelineApiTestCmd ?? '')
+  const savedApiRef = useRef(task.pipelineApiTestCmd ?? '')
 
   // Sync when task updates externally
   useEffect(() => {
@@ -1159,6 +1163,14 @@ function Tab5Review({
     }
   }, [task.pipelineBuildCheckCmd])
 
+  useEffect(() => {
+    const incoming = task.pipelineApiTestCmd ?? ''
+    if (incoming !== savedApiRef.current) {
+      savedApiRef.current = incoming
+      setApiDraft(incoming)
+    }
+  }, [task.pipelineApiTestCmd])
+
   const handleDepBlur = useCallback(() => {
     const trimmed = depDraft.trim()
     if (trimmed !== savedDepRef.current) {
@@ -1175,10 +1187,18 @@ function Tab5Review({
     }
   }, [buildDraft, onSaveBuildCheckCmd])
 
+  const handleApiBlur = useCallback(() => {
+    const trimmed = apiDraft.trim()
+    if (trimmed !== savedApiRef.current) {
+      savedApiRef.current = trimmed
+      onSaveApiTestCmd(trimmed)
+    }
+  }, [apiDraft, onSaveApiTestCmd])
+
   return (
     <div className="space-y-3">
       <p className="text-[11px] text-muted-foreground/80 leading-snug">
-        {t('点击开始工作，AI 将依次执行语法检查、依赖检查（可选）、编译检查（可选），并汇报每步结果。')}
+        {t('点击开始工作，AI 将依次执行语法检查、依赖检查（可选）、编译检查（可选）、接口用例验证（可选），并汇报每步结果。')}
       </p>
 
       {/* 依赖检查命令 */}
@@ -1212,6 +1232,23 @@ function Tab5Review({
           value={buildDraft}
           onChange={(e) => setBuildDraft(e.target.value)}
           onBlur={handleBuildBlur}
+        />
+      </div>
+
+      {/* 接口用例验证命令 */}
+      <div>
+        <div className="flex items-center gap-1 mb-1.5">
+          <Activity className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+          <span className="text-[11px] text-muted-foreground">{t('接口用例验证')}</span>
+          <span className="text-[10px] text-muted-foreground/50 ml-1">{t('（可选）')}</span>
+        </div>
+        <textarea
+          className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono resize-none"
+          placeholder={'e.g. curl -X POST http://localhost:8080/api/xxx \\\n  -H \'Content-Type: application/json\' \\\n  -d \'{"key":"value"}\''}
+          rows={3}
+          value={apiDraft}
+          onChange={(e) => setApiDraft(e.target.value)}
+          onBlur={handleApiBlur}
         />
       </div>
     </div>
@@ -1634,6 +1671,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           buildVerificationExecuteMessage(task, t, {
             depCheckCmd: task.pipelineDepCheckCmd,
             buildCheckCmd: task.pipelineBuildCheckCmd,
+            apiTestCmd: task.pipelineApiTestCmd,
             knowledgeBaseRoot: knowledgeBaseRoot || undefined,
           })
         )
@@ -1655,6 +1693,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
   const handleSaveBuildCheckCmd = useCallback(
     (cmd: string) => updateTaskPipelineState(task.id, { pipelineBuildCheckCmd: cmd }),
+    [task.id, updateTaskPipelineState]
+  )
+
+  const handleSaveApiTestCmd = useCallback(
+    (cmd: string) => updateTaskPipelineState(task.id, { pipelineApiTestCmd: cmd }),
     [task.id, updateTaskPipelineState]
   )
 
@@ -1728,6 +1771,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 task={task}
                 onSaveDepCheckCmd={handleSaveDepCheckCmd}
                 onSaveBuildCheckCmd={handleSaveBuildCheckCmd}
+                onSaveApiTestCmd={handleSaveApiTestCmd}
               />
             )}
           </div>

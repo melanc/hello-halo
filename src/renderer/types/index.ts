@@ -376,6 +376,8 @@ export interface WorkspaceTask {
   pipelineDepCheckCmd?: string;
   /** Shell command for build/compile check (stage 5) e.g. "npm run build" */
   pipelineBuildCheckCmd?: string;
+  /** curl command(s) for API test (stage 5) */
+  pipelineApiTestCmd?: string;
 }
 
 // ============================================

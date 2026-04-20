@@ -660,7 +660,7 @@ export function buildCodingKickoffMessage(
 export function buildVerificationExecuteMessage(
   task: WorkspaceTask,
   t: TFunction,
-  ctx: { depCheckCmd?: string; buildCheckCmd?: string; knowledgeBaseRoot?: string }
+  ctx: { depCheckCmd?: string; buildCheckCmd?: string; apiTestCmd?: string; knowledgeBaseRoot?: string }
 ): string {
   const blocks: string[] = [
     ...pipelineOpeningLines(t),
@@ -701,6 +701,17 @@ export function buildVerificationExecuteMessage(
       t('执行以下命令进行编译检查，并报告结果（成功 / 失败 + 错误详情）：'),
       '```',
       ctx.buildCheckCmd.trim(),
+      '```',
+      '',
+    )
+  }
+
+  if (ctx.apiTestCmd?.trim()) {
+    blocks.push(
+      t('## 步骤 4：接口用例验证'),
+      t('执行以下 curl 命令进行接口验证，逐条执行并报告每条的响应结果（状态码、响应体摘要），判断接口是否符合预期：'),
+      '```',
+      ctx.apiTestCmd.trim(),
       '```',
       '',
     )
