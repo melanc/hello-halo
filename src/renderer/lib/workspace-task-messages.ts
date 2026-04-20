@@ -200,6 +200,16 @@ export function buildRequirementIdentifyMessage(
     ...pipelineOpeningLines(t),
   ]
 
+  if (opts?.knowledgeBaseRoot?.trim()) {
+    blocks.push(
+      t('在整理需求分析之前，请先查阅知识库中的需求识别引导文档：'),
+      t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
+      t('2. 查找"需求识别引导"相关文档（文件名通常包含"需求识别"、"requirement"、"guide"等关键词），阅读其内容'),
+      t('3. 如果找到了引导文档，按其规范输出需求分析；如果没找到，按下述默认结构输出'),
+      '',
+    )
+  }
+
   const hasDoc = !!(task.requirementDocName?.trim() || task.requirementDocContent?.trim())
 
   if (hasDoc) {
@@ -375,13 +385,24 @@ export function buildIntentAnalysisMessage(
     case 4: {
       const blocks = [
         ...pipelineOpeningLines(t),
+      ]
+      if (opts.knowledgeBaseRoot?.trim()) {
+        blocks.push(
+          t('在开始编码前，请先查阅知识库中的编码实现引导文档：'),
+          t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
+          t('2. 查找"编码实现引导"相关文档（文件名通常包含"编码"、"coding"、"implementation"等关键词），阅读其内容'),
+          t('3. 如果找到了引导文档，按其规范进行编码；如果没找到，按通用编码规范处理'),
+          '',
+        )
+      }
+      blocks.push(
         t('Review the development plan and the recorded subtask completion status, then judge what is left to do.'),
         t('1. Verdict vs plan: finished or not; gaps between plan bullets and done subtasks'),
         t('2. If work remains: ordered next steps and concrete files or modules to touch'),
         t('3. Risks or questions before any edits'),
         '',
         header,
-      ]
+      )
       const plan = task.pipelineDevPlan?.trim()
       if (plan) {
         blocks.push('', t('Development plan (must follow):'), plan.slice(0, DEV_PLAN_EXCERPT_LEN))
@@ -412,22 +433,37 @@ export function buildIntentAnalysisMessage(
         t('• If you believe everything is done: say so and suggest what to verify (tests, manual checks) before closing.'),
         t('• Call out any plan bullet not covered by a subtask, or any done subtask that still leaves a plan gap.'),
         '',
-        t('Then output a concise “planned changes” section for the immediate next coding slice — do not modify files yet.')
+        t('Then output a concise "planned changes" section for the immediate next coding slice — do not modify files yet.')
       )
-      appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
+      if (!opts.knowledgeBaseRoot?.trim()) {
+        appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
+      }
       return blocks.join('\n')
     }
     case 5: {
       const blocks = [
         ...pipelineOpeningLines(t),
+      ]
+      if (opts.knowledgeBaseRoot?.trim()) {
+        blocks.push(
+          t('在开始验证收尾前，请先查阅知识库中的验证收尾引导文档：'),
+          t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
+          t('2. 查找"验证收尾引导"相关文档（文件名通常包含"验证"、"verification"、"test"等关键词），阅读其内容'),
+          t('3. 如果找到了引导文档，按其规范制定验证计划；如果没找到，按下述默认步骤处理'),
+          '',
+        )
+      }
+      blocks.push(
         t('请说明你的验证收尾计划：'),
         t('1. 要检查哪些代码逻辑和边界情况'),
         t('2. 要运行哪些测试'),
         t('3. 有哪些已知风险点'),
         '',
         header,
-      ]
-      appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
+      )
+      if (!opts.knowledgeBaseRoot?.trim()) {
+        appendKnowledgeBaseMarkdownBlock(blocks, opts.knowledgeBaseMarkdown, t)
+      }
       return blocks.join('\n')
     }
     default:
@@ -459,7 +495,7 @@ export function buildTaskBreakdownExecuteMessage(
   }
 
   blocks.push(
-    t('请按照我们刚才讨论的方案，输出任务拆解结果。'),
+    t('请先分析以下需求，确定任务拆解方案（包括子任务划分、依赖关系和不确定点），然后直接按以下格式输出结果：'),
     '',
     t('格式要求：'),
     t('- 按"要做的事"分类分组，每个分组以 ## 开头写分组名称'),
@@ -510,8 +546,8 @@ export function buildDevPlanExecuteMessage(
     blocks.push(
       t('在生成开发计划之前，请先按以下步骤处理项目知识文档：'),
       t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: kbRoot }),
-      t('2. 在知识库中查找涉及项目（{{projects}}）对应的知识文档（文件名通常包含项目名称，如 {{path}}/projectName.md）', { projects: projectList, path: kbRoot }),
-      t('3. 如果找到了对应项目的知识文档，阅读其内容，然后跳到第 5 步'),
+      t('2. 在 {{path}}/项目介绍/ 目录下查找涉及项目（{{projects}}）对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { projects: projectList, path: kbRoot }),
+      t('3. 如果找到了对应项目的技术知识文档，阅读其内容，然后跳到第 5 步'),
       t('4. 如果某个项目没有技术知识文档，则先对该项目进行代码梳理：'),
       t('   a. 使用 Glob 浏览项目目录结构，理解整体架构和核心模块'),
       t('   b. 将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md（如 {{path}}/项目介绍/talcamp技术知识.md）', { path: kbRoot }),
@@ -522,7 +558,7 @@ export function buildDevPlanExecuteMessage(
   }
 
   blocks.push(
-    t('请按照我们刚才讨论的方案，输出最终的开发计划，分两个部分：'),
+    t('请先说明你的开发计划思路（涉及哪些项目和模块、主要改动范围、需要确认的风险点），然后直接按以下格式输出开发计划，分两个部分：'),
     '',
     t('第一部分 — 各项目改动点：'),
     t('以 "## 各项目改动点" 作为标题，然后对每个涉及的项目用 ### 项目名 作为子标题，下面列出该项目的具体改动点（每条以 - 开头）。'),
@@ -572,7 +608,7 @@ export function buildCodingKickoffMessage(
   }
 
   blocks.push(
-    t('现在进入编码实现阶段。请根据以下开发计划，开始逐步执行代码改动。'),
+    t('现在进入编码实现阶段。请先审查以下开发计划和子任务完成情况，判断待完成的工作（哪些已完成、哪些还剩余、有无计划遗漏），然后开始逐步执行代码改动。'),
     t('执行要求：'),
     t('1. 按照开发计划中的模块和文件范围进行修改'),
     t('2. 每完成一个模块或文件，简要说明改动内容'),
@@ -627,16 +663,29 @@ export function buildCodingKickoffMessage(
 export function buildVerificationExecuteMessage(
   task: WorkspaceTask,
   t: TFunction,
-  ctx: { depCheckCmd?: string; buildCheckCmd?: string }
+  ctx: { depCheckCmd?: string; buildCheckCmd?: string; knowledgeBaseRoot?: string }
 ): string {
   const blocks: string[] = [
     ...pipelineOpeningLines(t),
-    t('请按以下步骤对当前任务进行验证检查，逐步执行并汇报每步结果：'),
+  ]
+
+  if (ctx.knowledgeBaseRoot?.trim()) {
+    blocks.push(
+      t('在开始验证检查之前，请先查阅知识库中的验证收尾引导文档：'),
+      t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: ctx.knowledgeBaseRoot.trim() }),
+      t('2. 查找"验证收尾引导"相关文档（文件名通常包含"验证"、"verification"、"test"等关键词），阅读其内容'),
+      t('3. 如果找到了引导文档，按其规范执行验证；如果没找到，按下述默认步骤处理'),
+      '',
+    )
+  }
+
+  blocks.push(
+    t('请先制定验证计划（要检查哪些代码逻辑和边界情况、要运行哪些测试、已知风险点），然后按以下步骤逐步执行并汇报每步结果：'),
     '',
     t('## 步骤 1：语法检查'),
     t('对涉及项目的代码进行静态语法分析，报告所有错误和警告。'),
     '',
-  ]
+  )
 
   if (ctx.depCheckCmd?.trim()) {
     blocks.push(

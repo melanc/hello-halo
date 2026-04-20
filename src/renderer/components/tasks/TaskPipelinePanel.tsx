@@ -396,6 +396,16 @@ function SubtaskItem({
       >
         <Pencil className="w-3 h-3" />
       </button>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={() => onRemove(subtask.id)}
+          className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+          aria-label={t('Delete')}
+        >
+          <X className="w-3 h-3" />
+        </button>
+      )}
     </div>
   )
 }
@@ -1516,13 +1526,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             subtasks,
             keyPoints: task.requirementKeyPoints ?? [],
             knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined,
-            ...((selectedTab === 1 || selectedTab === 2 || selectedTab === 3) && knowledgeBaseRoot
-              ? {
-                  knowledgeBaseRoot,
-                  ...(selectedTab === 3
-                    ? { projectDirs: dirNames.length ? dirNames : undefined }
-                    : {}),
-                }
+            ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
+            ...(selectedTab === 3
+              ? { projectDirs: dirNames.length ? dirNames : undefined }
               : {}),
             ...(selectedTab === 4
               ? {
@@ -1537,7 +1543,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     } finally {
       setIsIdentifying(false)
     }
-  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t, workspaceRoot, getTabCheck])
+  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t, workspaceRoot, knowledgeBaseRoot, getTabCheck])
 
   const handleStartWork = useCallback(async () => {
     const check = getTabCheck(selectedTab)
@@ -1628,6 +1634,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           buildVerificationExecuteMessage(task, t, {
             depCheckCmd: task.pipelineDepCheckCmd,
             buildCheckCmd: task.pipelineBuildCheckCmd,
+            knowledgeBaseRoot: knowledgeBaseRoot || undefined,
           })
         )
       }
@@ -1733,18 +1740,20 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               )}
               {(!resumeHint || checkResult) && <span className="flex-1" />}
 
-              <button
-                type="button"
-                onClick={() => void handleIdentifyIntent()}
-                disabled={isIdentifying || isSendingMessage}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
-              >
-                {isIdentifying
-                  ? <Loader2 className="w-3 h-3 animate-spin" />
-                  : <ScanText className="w-3 h-3 opacity-70" />
-                }
-                {t('意图识别')}
-              </button>
+              {selectedTab === 1 && (
+                <button
+                  type="button"
+                  onClick={() => void handleIdentifyIntent()}
+                  disabled={isIdentifying || isSendingMessage}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
+                >
+                  {isIdentifying
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <ScanText className="w-3 h-3 opacity-70" />
+                  }
+                  {t('意图识别')}
+                </button>
+              )}
 
               <button
                 type="button"
