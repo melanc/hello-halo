@@ -200,18 +200,6 @@ export function buildRequirementIdentifyMessage(
     ...pipelineOpeningLines(t),
   ]
 
-  // If a knowledge base path is provided, ask the AI to actively explore it first
-  if (opts?.knowledgeBaseRoot?.trim()) {
-    blocks.push(
-      t('在开始识别需求之前，请先执行以下步骤：'),
-      t('1. 使用你的工具（Read、Glob 等）浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
-      t('2. 找到需求识别引导文件（文件名通常包含"需求识别"、"requirement"、"guide"等关键词），阅读其内容'),
-      t('3. 按照该引导文件的规范，对以下需求进行识别和分析'),
-      t('如果找不到引导文件，按通用需求分析方法处理。'),
-      '',
-    )
-  }
-
   const hasDoc = !!(task.requirementDocName?.trim() || task.requirementDocContent?.trim())
 
   if (hasDoc) {
@@ -319,13 +307,24 @@ export function buildIntentAnalysisMessage(
     case 2: {
       const blocks = [
         ...pipelineOpeningLines(t),
+      ]
+      if (opts.knowledgeBaseRoot?.trim()) {
+        blocks.push(
+          t('在开始任务拆解前，请先查阅知识库中的任务拆解引导文档：'),
+          t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
+          t('2. 查找"任务拆解引导"相关文档（文件名通常包含"任务拆解"、"task-breakdown"、"breakdown"等关键词），阅读其内容'),
+          t('3. 如果找到了引导文档，按其规范进行拆解；如果没找到，按下述默认步骤处理'),
+          '',
+        )
+      }
+      blocks.push(
         t('请根据以下需求要点，列出你的任务拆解方案：'),
         t('1. 打算拆分哪些子任务，每个子任务的目标是什么'),
         t('2. 子任务之间的依赖关系和执行顺序'),
         t('3. 有哪些不确定的地方需要先确认'),
         '',
         header,
-      ]
+      )
       if (opts.keyPoints?.length) {
         blocks.push('', '需求要点：')
         opts.keyPoints.forEach((pt) => blocks.push(`- ${pt}`))

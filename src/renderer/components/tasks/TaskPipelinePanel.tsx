@@ -1516,7 +1516,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             subtasks,
             keyPoints: task.requirementKeyPoints ?? [],
             knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined,
-            ...((selectedTab === 1 || selectedTab === 3) && knowledgeBaseRoot
+            ...((selectedTab === 1 || selectedTab === 2 || selectedTab === 3) && knowledgeBaseRoot
               ? {
                   knowledgeBaseRoot,
                   ...(selectedTab === 3
