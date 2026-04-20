@@ -17,10 +17,13 @@ npm run build
 3. 打桌面安装包（electron-builder）
 在对应系统上执行，例如：
 ```
+npm run prepare:all
+
 # macOS（当前机器架构，Apple Silicon 下为 arm64）
 npm run build:mac
 # macOS Intel x64
 npm run build:mac-x64
+
 # Windows
 npm run build:win
 # Windows x64（明确指定）
