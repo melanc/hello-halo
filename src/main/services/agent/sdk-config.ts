@@ -429,7 +429,7 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
       console.error(`[Agent][${conversationId}] CLI stderr:`, data)
     }),
     // Use Halo's custom system prompt instead of SDK's 'claude_code' preset
-    systemPrompt: buildSystemPrompt({ workDir, modelInfo: credentials.displayModel, promptProfile: params.promptProfile }),
+    systemPrompt: buildSystemPrompt({ workDir, modelInfo: credentials.displayModel, promptProfile: params.promptProfile, isTempSpace: spaceId === 'halo-temp' }),
     maxTurns: params.maxTurns ?? 50,
     allowedTools: [...DEFAULT_ALLOWED_TOOLS],
     // Enable Skills loading from $CLAUDE_CONFIG_DIR/skills/ and <workspace>/.claude/skills/

@@ -167,7 +167,7 @@ export async function sendMessage(
     // These are specific to sendMessage and not part of base options
     if (aiBrowserEnabled) {
       sdkOptions.systemPrompt = buildSystemPromptWithAIBrowser(
-        { workDir, modelInfo: resolvedCredentials.displayModel, promptProfile: config.agent?.promptProfile },
+        { workDir, modelInfo: resolvedCredentials.displayModel, promptProfile: config.agent?.promptProfile, isTempSpace: spaceId === 'halo-temp' },
         AI_BROWSER_SYSTEM_PROMPT
       )
     }

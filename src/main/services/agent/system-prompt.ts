@@ -63,6 +63,12 @@ export interface SystemPromptContext {
   promptProfile?: PromptProfile
   /** Claude config directory path (defaults to platform-specific path) */
   claudeConfigDir?: string
+  /**
+   * When true, no project workspace is configured (e.g. DevX system space).
+   * The AI should only modify files in paths explicitly provided by the user.
+   * When false/undefined, the AI is restricted to workDir.
+   */
+  isTempSpace?: boolean
 }
 
 // ============================================
@@ -214,6 +220,8 @@ OS Version: {{OS_VERSION}}
 Today's date: {{TODAY}}
 </env>
 {{MODEL_INFO}}
+
+{{FILE_ACCESS_RESTRICTION}}
 
 # DevX Directory Structure
 DevX uses custom directories separate from Claude Code's defaults (NOT ~/.claude/):
@@ -378,6 +386,8 @@ Today's date: {{TODAY}}
 </env>
 {{MODEL_INFO}}
 
+{{FILE_ACCESS_RESTRICTION}}
+
 # DevX Directory Structure
 DevX uses custom directories separate from Claude Code's defaults (NOT ~/.claude/):
 - DevX config: {{DEVX_DIR}} (stores spaces, settings, app data)
@@ -422,6 +432,23 @@ function applyTemplateVariables(template: string, ctx: SystemPromptContext): str
     }
   }
 
+  // Build file access restriction based on workspace context
+  let fileAccessRestriction: string
+  if (ctx.isTempSpace) {
+    fileAccessRestriction = `# File Access Restrictions
+
+No project workspace directory is configured for this session.
+- Only modify files in paths that the user explicitly provides in their messages.
+- Do not assume or guess file locations. Ask the user to specify the exact path if unclear.`
+  } else {
+    fileAccessRestriction = `# File Access Restrictions
+
+You are operating within the workspace: ${ctx.workDir}
+- Only read and write files within this directory. Do not access, create, modify, or delete files outside this path.
+- For task workflows, you may also access files in knowledge base paths explicitly mentioned in the task context.
+- If the user asks you to work on files outside the configured workspace, politely decline and explain that you can only operate within the current workspace directory.`
+  }
+
   return template
     .replace('{{ALLOWED_TOOLS}}', tools.join(', '))
     .replace('{{WORK_DIR}}', ctx.workDir)
@@ -430,6 +457,7 @@ function applyTemplateVariables(template: string, ctx: SystemPromptContext): str
     .replace('{{OS_VERSION}}', osVersion)
     .replace('{{TODAY}}', today)
     .replace('{{MODEL_INFO}}', modelInfo)
+    .replace('{{FILE_ACCESS_RESTRICTION}}', fileAccessRestriction)
     .replace(/\{\{DEVX_DIR\}\}/g, devxDataDir)
     .replace(/\{\{CLAUDE_CONFIG_DIR\}\}/g, claudeConfigDir)
 }
