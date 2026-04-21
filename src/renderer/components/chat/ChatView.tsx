@@ -359,6 +359,20 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
   const currentConversation = getCurrentConversation()
   const currentConversationId = getCurrentConversationId()
   const { isLoadingConversation } = useChatStore()
+
+  // Preserve per-conversation input drafts across task switches
+  const draftsByConversation = useRef<Map<string, string>>(new Map())
+  const currentConversationIdRef = useRef(currentConversationId)
+  currentConversationIdRef.current = currentConversationId
+  const handleDraftChange = useCallback((draft: string) => {
+    const id = currentConversationIdRef.current
+    if (!id) return
+    if (draft) {
+      draftsByConversation.current.set(id, draft)
+    } else {
+      draftsByConversation.current.delete(id)
+    }
+  }, [])
   const session = getCurrentSession()
   const { isGenerating, streamingContent, isStreaming, thoughts, isThinking, compactInfo, error, errorType, textBlockVersion, pendingQuestion } = session
 
@@ -1051,6 +1065,8 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
       {/* Input area */}
       <InputArea
         key={currentConversationId ?? ''}
+        initialContent={draftsByConversation.current.get(currentConversationId ?? '') ?? ''}
+        onDraftChange={handleDraftChange}
         onSend={handleSend}
         onStop={handleStop}
         isGenerating={isGenerating}

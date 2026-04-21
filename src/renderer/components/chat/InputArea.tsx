@@ -137,6 +137,10 @@ interface InputAreaProps {
   /** When set, appends the text as a blockquote into the textarea then calls the callback */
   appendBlock?: string | null
   onAppendBlockConsumed?: () => void
+  /** Initial text to pre-fill (used to restore a per-conversation draft on remount) */
+  initialContent?: string
+  /** Called whenever the input content changes, so the parent can persist the draft */
+  onDraftChange?: (content: string) => void
 }
 
 // Image constraints
@@ -164,13 +168,15 @@ export function InputArea({
   taskContext,
   appendBlock,
   onAppendBlockConsumed,
+  initialContent,
+  onDraftChange,
 }: InputAreaProps) {
   const { t, i18n } = useTranslation()
   const textareaMaxHeightPx = 200 + (isTaskFocusComposer ? TASK_FOCUS_COMPOSER_EXTRA_HEIGHT_PX : 0)
   const textareaMinHeightPx = 24 + (isTaskFocusComposer ? TASK_FOCUS_COMPOSER_EXTRA_HEIGHT_PX : 0)
   const sendKeyMode = useAppStore(state => state.config?.chat?.sendKeyMode ?? 'enter')
   const appConfig = useAppStore((state) => state.config)
-  const [content, setContent] = useState('')
+  const [content, setContent] = useState(initialContent ?? '')
   const [isFocused, setIsFocused] = useState(false)
   const [images, setImages] = useState<ImageAttachment[]>([])
   const [isDragOver, setIsDragOver] = useState(false)
@@ -191,6 +197,10 @@ export function InputArea({
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const composerFocusTick = useChatStore((s) => s.composerFocusTick)
   const prevComposerFocusTickRef = useRef(0)
+  // Notify parent of draft changes (stable ref to avoid re-runs on parent re-render)
+  const onDraftChangeRef = useRef(onDraftChange)
+  onDraftChangeRef.current = onDraftChange
+  useEffect(() => { onDraftChangeRef.current?.(content) }, [content])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const wordInputRef = useRef<HTMLInputElement>(null)
   const attachMenuRef = useRef<HTMLDivElement>(null)
