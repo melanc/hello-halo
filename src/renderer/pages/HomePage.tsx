@@ -171,9 +171,12 @@ export function HomePage() {
     const isCentralizedSpace = space.path.includes('/spaces/') && lastSegment.length === 36
     const isProjectSpace = !!space.workingDir || !isCentralizedSpace
 
-    const message = isProjectSpace
-      ? t('Are you sure you want to delete this space?\n\nOnly DevX data (conversation history) will be deleted, your project files will be kept.')
-      : t('Are you sure you want to delete this space?\n\nAll conversations and files in the space will be deleted.')
+    const isKnowledgeBase = space.workspaceKind === 'knowledge_base'
+    const message = isKnowledgeBase
+      ? t('确认删除此知识库？\n\n知识库内的所有文件和对话记录均会被删除。')
+      : isProjectSpace
+        ? t('确认删除此空间？\n\n仅会删除 DevX 数据（对话记录），项目文件不受影响。')
+        : t('确认删除此空间？\n\n空间内的所有对话和文件均会被删除。')
 
     if (confirm(message)) {
       await deleteSpace(spaceId)
