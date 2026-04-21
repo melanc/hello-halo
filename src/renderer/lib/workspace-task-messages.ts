@@ -24,18 +24,22 @@ export function buildProjectDisplayPaths(workspaceRoot: string, dirNames: string
   return dirNames.map((d) => `${normalizedRoot}${sep}${d.replace(/^[\\/]+/, '')}`)
 }
 
-/** Tab 4 — require saved dev plan text, at least one project dir, and a non-empty branch. */
+/** Tab 4 — require saved dev plan text, at least one project dir, and a non-empty branch.
+ * For simple tasks (taskType === 'simple'), the dev plan check is skipped. */
 export function evaluateCodingPrereqs(task: WorkspaceTask, t: TFunction): { ok: boolean; message: string } {
-  const plan = task.pipelineDevPlan?.trim() ?? ''
-  if (!plan) {
-    return {
-      ok: false,
-      message: t('编码前请先在标签 3 完成开发计划与代码范围。'),
+  const isSimple = task.taskType === 'simple'
+  if (!isSimple) {
+    const plan = task.pipelineDevPlan?.trim() ?? ''
+    if (!plan) {
+      return {
+        ok: false,
+        message: t('编码前请先在标签 3 完成开发计划与代码范围。'),
+      }
     }
   }
   const dirs = getInvolvedProjectDirNames(task)
   const branch = task.branchName?.trim() ?? ''
-  if (dirs.length === 0 || !branch) {
+  if (!isSimple && (dirs.length === 0 || !branch)) {
     return {
       ok: false,
       message: t('请先在标签 3 设置至少一个涉及项目和开发分支，确认后再开始编码。'),
@@ -82,6 +86,21 @@ export function assertPreviousPipelineStepReady(
   }
 
   if (tab === 4) {
+    const isSimple = task.taskType === 'simple'
+    if (isSimple) {
+      // Simple tasks skip tabs 2 & 3; only require that requirement analysis exists
+      const hasReqContent =
+        !!task.requirementAnalysis?.trim() ||
+        !!task.requirementDocContent?.trim() ||
+        !!task.requirementDescription?.trim()
+      if (!hasReqContent) {
+        return {
+          ok: false,
+          message: t('请先在需求识别（标签 1）中完成需求分析，再开始编码。'),
+        }
+      }
+      return { ok: true }
+    }
     if (!task.pipelineDevPlan?.trim()) {
       return {
         ok: false,

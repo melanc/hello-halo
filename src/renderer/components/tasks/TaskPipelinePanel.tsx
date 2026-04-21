@@ -198,15 +198,18 @@ const STAGES: { id: PipelineStage; label: string; activeColor: string; mutedColo
 function StageTabBar({
   stage,
   selectedTab,
+  visibleStages,
   onSelect,
 }: {
   stage: PipelineStage
   selectedTab: PipelineStage
+  visibleStages?: readonly PipelineStage[]
   onSelect: (id: PipelineStage) => void
 }) {
+  const displayStages = visibleStages ? STAGES.filter((s) => visibleStages.includes(s.id)) : STAGES
   return (
     <div className="flex items-center gap-0 flex-1 min-w-0">
-      {STAGES.map((s, i) => {
+      {displayStages.map((s, i) => {
         const isDone = s.id < stage
         const isCurrent = s.id === stage
         const isSelected = s.id === selectedTab
@@ -233,7 +236,7 @@ function StageTabBar({
               )}
               <span className="hidden sm:inline truncate">{s.label}</span>
             </button>
-            {i < STAGES.length - 1 && (
+            {i < displayStages.length - 1 && (
               <div className={`h-px w-2 flex-shrink-0 ${s.id < stage ? 'bg-border/60' : 'bg-border'}`} />
             )}
           </div>
@@ -418,10 +421,12 @@ function SubtaskItem({
 function Tab1Requirements({
   task,
   stage,
+  isSimple,
   onBreakdown,
 }: {
   task: WorkspaceTask
   stage: PipelineStage
+  isSimple?: boolean
   onBreakdown: () => void
 }) {
   const { t } = useTranslation()
@@ -622,8 +627,8 @@ function Tab1Requirements({
         )}
       </div>
 
-      {/* Breakdown trigger — stage 1 only */}
-      {stage === 1 && (
+      {/* Breakdown trigger — stage 1 only, hidden for simple tasks */}
+      {stage === 1 && !isSimple && (
         <div className="flex items-center gap-3">
           <button
             type="button"
@@ -1014,9 +1019,11 @@ function Tab4Coding({
         </div>
         {progress.total === 0 ? (
           <p className="text-[11px] text-muted-foreground/80 leading-snug">
-            {t(
-              '当前暂无子任务记录。意图识别 / 开始工作将仅依据开发计划进行比对；请在标签 2 添加子任务以跟踪完成情况。'
-            )}
+            {task.taskType === 'simple'
+              ? t('当前暂无子任务记录，开始工作将依据需求分析进行编码。')
+              : t(
+                  '当前暂无子任务记录。意图识别 / 开始工作将仅依据开发计划进行比对；请在标签 2 添加子任务以跟踪完成情况。'
+                )}
           </p>
         ) : (
           <div className="space-y-1.5">
@@ -1048,7 +1055,9 @@ function Tab4Coding({
           <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-snug">{prereq.message}</p>
         ) : (
           <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-snug">
-            {t('开发计划、涉及项目和开发分支已就绪。请先执行意图识别，再开始工作。')}
+            {task.taskType === 'simple'
+              ? t('需求分析已就绪，可以直接开始编码。')
+              : t('开发计划、涉及项目和开发分支已就绪。请先执行意图识别，再开始工作。')}
           </p>
         )}
       </div>
@@ -1354,6 +1363,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const stage: PipelineStage = task.pipelineStage ?? 1
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
   const resumeHint = task.pipelineResumeHint ?? ''
+  const isSimple = task.taskType === 'simple'
+  const visibleStageIds: readonly PipelineStage[] = isSimple ? [1, 4, 5] : [1, 2, 3, 4, 5]
 
   // selectedTab follows progress stage, but user can freely switch
   const [selectedTab, setSelectedTab] = useState<PipelineStage>(stage)
@@ -1531,7 +1542,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         if (!pre.ok) return { ok: false, message: pre.message }
         return {
           ok: true,
-          message: t('AI will run coding using the saved development plan, projects, and branch.'),
+          message: isSimple
+            ? t('AI 将根据需求分析直接开始编码。')
+            : t('AI will run coding using the saved development plan, projects, and branch.'),
         }
       }
       case 5:
@@ -1603,8 +1616,13 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply?.trim()) {
           useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
+          // For simple tasks, auto-advance to coding stage after requirement identification
+          if (isSimple) {
+            updateTaskPipelineState(task.id, { stage: 4 })
+            setSelectedTab(4)
+          }
         }
-        // Stay on Tab1 so the user can review the generated analysis before proceeding
+        // Stay on Tab1 so the user can review the generated analysis before proceeding (complex tasks)
 
       } else if (selectedTab === 2) {
         // AI generates subtask breakdown
@@ -1710,6 +1728,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         <StageTabBar
           stage={stage}
           selectedTab={selectedTab}
+          visibleStages={visibleStageIds}
           onSelect={(id) => {
             setSelectedTab(id)
             if (collapsed) setCollapsed(false)
@@ -1739,6 +1758,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               <Tab1Requirements
                 task={task}
                 stage={stage}
+                isSimple={isSimple}
                 onBreakdown={handleBreakdown}
               />
             )}

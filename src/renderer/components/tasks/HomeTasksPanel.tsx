@@ -68,6 +68,7 @@ export function HomeTasksPanel() {
   const [requirementDescription, setRequirementDescription] = useState('')
   const [isParsingDoc, setIsParsingDoc] = useState(false)
   const [creating, setCreating] = useState(false)
+  const [taskType, setTaskType] = useState<'simple' | 'complex'>('complex')
   const requirementInputRef = useRef<HTMLInputElement>(null)
   const addTask = useTaskStore((s) => s.addTask)
 
@@ -129,6 +130,7 @@ export function HomeTasksPanel() {
     setRequirementDocName('')
     setRequirementDocContent('')
     setRequirementDescription('')
+    setTaskType('complex')
     const firstReg = regularSpaces[0]?.id
     const firstKb = knowledgeBaseSpaces[0]?.id
     setRegularSelection(firstReg ?? SPACE_SELECT_NONE)
@@ -148,6 +150,7 @@ export function HomeTasksPanel() {
     setSpaceId('')
     setRegularSelection(SPACE_SELECT_NONE)
     setKbSelection(SPACE_SELECT_NONE)
+    setTaskType('complex')
     setIsParsingDoc(false)
   }
 
@@ -198,6 +201,7 @@ export function HomeTasksPanel() {
         requirementDescription: requirementDesc,
         projectDirs: [],
         branchName: '',
+        taskType,
       })
       if (task) resetDialog()
     } finally {
@@ -463,6 +467,35 @@ export function HomeTasksPanel() {
                 className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
               />
             </div>
+
+            {!editingTaskId && (
+              <div className="mb-4">
+                <label className="block text-sm text-muted-foreground mb-2">{t('任务类型')}</label>
+                <div className="flex gap-2">
+                  {(['complex', 'simple'] as const).map((type) => (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => setTaskType(type)}
+                      className={`flex-1 flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                        taskType === type
+                          ? 'border-primary bg-primary/10 text-foreground'
+                          : 'border-border hover:bg-secondary text-muted-foreground'
+                      }`}
+                    >
+                      <span className="text-sm font-medium">
+                        {type === 'complex' ? t('复杂任务') : t('简单任务')}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground leading-snug">
+                        {type === 'complex'
+                          ? t('需求识别 → 任务拆解 → 开发计划 → 编码 → 验证')
+                          : t('需求识别 → 编码实现 → 用例验证')}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             <div className="mb-4">
               <label className="block text-sm text-muted-foreground mb-2">{t('Requirement document')}</label>
