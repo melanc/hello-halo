@@ -226,6 +226,7 @@ export function HomeTasksPanel() {
       setRequirementDocName(task.requirementDocName || '')
       setRequirementDocContent(task.requirementDocContent || '')
       setRequirementDescription(task.requirementDescription || '')
+      setTaskType(task.taskType ?? 'complex')
       setShowDialog(true)
     },
     [tasks, regularSpaces, knowledgeBaseSpaces]
@@ -372,7 +373,16 @@ export function HomeTasksPanel() {
                     onClick={() => void handleOpenTask(task.id)}
                     className="flex-1 min-w-0 text-left"
                   >
-                    <div className="font-medium truncate">{task.name}</div>
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="font-medium truncate">{task.name}</span>
+                      <span className={`flex-shrink-0 text-[10px] px-1.5 py-0.5 rounded-full leading-none ${
+                        (task.taskType ?? 'complex') === 'simple'
+                          ? 'bg-blue-500/15 text-blue-600 dark:text-blue-400'
+                          : 'bg-violet-500/15 text-violet-600 dark:text-violet-400'
+                      }`}>
+                        {(task.taskType ?? 'complex') === 'simple' ? t('简单') : t('复杂')}
+                      </span>
+                    </div>
                     <div className="text-xs mt-1 line-clamp-2">
                       <span className="text-foreground">{t('Requirement document')}：</span>
                       <span className="text-muted-foreground">
@@ -467,6 +477,24 @@ export function HomeTasksPanel() {
                 className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
               />
             </div>
+
+            {editingTaskId && (
+              <div className="mb-4">
+                <label className="block text-sm text-muted-foreground mb-2">{t('任务类型')}</label>
+                <div className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm ${
+                  taskType === 'simple'
+                    ? 'border-blue-500/30 bg-blue-500/8 text-blue-700 dark:text-blue-400'
+                    : 'border-violet-500/30 bg-violet-500/8 text-violet-700 dark:text-violet-400'
+                }`}>
+                  <span>{taskType === 'simple' ? t('简单任务') : t('复杂任务')}</span>
+                  <span className="text-[11px] text-muted-foreground">
+                    {taskType === 'simple'
+                      ? t('需求识别 → 编码实现 → 用例验证')
+                      : t('需求识别 → 任务拆解 → 开发计划 → 编码 → 验证')}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {!editingTaskId && (
               <div className="mb-4">
