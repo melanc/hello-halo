@@ -1050,6 +1050,7 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
 
       {/* Input area */}
       <InputArea
+        key={currentConversationId ?? ''}
         onSend={handleSend}
         onStop={handleStop}
         isGenerating={isGenerating}
