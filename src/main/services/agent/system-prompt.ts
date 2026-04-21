@@ -29,7 +29,8 @@ export const DEFAULT_ALLOWED_TOOLS = [
   'Grep',
   'Glob',
   'Bash',
-  'Skill'
+  'Skill',
+  'Task'
 ] as const
 
 export type AllowedTool = (typeof DEFAULT_ALLOWED_TOOLS)[number]

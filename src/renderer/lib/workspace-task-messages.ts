@@ -642,6 +642,17 @@ export function buildCodingKickoffMessage(
   if (ctx?.projectPaths?.length) {
     blocks.push('', t('涉及的项目路径（除非计划另有说明，只在这些范围内修改）：'))
     ctx.projectPaths.forEach((p) => blocks.push(`- ${p}`))
+
+    if (ctx.projectPaths.length > 1) {
+      blocks.push(
+        '',
+        t('多项目并行处理：本任务涉及 {{count}} 个项目路径，请使用 Task 工具并行处理以提高效率：', { count: ctx.projectPaths.length }),
+        t('1. 为每个项目路径启动一个独立的子 Agent（通过 Task 工具）'),
+        t('2. 每个子 Agent 的 prompt 中应包含：该项目的路径、完整开发计划、分支名称、以及相关子任务上下文'),
+        t('3. 子 Agent 只在其对应的项目路径范围内进行修改'),
+        t('4. 等待所有子 Agent 完成后，汇总各项目的改动情况并向用户报告'),
+      )
+    }
   }
 
   if (task.pipelineDevPlan?.trim()) {
