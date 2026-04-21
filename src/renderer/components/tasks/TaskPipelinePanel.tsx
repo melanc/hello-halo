@@ -994,10 +994,40 @@ function Tab4Coding({
     return () => { cancelled = true }
   }, [task.spaceId])
 
+  const isSimple = task.taskType === 'simple'
+
+  // For simple tasks: editable project picker + branch directly in Tab4
+  const addProjectDirToTask = useTaskStore((s) => s.addProjectDirToTask)
+  const removeProjectDirFromTask = useTaskStore((s) => s.removeProjectDirFromTask)
+  const updateTaskBranchName = useTaskStore((s) => s.updateTaskBranchName)
+  const [branchDraft, setBranchDraft] = useState(task.branchName ?? '')
+  const savedBranchRef = useRef(task.branchName ?? '')
+  const [showAllRoots, setShowAllRoots] = useState(false)
+  useEffect(() => {
+    const incoming = task.branchName ?? ''
+    if (incoming !== savedBranchRef.current) {
+      savedBranchRef.current = incoming
+      setBranchDraft(incoming)
+    }
+  }, [task.branchName])
+  const handleBranchBlur = useCallback(() => {
+    const trimmed = branchDraft.trim()
+    if (trimmed !== savedBranchRef.current) {
+      savedBranchRef.current = trimmed
+      setBranchDraft(trimmed)
+      updateTaskBranchName(task.id, trimmed)
+    }
+  }, [branchDraft, updateTaskBranchName, task.id])
+
   // Use the API-resolved root when available; fall back to the prop from spaceStore
   const effectiveRoot = resolvedRoot ?? workspaceRoot
   const dirs = task.projectDirs.filter(Boolean)
   const paths = effectiveRoot ? buildProjectDisplayPaths(effectiveRoot, dirs) : dirs
+  const projectDirsSet = new Set(dirs)
+  const allRootsToShow = availableRootNames && availableRootNames.length > 0
+    ? Array.from(new Set([...availableRootNames, ...dirs]))
+    : dirs
+  const notAddedCount = allRootsToShow.filter((n) => !projectDirsSet.has(n)).length
   const prereq = evaluateCodingPrereqs(task, t)
   const logLines = task.pipelineCodingLogLines ?? []
   const planExcerptDisplay = useMemo(() => {
@@ -1070,17 +1100,57 @@ function Tab4Coding({
             <Loader2 className="w-3 h-3 text-muted-foreground/60 animate-spin ml-1" />
           )}
         </div>
-        {paths.length > 0 ? (
-          <ul className="text-[11px] font-mono text-foreground/85 space-y-0.5 break-all">
-            {paths.map((p) => (
-              <li key={p}>- {p}</li>
-            ))}
-          </ul>
+        {isSimple ? (
+          allRootsToShow.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {allRootsToShow.map((name) => {
+                const added = projectDirsSet.has(name)
+                if (!added && !showAllRoots) return null
+                return added ? (
+                  <span key={name} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md bg-primary/15 border border-primary/30 text-[11px] text-foreground/90 font-mono">
+                    {name}
+                    <button type="button" onClick={() => removeProjectDirFromTask(task.id, name)}
+                      className="flex items-center justify-center w-3.5 h-3.5 rounded hover:bg-destructive/20 hover:text-destructive transition-colors text-muted-foreground"
+                      title={t('从任务中移除')}>
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                  </span>
+                ) : (
+                  <button key={name} type="button" onClick={() => addProjectDirToTask(task.id, name)}
+                    className="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-md bg-secondary border border-border text-[11px] text-muted-foreground font-mono hover:bg-secondary/80 hover:text-foreground transition-colors"
+                    title={t('添加到任务中')}>
+                    {name}
+                    <Plus className="w-2.5 h-2.5" />
+                  </button>
+                )
+              })}
+              {notAddedCount > 0 && (
+                <button type="button" onClick={() => setShowAllRoots((v) => !v)}
+                  className="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-md border border-dashed border-border text-[11px] text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors">
+                  {showAllRoots
+                    ? <><ChevronUp className="w-2.5 h-2.5" />{t('收起')}</>
+                    : <><ChevronDown className="w-2.5 h-2.5" />{t('+{{n}} 个项目', { n: notAddedCount })}</>}
+                </button>
+              )}
+            </div>
+          ) : (
+            <p className="text-[11px] text-muted-foreground/50 italic">{t('暂无项目，AI 识别需求后自动填入')}</p>
+          )
         ) : (
-          <p className="text-[11px] text-muted-foreground/60 italic">{t('尚未关联项目')}</p>
-        )}
-        {!effectiveRoot && dirs.length > 0 && (
-          <p className="text-[10px] text-muted-foreground/70 mt-1">{t('工作区路径不可用，仅显示目录名称。')}</p>
+          <>
+            {paths.length > 0 ? (
+              <ul className="text-[11px] font-mono text-foreground/85 space-y-0.5 break-all">
+                {paths.map((p) => (
+                  <li key={p}>- {p}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-[11px] text-muted-foreground/60 italic">{t('尚未关联项目')}</p>
+            )}
+            {!effectiveRoot && dirs.length > 0 && (
+              <p className="text-[10px] text-muted-foreground/70 mt-1">{t('工作区路径不可用，仅显示目录名称。')}</p>
+            )}
+          </>
         )}
       </div>
 
@@ -1089,9 +1159,20 @@ function Tab4Coding({
           <GitBranch className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('开发分支')}</span>
         </div>
-        <p className="text-xs font-mono text-foreground/90 break-all">
-          {task.branchName?.trim() ? task.branchName.trim() : t('未设置')}
-        </p>
+        {isSimple ? (
+          <input
+            type="text"
+            className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono"
+            placeholder={t('e.g. feature/your-branch')}
+            value={branchDraft}
+            onChange={(e) => setBranchDraft(e.target.value)}
+            onBlur={handleBranchBlur}
+          />
+        ) : (
+          <p className="text-xs font-mono text-foreground/90 break-all">
+            {task.branchName?.trim() ? task.branchName.trim() : t('未设置')}
+          </p>
+        )}
       </div>
 
       <div>
