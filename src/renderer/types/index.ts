@@ -378,6 +378,8 @@ export interface WorkspaceTask {
   pipelineBuildCheckCmd?: string;
   /** curl command(s) for API test (stage 5) */
   pipelineApiTestCmd?: string;
+  /** Task type — simple (3 stages: 需求识别/编码实现/用例验证) or complex (all 5 stages). Default: complex. */
+  taskType?: 'simple' | 'complex';
 }
 
 // ============================================

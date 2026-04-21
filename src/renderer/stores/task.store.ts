@@ -37,6 +37,7 @@ interface TaskState {
     requirementDescription: string
     projectDirs: string[]
     branchName: string
+    taskType?: 'simple' | 'complex'
   }) => Promise<WorkspaceTask | null>
 
   removeTask: (id: string) => void
@@ -141,6 +142,7 @@ export const useTaskStore = create<TaskState>()(
         if (!conv) return null
 
         const now = Date.now()
+        const taskType = (input as { taskType?: 'simple' | 'complex' }).taskType ?? 'complex'
         const task: WorkspaceTask = {
           id: newTaskId(),
           name: input.name.trim(),
@@ -155,6 +157,7 @@ export const useTaskStore = create<TaskState>()(
           createdAt: now,
           updatedAt: now,
           touchedProjectDirs: [],
+          taskType,
         }
 
         set((s) => ({ tasks: [task, ...s.tasks] }))
