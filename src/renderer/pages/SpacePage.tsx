@@ -249,6 +249,22 @@ export function SpacePage() {
     initSpace()
   }, [currentSpace?.id]) // Only re-run when space ID changes
 
+  // Reactive: when the active task changes within the current space, immediately switch the
+  // conversation to match. Handles sidebar task clicks where the space doesn't change, so
+  // initSpace (which only fires on space change) won't re-run.
+  useEffect(() => {
+    if (!activeTaskId || !currentSpace) return
+    const task = useTaskStore.getState().tasks.find(x => x.id === activeTaskId)
+    if (!task || task.spaceId !== currentSpace.id) return
+
+    const chatState = useChatStore.getState()
+    const spaceState = chatState.getSpaceState(currentSpace.id)
+    if (!spaceState.conversations.some(c => c.id === task.conversationId)) return
+    if (spaceState.currentConversationId === task.conversationId) return
+
+    void chatState.selectConversation(task.conversationId)
+  }, [activeTaskId, currentSpace?.id])
+
   // Toggle conversation list sidebar with global persistence
   const handleToggleConversationList = useCallback(() => {
     const newValue = !showConversationList
