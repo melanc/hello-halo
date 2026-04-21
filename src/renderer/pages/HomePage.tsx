@@ -173,10 +173,8 @@ export function HomePage() {
 
     const isKnowledgeBase = space.workspaceKind === 'knowledge_base'
     const message = isKnowledgeBase
-      ? t('确认删除此知识库？\n\n知识库内的所有文件和对话记录均会被删除。')
-      : isProjectSpace
-        ? t('确认删除此空间？\n\n仅会删除 DevX 数据（对话记录），项目文件不受影响。')
-        : t('确认删除此空间？\n\n空间内的所有对话和文件均会被删除。')
+      ? t('确认删除此知识库？\n\n仅会删除 DevX 中的记录，本地文件不受影响。')
+      : t('确认删除此空间？\n\n仅会删除 DevX 数据（对话记录），本地文件不受影响。')
 
     if (confirm(message)) {
       await deleteSpace(spaceId)
