@@ -15,6 +15,7 @@ import {
   testMcpConnections,
   resolveQuestion,
   resolvePipelineConfirmation,
+  triggerKbWrite,
   onAgentEvent,
   onAgentBroadcast
 } from '../services/agent'
@@ -195,4 +196,23 @@ export function registerAgentHandlers(): void {
       return { success: false, servers: [], error: err.message }
     }
   })
+
+  // Trigger background KB write after a pipeline session completes
+  // Fire-and-forget: returns immediately, emits agent:kb-write-complete broadcast when done
+  ipcMain.handle(
+    'agent:kb-write',
+    (
+      _event,
+      request: {
+        kbSpaceId: string
+        kbRootPath: string
+        taskName: string
+        taskContext: string
+        projectDirs: string[]
+      }
+    ) => {
+      triggerKbWrite(request)
+      return { success: true }
+    }
+  )
 }

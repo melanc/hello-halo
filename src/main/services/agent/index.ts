@@ -101,6 +101,8 @@ export {
 
 export { createCanUseTool, resolveQuestion, rejectQuestion, rejectAllQuestions } from './permission-handler'
 export { resolvePipelineConfirmation } from './pipeline-mcp'
+export { triggerKbWrite } from './kb-writer'
+export type { KbWriteRequest } from './kb-writer'
 export { getWorkingDir, getApiCredentials } from './helpers'
 export { parseSDKMessage, buildMessageContent, formatCanvasContext } from './message-utils'
 export { getOrCreateV2Session, activeSessions, v2Sessions } from './session-manager'

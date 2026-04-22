@@ -596,6 +596,20 @@ export const api = {
     return httpRequest('POST', '/api/agent/confirm-file-changes', data)
   },
 
+  // Trigger background KB write after a pipeline session completes (fire-and-forget)
+  triggerKbWrite: async (request: {
+    kbSpaceId: string
+    kbRootPath: string
+    taskName: string
+    taskContext: string
+    projectDirs: string[]
+  }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.triggerKbWrite(request)
+    }
+    return { success: false, error: 'KB write not supported in remote mode' }
+  },
+
   // Test MCP server connections
   testMcpConnections: async (): Promise<{ success: boolean; servers: unknown[]; error?: string }> => {
     if (isElectron()) {
@@ -1296,6 +1310,8 @@ export const api = {
     onEvent('agent:ask-question', callback),
   onAgentAnnounceFileChanges: (callback: (data: unknown) => void) =>
     onEvent('agent:announce-file-changes', callback),
+  onAgentKbWriteComplete: (callback: (data: unknown) => void) =>
+    onEvent('agent:kb-write-complete', callback),
   onAgentSessionInfo: (callback: (data: unknown) => void) =>
     onEvent('agent:session-info', callback),
   onRemoteStatusChange: (callback: (data: unknown) => void) =>

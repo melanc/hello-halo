@@ -658,6 +658,24 @@ export default function App() {
     return () => { unsub() }
   }, [showToast, setInitialAppId, setView, t])
 
+  // KB write complete notification
+  useEffect(() => {
+    const unsub = api.onAgentKbWriteComplete((data) => {
+      const { success, taskName, error } = data as { success: boolean; taskName: string; error?: string }
+      if (success) {
+        showToast({
+          title: t('知识库已更新'),
+          body: taskName,
+          variant: 'success',
+          duration: 5000,
+        })
+      } else {
+        console.warn('[App] KB write failed:', error)
+      }
+    })
+    return () => { unsub() }
+  }, [showToast, t])
+
   // Handle search keyboard shortcuts with debouncing for navigation
   // Use ref to maintain debounce timer across renders
   const navigationDebounceTimerRef = useRef<NodeJS.Timeout | null>(null)

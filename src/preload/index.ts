@@ -153,6 +153,7 @@ export interface DevXAPI {
   testMcpConnections: () => Promise<{ success: boolean; servers: unknown[]; error?: string }>
   answerQuestion: (data: { conversationId: string; id: string; answers: Record<string, string> }) => Promise<IpcResponse>
   confirmFileChanges: (data: { id: string; confirmed: boolean }) => Promise<IpcResponse>
+  triggerKbWrite: (request: { kbSpaceId: string; kbRootPath: string; taskName: string; taskContext: string; projectDirs: string[] }) => Promise<IpcResponse>
 
   // Event listeners
   onAgentMessage: (callback: (data: unknown) => void) => () => void
@@ -167,6 +168,7 @@ export interface DevXAPI {
   onAgentCompact: (callback: (data: unknown) => void) => () => void
   onAgentAskQuestion: (callback: (data: unknown) => void) => () => void
   onAgentAnnounceFileChanges: (callback: (data: unknown) => void) => () => void
+  onAgentKbWriteComplete: (callback: (data: unknown) => void) => () => void
   onAgentSessionInfo: (callback: (data: unknown) => void) => () => void
 
   // Artifact
@@ -617,6 +619,7 @@ const api: DevXAPI = {
   testMcpConnections: () => ipcRenderer.invoke('agent:test-mcp'),
   answerQuestion: (data) => ipcRenderer.invoke('agent:answer-question', data),
   confirmFileChanges: (data) => ipcRenderer.invoke('agent:confirm-file-changes', data),
+  triggerKbWrite: (request) => ipcRenderer.invoke('agent:kb-write', request),
 
   // Event listeners
   onAgentMessage: (callback) => createEventListener('agent:message', callback),
@@ -631,6 +634,7 @@ const api: DevXAPI = {
   onAgentCompact: (callback) => createEventListener('agent:compact', callback),
   onAgentAskQuestion: (callback) => createEventListener('agent:ask-question', callback),
   onAgentAnnounceFileChanges: (callback) => createEventListener('agent:announce-file-changes', callback),
+  onAgentKbWriteComplete: (callback) => createEventListener('agent:kb-write-complete', callback),
   onAgentSessionInfo: (callback) => createEventListener('agent:session-info', callback),
 
   // Artifact

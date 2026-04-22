@@ -1370,6 +1370,35 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
+/** Build structured task context text for KB writer agent */
+function buildTaskContextForKb(task: WorkspaceTask): string {
+  const lines: string[] = [`任务名称：${task.name}`]
+
+  if (task.requirementAnalysis?.trim()) {
+    lines.push('', '需求分析：', task.requirementAnalysis.trim().slice(0, 1000))
+  } else if (task.requirementKeyPoints?.length) {
+    lines.push('', '需求要点：')
+    task.requirementKeyPoints.forEach(p => lines.push(`- ${p}`))
+  }
+
+  if (task.pipelineSubtasks?.length) {
+    lines.push('', '子任务：')
+    task.pipelineSubtasks.forEach(st =>
+      lines.push(`- [${st.status}] ${st.title}${st.description ? '：' + st.description : ''}`)
+    )
+  }
+
+  if (task.pipelineDevPlan?.trim()) {
+    lines.push('', '开发计划：', task.pipelineDevPlan.trim().slice(0, 1200))
+  }
+
+  if (task.projectDirs?.length) {
+    lines.push('', `涉及项目：${task.projectDirs.join('、')}`)
+  }
+
+  return lines.join('\n')
+}
+
 function SessionReportCard({ report }: { report: SessionReport }) {
   const { t } = useTranslation()
   const showCodeStats = (report.stage === 4 || report.stage === 5) && report.fileChanges
@@ -1462,6 +1491,12 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const selectedTabRef = useRef<PipelineStage>(selectedTab)
   useEffect(() => { selectedTabRef.current = selectedTab }, [selectedTab])
 
+  // Refs for KB write trigger (avoid stale closures in store subscription)
+  const knowledgeBaseRootRef = useRef(knowledgeBaseRoot)
+  useEffect(() => { knowledgeBaseRootRef.current = knowledgeBaseRoot }, [knowledgeBaseRoot])
+  const taskRef = useRef(task)
+  useEffect(() => { taskRef.current = task }, [task])
+
   // Subscribe to chat store: auto-track every generation start/end
   useEffect(() => {
     const unsub = useChatStore.subscribe((state) => {
@@ -1492,6 +1527,19 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             fileChanges: last.metadata?.fileChanges ?? undefined,
             stage,
           })
+        }
+
+        // Trigger background KB write if knowledge base is configured
+        const kbRoot = knowledgeBaseRootRef.current
+        const currentTask = taskRef.current
+        if (kbRoot && currentTask.knowledgeBaseSpaceId) {
+          api.triggerKbWrite({
+            kbSpaceId: currentTask.knowledgeBaseSpaceId,
+            kbRootPath: kbRoot,
+            taskName: currentTask.name,
+            taskContext: buildTaskContextForKb(currentTask),
+            projectDirs: currentTask.projectDirs ?? [],
+          }).catch(err => console.error('[TaskPipelinePanel] Failed to trigger KB write:', err))
         }
       }
 
