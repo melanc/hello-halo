@@ -406,10 +406,11 @@ export function buildIntentAnalysisMessage(
       ]
       if (opts.knowledgeBaseRoot?.trim()) {
         blocks.push(
-          t('在开始编码前，请先查阅知识库中的编码实现引导文档：'),
+          t('在开始编码前，请先按以下步骤查阅知识库：'),
           t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
-          t('2. 查找"编码实现引导"相关文档（文件名通常包含"编码"、"coding"、"implementation"等关键词），阅读其内容'),
-          t('3. 如果找到了引导文档，按其规范进行编码；如果没找到，按通用编码规范处理'),
+          t('2. 查找"编码实现引导"相关文档（文件名通常包含"编码"、"coding"、"implementation"等关键词），如果找到则按其规范进行编码；如果没找到，按通用编码规范处理'),
+          t('3. 在 {{path}}/项目介绍/ 目录下查找涉及项目对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: opts.knowledgeBaseRoot.trim() }),
+          t('4. 如果某个项目没有技术知识文档，先用 Glob 浏览该项目目录结构，将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md，完成后继续', { path: opts.knowledgeBaseRoot.trim() }),
           '',
         )
       }
@@ -462,10 +463,11 @@ export function buildIntentAnalysisMessage(
       ]
       if (opts.knowledgeBaseRoot?.trim()) {
         blocks.push(
-          t('在开始验证收尾前，请先查阅知识库中的验证收尾引导文档：'),
+          t('在开始验证收尾前，请先按以下步骤查阅知识库：'),
           t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
-          t('2. 查找"验证收尾引导"相关文档（文件名通常包含"验证"、"verification"、"test"等关键词），阅读其内容'),
-          t('3. 如果找到了引导文档，按其规范制定验证计划；如果没找到，按下述默认步骤处理'),
+          t('2. 查找"验证收尾引导"相关文档（文件名通常包含"验证"、"verification"、"test"等关键词），如果找到则按其规范制定验证计划；如果没找到，按下述默认步骤处理'),
+          t('3. 在 {{path}}/项目介绍/ 目录下查找涉及项目对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: opts.knowledgeBaseRoot.trim() }),
+          t('4. 如果某个项目没有技术知识文档，先用 Glob 浏览该项目目录结构，将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md，完成后继续', { path: opts.knowledgeBaseRoot.trim() }),
           '',
         )
       }
@@ -624,9 +626,9 @@ export function buildCodingKickoffMessage(
     blocks.push(
       t('在开始编码之前，请先执行以下步骤：'),
       t('1. 使用你的工具（Read、Glob 等）浏览知识库目录：{{path}}', { path: ctx.knowledgeBaseRoot.trim() }),
-      t('2. 找到编码实现引导文件（文件名通常包含"编码"、"coding"、"implementation"等关键词），阅读其内容'),
-      t('3. 按照该引导文件的编码规范进行代码实现'),
-      t('如果找不到引导文件，按通用编码规范处理。'),
+      t('2. 查找编码实现引导文件（文件名通常包含"编码"、"coding"、"implementation"等关键词），如果找到则按其规范进行编码；如果没找到，按通用编码规范处理'),
+      t('3. 在 {{path}}/项目介绍/ 目录下查找涉及项目对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: ctx.knowledgeBaseRoot.trim() }),
+      t('4. 如果某个项目没有技术知识文档，先用 Glob 浏览该项目目录结构，将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md，完成后继续', { path: ctx.knowledgeBaseRoot.trim() }),
       '',
     )
   }
@@ -653,16 +655,16 @@ export function buildCodingKickoffMessage(
     blocks.push('', t('涉及的项目路径（除非计划另有说明，只在这些范围内修改）：'))
     ctx.projectPaths.forEach((p) => blocks.push(`- ${p}`))
 
-    if (ctx.projectPaths.length > 1) {
-      blocks.push(
-        '',
-        t('多项目并行处理：本任务涉及 {{count}} 个项目路径，请使用 Task 工具并行处理以提高效率：', { count: ctx.projectPaths.length }),
-        t('1. 为每个项目路径启动一个独立的子 Agent（通过 Task 工具）'),
-        t('2. 每个子 Agent 的 prompt 中应包含：该项目的路径、完整开发计划、分支名称、以及相关子任务上下文'),
-        t('3. 子 Agent 只在其对应的项目路径范围内进行修改'),
-        t('4. 等待所有子 Agent 完成后，汇总各项目的改动情况并向用户报告'),
-      )
-    }
+    // if (ctx.projectPaths.length > 1) {
+    //   blocks.push(
+    //     '',
+    //     t('多项目并行处理：本任务涉及 {{count}} 个项目路径，请使用 Task 工具并行处理以提高效率：', { count: ctx.projectPaths.length }),
+    //     t('1. 为每个项目路径启动一个独立的子 Agent（通过 Task 工具）'),
+    //     t('2. 每个子 Agent 的 prompt 中应包含：该项目的路径、完整开发计划、分支名称、以及相关子任务上下文'),
+    //     t('3. 子 Agent 只在其对应的项目路径范围内进行修改'),
+    //     t('4. 等待所有子 Agent 完成后，汇总各项目的改动情况并向用户报告'),
+    //   )
+    // }
   }
 
   if (task.pipelineDevPlan?.trim()) {
@@ -708,10 +710,11 @@ export function buildVerificationExecuteMessage(
 
   if (ctx.knowledgeBaseRoot?.trim()) {
     blocks.push(
-      t('在开始验证检查之前，请先查阅知识库中的验证收尾引导文档：'),
+      t('在开始验证检查之前，请先执行以下步骤：'),
       t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: ctx.knowledgeBaseRoot.trim() }),
-      t('2. 查找"验证收尾引导"相关文档（文件名通常包含"验证"、"verification"、"test"等关键词），阅读其内容'),
-      t('3. 如果找到了引导文档，按其规范执行验证；如果没找到，按下述默认步骤处理'),
+      t('2. 查找"验证收尾引导"相关文档（文件名通常包含"验证"、"verification"、"test"等关键词），如果找到则按其规范执行验证；如果没找到，按下述默认步骤处理'),
+      t('3. 在 {{path}}/项目介绍/ 目录下查找涉及项目对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: ctx.knowledgeBaseRoot.trim() }),
+      t('4. 如果某个项目没有技术知识文档，先用 Glob 浏览该项目目录结构，将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md，完成后继续', { path: ctx.knowledgeBaseRoot.trim() }),
       '',
     )
   }
