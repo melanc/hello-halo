@@ -192,7 +192,7 @@ function pipelineOpeningLines(t: TFunction): string[] {
     ROLE_PREAMBLE,
     '',
     replyLanguageConstraint(t),
-    t('如需确定某个项目的路径，优先用 Glob 工具在当前工作目录（空间根目录）下搜索；找不到时再向用户询问。'),
+    t('项目路径必须自己用工具查，不得列为"待确认问题"向用户询问：先用 Glob 在当前工作目录（空间根目录）下搜索项目名称，搜到即可确认路径；只有 Glob 确实找不到任何匹配时，才可以询问用户。'),
     t('如需修改或创建任何文件，必须先调用 mcp__halo-pipeline__announce_file_changes 工具，列出所有计划修改的文件及改动原因，等待用户确认后再执行；若用户取消，停止所有文件修改。'),
     '',
   ]
