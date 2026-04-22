@@ -1482,6 +1482,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const taskRef = useRef(task)
   useEffect(() => { taskRef.current = task }, [task])
 
+  // Deferred pipeline action — set before fire-and-forget sendMessage calls (stages 1/2/3);
+  // executed by the subscribe callback when generation ends.
+  const pendingPipelineActionRef = useRef<((reply: string) => void) | null>(null)
+
   // Subscribe to chat store: auto-track every generation start/end
   useEffect(() => {
     const unsub = useChatStore.subscribe((state) => {
@@ -1495,23 +1499,35 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         setSessionReport(null)
       }
 
-      // Generation finished — compute report
-      if (wasGeneratingRef.current && !isGenerating && reportStartTimeRef.current !== null) {
-        const startTime = reportStartTimeRef.current
-        const stage = reportStageRef.current
-        reportStartTimeRef.current = null
-
+      // Generation finished — compute report and process any deferred pipeline action
+      if (wasGeneratingRef.current && !isGenerating) {
         const conv = state.conversationCache.get(task.conversationId)
         const msgs = conv?.messages ?? []
         const last = [...msgs].reverse().find((m) => m.role === 'assistant')
-        if (last) {
-          setSessionReport({
-            durationMs: Date.now() - startTime,
-            inputTokens: last.tokenUsage?.inputTokens ?? 0,
-            outputTokens: last.tokenUsage?.outputTokens ?? 0,
-            fileChanges: last.metadata?.fileChanges ?? undefined,
-            stage,
-          })
+
+        if (reportStartTimeRef.current !== null) {
+          const startTime = reportStartTimeRef.current
+          const stage = reportStageRef.current
+          reportStartTimeRef.current = null
+          if (last) {
+            setSessionReport({
+              durationMs: Date.now() - startTime,
+              inputTokens: last.tokenUsage?.inputTokens ?? 0,
+              outputTokens: last.tokenUsage?.outputTokens ?? 0,
+              fileChanges: last.metadata?.fileChanges ?? undefined,
+              stage,
+            })
+          }
+        }
+
+        // Process deferred pipeline action (stages 1/2/3 fire-and-forget)
+        const pendingAction = pendingPipelineActionRef.current
+        if (pendingAction) {
+          pendingPipelineActionRef.current = null
+          if (last?.content) {
+            pendingAction(last.content)
+          }
+          setIsSendingMessage(false)
         }
 
         // Trigger background KB write if knowledge base is configured
@@ -1713,30 +1729,30 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     if (!check.ok) return
 
     setIsSendingMessage(true)
+    // deferred=true means a pending action was registered; isSendingMessage will be
+    // cleared by the subscribe callback when generation ends, not by finally.
+    let deferred = false
     try {
       const chat = useChatStore.getState()
 
       if (selectedTab === 1) {
-        // AI analyses requirement and returns structured 4-section text
-        const tab1Opts = knowledgeBaseRoot ? { knowledgeBaseRoot } : undefined
-        await chat.sendMessage(buildRequirementIdentifyMessage(task, t, tab1Opts))
-        const reply = await waitForAssistantReply(task.conversationId)
-        if (reply?.trim()) {
-          useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
-          // For simple tasks, auto-advance to coding stage after requirement identification
-          if (isSimple) {
-            updateTaskPipelineState(task.id, { stage: 4 })
-            setSelectedTab(4)
+        // Register deferred action — subscribe callback will call this when generation ends
+        pendingPipelineActionRef.current = (reply) => {
+          if (reply.trim()) {
+            useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
+            // For simple tasks, auto-advance to coding stage after requirement identification
+            if (isSimple) {
+              updateTaskPipelineState(task.id, { stage: 4 })
+              setSelectedTab(4)
+            }
           }
+          // Stay on Tab1 so the user can review the generated analysis before proceeding (complex tasks)
         }
-        // Stay on Tab1 so the user can review the generated analysis before proceeding (complex tasks)
+        await chat.sendMessage(buildRequirementIdentifyMessage(task, t, knowledgeBaseRoot ? { knowledgeBaseRoot } : undefined))
+        deferred = true
 
       } else if (selectedTab === 2) {
-        // AI generates subtask breakdown
-        const tab2Opts = knowledgeBaseRoot ? { knowledgeBaseRoot } : undefined
-        await chat.sendMessage(buildTaskBreakdownExecuteMessage(t, tab2Opts))
-        const reply = await waitForAssistantReply(task.conversationId)
-        if (reply) {
+        pendingPipelineActionRef.current = (reply) => {
           const generated = extractSubtasks(reply)
           if (generated.length > 0) {
             updateTaskPipelineState(task.id, {
@@ -1744,8 +1760,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               stage: Math.max(stage, 2) as PipelineStage,
             })
           }
+          setSelectedTab(2)
         }
-        setSelectedTab(2)
+        await chat.sendMessage(buildTaskBreakdownExecuteMessage(t, knowledgeBaseRoot ? { knowledgeBaseRoot } : undefined))
+        deferred = true
 
       } else if (selectedTab === 3) {
         // Validate project paths before generating dev plan
@@ -1764,21 +1782,20 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             return
           }
         }
-        // AI generates dev plan
-        const tab3Opts = knowledgeBaseRoot
-          ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
-          : undefined
-        await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
-        const reply = await waitForAssistantReply(task.conversationId)
-        if (reply) {
+        pendingPipelineActionRef.current = (reply) => {
           const { projectChanges, scopeText } = parseDevPlanReply(reply)
           updateTaskPipelineState(task.id, {
             pipelineDevPlan: scopeText || reply.trim(),
             pipelineProjectChanges: projectChanges || undefined,
             stage: Math.max(stage, 3) as PipelineStage,
           })
+          setSelectedTab(3)
         }
-        setSelectedTab(3)
+        const tab3Opts = knowledgeBaseRoot
+          ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
+          : undefined
+        await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
+        deferred = true
 
       } else if (selectedTab === 4) {
         const dirs = getInvolvedProjectDirNames(task)
@@ -1829,10 +1846,17 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           })
         )
       }
+    } catch (e) {
+      // On error, cancel any pending action and release the sending lock immediately
+      pendingPipelineActionRef.current = null
+      deferred = false
+      throw e
     } finally {
-      setIsSendingMessage(false)
+      if (!deferred) {
+        setIsSendingMessage(false)
+      }
     }
-  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, knowledgeBaseRoot])
+  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, knowledgeBaseRoot, isSimple])
 
   const handleSaveDevPlan = useCallback(
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
