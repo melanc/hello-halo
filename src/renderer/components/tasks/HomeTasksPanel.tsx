@@ -24,6 +24,11 @@ function isKnowledgeBaseSpace(s: Space): boolean {
   return s.workspaceKind === 'knowledge_base'
 }
 
+function resolveSpacePath(spaces: Space[], spaceId: string): string | undefined {
+  const sp = spaces.find((s) => s.id === spaceId)
+  return sp ? (sp.workingDir || sp.path || undefined) : undefined
+}
+
 function formatTaskCreatedAt(ms: number, locale: string): string {
   try {
     return new Date(ms).toLocaleString(locale, {
@@ -190,6 +195,8 @@ export function HomeTasksPanel() {
       kbSelection !== SPACE_SELECT_NONE && knowledgeBaseSpaces.some((s) => s.id === kbSelection)
         ? kbSelection
         : undefined
+    const spacePath = resolveSpacePath(regularSpaces, sid)
+    const kbRootPath = kbPersist ? resolveSpacePath(knowledgeBaseSpaces, kbPersist) : undefined
     setCreating(true)
     try {
       const task = await addTask({
@@ -202,6 +209,8 @@ export function HomeTasksPanel() {
         projectDirs: [],
         branchName: '',
         taskType,
+        ...(spacePath ? { spacePath } : {}),
+        ...(kbRootPath ? { kbRootPath } : {}),
       })
       if (task) resetDialog()
     } finally {
@@ -249,7 +258,8 @@ export function HomeTasksPanel() {
     try {
       updateTaskName(editingTaskId, name)
       if (sid !== orig.spaceId) {
-        const ok = await moveTaskToSpace(editingTaskId, sid)
+        const newSpacePath = resolveSpacePath(regularSpaces, sid)
+        const ok = await moveTaskToSpace(editingTaskId, sid, newSpacePath)
         if (!ok) return
       }
       updateTaskRequirementDoc(editingTaskId, requirementName, requirementContent, requirementDesc)
@@ -257,7 +267,8 @@ export function HomeTasksPanel() {
         kbSelection !== SPACE_SELECT_NONE && knowledgeBaseSpaces.some((s) => s.id === kbSelection)
           ? kbSelection
           : null
-      updateTaskKnowledgeBaseSpaceId(editingTaskId, kbPersist)
+      const newKbRootPath = kbPersist ? resolveSpacePath(knowledgeBaseSpaces, kbPersist) : undefined
+      updateTaskKnowledgeBaseSpaceId(editingTaskId, kbPersist, newKbRootPath)
       resetDialog()
     } finally {
       setCreating(false)

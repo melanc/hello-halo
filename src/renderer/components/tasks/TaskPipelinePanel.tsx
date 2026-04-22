@@ -49,9 +49,7 @@ import {
   buildProjectDisplayPaths,
   getSubtaskProgressStats,
 } from '../../lib/workspace-task-messages'
-import { loadKnowledgeBaseContextForTask } from '../../lib/knowledge-base-prompt-context'
 import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask, FileChangesSummary } from '../../types'
-import { useSpaceStore } from '../../stores/space.store'
 import { api } from '../../api'
 
 // ─────────────────────────────────────────────
@@ -1453,22 +1451,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const addProjectDirToTask = useTaskStore((s) => s.addProjectDirToTask)
   const removeProjectDirFromTask = useTaskStore((s) => s.removeProjectDirFromTask)
 
-  const spaceForTask = useSpaceStore((s) => {
-    const hit = s.spaces.find((sp) => sp.id === task.spaceId)
-    if (hit) return hit
-    if (s.devxSpace?.id === task.spaceId) return s.devxSpace
-    if (s.currentSpace?.id === task.spaceId) return s.currentSpace
-    return null
-  })
-  const workspaceRoot = (spaceForTask?.workingDir || spaceForTask?.path || '').trim()
+  const workspaceRoot = task.spacePath?.trim() || ''
   const workspaceRootForUi = workspaceRoot || null
-
-  const knowledgeBaseSpace = useSpaceStore((s) => {
-    const kbId = task.knowledgeBaseSpaceId?.trim()
-    if (!kbId) return null
-    return s.spaces.find((sp) => sp.id === kbId) ?? null
-  })
-  const knowledgeBaseRoot = (knowledgeBaseSpace?.workingDir || knowledgeBaseSpace?.path || '').trim() || null
+  const knowledgeBaseRoot = task.kbRootPath?.trim() || null
 
   const stage: PipelineStage = task.pipelineStage ?? 1
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
@@ -1695,7 +1680,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       const dirNames = getInvolvedProjectDirNames(task)
       const codingProjectPaths =
         workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirNames) : dirNames
-      const knowledgeBaseMarkdown = await loadKnowledgeBaseContextForTask(task)
 
       await chat.sendMessage(
         buildIntentAnalysisMessage(
@@ -1704,7 +1688,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           {
             subtasks,
             keyPoints: task.requirementKeyPoints ?? [],
-            knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined,
             ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
             ...(selectedTab === 3
               ? { projectDirs: dirNames.length ? dirNames : undefined }
@@ -1732,15 +1715,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     setIsSendingMessage(true)
     try {
       const chat = useChatStore.getState()
-      const knowledgeBaseMarkdown = await loadKnowledgeBaseContextForTask(task)
-      const kbOpts = knowledgeBaseMarkdown ? { knowledgeBaseMarkdown } : undefined
 
       if (selectedTab === 1) {
         // AI analyses requirement and returns structured 4-section text
-        // If KB path is known, instruct AI to explore it with tools; otherwise fall back to pre-loaded markdown
-        const tab1Opts = knowledgeBaseRoot
-          ? { knowledgeBaseRoot }
-          : kbOpts
+        const tab1Opts = knowledgeBaseRoot ? { knowledgeBaseRoot } : undefined
         await chat.sendMessage(buildRequirementIdentifyMessage(task, t, tab1Opts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply?.trim()) {
@@ -1755,7 +1733,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       } else if (selectedTab === 2) {
         // AI generates subtask breakdown
-        const tab2Opts = knowledgeBaseRoot ? { knowledgeBaseRoot } : kbOpts
+        const tab2Opts = knowledgeBaseRoot ? { knowledgeBaseRoot } : undefined
         await chat.sendMessage(buildTaskBreakdownExecuteMessage(t, tab2Opts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {
@@ -1770,11 +1748,26 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         setSelectedTab(2)
 
       } else if (selectedTab === 3) {
-        // AI generates dev plan
+        // Validate project paths before generating dev plan
         const tab3ProjectDirs = getInvolvedProjectDirNames(task)
+        if (tab3ProjectDirs.length > 0 && workspaceRoot) {
+          const missing: string[] = []
+          await Promise.all(
+            tab3ProjectDirs.map(async (dir) => {
+              const fullPath = `${workspaceRoot}/${dir}`
+              const res = await api.checkPathExists(fullPath)
+              if (!res.success || !res.data?.exists) missing.push(fullPath)
+            })
+          )
+          if (missing.length > 0) {
+            setCheckResult({ ok: false, message: t('以下项目路径不存在，请确认后再试：\n') + missing.join('\n') })
+            return
+          }
+        }
+        // AI generates dev plan
         const tab3Opts = knowledgeBaseRoot
           ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
-          : kbOpts
+          : undefined
         await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
         const reply = await waitForAssistantReply(task.conversationId)
         if (reply) {
@@ -1789,6 +1782,21 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       } else if (selectedTab === 4) {
         const dirs = getInvolvedProjectDirNames(task)
+        // Validate project paths before starting coding
+        if (dirs.length > 0 && workspaceRoot) {
+          const missing: string[] = []
+          await Promise.all(
+            dirs.map(async (dir) => {
+              const fullPath = `${workspaceRoot}/${dir}`
+              const res = await api.checkPathExists(fullPath)
+              if (!res.success || !res.data?.exists) missing.push(fullPath)
+            })
+          )
+          if (missing.length > 0) {
+            setCheckResult({ ok: false, message: t('以下项目路径不存在，请确认后再试：\n') + missing.join('\n') })
+            return
+          }
+        }
         const projectPaths = buildProjectDisplayPaths(workspaceRoot, dirs)
         const focus = pickFocusSubtask(subtasks)
         const logLine = t('Coding kickoff log line', {
@@ -1806,9 +1814,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           buildCodingKickoffMessage(task, t, {
             workspaceRoot: workspaceRoot || undefined,
             projectPaths: projectPaths.length ? projectPaths : undefined,
-            ...(knowledgeBaseRoot
-              ? { knowledgeBaseRoot }
-              : { knowledgeBaseMarkdown: knowledgeBaseMarkdown || undefined }),
+            ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
           })
         )
 

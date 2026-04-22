@@ -3,6 +3,7 @@
  */
 
 import { ipcMain, dialog } from 'electron'
+import { existsSync } from 'fs'
 import {
   getDevXSpace,
   listSpaces,
@@ -167,6 +168,15 @@ export function registerSpaceHandlers(): void {
     } catch (error: unknown) {
       const err = error as Error
       return { success: false, error: err.message }
+    }
+  })
+
+  // Check if a filesystem path exists
+  ipcMain.handle('fs:path-exists', (_event, fsPath: string) => {
+    try {
+      return { success: true, exists: existsSync(fsPath) }
+    } catch {
+      return { success: true, exists: false }
     }
   })
 

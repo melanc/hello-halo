@@ -375,6 +375,12 @@ export const api = {
     return httpRequest('GET', `/api/spaces/${spaceId}/preferences`)
   },
 
+  // Check if a filesystem path exists (Electron only)
+  checkPathExists: async (fsPath: string): Promise<ApiResponse<{ exists: boolean }>> => {
+    if (isElectron()) return window.devx.checkPathExists(fsPath)
+    return { success: false, error: 'Not available in browser' }
+  },
+
   // ===== Conversation =====
   listConversations: async (spaceId: string): Promise<ApiResponse> => {
     if (isElectron()) {

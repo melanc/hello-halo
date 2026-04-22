@@ -38,6 +38,8 @@ interface TaskState {
     projectDirs: string[]
     branchName: string
     taskType?: 'simple' | 'complex'
+    spacePath?: string
+    kbRootPath?: string
   }) => Promise<WorkspaceTask | null>
 
   removeTask: (id: string) => void
@@ -55,10 +57,10 @@ interface TaskState {
    * Move task to another space: new conversation in target space, pipeline reset.
    * Returns false if conversation could not be created.
    */
-  moveTaskToSpace: (taskId: string, newSpaceId: string) => Promise<boolean>
+  moveTaskToSpace: (taskId: string, newSpaceId: string, newSpacePath?: string) => Promise<boolean>
 
   /** Link or clear optional knowledge-base space (Markdown docs) for pipeline context */
-  updateTaskKnowledgeBaseSpaceId: (taskId: string, knowledgeBaseSpaceId: string | null) => void
+  updateTaskKnowledgeBaseSpaceId: (taskId: string, knowledgeBaseSpaceId: string | null, kbRootPath?: string) => void
 
   /** Record first-level project dir from artifact relativePath for the active task */
   recordArtifactTouch: (spaceId: string, relativePath: string) => void
@@ -137,6 +139,8 @@ export const useTaskStore = create<TaskState>()(
         const projectDirs = input.projectDirs.map((d) => d.trim()).filter(Boolean)
         const kbRaw = (input as { knowledgeBaseSpaceId?: string }).knowledgeBaseSpaceId?.trim()
         const knowledgeBaseSpaceId = kbRaw || undefined
+        const spacePath = (input as { spacePath?: string }).spacePath?.trim() || undefined
+        const kbRootPath = (input as { kbRootPath?: string }).kbRootPath?.trim() || undefined
 
         const conv = await useChatStore.getState().createConversation(spaceId, input.name)
         if (!conv) return null
@@ -158,6 +162,8 @@ export const useTaskStore = create<TaskState>()(
           updatedAt: now,
           touchedProjectDirs: [],
           taskType,
+          ...(spacePath ? { spacePath } : {}),
+          ...(kbRootPath ? { kbRootPath } : {}),
         }
 
         set((s) => ({ tasks: [task, ...s.tasks] }))
@@ -208,8 +214,9 @@ export const useTaskStore = create<TaskState>()(
         }))
       },
 
-      moveTaskToSpace: async (taskId, newSpaceId) => {
+      moveTaskToSpace: async (taskId, newSpaceId, newSpacePath) => {
         const sid = newSpaceId.trim()
+        const resolvedSpacePath = newSpacePath?.trim() || undefined
         const task = get().tasks.find((t) => t.id === taskId)
         if (!task || task.spaceId === sid) return true
         const conv = await useChatStore.getState().createConversation(sid, task.name)
@@ -221,6 +228,7 @@ export const useTaskStore = create<TaskState>()(
               : {
                   ...t,
                   spaceId: sid,
+                  spacePath: resolvedSpacePath,
                   conversationId: conv.id,
                   updatedAt: Date.now(),
                   knowledgeBaseSpaceId: t.knowledgeBaseSpaceId,
@@ -243,14 +251,16 @@ export const useTaskStore = create<TaskState>()(
         return true
       },
 
-      updateTaskKnowledgeBaseSpaceId: (taskId, knowledgeBaseSpaceId) => {
+      updateTaskKnowledgeBaseSpaceId: (taskId, knowledgeBaseSpaceId, kbRootPath) => {
         const kb = knowledgeBaseSpaceId?.trim()
+        const resolvedKbRoot = kb ? kbRootPath?.trim() || undefined : undefined
         set((s) => ({
           tasks: s.tasks.map((t) =>
             t.id === taskId
               ? {
                   ...t,
                   ...(kb ? { knowledgeBaseSpaceId: kb } : { knowledgeBaseSpaceId: undefined }),
+                  kbRootPath: resolvedKbRoot,
                   updatedAt: Date.now(),
                 }
               : t

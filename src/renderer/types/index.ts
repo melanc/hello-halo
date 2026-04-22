@@ -380,6 +380,10 @@ export interface WorkspaceTask {
   pipelineApiTestCmd?: string;
   /** Task type — simple (3 stages: 需求识别/编码实现/用例验证) or complex (all 5 stages). Default: complex. */
   taskType?: 'simple' | 'complex';
+  /** Resolved filesystem path of the regular workspace space (agent cwd, artifact root). Stored at creation time. */
+  spacePath?: string;
+  /** Resolved filesystem path of the knowledge-base space root. Undefined if no KB linked. Stored at creation time. */
+  kbRootPath?: string;
 }
 
 // ============================================

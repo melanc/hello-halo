@@ -79,6 +79,7 @@ export interface DevXAPI {
     }
   }) => Promise<IpcResponse>
   getSpacePreferences: (spaceId: string) => Promise<IpcResponse>
+  checkPathExists: (fsPath: string) => Promise<IpcResponse<{ exists: boolean }>>
 
   // Conversation
   listConversations: (spaceId: string) => Promise<IpcResponse>
@@ -590,6 +591,7 @@ const api: DevXAPI = {
   updateSpacePreferences: (spaceId, preferences) =>
     ipcRenderer.invoke('space:update-preferences', spaceId, preferences),
   getSpacePreferences: (spaceId) => ipcRenderer.invoke('space:get-preferences', spaceId),
+  checkPathExists: (fsPath) => ipcRenderer.invoke('fs:path-exists', fsPath),
 
   // Conversation
   listConversations: (spaceId) => ipcRenderer.invoke('conversation:list', spaceId),
