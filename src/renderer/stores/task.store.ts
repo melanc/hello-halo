@@ -4,13 +4,39 @@
  */
 
 import { create } from 'zustand'
-import { persist } from 'zustand/middleware'
+import { persist, createJSONStorage } from 'zustand/middleware'
 import { api } from '../api'
 import type { WorkspaceTask, PipelineStage, PipelineSubtask } from '../types'
 import { appendConversationExcerptToBreakdownMarkdown } from '../lib/parse-implementation-breakdown'
 import { useChatStore } from './chat.store'
 
 const STORAGE_KEY = 'devx-workspace-tasks-v1'
+
+// Debounce localStorage writes to avoid serializing the full tasks array on every
+// frequent mutation (e.g. appendPipelineCodingLog, updateTaskPipelineState).
+// Writes are coalesced and flushed 500 ms after the last mutation.
+const debouncedLocalStorage = (() => {
+  let timer: ReturnType<typeof setTimeout> | null = null
+  let pendingKey: string | null = null
+  let pendingValue: string | null = null
+  return createJSONStorage(() => ({
+    getItem: (key: string) => localStorage.getItem(key),
+    setItem: (key: string, value: string) => {
+      pendingKey = key
+      pendingValue = value
+      if (timer !== null) clearTimeout(timer)
+      timer = setTimeout(() => {
+        if (pendingKey !== null && pendingValue !== null) {
+          localStorage.setItem(pendingKey, pendingValue)
+        }
+        timer = null
+        pendingKey = null
+        pendingValue = null
+      }, 500)
+    },
+    removeItem: (key: string) => localStorage.removeItem(key),
+  }))
+})()
 
 function newTaskId(): string {
   return `task-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
@@ -483,6 +509,7 @@ export const useTaskStore = create<TaskState>()(
     }),
     {
       name: STORAGE_KEY,
+      storage: debouncedLocalStorage,
       partialize: (state) => ({ tasks: state.tasks }),
     }
   )

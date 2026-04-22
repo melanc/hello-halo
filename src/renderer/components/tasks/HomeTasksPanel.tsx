@@ -129,6 +129,12 @@ export function HomeTasksPanel() {
     return m
   }, [allSpaces, t])
 
+  const spaceById = useMemo(() => {
+    const m: Record<string, (typeof allSpaces)[0]> = {}
+    for (const s of allSpaces) m[s.id] = s
+    return m
+  }, [allSpaces])
+
   const openCreateDialog = () => {
     setEditingTaskId(null)
     setTaskName('')
@@ -291,7 +297,7 @@ export function HomeTasksPanel() {
         openEditTaskDialog(task.id)
         return
       }
-      const space = allSpaces.find((s) => s.id === task.spaceId)
+      const space = spaceById[task.spaceId]
       if (!space) return
       if (isKnowledgeBaseSpace(space)) {
         openEditTaskDialog(task.id)
@@ -309,16 +315,17 @@ export function HomeTasksPanel() {
       setActiveTask(task.id)
       useChatStore.getState().setCurrentSpace(space.id)
 
-      await refreshCurrentSpace()
-
       if (!alreadyOnSpace || !taskMetaPresent) {
+        // Refresh space data and load conversation list only when switching spaces
+        // or when the conversation metadata isn't cached yet.
+        await refreshCurrentSpace()
         await useChatStore.getState().loadConversations(space.id, { silent: true })
       }
 
       await useChatStore.getState().selectConversation(task.conversationId)
       setView('space')
     },
-    [tasks, allSpaces, setCurrentSpace, refreshCurrentSpace, setActiveTask, setView, openEditTaskDialog]
+    [tasks, spaceById, setCurrentSpace, refreshCurrentSpace, setActiveTask, setView, openEditTaskDialog]
   )
 
   const workspaceValid =
@@ -361,11 +368,11 @@ export function HomeTasksPanel() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           {tasks.map((task) => {
-            const sp = allSpaces.find((s) => s.id === task.spaceId)
+            const sp = spaceById[task.spaceId]
             const boundKb = Boolean(sp && isKnowledgeBaseSpace(sp))
             const displayName = spaceNameById[task.spaceId] ?? task.spaceId
             const linkedKbId = task.knowledgeBaseSpaceId?.trim()
-            const linkedSp = linkedKbId ? allSpaces.find((s) => s.id === linkedKbId) : undefined
+            const linkedSp = linkedKbId ? spaceById[linkedKbId] : undefined
             const linkedIsKb = Boolean(linkedSp && isKnowledgeBaseSpace(linkedSp))
             const kbRowName =
               linkedKbId && linkedIsKb

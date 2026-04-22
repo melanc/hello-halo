@@ -736,6 +736,7 @@ function Tab2Breakdown({
 function Tab3DevPlan({
   task,
   workspaceRoot,
+  availableRoots,
   onSaveDevPlan,
   onSaveBranchName,
   onAddProject,
@@ -743,6 +744,7 @@ function Tab3DevPlan({
 }: {
   task: WorkspaceTask
   workspaceRoot: string | null
+  availableRoots: string[]
   onSaveDevPlan: (text: string) => void
   onSaveBranchName: (branch: string) => void
   onAddProject: (dir: string) => void
@@ -754,21 +756,9 @@ function Tab3DevPlan({
   const [devPlanEditing, setDevPlanEditing] = useState(false)
   const [branchDraft, setBranchDraft] = useState(task.branchName ?? '')
   const savedBranchRef = useRef(task.branchName ?? '')
-  const [availableRoots, setAvailableRoots] = useState<string[]>([])
   // Collapsed by default; expand button shows non-added projects; never re-collapses on X click.
   // Component remounts on tab switch, so this resets to false each time Tab3 is opened.
   const [showAllRoots, setShowAllRoots] = useState(false)
-
-  // Fetch workspace root folder names for the project picker
-  useEffect(() => {
-    let cancelled = false
-    api.listArtifactsTree(task.spaceId).then((res) => {
-      if (cancelled || !res.success || !res.data) return
-      const nodes = (res.data as { nodes: { name: string }[] }).nodes ?? []
-      setAvailableRoots(nodes.map((n) => n.name).filter(Boolean))
-    }).catch(() => {/* ignore */})
-    return () => { cancelled = true }
-  }, [task.spaceId])
 
   // Sync when task changes externally; auto-switch to preview when AI fills it
   useEffect(() => {
@@ -969,28 +959,16 @@ function Tab4Coding({
   task,
   workspaceRoot,
   subtasks,
+  availableRootNames,
+  resolvedRoot,
 }: {
   task: WorkspaceTask
   workspaceRoot: string | null
   subtasks: PipelineSubtask[]
+  availableRootNames: string[]
+  resolvedRoot: string | null
 }) {
   const { t } = useTranslation()
-
-  // Fetch workspace roots on each mount (each tab switch remounts this component)
-  // to get accurate absolute paths and reflect any changes made in the dev plan tab.
-  const [resolvedRoot, setResolvedRoot] = useState<string | null>(null)
-  const [availableRootNames, setAvailableRootNames] = useState<string[] | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    api.listArtifactsTree(task.spaceId).then((res) => {
-      if (cancelled || !res.success || !res.data) return
-      const data = res.data as { workspaceRoot: string; nodes: { name: string }[] }
-      setResolvedRoot(data.workspaceRoot || null)
-      setAvailableRootNames(data.nodes?.map((n) => n.name).filter(Boolean) ?? [])
-    }).catch(() => {/* ignore */})
-    return () => { cancelled = true }
-  }, [task.spaceId])
 
   const isSimple = task.taskType === 'simple'
 
@@ -1469,6 +1447,21 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const [isIdentifying, setIsIdentifying] = useState(false)
   const [sessionReport, setSessionReport] = useState<SessionReport | null>(null)
 
+  // Shared artifacts tree data for Tab3 and Tab4 — fetched once per spaceId instead of
+  // duplicating the IPC call in each tab component (which remounts on every tab switch).
+  const [artifactsRootNames, setArtifactsRootNames] = useState<string[]>([])
+  const [resolvedWorkspaceRoot, setResolvedWorkspaceRoot] = useState<string | null>(null)
+  useEffect(() => {
+    let cancelled = false
+    api.listArtifactsTree(task.spaceId).then((res) => {
+      if (cancelled || !res.success || !res.data) return
+      const data = res.data as { workspaceRoot: string; nodes: { name: string }[] }
+      setResolvedWorkspaceRoot(data.workspaceRoot || null)
+      setArtifactsRootNames(data.nodes?.map((n) => n.name).filter(Boolean) ?? [])
+    }).catch(() => {/* ignore */})
+    return () => { cancelled = true }
+  }, [task.spaceId])
+
   // Refs for tracking session report
   const reportStartTimeRef = useRef<number | null>(null)
   const reportStageRef = useRef<PipelineStage>(1)
@@ -1491,6 +1484,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     const unsub = useChatStore.subscribe((state) => {
       const session = state.sessions.get(task.conversationId)
       const isGenerating = session?.isGenerating ?? false
+
+      // Skip mid-stream updates — only act on start/end transitions
+      if (wasGeneratingRef.current === isGenerating) return
 
       // Generation started — begin timing
       if (!wasGeneratingRef.current && isGenerating) {
@@ -1936,6 +1932,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               <Tab3DevPlan
                 task={task}
                 workspaceRoot={workspaceRootForUi}
+                availableRoots={artifactsRootNames}
                 onSaveDevPlan={handleSaveDevPlan}
                 onSaveBranchName={(b) => updateTaskBranchName(task.id, b)}
                 onAddProject={(dir) => addProjectDirToTask(task.id, dir)}
@@ -1943,7 +1940,13 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               />
             )}
             {selectedTab === 4 && (
-              <Tab4Coding task={task} workspaceRoot={workspaceRootForUi} subtasks={subtasks} />
+              <Tab4Coding
+                task={task}
+                workspaceRoot={workspaceRootForUi}
+                subtasks={subtasks}
+                availableRootNames={artifactsRootNames}
+                resolvedRoot={resolvedWorkspaceRoot}
+              />
             )}
             {selectedTab === 5 && (
               <Tab5Review
