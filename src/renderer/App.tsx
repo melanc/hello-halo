@@ -32,7 +32,7 @@ import { api } from './api'
 import { isCapacitor, isElectron } from './api/transport'
 import type { WsConnectionState } from './api/transport'
 import { useTranslation } from './i18n'
-import type { AgentEventBase, Thought, ToolCall, DevXConfig, AgentErrorType, Question, McpServerStatus } from './types'
+import type { AgentEventBase, Thought, ToolCall, DevXConfig, AgentErrorType, Question, McpServerStatus, PlannedFileChange } from './types'
 import type { SessionInitInfo } from './types/slash-command'
 import { hasAnyAISource } from './types'
 
@@ -101,6 +101,7 @@ export default function App() {
     handleAgentCompact,
     handleAgentSessionInfo,
     handleAskQuestion,
+    handleAnnounceFileChanges,
     currentSpaceId,
     setCurrentSpace: setChatCurrentSpace,
     loadConversations,
@@ -541,6 +542,12 @@ export default function App() {
       handleAskQuestion(data as AgentEventBase & { id: string; questions: Question[] })
     })
 
+    // AnnounceFileChanges - AI wants to confirm file modifications with user
+    const unsubAnnounceFileChanges = api.onAgentAnnounceFileChanges((data) => {
+      console.log('[App] Received agent:announce-file-changes event:', data)
+      handleAnnounceFileChanges(data as AgentEventBase & { id: string; files: PlannedFileChange[] })
+    })
+
     // Session info from SDK system:init — slash_commands / skills / agents for autocomplete
     const unsubSessionInfo = api.onAgentSessionInfo((data) => {
       handleAgentSessionInfo(data as AgentEventBase & SessionInitInfo)
@@ -565,6 +572,7 @@ export default function App() {
       unsubComplete()
       unsubCompact()
       unsubAskQuestion()
+      unsubAnnounceFileChanges()
       unsubSessionInfo()
       unsubMcpStatus()
     }
@@ -579,6 +587,7 @@ export default function App() {
     handleAgentCompact,
     handleAgentSessionInfo,
     handleAskQuestion,
+    handleAnnounceFileChanges,
     setMcpStatus
   ])
 

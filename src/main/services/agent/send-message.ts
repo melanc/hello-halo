@@ -20,6 +20,7 @@ import {
 } from '../ai-browser'
 import { createWebSearchMcpServer } from '../web-search'
 import { createHaloAppsMcpServer } from '../../apps/conversation-mcp'
+import { createPipelineMcpServer } from './pipeline-mcp'
 import type {
   AgentRequest,
   SessionConfig,
@@ -142,6 +143,10 @@ export async function sendMessage(
     // Always add web-search MCP for web searching (replaces Claude's WebSearch)
     mcpServers['web-search'] = createWebSearchMcpServer()
     console.log(`[Agent][${conversationId}] Web Search MCP server added`)
+
+    // Always add pipeline MCP for file-change confirmation
+    mcpServers['halo-pipeline'] = createPipelineMcpServer(spaceId, conversationId, abortController.signal)
+    console.log(`[Agent][${conversationId}] Pipeline MCP server added`)
 
     console.log(`[mcpServers]${Object.keys(mcpServers)}`)
     // Build base SDK options using shared configuration

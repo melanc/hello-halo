@@ -455,6 +455,13 @@ export function registerApiRoutes(app: Express): void {
     res.json(result)
   })
 
+  // Confirm or cancel a pending announce_file_changes dialog
+  app.post('/api/agent/confirm-file-changes', async (req: Request, res: Response) => {
+    const { id, confirmed } = req.body
+    const result = agentController.confirmFileChanges(id, confirmed)
+    res.json(result)
+  })
+
   // Test MCP server connections
   app.post('/api/agent/test-mcp', async (req: Request, res: Response) => {
     const result = await agentController.testMcpConnections()

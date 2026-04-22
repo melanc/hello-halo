@@ -15,6 +15,7 @@ import type { ApiCredentials } from './types'
 import { inferOpenAIWireApi, credentialsToBackendConfig } from './helpers'
 import { buildSystemPrompt, DEFAULT_ALLOWED_TOOLS } from './system-prompt'
 import { createCanUseTool } from './permission-handler'
+import { PREDEFINED_AGENTS } from './agents'
 
 // ============================================
 // Configuration
@@ -432,6 +433,7 @@ export function buildBaseSdkOptions(params: BaseSdkOptionsParams): Record<string
     systemPrompt: buildSystemPrompt({ workDir, modelInfo: credentials.displayModel, promptProfile: params.promptProfile, isTempSpace: spaceId === 'halo-temp' }),
     maxTurns: params.maxTurns ?? 50,
     allowedTools: [...DEFAULT_ALLOWED_TOOLS],
+    agents: PREDEFINED_AGENTS,
     // Enable Skills loading from $CLAUDE_CONFIG_DIR/skills/ and <workspace>/.claude/skills/
     settingSources: ['user', 'project'],
     permissionMode: 'bypassPermissions' as const,

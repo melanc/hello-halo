@@ -35,6 +35,7 @@ import { registerProcess, unregisterProcess, getCurrentInstanceId } from '../hea
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
 import { createHaloAppsMcpServer } from '../../apps/conversation-mcp'
 import { createWebSearchMcpServer } from '../web-search'
+import { createPipelineMcpServer } from './pipeline-mcp'
 
 // ============================================
 // Session Maps
@@ -537,6 +538,7 @@ export async function ensureSessionWarm(
   const mcpServers: Record<string, any> = dbMcpServers ? { ...dbMcpServers } : {}
   mcpServers['halo-apps'] = createHaloAppsMcpServer(spaceId)
   mcpServers['web-search'] = createWebSearchMcpServer()
+  mcpServers['halo-pipeline'] = createPipelineMcpServer(spaceId, conversationId, abortController.signal)
 
   // Build SDK options using shared configuration
   const sdkOptions = buildBaseSdkOptions({

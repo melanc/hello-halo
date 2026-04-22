@@ -14,6 +14,7 @@ import {
   ensureSessionWarm,
   testMcpConnections,
   resolveQuestion,
+  resolvePipelineConfirmation,
   onAgentEvent,
   onAgentBroadcast
 } from '../services/agent'
@@ -155,6 +156,26 @@ export function registerAgentHandlers(): void {
         const resolved = resolveQuestion(data.id, data.answers)
         if (!resolved) {
           return { success: false, error: 'No pending question found for this ID' }
+        }
+        return { success: true }
+      } catch (error: unknown) {
+        const err = error as Error
+        return { success: false, error: err.message }
+      }
+    }
+  )
+
+  // Confirm or cancel a pending announce_file_changes dialog
+  ipcMain.handle(
+    'agent:confirm-file-changes',
+    async (
+      _event,
+      data: { id: string; confirmed: boolean }
+    ) => {
+      try {
+        const resolved = resolvePipelineConfirmation(data.id, data.confirmed)
+        if (!resolved) {
+          return { success: false, error: 'No pending file-change confirmation found for this ID' }
         }
         return { success: true }
       } catch (error: unknown) {

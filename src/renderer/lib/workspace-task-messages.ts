@@ -188,7 +188,14 @@ function replyLanguageConstraint(_t: TFunction): string {
 
 /** Role line + language preference, inserted at the start of pipeline prompts. */
 function pipelineOpeningLines(t: TFunction): string[] {
-  return [ROLE_PREAMBLE, '', replyLanguageConstraint(t), '']
+  return [
+    ROLE_PREAMBLE,
+    '',
+    replyLanguageConstraint(t),
+    t('如需确定某个项目的路径，优先用 Glob 工具在当前工作目录（空间根目录）下搜索；找不到时再向用户询问。'),
+    t('如需修改或创建任何文件，必须先调用 mcp__halo-pipeline__announce_file_changes 工具，列出所有计划修改的文件及改动原因，等待用户确认后再执行；若用户取消，停止所有文件修改。'),
+    '',
+  ]
 }
 
 function appendKnowledgeBaseMarkdownBlock(blocks: string[], markdown: string | undefined, t: TFunction): void {
@@ -300,6 +307,8 @@ export function buildIntentAnalysisMessage(
             t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
             t('2. 查找"需求识别引导"相关文档（文件名通常包含"需求识别"、"requirement"、"guide"等关键词），阅读其内容'),
             t('3. 如果找到了引导文档，按其规范处理需求；如果没找到，按下述默认步骤处理'),
+            t('4. 在 {{path}}/项目介绍/ 目录下查找涉及项目对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: opts.knowledgeBaseRoot.trim() }),
+            t('5. 如果某个项目的技术知识文档不存在，使用 Task 工具（subagent_type="Explore"）对该项目进行代码探索，将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md，完成后继续', { path: opts.knowledgeBaseRoot.trim() }),
             '',
           )
         }
@@ -342,6 +351,8 @@ export function buildIntentAnalysisMessage(
           t('1. 使用 Glob/Read 工具浏览知识库目录：{{path}}', { path: opts.knowledgeBaseRoot.trim() }),
           t('2. 查找"任务拆解引导"相关文档（文件名通常包含"任务拆解"、"task-breakdown"、"breakdown"等关键词），阅读其内容'),
           t('3. 如果找到了引导文档，按其规范进行拆解；如果没找到，按下述默认步骤处理'),
+          t('4. 在 {{path}}/项目介绍/ 目录下查找涉及项目对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: opts.knowledgeBaseRoot.trim() }),
+          t('5. 如果某个项目的技术知识文档不存在，使用 Task 工具（subagent_type="Explore"）对该项目进行代码探索，将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md，完成后继续', { path: opts.knowledgeBaseRoot.trim() }),
           '',
         )
       }
@@ -378,7 +389,7 @@ export function buildIntentAnalysisMessage(
           t('2. 优先查找"开发计划引导"文档（文件名通常包含"开发计划"、"dev-plan"、"planning"等关键词），如果找到则阅读并按其规范制定计划'),
           t('3. 在 {{path}}/项目介绍/ 目录下查找涉及项目（{{projects}}）对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: kbRoot, projects: projectList }),
           t('4. 如果某个项目的技术知识文档不存在，则先对该项目进行代码梳理：'),
-          t('   a. 使用 Glob 浏览项目目录结构，理解整体架构和核心模块'),
+          t('   a. 使用 Task 工具（subagent_type="Explore"）探索项目目录结构，理解整体架构和核心模块'),
           t('   b. 将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md（如 {{path}}/项目介绍/talcamp技术知识.md）', { path: kbRoot }),
           t('   c. 写入完成后继续'),
           t('5. 基于以上收集到的信息，再制定开发计划'),
@@ -508,6 +519,8 @@ export function buildTaskBreakdownExecuteMessage(
       t('2. 找到任务拆解引导文件（文件名通常包含"任务拆解"、"task-breakdown"、"breakdown"等关键词），阅读其内容'),
       t('3. 按照该引导文件的规范生成子任务列表'),
       t('如果找不到引导文件，按通用方法处理。'),
+      t('4. 在 {{path}}/项目介绍/ 目录下查找涉及项目对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { path: opts.knowledgeBaseRoot.trim() }),
+      t('5. 如果某个项目的技术知识文档不存在，使用 Task 工具（subagent_type="Explore"）对该项目进行代码探索，将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md，完成后继续', { path: opts.knowledgeBaseRoot.trim() }),
       '',
     )
   }
@@ -567,7 +580,7 @@ export function buildDevPlanExecuteMessage(
       t('2. 在 {{path}}/项目介绍/ 目录下查找涉及项目（{{projects}}）对应的技术知识文档（文件名通常为"项目名技术知识.md"）', { projects: projectList, path: kbRoot }),
       t('3. 如果找到了对应项目的技术知识文档，阅读其内容，然后跳到第 5 步'),
       t('4. 如果某个项目没有技术知识文档，则先对该项目进行代码梳理：'),
-      t('   a. 使用 Glob 浏览项目目录结构，理解整体架构和核心模块'),
+      t('   a. 使用 Task 工具（subagent_type="Explore"）探索项目目录结构，理解整体架构和核心模块'),
       t('   b. 将梳理结果写入 {{path}}/项目介绍/项目名技术知识.md（如 {{path}}/项目介绍/talcamp技术知识.md）', { path: kbRoot }),
       t('   c. 写入完成后继续'),
       t('5. 基于读取到的项目知识文档，生成开发计划'),
@@ -575,9 +588,9 @@ export function buildDevPlanExecuteMessage(
     )
   } else {
     blocks.push(
-      t('在制定开发计划之前，请先动态探索涉及的项目代码：'),
-      t('1. 使用 Glob 浏览涉及项目的目录结构，了解整体架构和核心模块'),
-      t('2. 按需读取关键文件（如路由入口、核心业务逻辑、接口定义等）以理解代码结构'),
+      t('在制定开发计划之前，请先探索涉及的项目代码：'),
+      t('1. 使用 Task 工具（subagent_type="Explore"）对涉及项目进行宏观探索，理解整体架构和核心模块'),
+      t('2. 按需用 Glob/Grep/Read 精确查询具体文件、接口或关键逻辑'),
       t('3. 基于实际代码结构制定计划，不要假设文件位置或接口'),
       '',
     )
@@ -637,7 +650,7 @@ export function buildCodingKickoffMessage(
     t('现在进入编码实现阶段。请先审查以下开发计划和子任务完成情况，判断待完成的工作（哪些已完成、哪些还剩余、有无计划遗漏），然后开始逐步执行代码改动。'),
     t('执行要求：'),
     t('1. 动态探索代码：不要假设文件位置或内容，先用 Glob/Grep 了解涉及项目的目录结构和关键模块，按需读取相关文件后再开始修改'),
-    t('2. 改动预告：在实际修改任何文件之前，先输出一个简短的改动预告——列出计划修改的文件及每个文件的改动原因，然后再执行'),
+    t('2. 改动确认：在实际修改任何文件之前，必须先调用 mcp__halo-pipeline__announce_file_changes 工具，列出所有计划修改的文件及改动原因，等待用户确认后再执行。若用户取消，停止所有文件修改并向用户说明'),
     t('3. 按照开发计划中的模块和文件范围进行修改'),
     t('4. 每完成一个模块或文件，简要说明改动内容'),
     t('5. 遇到不确定的地方，先列出问题再继续'),
@@ -761,6 +774,8 @@ export function buildVerificationExecuteMessage(
   }
 
   blocks.push(
+    t('改动确认：如果需要修改任何文件（例如修复发现的错误），必须先调用 mcp__halo-pipeline__announce_file_changes 工具，列出所有计划修改的文件及改动原因，等待用户确认后再执行。'),
+    '',
     t('所有步骤完成后，给出综合评估：是否可以合入主干，以及需要修复的问题列表。'),
     '',
     t('--- 任务信息 ---'),
@@ -792,6 +807,7 @@ export function buildTaskCompletionMemoryMessage(
     t('记忆文件路径：{{path}}', { path: ctx.spaceMemoryPath }),
     '',
     t('操作步骤：'),
+    t('0. 在写入文件前，先调用 mcp__halo-pipeline__announce_file_changes 工具，告知将要修改的文件路径及原因，等待用户确认'),
     t('1. 使用 Read 工具读取记忆文件，了解现有格式和内容'),
     t('2. 在 `# History` 区块的最顶部插入一条新记录，格式如下：'),
     '',

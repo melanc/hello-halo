@@ -25,7 +25,8 @@ import { InterruptedBubble } from './InterruptedBubble'
 import { StreamingBubble } from './StreamingBubble'
 import { BrowserTaskCard, isBrowserTool } from '../tool/BrowserTaskCard'
 import { AskUserQuestionCard } from './AskUserQuestionCard'
-import type { Message, Thought, CompactInfo, AgentErrorType, PendingQuestion } from '../../types'
+import { AnnounceFileChangesCard } from './AnnounceFileChangesCard'
+import type { Message, Thought, CompactInfo, AgentErrorType, PendingQuestion, PendingFileChanges } from '../../types'
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chat.store'
 
@@ -44,6 +45,8 @@ export interface MessageListProps {
   textBlockVersion?: number  // Increments on each new text block (for StreamingBubble reset)
   pendingQuestion?: PendingQuestion | null  // Active question from AskUserQuestion tool
   onAnswerQuestion?: (answers: Record<string, string>) => void  // Callback when user answers
+  pendingFileChanges?: PendingFileChanges | null  // Pending file-change confirmation
+  onConfirmFileChanges?: (confirmed: boolean) => void  // Callback when user confirms/cancels file changes
   onAtBottomStateChange?: (atBottom: boolean) => void  // Callback when at-bottom state changes
 }
 
@@ -69,6 +72,8 @@ interface StreamingRevision {
   streamingBrowserToolCalls: { id: string; name: string; status: 'running' | 'success'; input: any }[]
   pendingQuestion: PendingQuestion | null
   onAnswerQuestion?: (answers: Record<string, string>) => void
+  pendingFileChanges: PendingFileChanges | null
+  onConfirmFileChanges?: (confirmed: boolean) => void
 }
 
 function StreamingFooterContent({ revisionRef }: { revisionRef: React.RefObject<StreamingRevision> }) {
@@ -110,6 +115,14 @@ function StreamingFooterContent({ revisionRef }: { revisionRef: React.RefObject<
             onAnswer={rev.onAnswerQuestion}
           />
         )}
+
+        {/* AnnounceFileChanges card - shown when agent wants to confirm file modifications */}
+        {rev.pendingFileChanges && rev.onConfirmFileChanges && (
+          <AnnounceFileChangesCard
+            pendingFileChanges={rev.pendingFileChanges}
+            onConfirm={rev.onConfirmFileChanges}
+          />
+        )}
       </div>
     </div>
   )
@@ -130,6 +143,8 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
   textBlockVersion = 0,
   pendingQuestion = null,
   onAnswerQuestion,
+  pendingFileChanges = null,
+  onConfirmFileChanges,
   onAtBottomStateChange,
 }, ref) {
   const { t } = useTranslation()
@@ -301,9 +316,11 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
   // the store to trigger re-renders when streaming state changes.
   const streamingRevision = useMemo(() => {
     return { streamingContent, isStreaming, thoughts, isThinking, textBlockVersion,
-             streamingBrowserToolCalls, pendingQuestion, onAnswerQuestion }
+             streamingBrowserToolCalls, pendingQuestion, onAnswerQuestion,
+             pendingFileChanges, onConfirmFileChanges }
   }, [streamingContent, isStreaming, thoughts, isThinking, textBlockVersion,
-      streamingBrowserToolCalls, pendingQuestion, onAnswerQuestion])
+      streamingBrowserToolCalls, pendingQuestion, onAnswerQuestion,
+      pendingFileChanges, onConfirmFileChanges])
   const streamingRevisionRef = useRef(streamingRevision)
   streamingRevisionRef.current = streamingRevision
 

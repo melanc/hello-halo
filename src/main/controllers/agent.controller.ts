@@ -10,7 +10,8 @@ import {
   getActiveSessions,
   getSessionState as agentGetSessionState,
   testMcpConnections as agentTestMcpConnections,
-  resolveQuestion
+  resolveQuestion,
+  resolvePipelineConfirmation
 } from '../services/agent'
 
 // Image attachment type for multi-modal messages
@@ -111,6 +112,25 @@ export function listActiveSessions(): ControllerResponse<string[]> {
 export function getSessionState(conversationId: string): ControllerResponse {
   try {
     return { success: true, data: agentGetSessionState(conversationId) }
+  } catch (error: unknown) {
+    const err = error as Error
+    return { success: false, error: err.message }
+  }
+}
+
+/**
+ * Confirm or cancel a pending announce_file_changes dialog
+ */
+export function confirmFileChanges(
+  id: string,
+  confirmed: boolean
+): ControllerResponse {
+  try {
+    const resolved = resolvePipelineConfirmation(id, confirmed)
+    if (!resolved) {
+      return { success: false, error: `No pending file-change confirmation found for id: ${id}` }
+    }
+    return { success: true }
   } catch (error: unknown) {
     const err = error as Error
     return { success: false, error: err.message }

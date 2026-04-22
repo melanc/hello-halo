@@ -200,6 +200,7 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
     stopGeneration,
     continueAfterInterrupt,
     answerQuestion,
+    confirmFileChanges,
     composerReferenceChips,
     removeComposerReferenceChip,
     clearComposerReferenceChips,
@@ -374,7 +375,7 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
     }
   }, [])
   const session = getCurrentSession()
-  const { isGenerating, streamingContent, isStreaming, thoughts, isThinking, compactInfo, error, errorType, textBlockVersion, pendingQuestion } = session
+  const { isGenerating, streamingContent, isStreaming, thoughts, isThinking, compactInfo, error, errorType, textBlockVersion, pendingQuestion, pendingFileChanges } = session
 
   // Build the slash-command list for the autocomplete menu.
   // Only reads from SDK slash_commands array.
@@ -1048,6 +1049,12 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
                   onAnswerQuestion={
                     currentConversation
                       ? (answers) => answerQuestion(currentConversation.id, answers)
+                      : undefined
+                  }
+                  pendingFileChanges={pendingFileChanges}
+                  onConfirmFileChanges={
+                    currentConversation
+                      ? (confirmed) => confirmFileChanges(currentConversation.id, confirmed)
                       : undefined
                   }
                   onAtBottomStateChange={handleAtBottomStateChange}

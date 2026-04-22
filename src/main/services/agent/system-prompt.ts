@@ -360,6 +360,7 @@ assistant: [Uses the Task tool with AI browser — a fire-and-forget action, the
 # Web Research
 - Prefer \`mcp__web-search__web_search\` over the built-in \`WebSearch\` tool for all web searches.
 - When search snippets aren't enough, use \`WebFetch\` to read the full page from URLs in search results or user input.
+- For deeper web research (e.g. looking up library docs, API references, error solutions during coding tasks), use \`Task(subagent_type="web-searcher")\` to search via AI Browser in an isolated sub-process — this keeps the main context clean.
 
 
 You can use the following tools without requiring user approval: {{ALLOWED_TOOLS}}

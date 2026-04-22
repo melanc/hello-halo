@@ -21,7 +21,7 @@
 
 import { create } from 'zustand'
 import { api } from '../api'
-import type { Conversation, ConversationMeta, Message, ToolCall, Artifact, Thought, AgentEventBase, ImageAttachment, CompactInfo, CanvasContext, AgentErrorType, PendingQuestion, Question, TaskStatus, PulseItem } from '../types'
+import type { Conversation, ConversationMeta, Message, ToolCall, Artifact, Thought, AgentEventBase, ImageAttachment, CompactInfo, CanvasContext, AgentErrorType, PendingQuestion, PendingFileChanges, PlannedFileChange, Question, TaskStatus, PulseItem } from '../types'
 import type { SessionInitInfo } from '../types/slash-command'
 import { PULSE_READ_GRACE_PERIOD_MS } from '../types'
 import { canvasLifecycle } from '../services/canvas-lifecycle'
@@ -54,6 +54,8 @@ interface SessionState {
   textBlockVersion: number
   // Pending question from AskUserQuestion tool
   pendingQuestion: PendingQuestion | null
+  // Pending file-change confirmation from announce_file_changes tool
+  pendingFileChanges: PendingFileChanges | null
 }
 
 // Create empty session state
@@ -69,7 +71,8 @@ function createEmptySessionState(): SessionState {
     errorType: null,
     compactInfo: null,
     textBlockVersion: 0,
-    pendingQuestion: null
+    pendingQuestion: null,
+    pendingFileChanges: null
   }
 }
 
@@ -185,6 +188,10 @@ interface ChatState {
   // AskUserQuestion handlers
   handleAskQuestion: (data: AgentEventBase & { id: string; questions: Question[] }) => void
   answerQuestion: (conversationId: string, answers: Record<string, string>) => Promise<void>
+
+  // announce_file_changes handlers
+  handleAnnounceFileChanges: (data: AgentEventBase & { id: string; files: PlannedFileChange[] }) => void
+  confirmFileChanges: (conversationId: string, confirmed: boolean) => Promise<void>
 
   // Thoughts lazy loading
   loadMessageThoughts: (spaceId: string, conversationId: string, messageId: string) => Promise<Thought[]>
@@ -741,7 +748,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
           errorType: null,
           compactInfo: null,
           textBlockVersion: 0,
-          pendingQuestion: null
+          pendingQuestion: null,
+          pendingFileChanges: null
         })
         return { sessions: newSessions }
       })
@@ -858,7 +866,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
               // Mark pending question as cancelled on stop
               pendingQuestion: session.pendingQuestion?.status === 'active'
                 ? { ...session.pendingQuestion, status: 'cancelled' as const }
-                : session.pendingQuestion
+                : session.pendingQuestion,
+              // Mark pending file changes as cancelled on stop
+              pendingFileChanges: session.pendingFileChanges?.status === 'active'
+                ? { ...session.pendingFileChanges, status: 'cancelled' as const }
+                : session.pendingFileChanges
             })
           }
           return { sessions: newSessions }
@@ -1019,7 +1031,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
         // Mark pending question as cancelled on error
         pendingQuestion: session.pendingQuestion?.status === 'active'
           ? { ...session.pendingQuestion, status: 'cancelled' as const }
-          : session.pendingQuestion
+          : session.pendingQuestion,
+        // Mark pending file changes as cancelled on error
+        pendingFileChanges: session.pendingFileChanges?.status === 'active'
+          ? { ...session.pendingFileChanges, status: 'cancelled' as const }
+          : session.pendingFileChanges
       })
       return { sessions: newSessions }
     })
@@ -1123,6 +1139,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               streamingContent: '',
               compactInfo: null,  // Clear temporary compact notification
               pendingQuestion: null,  // Clear pending question
+              pendingFileChanges: null,  // Clear pending file changes
               // Preserve interrupted errors — they may have arrived during the async reload
               error: currentSession.errorType === 'interrupted' ? currentSession.error : null,
               errorType: currentSession.errorType === 'interrupted' ? currentSession.errorType : null
@@ -1149,6 +1166,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
               streamingContent: '',
               compactInfo: null,
               pendingQuestion: null,
+              pendingFileChanges: null
             })
           }
           return { sessions: newSessions }
@@ -1167,7 +1185,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
             isGenerating: false,
             streamingContent: '',
             compactInfo: null,  // Clear temporary compact notification
-            pendingQuestion: null  // Clear pending question
+            pendingQuestion: null,  // Clear pending question
+            pendingFileChanges: null  // Clear pending file changes
           })
         }
         return { sessions: newSessions }
@@ -1342,6 +1361,60 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  // Handle announce_file_changes - set pending file changes on session
+  handleAnnounceFileChanges: (data) => {
+    const { conversationId, id, files } = data
+    console.log(`[ChatStore] handleAnnounceFileChanges [${conversationId}]: id=${id}, files=${files?.length || 0}`)
+
+    set((state) => {
+      const newSessions = new Map(state.sessions)
+      const session = newSessions.get(conversationId) || createEmptySessionState()
+
+      newSessions.set(conversationId, {
+        ...session,
+        pendingFileChanges: {
+          id,
+          files: files || [],
+          status: 'active'
+        }
+      })
+      return { sessions: newSessions }
+    })
+  },
+
+  // Confirm or cancel pending file changes
+  confirmFileChanges: async (conversationId: string, confirmed: boolean) => {
+    const session = get().sessions.get(conversationId)
+    if (!session?.pendingFileChanges) {
+      console.warn(`[ChatStore] No pending file changes for conversation: ${conversationId}`)
+      return
+    }
+
+    const { id } = session.pendingFileChanges
+
+    try {
+      await api.confirmFileChanges({ id, confirmed })
+
+      // Update status to confirmed or cancelled
+      set((state) => {
+        const newSessions = new Map(state.sessions)
+        const currentSession = newSessions.get(conversationId)
+        if (currentSession?.pendingFileChanges) {
+          newSessions.set(conversationId, {
+            ...currentSession,
+            pendingFileChanges: {
+              ...currentSession.pendingFileChanges,
+              status: confirmed ? 'confirmed' : 'cancelled'
+            }
+          })
+        }
+        return { sessions: newSessions }
+      })
+    } catch (error) {
+      console.error('[ChatStore] Failed to confirm file changes:', error)
+    }
+  },
+
   // Load thoughts for a specific message (lazy loading from separated storage)
   // Returns the thoughts array and updates the conversation cache so subsequent reads are instant
   loadMessageThoughts: async (spaceId: string, conversationId: string, messageId: string): Promise<Thought[]> => {
@@ -1467,8 +1540,8 @@ function _extractPulseFingerprint(sessions: Map<string, SessionState>): string {
   const parts: string[] = []
   for (const [id, s] of sessions) {
     // Only include sessions that could produce non-idle status
-    if (s.isGenerating || s.pendingToolApproval || s.error || s.pendingQuestion?.status === 'active') {
-      parts.push(`${id}:${s.isGenerating ? 1 : 0}${s.pendingToolApproval ? 1 : 0}${s.error && s.errorType !== 'interrupted' ? 1 : 0}${s.pendingQuestion?.status === 'active' ? 1 : 0}`)
+    if (s.isGenerating || s.pendingToolApproval || s.error || s.pendingQuestion?.status === 'active' || s.pendingFileChanges?.status === 'active') {
+      parts.push(`${id}:${s.isGenerating ? 1 : 0}${s.pendingToolApproval ? 1 : 0}${s.error && s.errorType !== 'interrupted' ? 1 : 0}${s.pendingQuestion?.status === 'active' ? 1 : 0}${s.pendingFileChanges?.status === 'active' ? 1 : 0}`)
     }
   }
   return parts.join('|')
@@ -1711,7 +1784,7 @@ export function deriveTaskStatus(
   hasUnseenCompletion: boolean
 ): TaskStatus {
   if (session) {
-    if (session.pendingToolApproval || session.pendingQuestion?.status === 'active') return 'waiting'
+    if (session.pendingToolApproval || session.pendingQuestion?.status === 'active' || session.pendingFileChanges?.status === 'active') return 'waiting'
     if (session.error && session.errorType !== 'interrupted') return 'error'
     if (session.isGenerating) return 'generating'
   }

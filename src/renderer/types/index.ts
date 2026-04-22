@@ -723,6 +723,19 @@ export interface PendingQuestion {
   answers?: Record<string, string>;  // User answers {"0": "JWT Tokens", "1": "PostgreSQL"}
 }
 
+export type FileChangesConfirmStatus = 'active' | 'confirmed' | 'cancelled';
+
+export interface PlannedFileChange {
+  path: string;
+  reason: string;
+}
+
+export interface PendingFileChanges {
+  id: string;
+  files: PlannedFileChange[];
+  status: FileChangesConfirmStatus;
+}
+
 export interface AgentCompactEvent extends AgentEventBase {
   type: 'compact';
   trigger: 'manual' | 'auto';

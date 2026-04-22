@@ -588,6 +588,14 @@ export const api = {
     return httpRequest('POST', '/api/agent/answer-question', data)
   },
 
+  // Confirm or cancel a pending announce_file_changes dialog
+  confirmFileChanges: async (data: { id: string; confirmed: boolean }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.confirmFileChanges(data)
+    }
+    return httpRequest('POST', '/api/agent/confirm-file-changes', data)
+  },
+
   // Test MCP server connections
   testMcpConnections: async (): Promise<{ success: boolean; servers: unknown[]; error?: string }> => {
     if (isElectron()) {
@@ -1286,6 +1294,8 @@ export const api = {
     onEvent('agent:compact', callback),
   onAgentAskQuestion: (callback: (data: unknown) => void) =>
     onEvent('agent:ask-question', callback),
+  onAgentAnnounceFileChanges: (callback: (data: unknown) => void) =>
+    onEvent('agent:announce-file-changes', callback),
   onAgentSessionInfo: (callback: (data: unknown) => void) =>
     onEvent('agent:session-info', callback),
   onRemoteStatusChange: (callback: (data: unknown) => void) =>

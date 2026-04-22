@@ -152,6 +152,7 @@ export interface DevXAPI {
   ensureSessionWarm: (spaceId: string, conversationId: string) => Promise<IpcResponse>
   testMcpConnections: () => Promise<{ success: boolean; servers: unknown[]; error?: string }>
   answerQuestion: (data: { conversationId: string; id: string; answers: Record<string, string> }) => Promise<IpcResponse>
+  confirmFileChanges: (data: { id: string; confirmed: boolean }) => Promise<IpcResponse>
 
   // Event listeners
   onAgentMessage: (callback: (data: unknown) => void) => () => void
@@ -165,6 +166,7 @@ export interface DevXAPI {
   onAgentMcpStatus: (callback: (data: unknown) => void) => () => void
   onAgentCompact: (callback: (data: unknown) => void) => () => void
   onAgentAskQuestion: (callback: (data: unknown) => void) => () => void
+  onAgentAnnounceFileChanges: (callback: (data: unknown) => void) => () => void
   onAgentSessionInfo: (callback: (data: unknown) => void) => () => void
 
   // Artifact
@@ -614,6 +616,7 @@ const api: DevXAPI = {
   ensureSessionWarm: (spaceId, conversationId) => ipcRenderer.invoke('agent:ensure-session-warm', spaceId, conversationId),
   testMcpConnections: () => ipcRenderer.invoke('agent:test-mcp'),
   answerQuestion: (data) => ipcRenderer.invoke('agent:answer-question', data),
+  confirmFileChanges: (data) => ipcRenderer.invoke('agent:confirm-file-changes', data),
 
   // Event listeners
   onAgentMessage: (callback) => createEventListener('agent:message', callback),
@@ -627,6 +630,7 @@ const api: DevXAPI = {
   onAgentMcpStatus: (callback) => createEventListener('agent:mcp-status', callback),
   onAgentCompact: (callback) => createEventListener('agent:compact', callback),
   onAgentAskQuestion: (callback) => createEventListener('agent:ask-question', callback),
+  onAgentAnnounceFileChanges: (callback) => createEventListener('agent:announce-file-changes', callback),
   onAgentSessionInfo: (callback) => createEventListener('agent:session-info', callback),
 
   // Artifact
