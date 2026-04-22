@@ -240,6 +240,9 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
   const isUser = message.role === 'user'
   const isStreaming = (message as any).isStreaming
   const [copied, setCopied] = useState(false)
+  // Collapse long user messages (> 5 newlines) by default
+  const isLongUserMessage = isUser && (message.content?.split('\n').length ?? 0) > 5
+  const [isCollapsed, setIsCollapsed] = useState(isLongUserMessage)
   const { t } = useTranslation()
   const { loadMessageThoughts, currentSpaceId, currentConversationId } = useChatStore(s => ({
     loadMessageThoughts: s.loadMessageThoughts,
@@ -333,7 +336,10 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
       )}
 
       {/* Message content with streaming cursor */}
-      <div className="break-words leading-relaxed" data-message-content>
+      <div
+        className={`break-words leading-relaxed${isCollapsed ? ' line-clamp-3' : ''}`}
+        data-message-content
+      >
         {message.content && (
           isUser ? (
             <UserMessageContent content={message.content} />
@@ -351,6 +357,16 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
           <span className="waiting-dots ml-1 text-muted-foreground/60" />
         )}
       </div>
+
+      {/* Expand / collapse toggle for long user messages */}
+      {isLongUserMessage && (
+        <button
+          onClick={() => setIsCollapsed(v => !v)}
+          className="mt-1.5 text-xs text-primary/60 hover:text-primary transition-colors duration-150"
+        >
+          {isCollapsed ? '展开 ▾' : '收起 ▴'}
+        </button>
+      )}
 
       {/* Persisted error - shown for assistant messages that failed (e.g., 429 rate limit) */}
       {!isUser && message.error && (
