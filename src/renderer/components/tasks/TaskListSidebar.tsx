@@ -39,6 +39,28 @@ function StagePill({ stage }: { stage?: number | null }) {
   )
 }
 
+function formatTaskTime(ts: number, now: number): string {
+  const date = new Date(ts)
+  const today = new Date(now)
+  const isToday =
+    date.getFullYear() === today.getFullYear() &&
+    date.getMonth() === today.getMonth() &&
+    date.getDate() === today.getDate()
+  if (isToday) {
+    const diffMin = Math.floor((now - ts) / 60000)
+    if (diffMin < 1) return '刚刚'
+    if (diffMin < 60) return `${diffMin}分钟前`
+    const h = Math.floor(diffMin / 60)
+    const m = diffMin % 60
+    return m > 0 ? `${h}小时${m}分钟前` : `${h}小时前`
+  }
+  const mo = date.getMonth() + 1
+  const d = date.getDate()
+  const hh = String(date.getHours()).padStart(2, '0')
+  const mm = String(date.getMinutes()).padStart(2, '0')
+  return `${mo}.${d} ${hh}:${mm}`
+}
+
 interface TaskListSidebarProps {
   onClose?: () => void
   visible?: boolean
@@ -64,6 +86,12 @@ export const TaskListSidebar = memo(function TaskListSidebar({
   const setActiveTask = useTaskStore((s) => s.setActiveTask)
   const clearActiveTask = useTaskStore((s) => s.clearActiveTask)
   const setPendingRequirementTask = useTaskStore((s) => s.setPendingRequirementTask)
+
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
   const spaceNameById = useMemo(() => {
     const m: Record<string, string> = {}
@@ -198,7 +226,7 @@ export const TaskListSidebar = memo(function TaskListSidebar({
           displayTasks.map((task) => {
             const selected = task.id === activeTaskId
             const spaceName = spaceNameById[task.spaceId] ?? task.spaceId
-            const resumeHint = task.pipelineResumeHint?.trim()
+            const timeLabel = task.updatedAt ? formatTaskTime(task.updatedAt, now) : null
             return (
               <button
                 key={task.id}
@@ -216,15 +244,14 @@ export const TaskListSidebar = memo(function TaskListSidebar({
                   </div>
                   <StagePill stage={task.pipelineStage} />
                 </div>
-                <div className="text-xs text-muted-foreground/70 truncate">
-                  {spaceName}
+                <div className="flex items-center justify-between gap-1 mt-0.5">
+                  <div className="text-xs text-muted-foreground/70 truncate">{spaceName}</div>
+                  {timeLabel && (
+                    <div className="text-[11px] text-muted-foreground/45 shrink-0 tabular-nums">
+                      {timeLabel}
+                    </div>
+                  )}
                 </div>
-                {resumeHint && (
-                  <div className="text-[11px] text-primary/70 truncate mt-0.5 flex items-center gap-1">
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-primary/60 shrink-0 animate-pulse" />
-                    {resumeHint}
-                  </div>
-                )}
               </button>
             )
           })}
