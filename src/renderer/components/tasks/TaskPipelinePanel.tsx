@@ -48,8 +48,9 @@ import {
   getInvolvedProjectDirNames,
   buildProjectDisplayPaths,
   getSubtaskProgressStats,
+  parseDevPlan,
 } from '../../lib/workspace-task-messages'
-import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, WorkspaceTask, FileChangesSummary } from '../../types'
+import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, PipelineDevPlanProject, WorkspaceTask, FileChangesSummary } from '../../types'
 import { api } from '../../api'
 
 // ─────────────────────────────────────────────
@@ -735,6 +736,63 @@ function Tab2Breakdown({
 }
 
 /** Tab 3 — 计划与实现（合并了原 开发计划 + 编码实现） */
+// ─────────────────────────────────────────────
+// Interactive dev plan: project checkboxes + file-item done toggles
+// ─────────────────────────────────────────────
+
+function DevPlanInteractive({
+  projects,
+  onToggleProject,
+  onToggleItem,
+}: {
+  projects: PipelineDevPlanProject[]
+  onToggleProject: (projectName: string, checked: boolean) => void
+  onToggleItem: (projectName: string, path: string, done: boolean) => void
+}) {
+  if (projects.length === 0) return null
+  return (
+    <div className="space-y-3 text-xs">
+      {projects.map((proj) => (
+        <div key={proj.name}>
+          {/* Level 1: project with checkbox */}
+          <label className="flex items-center gap-2 cursor-pointer select-none mb-1">
+            <input
+              type="checkbox"
+              checked={proj.checked}
+              onChange={(e) => onToggleProject(proj.name, e.target.checked)}
+              className="rounded border-border w-3.5 h-3.5 flex-shrink-0"
+            />
+            <span className="font-semibold text-sm">{proj.name}</span>
+          </label>
+          {/* Level 2: file items with done toggle */}
+          <ul className="ml-5 space-y-1">
+            {proj.items.map((item) => (
+              <li key={item.path} className="flex items-start gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => onToggleItem(proj.name, item.path, !item.done)}
+                  className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-foreground transition-colors"
+                  title={item.done ? '标记为未完成' : '标记为已完成'}
+                >
+                  {item.done
+                    ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                    : <Circle className="w-3.5 h-3.5 opacity-50" />
+                  }
+                </button>
+                <span className={`leading-relaxed ${item.done ? 'line-through text-muted-foreground/60' : ''}`}>
+                  <code className="text-[11px] bg-muted px-1 rounded mr-1">{item.path}</code>
+                  {'— '}
+                  {item.description}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Tab3PlanAndImpl({
   task,
   workspaceRoot,
@@ -823,6 +881,21 @@ function Tab3PlanAndImpl({
   const resolvedPaths = effectiveRoot ? buildProjectDisplayPaths(effectiveRoot, dirs) : dirs
 
   const logLines = task.pipelineCodingLogLines ?? []
+
+  // Merge parsed plan structure with persisted checkbox/done state for interactive rendering
+  const devPlanProjects = useMemo(() => {
+    if (!task.pipelineDevPlan?.trim()) return []
+    const parsed = parseDevPlan(task.pipelineDevPlan)
+    const { checks = {}, done = {} } = task.pipelineDevPlanState ?? {}
+    return parsed.map((proj) => ({
+      ...proj,
+      checked: checks[proj.name] ?? false,
+      items: proj.items.map((item) => ({
+        ...item,
+        done: done[`${proj.name}|${item.path}`] ?? false,
+      })),
+    }))
+  }, [task.pipelineDevPlan, task.pipelineDevPlanState])
 
   return (
     <div className="space-y-3">
@@ -960,6 +1033,18 @@ function Tab3PlanAndImpl({
               onChange={(e) => setDraft(e.target.value)}
               onBlur={() => { handleBlur(); setDevPlanEditing(false) }}
             />
+          ) : devPlanProjects.length > 0 ? (
+            <div className="bg-secondary/40 border border-border rounded-lg px-2.5 py-2.5">
+              <DevPlanInteractive
+                projects={devPlanProjects}
+                onToggleProject={(name, checked) =>
+                  useTaskStore.getState().updatePipelineDevPlanState(task.id, { checks: { [name]: checked } })
+                }
+                onToggleItem={(projectName, path, done) =>
+                  useTaskStore.getState().updatePipelineDevPlanState(task.id, { done: { [`${projectName}|${path}`]: done } })
+                }
+              />
+            </div>
           ) : (
             <div
               className="text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 cursor-pointer hover:bg-secondary/60 transition-colors prose prose-sm dark:prose-invert max-w-none"
@@ -1289,6 +1374,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   // When coding is kicked off from the merged tab 3, override the reportStage to 4
   // so session report / mark-worked logic treats it as a coding session.
   const pendingStageOverrideRef = useRef<PipelineStage | null>(null)
+
+  // Tracks which plan item keys (projectName|path) were sent to the current coding run,
+  // so they can be auto-marked as done when generation completes.
+  const pendingCodingItemKeysRef = useRef<string[]>([])
 
   // "下一步" auto-start: when set, the useEffect below fires the corresponding action
   // after the tab switch completes (so the new selectedTab is in the handler closure).
@@ -1646,6 +1735,52 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             }
           }
           const projectPaths = buildProjectDisplayPaths(workspaceRoot, dirs)
+
+          // ── Build filtered plan based on checkbox/done state ────────────────
+          let selectedPlanMarkdown: string | undefined
+          let codingItemKeys: string[] = []
+          {
+            const planState = task.pipelineDevPlanState
+            const parsedProjects = parseDevPlan(task.pipelineDevPlan)
+            const hasChecked = parsedProjects.some((p) => planState?.checks?.[p.name])
+            const buildPlanText = (projs: typeof parsedProjects) =>
+              projs
+                .map((p) => `## ${p.name}\n${p.items.map((i) => `- \`${i.path}\` — ${i.description}`).join('\n')}`)
+                .join('\n')
+            if (hasChecked) {
+              // Case B: send only checked projects' non-done items
+              const checkedProjs = parsedProjects
+                .filter((p) => planState?.checks?.[p.name])
+                .map((p) => ({ ...p, items: p.items.filter((i) => !(planState?.done?.[`${p.name}|${i.path}`])) }))
+                .filter((p) => p.items.length > 0)
+              if (checkedProjs.length > 0) {
+                selectedPlanMarkdown = buildPlanText(checkedProjs)
+                codingItemKeys = checkedProjs.flatMap((p) => p.items.map((i) => `${p.name}|${i.path}`))
+              }
+            } else {
+              // Case C: send incomplete items across all projects
+              const incompleteProjs = parsedProjects
+                .map((p) => ({ ...p, items: p.items.filter((i) => !(planState?.done?.[`${p.name}|${i.path}`])) }))
+                .filter((p) => p.items.length > 0)
+              if (incompleteProjs.length > 0) {
+                selectedPlanMarkdown = buildPlanText(incompleteProjs)
+                codingItemKeys = incompleteProjs.flatMap((p) => p.items.map((i) => `${p.name}|${i.path}`))
+              }
+              // else: all items already done — fall back to full plan (no selectedPlanMarkdown)
+            }
+            pendingCodingItemKeysRef.current = codingItemKeys
+          }
+
+          // Register callback to mark coded items as done when generation ends
+          pendingPipelineActionRef.current = (_reply) => {
+            const keys = pendingCodingItemKeysRef.current
+            if (keys.length > 0) {
+              const doneUpdates = Object.fromEntries(keys.map((k) => [k, true]))
+              useTaskStore.getState().updatePipelineDevPlanState(task.id, { done: doneUpdates })
+              pendingCodingItemKeysRef.current = []
+            }
+          }
+
           const focus = pickFocusSubtask(subtasks)
           const logLine = t('Coding kickoff log line', {
             time: new Date().toLocaleString(),
@@ -1662,8 +1797,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               workspaceRoot: workspaceRoot || undefined,
               projectPaths: projectPaths.length ? projectPaths : undefined,
               ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
+              ...(selectedPlanMarkdown ? { selectedPlanMarkdown } : {}),
             })
           )
+          deferred = true
         } else {
           // ── PLAN GENERATION PATH (no plan yet) ─────────────────────────────
           const tab3ProjectDirs = getInvolvedProjectDirNames(task)
@@ -2054,7 +2191,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                   className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
                 >
                   {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {t('开始工作')}
+                  {t('开始验证')}
                 </button>
               )}
 

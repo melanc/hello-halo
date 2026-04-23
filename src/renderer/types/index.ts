@@ -317,6 +317,24 @@ export interface PipelineSubtask {
   projects?: string[];
 }
 
+/** One file-level change item in a dev plan */
+export interface PipelineDevPlanItem {
+  /** File path; may start with "新增：" or "删除：" */
+  path: string;
+  /** Change description following the " — " separator */
+  description: string;
+  /** Whether this item has been marked as done (manually or auto after coding) */
+  done: boolean;
+}
+
+/** One project section in a dev plan (## heading + its file items) */
+export interface PipelineDevPlanProject {
+  name: string;
+  items: PipelineDevPlanItem[];
+  /** Whether this project is selected for the next 开始编码 run */
+  checked: boolean;
+}
+
 /**
  * User-defined work item: one space + one main conversation + planned projects + branch name.
  * Persisted locally until backend storage exists.
@@ -368,6 +386,13 @@ export interface WorkspaceTask {
   pipelineResumeHint?: string;
   /** AI-generated / user-edited development plan: which code areas to change */
   pipelineDevPlan?: string;
+  /** Checkbox/done state for the interactive dev plan view; reset when plan is regenerated */
+  pipelineDevPlanState?: {
+    /** projectName → selected for next 开始编码 run */
+    checks: Record<string, boolean>
+    /** `${projectName}|${path}` → done (manually or auto-marked after coding) */
+    done: Record<string, boolean>
+  }
   /** Per-project change breakdown generated during dev plan (markdown: ### ProjectName → bullet changes) */
   pipelineProjectChanges?: string;
   /** Identified requirement key points (AI-extracted or user-added) */

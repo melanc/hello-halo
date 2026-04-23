@@ -97,7 +97,166 @@ Bash — 执行命令
 └── 执行完一步自动判断是否继续，而不是等人点击
 这其实就是 Claude Code 本身的工作原理。
 
-==============
+=================
+Plan Mode 设计方案
+问题背景
+当前编码阶段：点击「开始工作」→ AI 直接开始改文件。虽然有 announce_file_changes 做每次改动前确认，但没有一个"全局视角"——用户无法在 AI 动手之前看到它准备做什么、涉及哪些文件、改动范围多大。
+
+核心思路：两阶段执行
+
+
+阶段一：规划（Plan）
+  [生成执行计划] → AI 分析任务、输出改动清单 → 不碰任何文件
+                                ↓
+              Tab4 显示「执行计划已就绪」
+                ↙              ↓              ↘
+          [确认执行]        [重新规划]          [放弃]
+                ↓
+阶段二：执行（Execute）
+  AI 按照已确认的计划写代码（同时 announce_file_changes 仍然生效）
+状态机
+编码 Tab 本地状态（不需要持久化到 store）：
+
+
+
+idle         → 点击「生成执行计划」
+  ↓
+planning     → AI 正在生成计划（loading）
+  ↓
+plan_ready   → 计划生成完毕，等待用户确认
+  ↓
+executing    → AI 正在写代码
+  ↓
+idle         → 完成
+计划文本从最后一条 AI 消息中直接读取，不需要额外字段存储（或可选存为 pipelineCodingPlan 用于展示）。
+
+--------------
+
+合并方案：计划与实现
+核心变化
+Tab3（开发计划）+ Tab4（编码实现）→ 合并为 Tab3「计划与实现」
+
+Tab 栏从 5 个变为 4 个（Stage 4 内部仍保留用于状态追踪，但不再显示为独立 Tab）：
+
+
+
+需求识别 → 任务拆解 → 计划与实现 → 用例验证
+  (1)         (2)         (3)          (5)
+Tab 布局（从上到下）
+
+
+┌─────────────────────────────────────┐
+│ 涉及项目                             │  ← 可增删（来自 Tab3）
+│ [talcamp ×] [vote-service ×] [+2个] │
+├─────────────────────────────────────┤
+│ 涉及项目路径                          │  ← 只读，显示完整路径（来自 Tab4）
+│ - /workspace/talcamp                │
+├─────────────────────────────────────┤
+│ 开发分支                             │  ← 可编辑（来自 Tab3）
+│ [feature/xxx____________]           │
+├─────────────────────────────────────┤
+│ 代码改动计划            [编辑/预览]   │  ← 核心区域（升级版 Tab3）
+│                                     │
+│  ## talcamp                         │
+│  - src/handlers/gently.go           │
+│    修正 import 路径，移除 plog 引用  │
+│  - src/utils/plog.go  (删除)        │
+│                                     │
+│  ## vote-service                    │
+│  - internal/server/register.go      │
+│    修正 ZK 注册服务名               │
+├─────────────────────────────────────┤
+│ 编码活动日志                          │  ← 来自 Tab4
+│ [2024-06-25 14:22] 开始编码...      │
+└─────────────────────────────────────┘
+两个操作按钮
+Tab 对应两个动作，通过「意图识别/开始工作」按钮区区分：
+
+状态	按钮文案	触发动作
+无计划	生成计划	发 prompt → AI 输出文件级改动计划
+计划已有	开始编码	发 coding kickoff → AI 写代码
+编码中	loading...	—
+两个动作都在 Stage 3 这个 Tab 内完成，不跳 Tab。内部 Stage 从 3 推进到 4 时，只影响日志显示和 isDone 状态，Tab 不切换。
+
+计划 Prompt 升级（核心改动）
+把 buildDevPlanExecuteMessage 的输出格式从模块级升级到文件级：
+
+当前格式（模块级）：
+
+markdown
+
+
+## 各项目改动点
+### talcamp
+- 修复 gently handler 中的 import 引用
+升级后格式（文件级）：
+
+markdown
+
+
+## talcamp
+- `src/handlers/gently.go` — 修正 import 路径（第 12 行）
+- `src/utils/plog.go` — 删除整个文件（移除埋点模块）
+## vote-service
+- `internal/server/register.go` — 修正 ZK 注册服务名（第 34 行）
+改动范围
+文件	改动说明
+TaskPipelinePanel.tsx	STAGES 重命名 stage 3；visibleStageIds 改为 [1,2,3,5]；合并 Tab3+Tab4 为新 Tab3PlanAndImpl 组件
+workspace-task-messages.ts	升级 buildDevPlanExecuteMessage 的输出格式要求为文件级
+类型和 store 不需要改动，stage 4 继续存在只是不展示。
+
+-------------
+不是 Plan Mode 模式（那个需要调用 Claude Agent SDK 的特殊接口）。Tab3 的实现方式是普通的分步对话：
+
+生成计划阶段（点击「生成计划」）：
+
+发送 buildDevPlanExecuteMessage 提示词，要求 AI 先探索代码，再按 ## 项目名 / - \文件路径` — 改动说明` 格式输出计划
+AI 的回复保存到 task.pipelineDevPlan 字段，并渲染为可交互的 checkbox 列表
+编码阶段（点击「开始编码」）：
+
+会读取 task.pipelineDevPlan，并根据 checkbox/done 状态过滤出要执行的条目
+将过滤后的计划通过 buildCodingKickoffMessage 作为 开发计划： 段落注入到编码提示词中
+AI 收到的 prompt 里会包含完整的文件级改动清单，按清单执行代码修改
+所以本质上是：一次对话生成计划 → 存储 → 下一次对话把计划作为上下文传给 AI 执行。
+
+与 Plan Mode 的区别在于：Plan Mode 是 Claude Agent SDK 的工作模式切换（让 agent 先规划再执行，是一个原子操作）；而现在的实现是两个独立的对话轮次，中间由用户确认计划后手动触发编码。
+
+=================
+我当前可用的工具分几类：
+
+文件操作
+
+Read — 读文件
+Write — 写文件
+Edit — 精确替换文件内容
+Glob — 文件路径匹配
+Grep — 正则搜索文件内容
+系统命令
+
+Bash — 执行任意 shell 命令（curl、git、npm、go、brew 等都通过它运行）
+AI 浏览器
+
+mcp__ai-browser__* — 控制内嵌浏览器（打开页面、点击、截图等）
+任务管理
+
+Task — 启动子 Agent（Bash/Explore/Plan/web-searcher 等专用 Agent）
+TodoWrite — 管理待办列表
+其他
+
+WebFetch / WebSearch — 网络请求/搜索
+AskUserQuestion — 向你提问
+Skill — 调用已安装的技能
+在哪里管理？
+
+目前这些工具是由 DevX 平台内置提供的，没有单独的 UI 面板来启用/禁用单个工具。
+
+不过有两个相关入口：
+
+Settings > Remote Access — 控制是否允许远程 HTTP 访问
+Hooks（钩子） — Settings 里可以配置 shell 命令，在特定事件（如工具调用前后）触发，可以用来拦截或限制特定工具的行为
+如果你想限制某类工具的使用（比如禁止 Bash 执行某些命令），目前最直接的方式是通过 Hooks 来实现拦截逻辑。
+
+===============
 
 # DevX 任务系统技术文档
 

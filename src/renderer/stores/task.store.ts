@@ -144,6 +144,12 @@ interface TaskState {
 
   /** Append one line to the coding-phase activity log (capped) */
   appendPipelineCodingLog: (taskId: string, line: string) => void
+
+  /** Merge checkbox/done state into the interactive dev plan view (project checks + item done flags) */
+  updatePipelineDevPlanState: (
+    taskId: string,
+    state: { checks?: Record<string, boolean>; done?: Record<string, boolean> }
+  ) => void
 }
 
 export const useTaskStore = create<TaskState>()(
@@ -465,7 +471,7 @@ export const useTaskStore = create<TaskState>()(
               ...t,
               ...(updates.stage !== undefined && { pipelineStage: updates.stage }),
               ...(updates.pipelineSubtasks !== undefined && { pipelineSubtasks: updates.pipelineSubtasks }),
-              ...(updates.pipelineDevPlan !== undefined && { pipelineDevPlan: updates.pipelineDevPlan }),
+              ...(updates.pipelineDevPlan !== undefined && { pipelineDevPlan: updates.pipelineDevPlan, pipelineDevPlanState: undefined }),
               ...(updates.pipelineProjectChanges !== undefined && { pipelineProjectChanges: updates.pipelineProjectChanges }),
               ...(updates.pipelineResumeHint !== undefined && { pipelineResumeHint: updates.pipelineResumeHint }),
               ...(updates.pipelineDepCheckCmd !== undefined && { pipelineDepCheckCmd: updates.pipelineDepCheckCmd }),
@@ -539,6 +545,22 @@ export const useTaskStore = create<TaskState>()(
             const prev = t.pipelineCodingLogLines ?? []
             const next = [...prev, text].slice(-maxLines)
             return { ...t, pipelineCodingLogLines: next, updatedAt: Date.now() }
+          }),
+        }))
+      },
+
+      updatePipelineDevPlanState: (taskId, state) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (t.id !== taskId) return t
+            return {
+              ...t,
+              pipelineDevPlanState: {
+                checks: { ...t.pipelineDevPlanState?.checks, ...state.checks },
+                done: { ...t.pipelineDevPlanState?.done, ...state.done },
+              },
+              updatedAt: Date.now(),
+            }
           }),
         }))
       },

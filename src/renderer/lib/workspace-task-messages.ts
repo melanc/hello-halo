@@ -3,7 +3,7 @@
  */
 
 import type { TFunction } from 'i18next'
-import type { PipelineStage, PipelineSubtask, WorkspaceTask } from '../types'
+import type { PipelineStage, PipelineSubtask, PipelineDevPlanProject, WorkspaceTask } from '../types'
 
 const DOC_EXCERPT_LEN = 600
 const DESC_EXCERPT_LEN = 400
@@ -624,13 +624,39 @@ export function buildDevPlanExecuteMessage(
 }
 
 /**
+ * Parse an AI-generated dev plan markdown into a structured list of projects + file items.
+ * Expects the format produced by buildDevPlanExecuteMessage:
+ *   ## ProjectName
+ *   - `filepath` — description
+ */
+export function parseDevPlan(markdown: string): PipelineDevPlanProject[] {
+  const projects: PipelineDevPlanProject[] = []
+  let current: PipelineDevPlanProject | null = null
+  for (const line of markdown.split('\n')) {
+    const h2 = line.match(/^##\s+(.+)/)
+    if (h2) {
+      current = { name: h2[1].trim(), items: [], checked: false }
+      projects.push(current)
+      continue
+    }
+    if (current) {
+      const item = line.match(/^\s*-\s+`([^`]+)`\s*[—–-]\s*(.+)/)
+      if (item) {
+        current.items.push({ path: item[1].trim(), description: item[2].trim(), done: false })
+      }
+    }
+  }
+  return projects
+}
+
+/**
  * 开始工作 Tab 4 — kicks off the actual coding phase.
  * Includes the dev plan so the AI has full context to start implementing.
  */
 export function buildCodingKickoffMessage(
   task: WorkspaceTask,
   t: TFunction,
-  ctx?: { workspaceRoot?: string; projectPaths?: string[]; knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string }
+  ctx?: { workspaceRoot?: string; projectPaths?: string[]; knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string; selectedPlanMarkdown?: string }
 ): string {
   const blocks: string[] = [
     ...pipelineOpeningLines(t),
@@ -681,8 +707,9 @@ export function buildCodingKickoffMessage(
     // }
   }
 
-  if (task.pipelineDevPlan?.trim()) {
-    blocks.push('', t('开发计划：'), task.pipelineDevPlan.trim().slice(0, DEV_PLAN_EXCERPT_LEN))
+  const planToUse = ctx?.selectedPlanMarkdown?.trim() ?? task.pipelineDevPlan?.trim()
+  if (planToUse) {
+    blocks.push('', t('开发计划：'), planToUse.slice(0, DEV_PLAN_EXCERPT_LEN))
   } else if (task.pipelineSubtasks?.length) {
     blocks.push('', t('子任务列表：'))
     task.pipelineSubtasks.forEach((st) =>
