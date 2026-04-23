@@ -4,7 +4,7 @@
  * Stage bar doubles as a tab navigator — clicking any stage switches
  * the body to show that stage's content regardless of current progress.
  *
- * Stages: 1=需求识别  2=任务拆解  3=开发计划  4=编码实现  5=用例验证
+ * Stages: 1=需求识别  2=任务拆解  3=计划与实现（含编码，内部 stage 4 表示编码已开始）  5=用例验证
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
@@ -28,7 +28,6 @@ import {
   Eye,
   Activity,
   ShieldCheck,
-  ScrollText,
   Layers,
 } from 'lucide-react'
 import { MarkdownRenderer } from '../chat/MarkdownRenderer'
@@ -184,7 +183,7 @@ function waitForAssistantReply(conversationId: string): Promise<string | undefin
 const STAGES: { id: PipelineStage; label: string; activeColor: string; mutedColor: string; selectedBg: string }[] = [
   { id: 1, label: '需求识别', activeColor: 'text-violet-500',  mutedColor: 'text-violet-400/30',  selectedBg: 'bg-violet-500/15'  },
   { id: 2, label: '任务拆解', activeColor: 'text-blue-500',    mutedColor: 'text-blue-400/30',    selectedBg: 'bg-blue-500/15'    },
-  { id: 3, label: '开发计划', activeColor: 'text-emerald-500', mutedColor: 'text-emerald-400/30', selectedBg: 'bg-emerald-500/15' },
+  { id: 3, label: '计划与实现', activeColor: 'text-emerald-500', mutedColor: 'text-emerald-400/30', selectedBg: 'bg-emerald-500/15' },
   { id: 4, label: '编码实现', activeColor: 'text-orange-500',  mutedColor: 'text-orange-400/30',  selectedBg: 'bg-orange-500/15'  },
   { id: 5, label: '用例验证', activeColor: 'text-pink-500',    mutedColor: 'text-pink-400/30',    selectedBg: 'bg-pink-500/15'    },
 ]
@@ -734,23 +733,29 @@ function Tab2Breakdown({
   )
 }
 
-/** Tab 3 — 开发计划 */
-function Tab3DevPlan({
+/** Tab 3 — 计划与实现（合并了原 开发计划 + 编码实现） */
+function Tab3PlanAndImpl({
   task,
   workspaceRoot,
   availableRoots,
+  resolvedRoot,
   onSaveDevPlan,
   onSaveBranchName,
   onAddProject,
   onRemoveProject,
+  onRegeneratePlan,
+  isSendingMessage,
 }: {
   task: WorkspaceTask
   workspaceRoot: string | null
   availableRoots: string[]
+  resolvedRoot: string | null
   onSaveDevPlan: (text: string) => void
   onSaveBranchName: (branch: string) => void
   onAddProject: (dir: string) => void
   onRemoveProject: (dir: string) => void
+  onRegeneratePlan: () => void
+  isSendingMessage: boolean
 }) {
   const { t } = useTranslation()
   const [draft, setDraft] = useState(task.pipelineDevPlan ?? '')
@@ -809,8 +814,14 @@ function Tab3DevPlan({
   const allRootsToShow = availableRoots.length > 0
     ? Array.from(new Set([...availableRoots, ...task.projectDirs]))
     : task.projectDirs
-
   const notAddedCount = allRootsToShow.filter((n) => !projectDirsSet.has(n)).length
+
+  // Resolved full paths for display
+  const effectiveRoot = resolvedRoot ?? workspaceRoot
+  const dirs = task.projectDirs.filter(Boolean)
+  const resolvedPaths = effectiveRoot ? buildProjectDisplayPaths(effectiveRoot, dirs) : dirs
+
+  const logLines = task.pipelineCodingLogLines ?? []
 
   return (
     <div className="space-y-3">
@@ -824,7 +835,6 @@ function Tab3DevPlan({
           <div className="flex flex-wrap gap-1.5">
             {allRootsToShow.map((name) => {
               const added = projectDirsSet.has(name)
-              // When collapsed, hide non-added projects
               if (!added && !showAllRoots) return null
               return added ? (
                 <span
@@ -854,7 +864,6 @@ function Tab3DevPlan({
                 </button>
               )
             })}
-            {/* Toggle button for non-added projects */}
             {notAddedCount > 0 && (
               <button
                 type="button"
@@ -873,6 +882,24 @@ function Tab3DevPlan({
         )}
       </div>
 
+      {/* 涉及项目路径 */}
+      {resolvedPaths.length > 0 && (
+        <div>
+          <div className="flex items-center gap-1 mb-1.5">
+            <Layers className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
+            <span className="text-[11px] text-muted-foreground">{t('涉及项目路径')}</span>
+          </div>
+          <ul className="text-[11px] font-mono text-foreground/85 space-y-0.5 break-all">
+            {resolvedPaths.map((p) => (
+              <li key={p} className="text-muted-foreground/80">- {p}</li>
+            ))}
+          </ul>
+          {!effectiveRoot && dirs.length > 0 && (
+            <p className="text-[10px] text-muted-foreground/60 mt-1">{t('工作区路径不可用，仅显示目录名称。')}</p>
+          )}
+        </div>
+      )}
+
       {/* 开发分支 */}
       <div>
         <div className="flex items-center gap-1 mb-1.5">
@@ -889,25 +916,38 @@ function Tab3DevPlan({
         />
       </div>
 
-      {/* 代码改动范围 */}
+      {/* 代码改动计划 */}
       <div>
         <div className="flex items-center justify-between mb-1.5">
           <div className="flex items-center gap-1">
             <Code2 className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-            <span className="text-[11px] text-muted-foreground">{t('代码改动范围')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('代码改动计划')}</span>
           </div>
-          {draft ? (
-            <button
-              type="button"
-              onClick={() => setDevPlanEditing((v) => !v)}
-              className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {devPlanEditing
-                ? <><Eye className="w-3 h-3" />{t('预览')}</>
-                : <><Pencil className="w-3 h-3" />{t('编辑')}</>
-              }
-            </button>
-          ) : null}
+          <div className="flex items-center gap-2">
+            {draft && (
+              <button
+                type="button"
+                onClick={() => !isSendingMessage && onRegeneratePlan()}
+                disabled={isSendingMessage}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+              >
+                <ScanText className="w-3 h-3" />
+                {t('重新生成')}
+              </button>
+            )}
+            {draft && (
+              <button
+                type="button"
+                onClick={() => setDevPlanEditing((v) => !v)}
+                className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {devPlanEditing
+                  ? <><Eye className="w-3 h-3" />{t('预览')}</>
+                  : <><Pencil className="w-3 h-3" />{t('编辑')}</>
+                }
+              </button>
+            )}
+          </div>
         </div>
         {draft ? (
           devPlanEditing ? (
@@ -928,253 +968,21 @@ function Tab3DevPlan({
             </div>
           )
         ) : (
-          <textarea
-            ref={devPlanTextareaRef}
-            className="w-full min-h-[4rem] text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 leading-relaxed"
-            rows={1}
-            placeholder={t('描述要改哪些模块、文件或接口，AI 会帮你填写...')}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={handleBlur}
-          />
-        )}
-      </div>
-
-      {/* 各项目改动点 */}
-      {task.pipelineProjectChanges && (
-        <div>
-          <div className="flex items-center gap-1 mb-1.5">
-            <Layers className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-            <span className="text-[11px] text-muted-foreground">{t('各项目改动点')}</span>
-          </div>
-          <div className="text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 prose prose-sm dark:prose-invert max-w-none">
-            <MarkdownRenderer content={task.pipelineProjectChanges} mode="static" />
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-/** Tab 4 — 编码实现：依赖开发计划、涉及项目与分支；展示活动记录 */
-function Tab4Coding({
-  task,
-  workspaceRoot,
-  subtasks,
-  availableRootNames,
-  resolvedRoot,
-}: {
-  task: WorkspaceTask
-  workspaceRoot: string | null
-  subtasks: PipelineSubtask[]
-  availableRootNames: string[]
-  resolvedRoot: string | null
-}) {
-  const { t } = useTranslation()
-
-  const isSimple = task.taskType === 'simple'
-
-  // For simple tasks: editable project picker + branch directly in Tab4
-  const addProjectDirToTask = useTaskStore((s) => s.addProjectDirToTask)
-  const removeProjectDirFromTask = useTaskStore((s) => s.removeProjectDirFromTask)
-  const updateTaskBranchName = useTaskStore((s) => s.updateTaskBranchName)
-  const [branchDraft, setBranchDraft] = useState(task.branchName ?? '')
-  const savedBranchRef = useRef(task.branchName ?? '')
-  const [showAllRoots, setShowAllRoots] = useState(false)
-  useEffect(() => {
-    const incoming = task.branchName ?? ''
-    if (incoming !== savedBranchRef.current) {
-      savedBranchRef.current = incoming
-      setBranchDraft(incoming)
-    }
-  }, [task.branchName])
-  const handleBranchBlur = useCallback(() => {
-    const trimmed = branchDraft.trim()
-    if (trimmed !== savedBranchRef.current) {
-      savedBranchRef.current = trimmed
-      setBranchDraft(trimmed)
-      updateTaskBranchName(task.id, trimmed)
-    }
-  }, [branchDraft, updateTaskBranchName, task.id])
-
-  // Use the API-resolved root when available; fall back to the prop from spaceStore
-  const effectiveRoot = resolvedRoot ?? workspaceRoot
-  const dirs = task.projectDirs.filter(Boolean)
-  const paths = effectiveRoot ? buildProjectDisplayPaths(effectiveRoot, dirs) : dirs
-  const projectDirsSet = new Set(dirs)
-  const allRootsToShow = availableRootNames && availableRootNames.length > 0
-    ? Array.from(new Set([...availableRootNames, ...dirs]))
-    : dirs
-  const notAddedCount = allRootsToShow.filter((n) => !projectDirsSet.has(n)).length
-  const prereq = evaluateCodingPrereqs(task, t)
-  const logLines = task.pipelineCodingLogLines ?? []
-  const planExcerptDisplay = useMemo(() => {
-    const raw = (task.pipelineDevPlan ?? '').trim()
-    const head = raw.slice(0, 1200)
-    const tail = raw.length > 1200 ? `\n…\n${t('(truncated)')}` : ''
-    return head + tail
-  }, [task.pipelineDevPlan, t])
-
-
-  const progress = getSubtaskProgressStats(subtasks)
-
-  return (
-    <div className="space-y-3">
-      <div>
-        <div className="flex items-center gap-1 mb-1">
-          <ClipboardList className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('子任务进度')}</span>
-        </div>
-        {progress.total === 0 ? (
-          <p className="text-[11px] text-muted-foreground/80 leading-snug">
-            {task.taskType === 'simple'
-              ? t('当前暂无子任务记录，开始工作将依据需求分析进行编码。')
-              : t(
-                  '当前暂无子任务记录。意图识别 / 开始工作将仅依据开发计划进行比对；请在标签 2 添加子任务以跟踪完成情况。'
-                )}
-          </p>
-        ) : (
-          <div className="space-y-1.5">
-            <p className="text-[11px] text-foreground/90">
-              {t('{{done}} / {{total}} subtasks marked done', { done: progress.doneCount, total: progress.total })}
-            </p>
-            {progress.allDone ? (
-              <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-snug">
-                {t('所有子任务均已完成。可先执行意图识别，确认开发计划中没有遗漏。')}
-              </p>
-            ) : progress.nextSubtask ? (
-              <p className="text-[11px] text-foreground/85 leading-snug">
-                {t('建议下一个关注点：{{title}}', { title: progress.nextSubtask.title })}
-              </p>
-            ) : null}
-            <p className="text-[10px] text-muted-foreground/75 leading-snug">
-              {t('意图识别与开始工作消息会附带该进度，便于模型判断剩余工作。')}
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-center gap-1 mb-1">
-          <ShieldCheck className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('编码前置条件')}</span>
-        </div>
-        {!prereq.ok ? (
-          <p className="text-[11px] text-amber-700 dark:text-amber-300/90 leading-snug">{prereq.message}</p>
-        ) : (
-          <p className="text-[11px] text-emerald-700 dark:text-emerald-300/90 leading-snug">
-            {task.taskType === 'simple'
-              ? t('需求分析已就绪，可以直接开始编码。')
-              : t('开发计划、涉及项目和开发分支已就绪。请先执行意图识别，再开始工作。')}
+          <p className="text-[11px] text-muted-foreground/60 italic px-0.5">
+            {t('点击「生成计划」，AI 将探索代码并输出文件级改动计划...')}
           </p>
         )}
       </div>
 
+      {/* 编码活动日志 */}
       <div>
-        <div className="flex items-center gap-1 mb-1">
-          <FolderOpen className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('涉及项目路径')}</span>
-          {availableRootNames === null && (
-            <Loader2 className="w-3 h-3 text-muted-foreground/60 animate-spin ml-1" />
-          )}
-        </div>
-        {isSimple ? (
-          allRootsToShow.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5">
-              {allRootsToShow.map((name) => {
-                const added = projectDirsSet.has(name)
-                if (!added && !showAllRoots) return null
-                return added ? (
-                  <span key={name} className="inline-flex items-center gap-1 pl-2 pr-1 py-0.5 rounded-md bg-primary/15 border border-primary/30 text-[11px] text-foreground/90 font-mono">
-                    {name}
-                    <button type="button" onClick={() => removeProjectDirFromTask(task.id, name)}
-                      className="flex items-center justify-center w-3.5 h-3.5 rounded hover:bg-destructive/20 hover:text-destructive transition-colors text-muted-foreground"
-                      title={t('从任务中移除')}>
-                      <X className="w-2.5 h-2.5" />
-                    </button>
-                  </span>
-                ) : (
-                  <button key={name} type="button" onClick={() => addProjectDirToTask(task.id, name)}
-                    className="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-md bg-secondary border border-border text-[11px] text-muted-foreground font-mono hover:bg-secondary/80 hover:text-foreground transition-colors"
-                    title={t('添加到任务中')}>
-                    {name}
-                    <Plus className="w-2.5 h-2.5" />
-                  </button>
-                )
-              })}
-              {notAddedCount > 0 && (
-                <button type="button" onClick={() => setShowAllRoots((v) => !v)}
-                  className="inline-flex items-center gap-1 pl-2 pr-1.5 py-0.5 rounded-md border border-dashed border-border text-[11px] text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors">
-                  {showAllRoots
-                    ? <><ChevronUp className="w-2.5 h-2.5" />{t('收起')}</>
-                    : <><ChevronDown className="w-2.5 h-2.5" />{t('+{{n}} 个项目', { n: notAddedCount })}</>}
-                </button>
-              )}
-            </div>
-          ) : (
-            <p className="text-[11px] text-muted-foreground/50 italic">{t('暂无项目，AI 识别需求后自动填入')}</p>
-          )
-        ) : (
-          <>
-            {paths.length > 0 ? (
-              <ul className="text-[11px] font-mono text-foreground/85 space-y-0.5 break-all">
-                {paths.map((p) => (
-                  <li key={p}>- {p}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-[11px] text-muted-foreground/60 italic">{t('尚未关联项目')}</p>
-            )}
-            {!effectiveRoot && dirs.length > 0 && (
-              <p className="text-[10px] text-muted-foreground/70 mt-1">{t('工作区路径不可用，仅显示目录名称。')}</p>
-            )}
-          </>
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-center gap-1 mb-1">
-          <GitBranch className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('开发分支')}</span>
-        </div>
-        {isSimple ? (
-          <input
-            type="text"
-            className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono"
-            placeholder={t('e.g. feature/your-branch')}
-            value={branchDraft}
-            onChange={(e) => setBranchDraft(e.target.value)}
-            onBlur={handleBranchBlur}
-          />
-        ) : (
-          <p className="text-xs font-mono text-foreground/90 break-all">
-            {task.branchName?.trim() ? task.branchName.trim() : t('未设置')}
-          </p>
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-center gap-1 mb-1">
-          <ScrollText className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('开发计划摘录')}</span>
-        </div>
-        {planExcerptDisplay ? (
-          <div className="text-xs bg-secondary/30 border border-border/60 rounded-lg px-2.5 py-2 prose prose-sm dark:prose-invert max-w-none">
-            <MarkdownRenderer content={planExcerptDisplay} mode="static" />
-          </div>
-        ) : (
-          <p className="text-[11px] text-muted-foreground/60 italic">{t('暂无开发计划文本')}</p>
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-center gap-1 mb-1">
+        <div className="flex items-center gap-1 mb-1.5">
           <Activity className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{t('编码活动日志')}</span>
+          <span className="text-[11px] text-muted-foreground">{t('编码活动日志')}</span>
         </div>
         {logLines.length === 0 ? (
           <p className="text-[11px] text-muted-foreground/60 italic">
-            {t('点击开始工作后，会在此记录一条日志（子任务与项目）。')}
+            {t('点击开始编码后，会在此记录一条日志（子任务与项目）。')}
           </p>
         ) : (
           <ul className="text-[11px] text-foreground/85 space-y-1 max-h-36 overflow-y-auto border border-border/50 rounded-lg px-2 py-2 bg-secondary/20">
@@ -1186,10 +994,6 @@ function Tab4Coding({
           </ul>
         )}
       </div>
-
-      <p className="text-[11px] text-muted-foreground/70 leading-snug">
-        {t('意图识别会让模型对照开发计划与已完成子任务，并给出下一步；开始工作会携带相同上下文发送编码消息。')}
-      </p>
     </div>
   )
 }
@@ -1438,7 +1242,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
   const resumeHint = task.pipelineResumeHint ?? ''
   const isSimple = task.taskType === 'simple'
-  const visibleStageIds: readonly PipelineStage[] = isSimple ? [1, 4, 5] : [1, 2, 3, 4, 5]
+  // Stage 4 is internal (coding phase) — shown in the merged "计划与实现" tab (stage 3)
+  const visibleStageIds: readonly PipelineStage[] = isSimple ? [1, 3, 5] : [1, 2, 3, 5]
 
   // selectedTab follows progress stage, but user can freely switch
   const [selectedTab, setSelectedTab] = useState<PipelineStage>(stage)
@@ -1480,6 +1285,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   // executed by the subscribe callback when generation ends.
   const pendingPipelineActionRef = useRef<((reply: string) => void) | null>(null)
 
+  // When coding is kicked off from the merged tab 3, override the reportStage to 4
+  // so session report / mark-worked logic treats it as a coding session.
+  const pendingStageOverrideRef = useRef<PipelineStage | null>(null)
+
   // Subscribe to chat store: auto-track every generation start/end
   useEffect(() => {
     const unsub = useChatStore.subscribe((state) => {
@@ -1492,7 +1301,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       // Generation started — begin timing
       if (!wasGeneratingRef.current && isGenerating) {
         reportStartTimeRef.current = Date.now()
-        reportStageRef.current = selectedTabRef.current
+        // Use pending override (e.g. coding from merged tab 3 should report as stage 4)
+        reportStageRef.current = pendingStageOverrideRef.current ?? selectedTabRef.current
+        pendingStageOverrideRef.current = null
         setSessionReport(null)
       }
 
@@ -1587,9 +1398,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     document.addEventListener('mouseup', onUp)
   }, []) // stable — reads height from ref, not from state
 
-  // When progress advances, follow it
+  // When progress advances, follow it. Stage 4 (coding) is shown in the merged tab 3.
   useEffect(() => {
-    setSelectedTab(stage)
+    setSelectedTab(stage === 4 ? 3 : stage)
   }, [stage])
 
   // Clear check result when tab changes
@@ -1672,8 +1483,20 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         return { ok: true, message: t('AI 将按讨论结果生成子任务列表') }
       }
       case 3: {
-        if (subtasks.length === 0) return { ok: false, message: t('请先在任务拆解中生成子任务') }
-        return { ok: true, message: t('AI 将按讨论结果生成开发计划') }
+        if (task.pipelineDevPlan?.trim()) {
+          // Plan exists — check coding prereqs
+          const pre = evaluateCodingPrereqs(task, t)
+          if (!pre.ok) return { ok: false, message: pre.message }
+          return {
+            ok: true,
+            message: isSimple
+              ? t('AI 将根据需求分析直接开始编码。')
+              : t('AI will run coding using the saved development plan, projects, and branch.'),
+          }
+        }
+        // No plan — check plan generation prereqs
+        if (subtasks.length === 0 && !isSimple) return { ok: false, message: t('请先在任务拆解中生成子任务') }
+        return { ok: true, message: t('AI 将按讨论结果生成代码改动计划') }
       }
       case 4: {
         const pre = evaluateCodingPrereqs(task, t)
@@ -1705,18 +1528,21 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       const codingProjectPaths =
         workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirNames) : dirNames
 
+      // Tab 3 with plan → use coding intent analysis (stage 4 context)
+      const intentTab: PipelineStage =
+        selectedTab === 3 && task.pipelineDevPlan?.trim() ? 4 : selectedTab
       await chat.sendMessage(
         buildIntentAnalysisMessage(
-          selectedTab,
+          intentTab,
           task,
           {
             subtasks,
             keyPoints: task.requirementKeyPoints ?? [],
             ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
-            ...(selectedTab === 3
+            ...(selectedTab === 3 && !task.pipelineDevPlan?.trim()
               ? { projectDirs: dirNames.length ? dirNames : undefined }
               : {}),
-            ...(selectedTab === 4
+            ...(intentTab === 4
               ? {
                   codingWorkspaceRoot: workspaceRoot || undefined,
                   codingProjectPaths: codingProjectPaths.length ? codingProjectPaths : undefined,
@@ -1775,40 +1601,81 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         deferred = true
 
       } else if (selectedTab === 3) {
-        // Validate project paths before generating dev plan
-        const tab3ProjectDirs = getInvolvedProjectDirNames(task)
-        if (tab3ProjectDirs.length > 0 && workspaceRoot) {
-          const missing: string[] = []
-          await Promise.all(
-            tab3ProjectDirs.map(async (dir) => {
-              const fullPath = `${workspaceRoot}/${dir}`
-              const res = await api.checkPathExists(fullPath)
-              if (!res.success || !res.data?.exists) missing.push(fullPath)
+        if (task.pipelineDevPlan?.trim()) {
+          // ── CODING PATH (plan already exists) ──────────────────────────────
+          // Override reportStage to 4 so the session report/mark-worked logic
+          // treats this as a coding session even though selectedTab is 3.
+          pendingStageOverrideRef.current = 4
+          const dirs = getInvolvedProjectDirNames(task)
+          if (dirs.length > 0 && workspaceRoot) {
+            const missing: string[] = []
+            await Promise.all(
+              dirs.map(async (dir) => {
+                const fullPath = `${workspaceRoot}/${dir}`
+                const res = await api.checkPathExists(fullPath)
+                if (!res.success || !res.data?.exists) missing.push(fullPath)
+              })
+            )
+            if (missing.length > 0) {
+              pendingStageOverrideRef.current = null
+              setCheckResult({ ok: false, message: t('以下项目路径不存在，请确认后再试：\n') + missing.join('\n') })
+              return
+            }
+          }
+          const projectPaths = buildProjectDisplayPaths(workspaceRoot, dirs)
+          const focus = pickFocusSubtask(subtasks)
+          const logLine = t('Coding kickoff log line', {
+            time: new Date().toLocaleString(),
+            subtask: focus?.title?.trim() || t('No subtask'),
+            projects: dirs.length ? dirs.join(', ') : t('None'),
+          })
+          useTaskStore.getState().appendPipelineCodingLog(task.id, logLine)
+          updateTaskPipelineState(task.id, {
+            stage: Math.max(stage, 4) as PipelineStage,
+            pipelineResumeHint: t('正在编写代码'),
+          })
+          await chat.sendMessage(
+            buildCodingKickoffMessage(task, t, {
+              workspaceRoot: workspaceRoot || undefined,
+              projectPaths: projectPaths.length ? projectPaths : undefined,
+              ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
             })
           )
-          if (missing.length > 0) {
-            setCheckResult({ ok: false, message: t('以下项目路径不存在，请确认后再试：\n') + missing.join('\n') })
-            return
+        } else {
+          // ── PLAN GENERATION PATH (no plan yet) ─────────────────────────────
+          const tab3ProjectDirs = getInvolvedProjectDirNames(task)
+          if (tab3ProjectDirs.length > 0 && workspaceRoot) {
+            const missing: string[] = []
+            await Promise.all(
+              tab3ProjectDirs.map(async (dir) => {
+                const fullPath = `${workspaceRoot}/${dir}`
+                const res = await api.checkPathExists(fullPath)
+                if (!res.success || !res.data?.exists) missing.push(fullPath)
+              })
+            )
+            if (missing.length > 0) {
+              setCheckResult({ ok: false, message: t('以下项目路径不存在，请确认后再试：\n') + missing.join('\n') })
+              return
+            }
           }
+          pendingPipelineActionRef.current = (reply) => {
+            updateTaskPipelineState(task.id, {
+              pipelineDevPlan: reply.trim(),
+              pipelineProjectChanges: undefined,
+              stage: Math.max(stage, 3) as PipelineStage,
+            })
+            setSelectedTab(3)
+          }
+          const tab3Opts = knowledgeBaseRoot
+            ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
+            : undefined
+          await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
+          deferred = true
         }
-        pendingPipelineActionRef.current = (reply) => {
-          const { projectChanges, scopeText } = parseDevPlanReply(reply)
-          updateTaskPipelineState(task.id, {
-            pipelineDevPlan: scopeText || reply.trim(),
-            pipelineProjectChanges: projectChanges || undefined,
-            stage: Math.max(stage, 3) as PipelineStage,
-          })
-          setSelectedTab(3)
-        }
-        const tab3Opts = knowledgeBaseRoot
-          ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
-          : undefined
-        await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
-        deferred = true
 
       } else if (selectedTab === 4) {
+        // Backward-compat: stage 4 direct (should not normally be reachable after UI merge)
         const dirs = getInvolvedProjectDirNames(task)
-        // Validate project paths before starting coding
         if (dirs.length > 0 && workspaceRoot) {
           const missing: string[] = []
           await Promise.all(
@@ -1831,7 +1698,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           projects: dirs.length ? dirs.join(', ') : t('None'),
         })
         useTaskStore.getState().appendPipelineCodingLog(task.id, logLine)
-
         updateTaskPipelineState(task.id, {
           stage: Math.max(stage, 4) as PipelineStage,
           pipelineResumeHint: t('正在编写代码'),
@@ -1871,6 +1737,38 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
     [task.id, updateTaskPipelineState]
   )
+
+  // "重新生成计划" — clears existing plan and re-runs plan generation
+  const handleRegeneratePlan = useCallback(async () => {
+    if (isSendingMessage) return
+    const tab3ProjectDirs = getInvolvedProjectDirNames(task)
+    if (tab3ProjectDirs.length === 0 && !isSimple) {
+      setCheckResult({ ok: false, message: t('请先在任务拆解中生成子任务') })
+      return
+    }
+    // Clear the existing plan so handleStartWork takes the plan-generation path
+    updateTaskPipelineState(task.id, { pipelineDevPlan: '' })
+    setIsSendingMessage(true)
+    let deferred = false
+    try {
+      const chat = useChatStore.getState()
+      pendingPipelineActionRef.current = (reply) => {
+        updateTaskPipelineState(task.id, {
+          pipelineDevPlan: reply.trim(),
+          pipelineProjectChanges: undefined,
+          stage: Math.max(stage, 3) as PipelineStage,
+        })
+        setSelectedTab(3)
+      }
+      const tab3Opts = knowledgeBaseRoot
+        ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
+        : undefined
+      await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
+      deferred = true
+    } finally {
+      if (!deferred) setIsSendingMessage(false)
+    }
+  }, [isSendingMessage, task, isSimple, stage, updateTaskPipelineState, knowledgeBaseRoot, t])
 
   const handleSaveDepCheckCmd = useCallback(
     (cmd: string) => updateTaskPipelineState(task.id, { pipelineDepCheckCmd: cmd }),
@@ -1943,23 +1841,17 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               />
             )}
             {selectedTab === 3 && (
-              <Tab3DevPlan
+              <Tab3PlanAndImpl
                 task={task}
                 workspaceRoot={workspaceRootForUi}
                 availableRoots={artifactsRootNames}
+                resolvedRoot={resolvedWorkspaceRoot}
                 onSaveDevPlan={handleSaveDevPlan}
                 onSaveBranchName={(b) => updateTaskBranchName(task.id, b)}
                 onAddProject={(dir) => addProjectDirToTask(task.id, dir)}
                 onRemoveProject={(dir) => removeProjectDirFromTask(task.id, dir)}
-              />
-            )}
-            {selectedTab === 4 && (
-              <Tab4Coding
-                task={task}
-                workspaceRoot={workspaceRootForUi}
-                subtasks={subtasks}
-                availableRootNames={artifactsRootNames}
-                resolvedRoot={resolvedWorkspaceRoot}
+                onRegeneratePlan={handleRegeneratePlan}
+                isSendingMessage={isSendingMessage}
               />
             )}
             {selectedTab === 5 && (
@@ -1980,7 +1872,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               )}
               {(!resumeHint || checkResult) && <span className="flex-1" />}
 
-              {selectedTab === 1 && (
+              {(selectedTab === 1 || selectedTab === 3) && (
                 <button
                   type="button"
                   onClick={() => void handleIdentifyIntent()}
@@ -2002,7 +1894,12 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
               >
                 {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
-                {t('开始工作')}
+                {selectedTab === 3 && task.pipelineDevPlan?.trim()
+                  ? t('开始编码')
+                  : selectedTab === 3
+                    ? t('生成计划')
+                    : t('开始工作')
+                }
               </button>
 
               <button
