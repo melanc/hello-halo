@@ -1521,6 +1521,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     setCheckResult(gate)
     if (!gate.ok) return
 
+    // Mark tab 1 as "has been identified" so the button label can change to 重新识别
+    if (selectedTab === 1) {
+      useTaskStore.getState().markPipelineStageWorked(task.id, 1)
+    }
     setIsIdentifying(true)
     try {
       const chat = useChatStore.getState()
@@ -1738,14 +1742,15 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     [task.id, updateTaskPipelineState]
   )
 
-  // "重新生成计划" — clears existing plan and re-runs plan generation
+  // "生成计划 / 重新生成" — clears existing plan and runs plan generation
   const handleRegeneratePlan = useCallback(async () => {
     if (isSendingMessage) return
-    const tab3ProjectDirs = getInvolvedProjectDirNames(task)
-    if (tab3ProjectDirs.length === 0 && !isSimple) {
+    const titledSubtasks = subtasks.filter((s) => s.title.trim())
+    if (!isSimple && titledSubtasks.length === 0) {
       setCheckResult({ ok: false, message: t('请先在任务拆解中生成子任务') })
       return
     }
+    const tab3ProjectDirs = getInvolvedProjectDirNames(task)
     // Clear the existing plan so handleStartWork takes the plan-generation path
     updateTaskPipelineState(task.id, { pipelineDevPlan: '' })
     setIsSendingMessage(true)
@@ -1768,7 +1773,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     } finally {
       if (!deferred) setIsSendingMessage(false)
     }
-  }, [isSendingMessage, task, isSimple, stage, updateTaskPipelineState, knowledgeBaseRoot, t])
+  }, [isSendingMessage, task, subtasks, isSimple, stage, updateTaskPipelineState, knowledgeBaseRoot, t])
 
   const handleSaveDepCheckCmd = useCallback(
     (cmd: string) => updateTaskPipelineState(task.id, { pipelineDepCheckCmd: cmd }),
@@ -1872,7 +1877,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               )}
               {(!resumeHint || checkResult) && <span className="flex-1" />}
 
-              {(selectedTab === 1 || selectedTab === 3) && (
+              {/* Tab 1: 意图识别 → 重新识别 */}
+              {selectedTab === 1 && (
                 <button
                   type="button"
                   onClick={() => void handleIdentifyIntent()}
@@ -1883,24 +1889,60 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                     ? <Loader2 className="w-3 h-3 animate-spin" />
                     : <ScanText className="w-3 h-3 opacity-70" />
                   }
-                  {t('意图识别')}
+                  {task.pipelineWorkedStages?.includes(1) ? t('重新识别') : t('意图识别')}
                 </button>
               )}
 
-              <button
-                type="button"
-                onClick={() => void handleStartWork()}
-                disabled={isSendingMessage}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
-              >
-                {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
-                {selectedTab === 3 && task.pipelineDevPlan?.trim()
-                  ? t('开始编码')
-                  : selectedTab === 3
-                    ? t('生成计划')
+              {/* Tab 3: 生成计划 / 重新生成 / 已生成 */}
+              {selectedTab === 3 && (
+                <button
+                  type="button"
+                  onClick={() => void handleRegeneratePlan()}
+                  disabled={stage >= 4 || isSendingMessage}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
+                >
+                  {isSendingMessage && !task.pipelineDevPlan?.trim()
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : <ScanText className="w-3 h-3 opacity-70" />
+                  }
+                  {stage >= 4
+                    ? t('已生成')
+                    : task.pipelineDevPlan?.trim()
+                      ? t('重新生成')
+                      : t('生成计划')
+                  }
+                </button>
+              )}
+
+              {/* Tab 2: 开始拆解 / 重新拆解 — Tab 3: 开始编码 — others: 开始工作 */}
+              {selectedTab !== 3 && (
+                <button
+                  type="button"
+                  onClick={() => void handleStartWork()}
+                  disabled={isSendingMessage}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+                >
+                  {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {selectedTab === 2
+                    ? subtasks.filter((s) => s.title.trim()).length > 0 ? t('重新拆解') : t('开始拆解')
                     : t('开始工作')
-                }
-              </button>
+                  }
+                </button>
+              )}
+              {selectedTab === 3 && (
+                <button
+                  type="button"
+                  onClick={() => void handleStartWork()}
+                  disabled={isSendingMessage || !task.pipelineDevPlan?.trim()}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+                >
+                  {isSendingMessage && task.pipelineDevPlan?.trim()
+                    ? <Loader2 className="w-3 h-3 animate-spin" />
+                    : null
+                  }
+                  {t('开始编码')}
+                </button>
+              )
 
               <button
                 type="button"
