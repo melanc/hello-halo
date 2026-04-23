@@ -1942,7 +1942,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                   }
                   {t('开始编码')}
                 </button>
-              )
+              )}
 
               <button
                 type="button"
