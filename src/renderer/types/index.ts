@@ -348,6 +348,8 @@ export interface WorkspaceTask {
   /** Set when the task is created (ms since epoch); may be missing on very old local data) */
   createdAt?: number;
   updatedAt: number;
+  /** Task has been archived by the user (hidden from active list, shown in collapsed 已归档 section) */
+  archived?: boolean;
   /** First path segment from artifact events while this task is active (actual touch set) */
   touchedProjectDirs?: string[];
   /** User has used "Identify requirements" at least once in this task */

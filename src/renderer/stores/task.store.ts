@@ -139,6 +139,9 @@ interface TaskState {
   /** Bump updatedAt to now (e.g. after any AI generation ends for this task) */
   touchTask: (taskId: string) => void
 
+  /** Archive or unarchive a task */
+  setTaskArchived: (taskId: string, archived: boolean) => void
+
   /** Append one line to the coding-phase activity log (capped) */
   appendPipelineCodingLog: (taskId: string, line: string) => void
 }
@@ -514,6 +517,14 @@ export const useTaskStore = create<TaskState>()(
         set((s) => ({
           tasks: s.tasks.map((t) =>
             t.id === taskId ? { ...t, updatedAt: Date.now() } : t
+          ),
+        }))
+      },
+
+      setTaskArchived: (taskId, archived) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId ? { ...t, archived, updatedAt: Date.now() } : t
           ),
         }))
       },
