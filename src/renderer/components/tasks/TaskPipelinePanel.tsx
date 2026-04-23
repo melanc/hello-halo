@@ -1530,6 +1530,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         // Bump task updatedAt so the sidebar "last updated" time reflects chat activity
         useTaskStore.getState().touchTask(taskRef.current.id)
 
+        // Mark stage 4 as worked whenever an AI reply completes while on the coding tab
+        if (reportStageRef.current === 4) {
+          useTaskStore.getState().markPipelineStageWorked(taskRef.current.id, 4)
+        }
+
         // Auto-expand the panel when generation ends so results are visible
         setCollapsed(false)
 
