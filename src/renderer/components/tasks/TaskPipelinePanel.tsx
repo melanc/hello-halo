@@ -11,6 +11,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import {
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   CheckCircle2,
   Circle,
   Loader2,
@@ -1289,6 +1290,13 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   // so session report / mark-worked logic treats it as a coding session.
   const pendingStageOverrideRef = useRef<PipelineStage | null>(null)
 
+  // "下一步" auto-start: when set, the useEffect below fires the corresponding action
+  // after the tab switch completes (so the new selectedTab is in the handler closure).
+  const pendingAutoStartTabRef = useRef<PipelineStage | null>(null)
+  // Always-fresh refs to the latest handler functions, used by the auto-start effect.
+  const handleStartWorkRef = useRef<() => Promise<void>>(async () => {})
+  const handleRegeneratePlanRef = useRef<() => Promise<void>>(async () => {})
+
   // Subscribe to chat store: auto-track every generation start/end
   useEffect(() => {
     const unsub = useChatStore.subscribe((state) => {
@@ -1369,8 +1377,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   }, [task.conversationId])
 
   // Resizable content area
-  const [contentHeight, setContentHeight] = useState(440)
-  const contentHeightRef = useRef(440)
+  const [contentHeight, setContentHeight] = useState(360)
+  const contentHeightRef = useRef(360)
 
   const handleResizeMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
@@ -1406,6 +1414,17 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   // Clear check result when tab changes
   useEffect(() => {
     setCheckResult(null)
+  }, [selectedTab])
+
+  // Auto-start: when pendingAutoStartTabRef is set and the tab has switched, fire the action.
+  // Reads from always-fresh refs so there's no stale-closure problem.
+  useEffect(() => {
+    const pendingTab = pendingAutoStartTabRef.current
+    if (pendingTab !== null && pendingTab === selectedTab) {
+      pendingAutoStartTabRef.current = null
+      if (pendingTab === 2) void handleStartWorkRef.current()
+      else if (pendingTab === 3) void handleRegeneratePlanRef.current()
+    }
   }, [selectedTab])
 
   const doneCount = subtasks.filter((s) => s.status === 'done').length
@@ -1775,6 +1794,21 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     }
   }, [isSendingMessage, task, subtasks, isSimple, stage, updateTaskPipelineState, knowledgeBaseRoot, t])
 
+  // Always-fresh ref updates — must be in render body so they're current before effects fire
+  handleStartWorkRef.current = handleStartWork
+  handleRegeneratePlanRef.current = handleRegeneratePlan
+
+  // "下一步" — advance to the next tab and schedule an auto-start of its primary action
+  const handleNextStep = useCallback(
+    (fromTab: PipelineStage) => {
+      const targetTab = (fromTab === 1 ? 2 : 3) as PipelineStage
+      pendingAutoStartTabRef.current = targetTab
+      setSelectedTab(targetTab)
+      setCollapsed(false)
+    },
+    []
+  )
+
   const handleSaveDepCheckCmd = useCallback(
     (cmd: string) => updateTaskPipelineState(task.id, { pipelineDepCheckCmd: cmd }),
     [task.id, updateTaskPipelineState]
@@ -1877,23 +1911,105 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               )}
               {(!resumeHint || checkResult) && <span className="flex-1" />}
 
-              {/* Tab 1: 意图识别 → 重新识别 */}
+              {/* ── Tab 1: 需求识别 ───────────────────────────────────── */}
               {selectedTab === 1 && (
-                <button
-                  type="button"
-                  onClick={() => void handleIdentifyIntent()}
-                  disabled={isIdentifying || isSendingMessage}
-                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
-                >
-                  {isIdentifying
-                    ? <Loader2 className="w-3 h-3 animate-spin" />
-                    : <ScanText className="w-3 h-3 opacity-70" />
-                  }
-                  {task.pipelineWorkedStages?.includes(1) ? t('重新识别') : t('意图识别')}
-                </button>
+                <>
+                  {/* 意图识别 / 重新识别 — hidden once requirementAnalysis exists */}
+                  {!task.requirementAnalysis?.trim() && (
+                    <button
+                      type="button"
+                      onClick={() => void handleIdentifyIntent()}
+                      disabled={isIdentifying || isSendingMessage}
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
+                    >
+                      {isIdentifying
+                        ? <Loader2 className="w-3 h-3 animate-spin" />
+                        : <ScanText className="w-3 h-3 opacity-70" />
+                      }
+                      {task.pipelineWorkedStages?.includes(1) ? t('重新识别') : t('意图识别')}
+                    </button>
+                  )}
+                  {/* 确认需求 → 下一步 → 已确认 */}
+                  {!task.requirementAnalysis?.trim() ? (
+                    <button
+                      type="button"
+                      onClick={() => void handleStartWork()}
+                      disabled={isSendingMessage}
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+                    >
+                      {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
+                      {t('确认需求')}
+                    </button>
+                  ) : stage >= 2 ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border text-foreground disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-3 h-3 opacity-70" />
+                      {t('已确认')}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleNextStep(1)}
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      {t('下一步')}
+                      <ChevronRight className="w-3 h-3" />
+                    </button>
+                  )}
+                </>
               )}
 
-              {/* Tab 3: 生成计划 / 重新生成 / 已生成 */}
+              {/* ── Tab 2: 任务拆解 ───────────────────────────────────── */}
+              {selectedTab === 2 && (
+                <>
+                  {stage >= 3 ? (
+                    <button
+                      type="button"
+                      disabled
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border text-foreground disabled:opacity-50"
+                    >
+                      <CheckCircle2 className="w-3 h-3 opacity-70" />
+                      {t('已完成')}
+                    </button>
+                  ) : subtasks.filter((s) => s.title.trim()).length > 0 ? (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => void handleStartWork()}
+                        disabled={isSendingMessage}
+                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
+                      >
+                        {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
+                        {t('重新拆解')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleNextStep(2)}
+                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        {t('下一步')}
+                        <ChevronRight className="w-3 h-3" />
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => void handleStartWork()}
+                      disabled={isSendingMessage}
+                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+                    >
+                      {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
+                      {t('开始拆解')}
+                    </button>
+                  )}
+                </>
+              )}
+
+              {/* ── Tab 3: 计划与实现 ─────────────────────────────────── */}
+              {/* 生成计划 / 重新生成 / 已生成 */}
               {selectedTab === 3 && (
                 <button
                   type="button"
@@ -1913,22 +2029,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                   }
                 </button>
               )}
-
-              {/* Tab 2: 开始拆解 / 重新拆解 — Tab 3: 开始编码 — others: 开始工作 */}
-              {selectedTab !== 3 && (
-                <button
-                  type="button"
-                  onClick={() => void handleStartWork()}
-                  disabled={isSendingMessage}
-                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
-                >
-                  {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
-                  {selectedTab === 2
-                    ? subtasks.filter((s) => s.title.trim()).length > 0 ? t('重新拆解') : t('开始拆解')
-                    : t('开始工作')
-                  }
-                </button>
-              )}
+              {/* 开始编码 */}
               {selectedTab === 3 && (
                 <button
                   type="button"
@@ -1941,6 +2042,19 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                     : null
                   }
                   {t('开始编码')}
+                </button>
+              )}
+
+              {/* ── Tab 5: 用例验证 ───────────────────────────────────── */}
+              {selectedTab === 5 && (
+                <button
+                  type="button"
+                  onClick={() => void handleStartWork()}
+                  disabled={isSendingMessage}
+                  className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
+                >
+                  {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
+                  {t('开始工作')}
                 </button>
               )}
 
