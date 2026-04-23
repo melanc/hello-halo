@@ -197,19 +197,21 @@ function StageTabBar({
   stage,
   selectedTab,
   visibleStages,
+  workedStages,
   onSelect,
 }: {
   stage: PipelineStage
   selectedTab: PipelineStage
   visibleStages?: readonly PipelineStage[]
+  workedStages?: readonly PipelineStage[]
   onSelect: (id: PipelineStage) => void
 }) {
   const displayStages = visibleStages ? STAGES.filter((s) => visibleStages.includes(s.id)) : STAGES
   return (
     <div className="flex items-center gap-0 flex-1 min-w-0">
       {displayStages.map((s, i) => {
-        const isDone = s.id < stage
-        const isCurrent = s.id === stage
+        const isDone = s.id < stage || (workedStages?.includes(s.id) ?? false)
+        const isCurrent = s.id === stage && !isDone
         const isSelected = s.id === selectedTab
         const textColor = (isDone || isCurrent) ? s.activeColor : s.mutedColor
 
@@ -1346,7 +1348,6 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-/** Build structured task context text for KB writer agent */
 function buildTaskContextForKb(task: WorkspaceTask): string {
   const lines: string[] = [`任务名称：${task.name}`]
 
@@ -1525,6 +1526,12 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           }
           setIsSendingMessage(false)
         }
+
+        // Bump task updatedAt so the sidebar "last updated" time reflects chat activity
+        useTaskStore.getState().touchTask(taskRef.current.id)
+
+        // Auto-expand the panel when generation ends so results are visible
+        setCollapsed(false)
 
         // Trigger background KB write if knowledge base is configured
         const kbRoot = knowledgeBaseRootRef.current
@@ -1724,6 +1731,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     setCheckResult(check)
     if (!check.ok) return
 
+    useTaskStore.getState().markPipelineStageWorked(task.id, selectedTab)
     setIsSendingMessage(true)
     // deferred=true means a pending action was registered; isSendingMessage will be
     // cleared by the subscribe callback when generation ends, not by finally.
@@ -1884,6 +1892,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           stage={stage}
           selectedTab={selectedTab}
           visibleStages={visibleStageIds}
+          workedStages={task.pipelineWorkedStages}
           onSelect={(id) => {
             setSelectedTab(id)
             if (collapsed) setCollapsed(false)

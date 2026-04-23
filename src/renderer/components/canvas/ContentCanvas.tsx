@@ -42,6 +42,7 @@ import { getBrowserHomepage } from '../../utils/browser-homepage'
 import { toWorkspaceRelativePath } from '../../utils/path-display'
 import { useSpaceStore } from '../../stores/space.store'
 import { useCanvasStore } from '../../stores/canvas.store'
+import { useTaskStore } from '../../stores/task.store'
 
 interface ContentCanvasProps {
   className?: string
@@ -180,6 +181,9 @@ export function ContentCanvas({ className = '' }: ContentCanvasProps) {
     if (activeTabId) {
       markTabSaved(activeTabId, content)
     }
+    // Mark stage 4 (编码实现) as worked when user manually saves a code file
+    const { activeTaskId, markPipelineStageWorked } = useTaskStore.getState()
+    if (activeTaskId) markPipelineStageWorked(activeTaskId, 4)
   }, [activeTabId, markTabSaved])
 
   // Handle edit mode request (from MarkdownViewer)

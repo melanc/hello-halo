@@ -358,6 +358,8 @@ export interface WorkspaceTask {
   breakdownPlanMarkdown?: string;
   /** Current pipeline stage (1=需求理解, 2=任务拆解, 3=意图确认, 4=编码实现, 5=验证收尾) */
   pipelineStage?: PipelineStage;
+  /** Stages where "开始工作" has been clicked at least once (or code was saved for stage 4) */
+  pipelineWorkedStages?: PipelineStage[];
   /** Structured subtasks produced during task breakdown */
   pipelineSubtasks?: PipelineSubtask[];
   /** Short status hint shown next to action button (e.g. "正在分析..." or "子任务已生成") */

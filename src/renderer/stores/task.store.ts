@@ -133,6 +133,12 @@ interface TaskState {
   /** Update development branch name (shared across involved projects) */
   updateTaskBranchName: (taskId: string, branchName: string) => void
 
+  /** Record that the user clicked "开始工作" (or saved code for stage 4) in the given stage */
+  markPipelineStageWorked: (taskId: string, stage: PipelineStage) => void
+
+  /** Bump updatedAt to now (e.g. after any AI generation ends for this task) */
+  touchTask: (taskId: string) => void
+
   /** Append one line to the coding-phase activity log (capped) */
   appendPipelineCodingLog: (taskId: string, line: string) => void
 }
@@ -165,14 +171,14 @@ export const useTaskStore = create<TaskState>()(
         const projectDirs = input.projectDirs.map((d) => d.trim()).filter(Boolean)
         const kbRaw = (input as { knowledgeBaseSpaceId?: string }).knowledgeBaseSpaceId?.trim()
         const knowledgeBaseSpaceId = kbRaw || undefined
-        const spacePath = (input as { spacePath?: string }).spacePath?.trim() || undefined
-        const kbRootPath = (input as { kbRootPath?: string }).kbRootPath?.trim() || undefined
 
         const conv = await useChatStore.getState().createConversation(spaceId, input.name)
         if (!conv) return null
 
         const now = Date.now()
         const taskType = (input as { taskType?: 'simple' | 'complex' }).taskType ?? 'complex'
+        const spacePath = (input as { spacePath?: string }).spacePath?.trim() || undefined
+        const kbRootPath = (input as { kbRootPath?: string }).kbRootPath?.trim() || undefined
         const task: WorkspaceTask = {
           id: newTaskId(),
           name: input.name.trim(),
@@ -242,11 +248,11 @@ export const useTaskStore = create<TaskState>()(
 
       moveTaskToSpace: async (taskId, newSpaceId, newSpacePath) => {
         const sid = newSpaceId.trim()
-        const resolvedSpacePath = newSpacePath?.trim() || undefined
         const task = get().tasks.find((t) => t.id === taskId)
         if (!task || task.spaceId === sid) return true
         const conv = await useChatStore.getState().createConversation(sid, task.name)
         if (!conv) return false
+        const resolvedSpacePath = newSpacePath?.trim() || undefined
         set((s) => ({
           tasks: s.tasks.map((t) =>
             t.id !== taskId
@@ -254,10 +260,10 @@ export const useTaskStore = create<TaskState>()(
               : {
                   ...t,
                   spaceId: sid,
-                  spacePath: resolvedSpacePath,
                   conversationId: conv.id,
                   updatedAt: Date.now(),
                   knowledgeBaseSpaceId: t.knowledgeBaseSpaceId,
+                  spacePath: resolvedSpacePath,
                   requirementIdentifyUsed: false,
                   requirementBreakdownUsed: false,
                   breakdownPlanMarkdown: undefined,
@@ -489,6 +495,25 @@ export const useTaskStore = create<TaskState>()(
         set((s) => ({
           tasks: s.tasks.map((t) =>
             t.id === taskId ? { ...t, branchName: name, updatedAt: Date.now() } : t
+          ),
+        }))
+      },
+
+      markPipelineStageWorked: (taskId, stage) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) => {
+            if (t.id !== taskId) return t
+            const prev = t.pipelineWorkedStages ?? []
+            if (prev.includes(stage)) return t
+            return { ...t, pipelineWorkedStages: [...prev, stage], updatedAt: Date.now() }
+          }),
+        }))
+      },
+
+      touchTask: (taskId) => {
+        set((s) => ({
+          tasks: s.tasks.map((t) =>
+            t.id === taskId ? { ...t, updatedAt: Date.now() } : t
           ),
         }))
       },
