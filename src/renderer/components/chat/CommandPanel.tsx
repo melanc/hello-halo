@@ -3,6 +3,7 @@ import { X, Play, Square } from 'lucide-react'
 import { api } from '../../api'
 import { isElectron } from '../../api/transport'
 import { useTranslation } from '../../i18n'
+import { useSpaceStore } from '../../stores/space.store'
 
 interface CommandPanelProps {
   onClose: () => void
@@ -23,6 +24,7 @@ function stripAnsi(str: string): string {
 
 export function CommandPanel({ onClose, cwd }: CommandPanelProps) {
   const { t } = useTranslation()
+  const spaceCwd = useSpaceStore((s) => s.currentSpace?.workingDir)
   const [cmd, setCmd] = useState('')
   const [lines, setLines] = useState<OutputLine[]>([])
   const [isRunning, setIsRunning] = useState(false)
@@ -62,6 +64,8 @@ export function CommandPanel({ onClose, cwd }: CommandPanelProps) {
           stream: 'system',
         },
       ])
+      // Restore focus to input after command finishes
+      requestAnimationFrame(() => inputRef.current?.focus())
     })
 
     return () => {
@@ -87,13 +91,16 @@ export function CommandPanel({ onClose, cwd }: CommandPanelProps) {
     setCmd('')
     setIsRunning(true)
 
-    void api.terminalRun({ id: runIdRef.current, cmd: trimmed, cwd })
-  }, [cmd, cwd, isRunning])
+    void api.terminalRun({ id: runIdRef.current, cmd: trimmed, cwd: cwd ?? spaceCwd })
+    // Keep focus in the input field after launching
+    requestAnimationFrame(() => inputRef.current?.focus())
+  }, [cmd, cwd, spaceCwd, isRunning])
 
   const handleStop = useCallback(() => {
     void api.terminalKill({ id: runIdRef.current })
     setIsRunning(false)
     setLines((prev) => [...prev, { text: t('[Killed]'), stream: 'system' }])
+    requestAnimationFrame(() => inputRef.current?.focus())
   }, [t])
 
   const handleKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {

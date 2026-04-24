@@ -1489,6 +1489,19 @@ function InputToolbar({
           </div>
         )}
 
+        {/* Terminal toggle — sits right next to + */}
+        {!isGenerating && !isOnboarding && (
+          <button
+            onClick={onTerminalClick}
+            className="w-8 h-8 flex items-center justify-center rounded-lg
+              text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50
+              transition-all duration-150"
+            title={t('Open terminal')}
+          >
+            <TerminalSquare size={15} />
+          </button>
+        )}
+
         {/* AI Browser toggle */}
         {!isGenerating && !isOnboarding && (
           <button
@@ -1508,19 +1521,6 @@ function InputToolbar({
             {aiBrowserEnabled && (
               <span className="absolute top-0.5 right-0.5 w-[3px] h-[3px] bg-primary rounded-full" />
             )}
-          </button>
-        )}
-
-        {/* Terminal toggle */}
-        {!isGenerating && !isOnboarding && (
-          <button
-            onClick={onTerminalClick}
-            className="w-8 h-8 flex items-center justify-center rounded-lg
-              text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50
-              transition-all duration-150"
-            title={t('Open terminal')}
-          >
-            <TerminalSquare size={15} />
           </button>
         )}
 
