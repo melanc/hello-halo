@@ -20,7 +20,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
-import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X, FileText, Folder, Mic, ListChecks } from 'lucide-react'
+import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X, FileText, FileCode, Folder, Mic, ListChecks } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { useChatStore } from '../../stores/chat.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
@@ -147,6 +147,15 @@ interface InputAreaProps {
 const MAX_IMAGE_SIZE = 20 * 1024 * 1024  // 20MB max per image (before compression)
 const MAX_IMAGES = 10  // Max images per message
 
+// Text file attachment constraints
+const MAX_TEXT_FILE_SIZE = 500 * 1024  // 500KB
+const KNOWN_TEXT_EXTS = new Set(['txt','md','csv','json','xml','ini','yaml','go','php','java','py','sql','sh','html','css','js'])
+const EXT_TO_LANG: Record<string, string> = {
+  txt: '', md: 'markdown', csv: 'csv', json: 'json', xml: 'xml', ini: 'ini',
+  yaml: 'yaml', go: 'go', php: 'php', java: 'java', py: 'python', sql: 'sql',
+  sh: 'bash', html: 'html', css: 'css', js: 'javascript',
+}
+
 // Error message type
 interface ImageError {
   id: string
@@ -182,6 +191,7 @@ export function InputArea({
   const [isDragOver, setIsDragOver] = useState(false)
   const [isProcessingImages, setIsProcessingImages] = useState(false)
   const [isProcessingWord, setIsProcessingWord] = useState(false)
+  const [isProcessingTextFile, setIsProcessingTextFile] = useState(false)
   const [imageError, setImageError] = useState<ImageError | null>(null)
   const [thinkingEnabled, setThinkingEnabled] = useState(true)  // Extended thinking mode
   const [showAttachMenu, setShowAttachMenu] = useState(false)  // Attachment menu visibility
@@ -203,6 +213,7 @@ export function InputArea({
   useEffect(() => { onDraftChangeRef.current?.(content) }, [content])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const wordInputRef = useRef<HTMLInputElement>(null)
+  const textFileInputRef = useRef<HTMLInputElement>(null)
   const attachMenuRef = useRef<HTMLDivElement>(null)
   const prevChipCountRef = useRef(0)
   /** Avoid duplicate chip rows when React Strict Mode runs the migration effect twice. */
@@ -446,7 +457,7 @@ export function InputArea({
   }
 
   // Add images (with limit check and loading state)
-  const isAttachmentBusy = isProcessingImages || isProcessingWord
+  const isAttachmentBusy = isProcessingImages || isProcessingWord || isProcessingTextFile
 
   const handleVoiceInputClick = useCallback(() => {
     if (micBlockedOffline) {
@@ -701,6 +712,63 @@ export function InputArea({
       showError(t('Failed to parse Word document: {{message}}', { message }))
     } finally {
       setIsProcessingWord(false)
+    }
+  }
+
+  const handleTextFileButtonClick = () => {
+    setShowAttachMenu(false)
+    textFileInputRef.current?.click()
+  }
+
+  const handleTextFileInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (textFileInputRef.current) textFileInputRef.current.value = ''
+    if (!file) return
+
+    if (file.size > MAX_TEXT_FILE_SIZE) {
+      showError(t('File too large ({{size}}), max 500KB', { size: formatFileSize(file.size) }))
+      return
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
+    const isKnownText = KNOWN_TEXT_EXTS.has(ext)
+
+    if (!isKnownText) {
+      // Binary detection: check first 8192 bytes for null bytes
+      const slice = file.slice(0, 8192)
+      const buf = await slice.arrayBuffer()
+      const bytes = new Uint8Array(buf)
+      let isBinary = false
+      for (let i = 0; i < bytes.length; i++) {
+        if (bytes[i] === 0) { isBinary = true; break }
+      }
+      if (isBinary) {
+        showError(t('Unsupported file format: {{name}}', { name: file.name }))
+        return
+      }
+    }
+
+    setIsProcessingTextFile(true)
+    try {
+      const text = await file.text()
+      const lang = EXT_TO_LANG[ext] ?? ext
+      const fence = `\`\`\`${lang}\n${text}\n\`\`\``
+      const block = `文件：${file.name}\n\n${fence}`
+      setContent((prev) => {
+        const prefix = prev.trim() ? `${prev.trim()}\n\n` : ''
+        return `${prefix}${block}\n\n`
+      })
+      requestAnimationFrame(() => {
+        textareaRef.current?.focus()
+        const len = textareaRef.current?.value.length ?? 0
+        textareaRef.current?.setSelectionRange(len, len)
+        setCursorPos(len)
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      showError(t('Failed to read file: {{message}}', { message }))
+    } finally {
+      setIsProcessingTextFile(false)
     }
   }
 
@@ -998,6 +1066,13 @@ export function InputArea({
           className="hidden"
           onChange={handleWordInputChange}
         />
+        <input
+          ref={textFileInputRef}
+          type="file"
+          accept="*/*"
+          className="hidden"
+          onChange={handleTextFileInputChange}
+        />
 
         {/* Input container */}
         <div
@@ -1146,6 +1221,12 @@ export function InputArea({
               <span>{t('Processing Word document...')}</span>
             </div>
           )}
+          {isProcessingTextFile && (
+            <div className="px-4 py-2 flex items-center gap-2 text-xs text-muted-foreground border-b border-border/30">
+              <Loader2 size={14} className="animate-spin" />
+              <span>{t('Reading file...')}</span>
+            </div>
+          )}
 
           {/* Drag overlay */}
           {isDragOver && (
@@ -1237,6 +1318,7 @@ export function InputArea({
             onAttachMenuToggle={() => setShowAttachMenu(!showAttachMenu)}
             onImageClick={handleImageButtonClick}
             onWordClick={handleWordButtonClick}
+            onTextFileClick={handleTextFileButtonClick}
             imageCount={images.length}
             maxImages={MAX_IMAGES}
             attachMenuRef={attachMenuRef}
@@ -1274,6 +1356,7 @@ interface InputToolbarProps {
   onAttachMenuToggle: () => void
   onImageClick: () => void
   onWordClick: () => void
+  onTextFileClick: () => void
   imageCount: number
   maxImages: number
   attachMenuRef: React.RefObject<HTMLDivElement | null>
@@ -1300,6 +1383,7 @@ function InputToolbar({
   onAttachMenuToggle,
   onImageClick,
   onWordClick,
+  onTextFileClick,
   imageCount,
   maxImages,
   attachMenuRef,
@@ -1375,6 +1459,21 @@ function InputToolbar({
                 >
                   <FileText size={16} className="text-muted-foreground shrink-0" />
                   <span>{t('Add Word')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onTextFileClick}
+                  disabled={isAttachmentBusy}
+                  className={`w-full px-3 py-2 flex items-center gap-3 text-sm text-left
+                    transition-colors duration-150
+                    ${isAttachmentBusy
+                      ? 'text-muted-foreground/40 cursor-not-allowed'
+                      : 'text-foreground hover:bg-muted/50'
+                    }
+                  `}
+                >
+                  <FileCode size={16} className="text-muted-foreground shrink-0" />
+                  <span>{t('Add text file')}</span>
                 </button>
               </div>
             )}
