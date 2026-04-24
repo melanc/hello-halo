@@ -87,39 +87,12 @@ export function assertPreviousPipelineStepReady(
   }
 
   if (tab === 4) {
-    const isSimple = task.taskType === 'simple'
-    if (isSimple) {
-      // Simple tasks skip tabs 2 & 3; only require that requirement analysis exists
-      const hasReqContent =
-        !!task.requirementAnalysis?.trim() ||
-        !!task.requirementDocContent?.trim() ||
-        !!task.requirementDescription?.trim()
-      if (!hasReqContent) {
-        return {
-          ok: false,
-          message: t('请先在需求识别（标签 1）中完成需求分析，再开始编码。'),
-        }
-      }
-      return { ok: true }
-    }
-    if (!task.pipelineDevPlan?.trim()) {
-      return {
-        ok: false,
-        message: t(
-          'Finish development planning on tab 3 first: save a development plan (use Start work or edit the plan text), then continue.'
-        ),
-      }
-    }
-    return { ok: true }
-  }
-
-  if (tab === 5) {
     const st = task.pipelineStage ?? 1
-    if (st < 4) {
+    if (st < 3) {
       return {
         ok: false,
         message: t(
-          'Finish coding on tab 4 first: run Start work there at least once so the pipeline reaches the coding stage, then continue to verification.'
+          'Finish planning on tab 3 first: generate a development plan and run Start work at least once before continuing to verification.'
         ),
       }
     }
@@ -281,7 +254,7 @@ export function buildRequirementIdentifyMessage(
  * and to surface any questions or ambiguities before execution.
  */
 export function buildIntentAnalysisMessage(
-  tab: PipelineStage,
+  tab: number, // PipelineStage, or 5 for verification intent routed from merged tab 3+4
   task: WorkspaceTask,
   opts: {
     subtasks?: PipelineSubtask[]

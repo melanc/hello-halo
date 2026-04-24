@@ -4,7 +4,7 @@
  * Stage bar doubles as a tab navigator — clicking any stage switches
  * the body to show that stage's content regardless of current progress.
  *
- * Stages: 1=需求识别  2=任务拆解  3=计划与实现（含编码，内部 stage 4 表示编码已开始）  5=用例验证
+ * Stages: 1=需求识别  2=任务拆解  3=计划与实现（含编码）  4=用例验证
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
@@ -186,8 +186,7 @@ const STAGES: { id: PipelineStage; label: string; activeColor: string; mutedColo
   { id: 1, label: '需求识别', activeColor: 'text-violet-500',  mutedColor: 'text-violet-400/30',  selectedBg: 'bg-violet-500/15'  },
   { id: 2, label: '任务拆解', activeColor: 'text-blue-500',    mutedColor: 'text-blue-400/30',    selectedBg: 'bg-blue-500/15'    },
   { id: 3, label: '计划与实现', activeColor: 'text-emerald-500', mutedColor: 'text-emerald-400/30', selectedBg: 'bg-emerald-500/15' },
-  { id: 4, label: '编码实现', activeColor: 'text-orange-500',  mutedColor: 'text-orange-400/30',  selectedBg: 'bg-orange-500/15'  },
-  { id: 5, label: '用例验证', activeColor: 'text-pink-500',    mutedColor: 'text-pink-400/30',    selectedBg: 'bg-pink-500/15'    },
+  { id: 4, label: '用例验证', activeColor: 'text-pink-500',    mutedColor: 'text-pink-400/30',    selectedBg: 'bg-pink-500/15'    },
 ]
 
 // ─────────────────────────────────────────────
@@ -1093,8 +1092,8 @@ function Tab3PlanAndImpl({
   )
 }
 
-/** Tab 5 — 用例验证：依赖检查命令 + 编译检查命令 */
-function Tab5Review({
+/** Tab 4 — 用例验证：依赖检查命令 + 编译检查命令 */
+function Tab4Review({
   task,
   onSaveDepCheckCmd,
   onSaveBuildCheckCmd,
@@ -1337,8 +1336,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
   const resumeHint = task.pipelineResumeHint ?? ''
   const isSimple = task.taskType === 'simple'
-  // Stage 4 is internal (coding phase) — shown in the merged "计划与实现" tab (stage 3)
-  const visibleStageIds: readonly PipelineStage[] = isSimple ? [1, 3, 5] : [1, 2, 3, 5]
+  // Coding is internal to stage 3 (计划与实现); stage 4 = 用例验证
+  const visibleStageIds: readonly PipelineStage[] = isSimple ? [1, 3, 4] : [1, 2, 3, 4]
 
   // selectedTab follows progress stage, but user can freely switch
   const [selectedTab, setSelectedTab] = useState<PipelineStage>(stage)
@@ -1447,9 +1446,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         // Bump task updatedAt so the sidebar "last updated" time reflects chat activity
         useTaskStore.getState().touchTask(taskRef.current.id)
 
-        // Mark stage 4 as worked whenever an AI reply completes while on the coding tab
-        if (reportStageRef.current === 4) {
-          useTaskStore.getState().markPipelineStageWorked(taskRef.current.id, 4)
+        // Mark stage 3 as worked whenever an AI reply completes during the coding phase
+        if (reportStageRef.current === 3) {
+          useTaskStore.getState().markPipelineStageWorked(taskRef.current.id, 3)
         }
 
         // Auto-expand the panel when generation ends so results are visible
@@ -1649,9 +1648,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       const codingProjectPaths =
         workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirNames) : dirNames
 
-      // Tab 3 with plan → use coding intent analysis (stage 4 context)
-      const intentTab: PipelineStage =
-        selectedTab === 3 && task.pipelineDevPlan?.trim() ? 4 : selectedTab
+      // Tab 3 with plan → coding intent (internal case 4); Tab 4 (verification) → verification intent (internal case 5)
+      const intentTab =
+        selectedTab === 3 && task.pipelineDevPlan?.trim() ? 4 :
+        selectedTab === 4 ? 5 :
+        selectedTab
       await chat.sendMessage(
         buildIntentAnalysisMessage(
           intentTab,
@@ -1696,10 +1697,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         pendingPipelineActionRef.current = (reply) => {
           if (reply.trim()) {
             useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
-            // For simple tasks, auto-advance to coding stage after requirement identification
+            // For simple tasks, auto-advance to coding stage (tab 3) after requirement identification
             if (isSimple) {
-              updateTaskPipelineState(task.id, { stage: 4 })
-              setSelectedTab(4)
+              updateTaskPipelineState(task.id, { stage: 3 })
+              setSelectedTab(3)
             }
           }
           // Stay on Tab1 so the user can review the generated analysis before proceeding (complex tasks)
@@ -1724,9 +1725,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       } else if (selectedTab === 3) {
         if (task.pipelineDevPlan?.trim()) {
           // ── CODING PATH (plan already exists) ──────────────────────────────
-          // Override reportStage to 4 so the session report/mark-worked logic
-          // treats this as a coding session even though selectedTab is 3.
-          pendingStageOverrideRef.current = 4
           const dirs = getInvolvedProjectDirNames(task)
           if (dirs.length > 0 && workspaceRoot) {
             const missing: string[] = []
@@ -1798,7 +1796,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           })
           useTaskStore.getState().appendPipelineCodingLog(task.id, logLine)
           updateTaskPipelineState(task.id, {
-            stage: Math.max(stage, 4) as PipelineStage,
+            stage: Math.max(stage, 3) as PipelineStage,
             pipelineResumeHint: t('正在编写代码'),
           })
           await chat.sendMessage(
@@ -1843,44 +1841,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         }
 
       } else if (selectedTab === 4) {
-        // Backward-compat: stage 4 direct (should not normally be reachable after UI merge)
-        const dirs = getInvolvedProjectDirNames(task)
-        if (dirs.length > 0 && workspaceRoot) {
-          const missing: string[] = []
-          await Promise.all(
-            dirs.map(async (dir) => {
-              const fullPath = `${workspaceRoot}/${dir}`
-              const res = await api.checkPathExists(fullPath)
-              if (!res.success || !res.data?.exists) missing.push(fullPath)
-            })
-          )
-          if (missing.length > 0) {
-            setCheckResult({ ok: false, message: t('以下项目路径不存在，请确认后再试：\n') + missing.join('\n') })
-            return
-          }
-        }
-        const projectPaths = buildProjectDisplayPaths(workspaceRoot, dirs)
-        const focus = pickFocusSubtask(subtasks)
-        const logLine = t('Coding kickoff log line', {
-          time: new Date().toLocaleString(),
-          subtask: focus?.title?.trim() || t('No subtask'),
-          projects: dirs.length ? dirs.join(', ') : t('None'),
-        })
-        useTaskStore.getState().appendPipelineCodingLog(task.id, logLine)
-        updateTaskPipelineState(task.id, {
-          stage: Math.max(stage, 4) as PipelineStage,
-          pipelineResumeHint: t('正在编写代码'),
-        })
-        await chat.sendMessage(
-          buildCodingKickoffMessage(task, t, {
-            workspaceRoot: workspaceRoot || undefined,
-            projectPaths: projectPaths.length ? projectPaths : undefined,
-            ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
-          })
-        )
-
-      } else if (selectedTab === 5) {
-        updateTaskPipelineState(task.id, { stage: 5, pipelineResumeHint: t('正在执行验证检查') })
+        updateTaskPipelineState(task.id, { stage: 4, pipelineResumeHint: t('正在执行验证检查') })
         await chat.sendMessage(
           buildVerificationExecuteMessage(task, t, {
             depCheckCmd: task.pipelineDepCheckCmd,
@@ -2039,8 +2000,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 isSendingMessage={isSendingMessage}
               />
             )}
-            {selectedTab === 5 && (
-              <Tab5Review
+            {selectedTab === 4 && (
+              <Tab4Review
                 task={task}
                 onSaveDepCheckCmd={handleSaveDepCheckCmd}
                 onSaveBuildCheckCmd={handleSaveBuildCheckCmd}
@@ -2191,8 +2152,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 </button>
               )}
 
-              {/* ── Tab 5: 用例验证 ───────────────────────────────────── */}
-              {selectedTab === 5 && (
+              {/* ── Tab 4: 用例验证 ───────────────────────────────────── */}
+              {selectedTab === 4 && (
                 <button
                   type="button"
                   onClick={() => void handleStartWork()}
