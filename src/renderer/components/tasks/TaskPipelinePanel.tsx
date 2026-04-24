@@ -1838,7 +1838,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           const tab3Opts = knowledgeBaseRoot
             ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
             : undefined
-          await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
+          await chat.sendMessage(buildDevPlanExecuteMessage(task, subtasks, t, tab3Opts))
           deferred = true
         }
 
@@ -1933,7 +1933,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       const tab3Opts = knowledgeBaseRoot
         ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
         : undefined
-      await chat.sendMessage(buildDevPlanExecuteMessage(t, tab3Opts))
+      await chat.sendMessage(buildDevPlanExecuteMessage(task, subtasks, t, tab3Opts))
       deferred = true
     } finally {
       if (!deferred) setIsSendingMessage(false)

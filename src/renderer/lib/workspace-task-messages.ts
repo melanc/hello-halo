@@ -8,6 +8,7 @@ import type { PipelineStage, PipelineSubtask, PipelineDevPlanProject, WorkspaceT
 const DOC_EXCERPT_LEN = 600
 const DESC_EXCERPT_LEN = 400
 const REQ_IDENTIFY_LEN = 3000
+const REQ_ANALYSIS_EXCERPT_LEN = 800
 const DEV_PLAN_EXCERPT_LEN = 12_000
 
 /** Top-level project directory names attached to the task (planned + touched). */
@@ -193,7 +194,6 @@ function pipelineOpeningLines(t: TFunction): string[] {
     '',
     replyLanguageConstraint(t),
     t('项目路径必须自己用工具查，不得列为"待确认问题"向用户询问：先用 Glob 在当前工作目录（空间根目录）下搜索项目名称，搜到即可确认路径；只有 Glob 确实找不到任何匹配时，才可以询问用户。'),
-    t('如需修改或创建任何文件，必须先调用 mcp__halo-pipeline__announce_file_changes 工具，列出所有计划修改的文件及改动原因，等待用户确认后再执行；若用户取消，停止所有文件修改。'),
     '',
   ]
 }
@@ -562,12 +562,26 @@ export function buildTaskBreakdownExecuteMessage(
  * 开始工作 Tab 3 — asks AI to output the final dev plan text for saving.
  */
 export function buildDevPlanExecuteMessage(
+  task: WorkspaceTask,
+  subtasks: PipelineSubtask[] | undefined,
   t: TFunction,
   opts?: { knowledgeBaseMarkdown?: string; knowledgeBaseRoot?: string; projectDirs?: string[] }
 ): string {
   const blocks = [
     ...pipelineOpeningLines(t),
   ]
+
+  // Task context — inject explicitly so the model doesn't rely solely on conversation history
+  blocks.push(t('任务名称：{{name}}', { name: task.name }))
+  const reqAnalysis = task.requirementAnalysis?.trim()
+  if (reqAnalysis) {
+    blocks.push('', t('需求分析：'), reqAnalysis.slice(0, REQ_ANALYSIS_EXCERPT_LEN))
+  }
+  if (subtasks?.length) {
+    blocks.push('', t('子任务列表：'))
+    subtasks.forEach((st) => blocks.push(`- ${st.title}${st.description ? '：' + st.description : ''}`))
+  }
+  blocks.push('')
 
   if (opts?.knowledgeBaseRoot?.trim()) {
     const kbRoot = opts.knowledgeBaseRoot.trim()
@@ -607,13 +621,15 @@ export function buildDevPlanExecuteMessage(
     t('- 删除文件：`- \\`删除：文件路径\\` — 说明删除原因`'),
     '',
     t('示例：'),
+    t('本次主要修复 ZK 注册逻辑，并移除历史遗留的 plog 埋点模块。'),
+    '',
     t('## talcamp'),
     t('- `src/handlers/gently.go` — 修正第12行 import 路径，移除 plog 引用'),
     t('- `删除：src/utils/plog.go` — 移除埋点模块'),
     t('## vote-service'),
     t('- `internal/server/register.go` — 第34行修正 ZK 注册服务名'),
     '',
-    t('只输出各项目的文件级改动计划，不需要其他说明。'),
+    t('开发思路简介放在所有 ## 项目列表之前，其余多余说明不需要。'),
   )
 
   if (!opts?.knowledgeBaseRoot?.trim()) {
