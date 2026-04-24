@@ -3,7 +3,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { RefreshCw, GitBranch, ExternalLink } from 'lucide-react'
+import { RefreshCw, GitBranch } from 'lucide-react'
 import { api } from '../../api'
 import type { GitWorkspaceStatusData, GitWorkspaceFileRow } from '../../types/git-workspace'
 import { useTranslation } from '../../i18n'
@@ -520,29 +520,17 @@ export function GitSourceControlPanel({ spaceId, taskProjectDirNames }: GitSourc
               <span className="text-[11px] text-muted-foreground truncate">{t('No repository')}</span>
             )}
           </div>
-          <div className="flex items-center gap-0.5 shrink-0">
-            {status?.isRepo && !isWebMode && (
-              <button
-                type="button"
-                onClick={() => void api.gitOpenWindow({ spaceId, title: headerBranchLabel ?? 'Git' })}
-                className="p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors"
-                title={t('Open in window')}
-              >
-                <ExternalLink className="w-3.5 h-3.5" />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => void refreshAll()}
-              disabled={loading || projectStatusesLoading}
-              className="p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50"
-              title={t('Refresh')}
-            >
-              <RefreshCw
-                className={`w-3.5 h-3.5 ${loading || projectStatusesLoading ? 'animate-spin' : ''}`}
-              />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => void refreshAll()}
+            disabled={loading || projectStatusesLoading}
+            className="p-1 rounded-md text-muted-foreground hover:bg-secondary hover:text-foreground transition-colors disabled:opacity-50 shrink-0"
+            title={t('Refresh')}
+          >
+            <RefreshCw
+              className={`w-3.5 h-3.5 ${loading || projectStatusesLoading ? 'animate-spin' : ''}`}
+            />
+          </button>
         </div>
         {status?.isRepo && workspaceBranchPanelOpen && (
           <GitBranchSwitchPanel

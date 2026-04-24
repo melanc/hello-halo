@@ -18,7 +18,7 @@ import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useCanvasLifecycle } from '../../hooks/useCanvasLifecycle'
 import { useCanvasStore } from '../../stores/canvas.store'
 import { useTaskStore } from '../../stores/task.store'
-import { BookOpen, ChevronRight, FolderOpen, Monitor, X, Globe, GitBranch, Search } from 'lucide-react'
+import { BookOpen, ChevronRight, ExternalLink, FolderOpen, Monitor, X, Globe, GitBranch, Search } from 'lucide-react'
 import { GitSourceControlPanel } from '../git/GitSourceControlPanel'
 import { RailWorkspaceFindPanel } from './RailWorkspaceFindPanel'
 import { ONBOARDING_ARTIFACT_NAME } from '../onboarding/onboardingData'
@@ -591,6 +591,16 @@ export function ArtifactRail({
                   >
                     <BookOpen className="w-5 h-5" aria-hidden />
                   </button>
+                  {railMainTab === 'source-control' && !isWebMode && (
+                    <button
+                      type="button"
+                      onClick={() => void api.gitOpenWindow({ spaceId })}
+                      className="h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200 hover:bg-secondary/80 text-muted-foreground/50 hover:text-muted-foreground"
+                      title={t('Open in window')}
+                    >
+                      <ExternalLink className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
                 <button
                   onClick={() => setMobileOverlayOpen(false)}
@@ -690,6 +700,16 @@ export function ArtifactRail({
             >
               <BookOpen className="w-[18px] h-[18px] sm:w-5 sm:h-5" aria-hidden />
             </button>
+            {railMainTab === 'source-control' && !isWebMode && (
+              <button
+                type="button"
+                onClick={() => void api.gitOpenWindow({ spaceId })}
+                className="h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200 hover:bg-secondary/80 text-muted-foreground/50 hover:text-muted-foreground"
+                title={t('Open in window')}
+              >
+                <ExternalLink className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
+              </button>
+            )}
           </div>
         )}
         <button
