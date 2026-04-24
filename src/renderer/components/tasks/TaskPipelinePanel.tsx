@@ -1035,6 +1035,15 @@ function Tab3PlanAndImpl({
             />
           ) : devPlanProjects.length > 0 ? (
             <div className="bg-secondary/40 border border-border rounded-lg px-2.5 py-2.5">
+              {/* 开发思路：## 之前的自由文本段落 */}
+              {(() => {
+                const preamble = draft.split(/^##\s/m)[0].trim()
+                return preamble ? (
+                  <div className="text-xs mb-3 pb-3 border-b border-border/50 prose prose-sm dark:prose-invert max-w-none">
+                    <MarkdownRenderer content={preamble} mode="static" />
+                  </div>
+                ) : null
+              })()}
               <DevPlanInteractive
                 projects={devPlanProjects}
                 onToggleProject={(name, checked) =>
