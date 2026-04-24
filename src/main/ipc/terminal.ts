@@ -1,5 +1,7 @@
 import { ipcMain, BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
+import path from 'path'
+import fs from 'fs'
 
 const activeProcesses = new Map<string, ChildProcess>()
 
@@ -50,6 +52,23 @@ export function registerTerminalHandlers(): void {
     })
 
     return { success: true }
+  })
+
+  // Resolve a cd target relative to the current cwd (main process has path/fs access)
+  ipcMain.handle('terminal:cd', (_event, { target, cwd }: { target: string; cwd: string }) => {
+    // Expand leading ~ to home directory
+    const home = process.env.HOME || process.env.USERPROFILE || '/'
+    const expanded = target ? target.replace(/^~(?=$|\/|\\)/, home) : home
+    const resolved = path.resolve(cwd, expanded)
+    try {
+      const stat = fs.statSync(resolved)
+      if (stat.isDirectory()) {
+        return { success: true, data: { newCwd: resolved } }
+      }
+      return { success: false, error: `cd: not a directory: ${target}` }
+    } catch {
+      return { success: false, error: `cd: no such file or directory: ${target}` }
+    }
   })
 
   ipcMain.handle('terminal:kill', (_event, { id }: { id: string }) => {

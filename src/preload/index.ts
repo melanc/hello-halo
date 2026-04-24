@@ -492,6 +492,7 @@ export interface DevXAPI {
   // Terminal: Simple command runner
   terminalRun: (opts: { id: string; cmd: string; cwd?: string }) => Promise<IpcResponse>
   terminalKill: (opts: { id: string }) => Promise<IpcResponse>
+  terminalCd: (opts: { target: string; cwd: string }) => Promise<IpcResponse>
   onTerminalOutput: (callback: (data: unknown) => void) => () => void
   onTerminalDone: (callback: (data: unknown) => void) => () => void
 
@@ -937,6 +938,7 @@ const api: DevXAPI = {
   // Terminal: Simple command runner
   terminalRun: (opts) => ipcRenderer.invoke('terminal:run', opts),
   terminalKill: (opts) => ipcRenderer.invoke('terminal:kill', opts),
+  terminalCd: (opts) => ipcRenderer.invoke('terminal:cd', opts),
   onTerminalOutput: (callback) => createEventListener('terminal:output', callback),
   onTerminalDone: (callback) => createEventListener('terminal:done', callback),
 }

@@ -2217,6 +2217,11 @@ export const api = {
     return window.devx.terminalKill(opts)
   },
 
+  terminalCd: async (opts: { target: string; cwd: string }): Promise<ApiResponse> => {
+    if (!isElectron()) return { success: false, error: 'Electron only' }
+    return window.devx.terminalCd(opts)
+  },
+
   onTerminalOutput: (callback: (data: unknown) => void) =>
     onEvent('terminal:output', callback),
 
