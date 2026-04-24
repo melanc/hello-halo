@@ -55,6 +55,7 @@ import { registerOfflineSpeechHandlers } from '../ipc/offline-speech'
 import { initRegistryService, shutdownRegistryService } from '../store'
 import { initPipeline, shutdownPipeline } from '../pipeline'
 import { registerPipelineHandlers } from '../ipc/pipeline'
+import { registerTerminalHandlers, cleanupTerminalHandlers } from '../ipc/terminal'
 
 // Module-level reference to db for cleanup
 let platformDb: DatabaseManager | null = null
@@ -199,6 +200,9 @@ export function initializeExtendedServices(): void {
   // Pipeline: Tasks & Requirements workflow IPC handlers
   registerPipelineHandlers()
 
+  // Terminal: Simple command runner (child_process.spawn, no native modules)
+  registerTerminalHandlers()
+
   // Windows-specific: Initialize Git Bash in background
   if (process.platform === 'win32') {
     initializeGitBashOnStartup()
@@ -285,6 +289,9 @@ export async function cleanupExtendedServices(): Promise<void> {
 
   // Artifact Cache: Close file watchers and clear caches
   await cleanupAllCaches()
+
+  // Terminal: Kill any running child processes
+  cleanupTerminalHandlers()
 
   console.log('[Bootstrap] Extended services cleaned up')
 }

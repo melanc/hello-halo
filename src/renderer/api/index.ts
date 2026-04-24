@@ -2205,6 +2205,23 @@ export const api = {
     if (isElectron()) return window.devx.pipelineUpdateSubtaskStatus(input)
     return { success: false, error: 'Pipeline only available in desktop app' }
   },
+
+  // ===== Terminal (Simple Command Runner, Electron only) =====
+  terminalRun: async (opts: { id: string; cmd: string; cwd?: string }): Promise<ApiResponse> => {
+    if (!isElectron()) return { success: false, error: 'Electron only' }
+    return window.devx.terminalRun(opts)
+  },
+
+  terminalKill: async (opts: { id: string }): Promise<ApiResponse> => {
+    if (!isElectron()) return { success: false, error: 'Electron only' }
+    return window.devx.terminalKill(opts)
+  },
+
+  onTerminalOutput: (callback: (data: unknown) => void) =>
+    onEvent('terminal:output', callback),
+
+  onTerminalDone: (callback: (data: unknown) => void) =>
+    onEvent('terminal:done', callback),
 }
 
 // Export type for the API

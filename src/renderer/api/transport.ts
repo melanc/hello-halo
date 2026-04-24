@@ -445,7 +445,9 @@ export function onEvent(channel: string, callback: (data: unknown) => void): () 
       'app:activity_entry:new': 'onAppActivityEntry',
       'app:escalation:new': 'onAppEscalation',
       'app:navigate': 'onAppNavigate',
-      'notification:toast': 'onNotificationToast'
+      'notification:toast': 'onNotificationToast',
+      'terminal:output': 'onTerminalOutput',
+      'terminal:done': 'onTerminalDone',
     }
 
     const method = methodMap[channel]

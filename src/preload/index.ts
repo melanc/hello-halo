@@ -489,6 +489,12 @@ export interface DevXAPI {
   // Notification (in-app toast)
   onNotificationToast: (callback: (data: unknown) => void) => () => void
 
+  // Terminal: Simple command runner
+  terminalRun: (opts: { id: string; cmd: string; cwd?: string }) => Promise<IpcResponse>
+  terminalKill: (opts: { id: string }) => Promise<IpcResponse>
+  onTerminalOutput: (callback: (data: unknown) => void) => () => void
+  onTerminalDone: (callback: (data: unknown) => void) => () => void
+
   // Store (App Registry)
   storeQuery: (params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string }) => Promise<IpcResponse>
   storeListApps: (query: { search?: string; locale?: string; category?: string; type?: string; tags?: string[] }) => Promise<IpcResponse>
@@ -927,6 +933,12 @@ const api: DevXAPI = {
 
   // Notification (in-app toast)
   onNotificationToast: (callback) => createEventListener('notification:toast', callback),
+
+  // Terminal: Simple command runner
+  terminalRun: (opts) => ipcRenderer.invoke('terminal:run', opts),
+  terminalKill: (opts) => ipcRenderer.invoke('terminal:kill', opts),
+  onTerminalOutput: (callback) => createEventListener('terminal:output', callback),
+  onTerminalDone: (callback) => createEventListener('terminal:done', callback),
 }
 
 contextBridge.exposeInMainWorld('devx', api)

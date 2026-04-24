@@ -20,7 +20,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
-import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X, FileText, FileCode, Folder, Mic, ListChecks } from 'lucide-react'
+import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X, FileText, FileCode, Folder, Mic, ListChecks, TerminalSquare } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { useChatStore } from '../../stores/chat.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
@@ -28,6 +28,7 @@ import { useAIBrowserStore } from '../../stores/ai-browser.store'
 import { getOnboardingPrompt } from '../onboarding/onboardingData'
 import { ImageAttachmentPreview } from './ImageAttachmentPreview'
 import { SpeechVolumeMeter } from './SpeechVolumeMeter'
+import { CommandPanel } from './CommandPanel'
 import { processImage, isValidImageType, formatFileSize } from '../../utils/imageProcessor'
 import {
   extractWordDocument,
@@ -192,6 +193,7 @@ export function InputArea({
   const [isProcessingImages, setIsProcessingImages] = useState(false)
   const [isProcessingWord, setIsProcessingWord] = useState(false)
   const [isProcessingTextFile, setIsProcessingTextFile] = useState(false)
+  const [isTerminalMode, setIsTerminalMode] = useState(false)
   const [imageError, setImageError] = useState<ImageError | null>(null)
   const [thinkingEnabled, setThinkingEnabled] = useState(true)  // Extended thinking mode
   const [showAttachMenu, setShowAttachMenu] = useState(false)  // Attachment menu visibility
@@ -1075,6 +1077,9 @@ export function InputArea({
         />
 
         {/* Input container */}
+        {isTerminalMode ? (
+          <CommandPanel onClose={() => setIsTerminalMode(false)} />
+        ) : (
         <div
           className={`
             relative flex flex-col rounded-2xl transition-all duration-200
@@ -1314,6 +1319,7 @@ export function InputArea({
             onThinkingToggle={() => setThinkingEnabled(!thinkingEnabled)}
             aiBrowserEnabled={aiBrowserEnabled}
             onAIBrowserToggle={() => setAIBrowserEnabled(!aiBrowserEnabled)}
+            onTerminalClick={() => setIsTerminalMode(true)}
             showAttachMenu={showAttachMenu}
             onAttachMenuToggle={() => setShowAttachMenu(!showAttachMenu)}
             onImageClick={handleImageButtonClick}
@@ -1333,6 +1339,7 @@ export function InputArea({
             onVoiceClick={handleVoiceInputClick}
           />
         </div>
+        )}
       </div>
     </div>
   )
@@ -1354,6 +1361,7 @@ interface InputToolbarProps {
   onAIBrowserToggle: () => void
   showAttachMenu: boolean
   onAttachMenuToggle: () => void
+  onTerminalClick: () => void
   onImageClick: () => void
   onWordClick: () => void
   onTextFileClick: () => void
@@ -1379,6 +1387,7 @@ function InputToolbar({
   onThinkingToggle,
   aiBrowserEnabled,
   onAIBrowserToggle,
+  onTerminalClick,
   showAttachMenu,
   onAttachMenuToggle,
   onImageClick,
@@ -1499,6 +1508,19 @@ function InputToolbar({
             {aiBrowserEnabled && (
               <span className="absolute top-0.5 right-0.5 w-[3px] h-[3px] bg-primary rounded-full" />
             )}
+          </button>
+        )}
+
+        {/* Terminal toggle */}
+        {!isGenerating && !isOnboarding && (
+          <button
+            onClick={onTerminalClick}
+            className="w-8 h-8 flex items-center justify-center rounded-lg
+              text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50
+              transition-all duration-150"
+            title={t('Open terminal')}
+          >
+            <TerminalSquare size={15} />
           </button>
         )}
 
