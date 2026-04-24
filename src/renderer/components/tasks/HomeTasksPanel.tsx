@@ -49,7 +49,7 @@ export function HomeTasksPanel() {
   const { showConfirm, DialogComponent } = useConfirmDialog()
   const setView = useAppStore((s) => s.setView)
   const { devxSpace, spaces, setCurrentSpace, refreshCurrentSpace } = useSpaceStore()
-  const tasks = useTaskStore((s) => s.tasks)
+  const tasks = useTaskStore((s) => s.tasks.filter(t => !t.archived))
   const removeTask = useTaskStore((s) => s.removeTask)
   const setActiveTask = useTaskStore((s) => s.setActiveTask)
   const pendingRequirementTaskId = useTaskStore((s) => s.pendingRequirementTaskId)

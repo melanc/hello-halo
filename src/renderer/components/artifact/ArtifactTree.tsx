@@ -24,6 +24,7 @@ import {
   Loader2,
   FilePlus,
   FolderPlus,
+  FolderInput,
   Edit3,
   Trash2,
   FolderOpen,
@@ -38,6 +39,7 @@ import { ContextMenu, type ContextMenuItem } from '../ui/ContextMenu'
 import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 import { useNotificationStore } from '../../stores/notification.store'
 import { useFileOperations } from '../../hooks/useFileOperations'
+import { useTaskStore } from '../../stores/task.store'
 
 // Context to pass openFile function to tree nodes without each node subscribing to store
 type OpenFileFn = (path: string, title?: string, options?: OpenFileOptions) => Promise<void>
@@ -173,6 +175,15 @@ interface OnboardingTreeContextType {
 }
 const OnboardingTreeContext = createContext<OnboardingTreeContextType | null>(null)
 
+/** Actions for the "添加到任务 / 从任务移除" right-click menu item */
+interface TaskActionsCtx {
+  activeTaskId: string
+  projectDirs: Set<string>
+  addDir: (dir: string) => void
+  removeDir: (dir: string) => void
+}
+const TaskActionsContext = createContext<TaskActionsCtx | null>(null)
+
 // ============================================
 // Index helpers — maintain Map<path, node> for O(1) lookup
 // ============================================
@@ -304,6 +315,22 @@ export function ArtifactTree({
     recentlyCreatedPaths,
     cleanup: cleanupFileOperations
   } = useFileOperations({ spaceId, workspaceRootRef })
+
+  // Task actions — for "添加到任务" context menu item on top-level folders
+  const taskForThisSpace = useTaskStore(s =>
+    s.tasks.find(t => t.id === s.activeTaskId && t.spaceId === spaceId) ?? null
+  )
+  const addProjectDirToTask = useTaskStore(s => s.addProjectDirToTask)
+  const removeProjectDirFromTask = useTaskStore(s => s.removeProjectDirFromTask)
+  const taskActionsValue = useMemo<TaskActionsCtx | null>(() => {
+    if (!taskForThisSpace) return null
+    return {
+      activeTaskId: taskForThisSpace.id,
+      projectDirs: new Set(taskForThisSpace.projectDirs),
+      addDir: (dir) => addProjectDirToTask(taskForThisSpace.id, dir),
+      removeDir: (dir) => removeProjectDirFromTask(taskForThisSpace.id, dir),
+    }
+  }, [taskForThisSpace, addProjectDirToTask, removeProjectDirFromTask])
 
   // Whether the initial IPC load has completed (distinguishes "loading" from "truly empty")
   const [hasLoaded, setHasLoaded] = useState(false)
@@ -893,6 +920,7 @@ export function ArtifactTree({
   }
 
   return (
+    <TaskActionsContext.Provider value={taskActionsValue}>
     <TaskDimAllWorkspaceRootsContext.Provider value={dimAllWorkspaceRoots}>
     <TaskFileTreeContext.Provider value={taskScopeForDimming}>
     <OpenFileContext.Provider value={openFile}>
@@ -1008,6 +1036,7 @@ export function ArtifactTree({
     </OpenFileContext.Provider>
     </TaskFileTreeContext.Provider>
     </TaskDimAllWorkspaceRootsContext.Provider>
+    </TaskActionsContext.Provider>
   )
 }
 
@@ -1235,9 +1264,12 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
   const taskRootSet = useContext(TaskFileTreeContext)
   const dimAllWorkspaceRoots = useContext(TaskDimAllWorkspaceRootsContext)
   const onboardingTree = useContext(OnboardingTreeContext)
+  const taskActions = useContext(TaskActionsContext)
   const data = node.data
   const topSeg = data.relativePath.split(/[/\\]/).filter(Boolean)[0] ?? ''
   const isFolder = data.type === 'folder'
+  const isTopLevel = isFolder && topSeg === data.name
+  const isInTask = isTopLevel && !!taskActions?.projectDirs.has(data.name)
   const isLoading = lazyLoad?.loadingPaths.has(data.path) ?? false
   const dimmed = isDimmed(data.name)
   const canViewInCanvas = !isFolder && canOpenInCanvas(data.extension)
@@ -1395,6 +1427,17 @@ function TreeNodeComponent({ node, style, dragHandle }: NodeRendererProps<Artifa
         node.tree.create({ type: 'internal', parentId: node.id })
       },
       hidden: !isFolder
+    },
+    // 添加到任务 / 从任务移除 (only for top-level folders when a task is active)
+    {
+      label: isInTask ? t('从任务移除') : t('添加到任务'),
+      icon: <FolderInput className="w-4 h-4" />,
+      hidden: !isTopLevel || !taskActions,
+      onClick: () => {
+        if (!taskActions) return
+        if (isInTask) taskActions.removeDir(data.name)
+        else taskActions.addDir(data.name)
+      }
     },
     // Separator (only for folders)
     {
