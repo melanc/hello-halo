@@ -2,7 +2,8 @@
  * IPC — Source control panel (simple-git, workspace-scoped).
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow, app } from 'electron'
+import { join } from 'path'
 import {
   gitWorkspaceStatus,
   gitWorkspaceDiff,
@@ -317,4 +318,35 @@ export function registerGitWorkspaceHandlers(): void {
       }
     }
   )
+
+  // Open a dedicated Git panel window
+  ipcMain.handle('git-workspace:open-window', async (_event, { spaceId, title }: { spaceId: string; title?: string }) => {
+    try {
+      const win = new BrowserWindow({
+        width: 1080,
+        height: 720,
+        minWidth: 720,
+        minHeight: 480,
+        title: title || 'Git',
+        webPreferences: {
+          preload: join(__dirname, '../preload/index.mjs'),
+          sandbox: false,
+          contextIsolation: true,
+          nodeIntegration: false,
+        },
+      })
+      const isDev = !app.isPackaged
+      if (isDev && process.env['ELECTRON_RENDERER_URL']) {
+        await win.loadURL(`${process.env['ELECTRON_RENDERER_URL']}?mode=git&spaceId=${encodeURIComponent(spaceId)}`)
+      } else {
+        await win.loadFile(join(__dirname, '../renderer/index.html'), {
+          query: { mode: 'git', spaceId },
+        })
+      }
+      return { success: true }
+    } catch (error) {
+      console.error('[IPC] git-workspace:open-window error:', error)
+      return { success: false, error: (error as Error).message }
+    }
+  })
 }

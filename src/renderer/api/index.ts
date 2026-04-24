@@ -1018,6 +1018,13 @@ export const api = {
     })
   },
 
+  gitOpenWindow: async (opts: { spaceId: string; title?: string }): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.gitOpenWindow(opts)
+    }
+    return { success: false, error: 'Git window requires the desktop app' }
+  },
+
   // ===== File Operations =====
   // Create and move send (parentPath, name) — backend constructs full path via path.join.
   // Responses include { data: { path } } with the resolved absolute path.

@@ -18,6 +18,7 @@ if (typeof window !== 'undefined' && 'devx' in window) {
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { GitWindowApp } from './components/git/GitWindowApp'
 
 // i18n configuration - must be imported before App
 import './i18n'
@@ -34,8 +35,20 @@ import './assets/styles/browser-task-card.css' // AI Browser sci-fi effects
 // __HALO_EGG__
 ;(() => { const c = [72,101,108,108,111,44,32,73,39,109,32,72,97,108,111,46,32,67,111,110,103,114,97,116,115,44,32,121,111,117,39,118,101,32,102,111,117,110,100,32,116,104,101,32,101,97,115,116,101,114,32,101,103,103,33]; console.log('%c' + String.fromCharCode(...c), 'color:#666;font-style:italic'); })()
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <ErrorBoundary>
-    <App />
-  </ErrorBoundary>
-)
+const _urlParams = new URLSearchParams(window.location.search)
+const _appMode = _urlParams.get('mode')
+
+if (_appMode === 'git') {
+  const _spaceId = _urlParams.get('spaceId') ?? ''
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <ErrorBoundary>
+      <GitWindowApp spaceId={_spaceId} />
+    </ErrorBoundary>
+  )
+} else {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
+  )
+}

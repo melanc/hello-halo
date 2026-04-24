@@ -257,6 +257,7 @@ export interface DevXAPI {
     force?: boolean
   ) => Promise<IpcResponse>
   gitProjectDirCreateBranch: (spaceId: string, topLevelDir: string, name: string) => Promise<IpcResponse>
+  gitOpenWindow: (opts: { spaceId: string; title?: string }) => Promise<IpcResponse>
 
   // File operations — create/move send (parentPath, name), backend constructs full path
   createArtifactFile: (spaceId: string, parentPath: string, name: string, content?: string) => Promise<IpcResponse>
@@ -700,6 +701,7 @@ const api: DevXAPI = {
     ipcRenderer.invoke('git-workspace:delete-branch', spaceId, branch, !!force, topLevelDir),
   gitProjectDirCreateBranch: (spaceId, topLevelDir, name) =>
     ipcRenderer.invoke('git-workspace:create-branch', spaceId, name, topLevelDir),
+  gitOpenWindow: (opts) => ipcRenderer.invoke('git-workspace:open-window', opts),
 
   // File operations — create/move send (parentPath, name), backend constructs full path
   createArtifactFile: (spaceId, parentPath, name, content) => ipcRenderer.invoke('artifact:create-file', spaceId, parentPath, name, content),
