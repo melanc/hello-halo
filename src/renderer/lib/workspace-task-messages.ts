@@ -220,6 +220,8 @@ export function buildRequirementIdentifyMessage(
 ): string {
   const blocks: string[] = [
     ...pipelineOpeningLines(t),
+    t('当前阶段仅限于需求识别，不要执行任务拆解、制定开发计划或修改代码。如对话触及上述内容，请告知用户先完成"确认需求"再继续。'),
+    '',
   ]
 
   if (opts?.knowledgeBaseRoot?.trim()) {
@@ -299,6 +301,8 @@ export function buildIntentAnalysisMessage(
       const hasDoc = !!(task.requirementDocName?.trim() || task.requirementDocContent?.trim())
       const blocks = [
         ...pipelineOpeningLines(t),
+        t('当前阶段仅限于需求识别，不要执行任务拆解、制定开发计划或修改代码。如对话触及上述内容，请告知用户先完成"确认需求"再继续。'),
+        '',
       ]
       if (hasDoc) {
         if (opts.knowledgeBaseRoot?.trim()) {
@@ -344,6 +348,8 @@ export function buildIntentAnalysisMessage(
     case 2: {
       const blocks = [
         ...pipelineOpeningLines(t),
+        t('当前阶段仅限于任务拆解，不要制定开发计划或修改代码。如对话触及上述内容，请告知用户先点击"下一步"进入下一阶段。'),
+        '',
       ]
       if (opts.knowledgeBaseRoot?.trim()) {
         blocks.push(
@@ -510,6 +516,8 @@ export function buildTaskBreakdownExecuteMessage(
 ): string {
   const blocks = [
     ...pipelineOpeningLines(t),
+    t('当前阶段仅限于任务拆解，不要制定开发计划或修改代码。如对话触及上述内容，请告知用户先点击"下一步"进入下一阶段。'),
+    '',
   ]
 
   if (opts?.knowledgeBaseRoot?.trim()) {

@@ -2136,7 +2136,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                         onClick={() => handleNextStep(2)}
                         className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
                       >
-                        {t('下一步')}
+                        {t('确认，下一步')}
                         <ChevronRight className="w-3 h-3" />
                       </button>
                     </>
