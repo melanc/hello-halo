@@ -6,6 +6,7 @@ import { ipcMain } from 'electron'
 import {
   listConversations,
   createConversation,
+  createTaskConversation,
   getConversation,
   updateConversation,
   deleteConversation,
@@ -31,6 +32,17 @@ export function registerConversationHandlers(): void {
   ipcMain.handle('conversation:create', async (_event, spaceId: string, title?: string) => {
     try {
       const conversation = createConversation(spaceId, title)
+      return { success: true, data: conversation }
+    } catch (error: unknown) {
+      const err = error as Error
+      return { success: false, error: err.message }
+    }
+  })
+
+  // Create a new task conversation (namespaced ID for workspace task isolation)
+  ipcMain.handle('conversation:create-task', async (_event, spaceId: string, taskId: string, title?: string) => {
+    try {
+      const conversation = createTaskConversation(spaceId, taskId, title)
       return { success: true, data: conversation }
     } catch (error: unknown) {
       const err = error as Error

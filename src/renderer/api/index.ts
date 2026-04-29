@@ -396,6 +396,13 @@ export const api = {
     return httpRequest('POST', `/api/spaces/${spaceId}/conversations`, { title })
   },
 
+  createTaskConversation: async (spaceId: string, taskId: string, title?: string): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.createTaskConversation(spaceId, taskId, title)
+    }
+    return httpRequest('POST', `/api/spaces/${spaceId}/conversations/task`, { taskId, title })
+  },
+
   getConversation: async (
     spaceId: string,
     conversationId: string

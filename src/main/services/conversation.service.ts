@@ -18,6 +18,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync, rmSync
 import { getSpace } from './space.service'
 import { v4 as uuidv4 } from 'uuid'
 import type { FileChangesSummary } from '../../shared/file-changes'
+import { isWorkspaceTaskConversationId, getWorkspaceTaskConversationId } from '../../shared/workspace-task-conversation'
 
 // Re-export for existing consumers
 export type { FileChangesSummary } from '../../shared/file-changes'
@@ -542,6 +543,8 @@ function fullScanConversations(conversationsDir: string, spaceId: string): Conve
     try {
       const content = readFileSync(join(conversationsDir, file), 'utf-8')
       const conversation: Conversation = JSON.parse(content)
+      // Filter out workspace task conversations from the listing
+      if (isWorkspaceTaskConversationId(conversation.id)) continue
       metas.push(toMeta(conversation))
     } catch (error) {
       console.error(`[Conversation] Failed to read conversation ${file}:`, error)
@@ -621,7 +624,8 @@ export function listConversations(spaceId: string): ConversationMeta[] {
 
   const index = readIndex(conversationsDir)
   if (index) {
-    return index.conversations
+    // Filter out workspace task conversations from the listing
+    return index.conversations.filter(c => !isWorkspaceTaskConversationId(c.id))
   }
 
   const metas = fullScanConversations(conversationsDir, spaceId)
@@ -636,6 +640,37 @@ export function listConversations(spaceId: string): ConversationMeta[] {
 // Create a new conversation (always v2 format)
 export function createConversation(spaceId: string, title?: string): Conversation {
   const id = uuidv4()
+  const now = new Date().toISOString()
+
+  const conversation: Conversation = {
+    id,
+    spaceId,
+    title: title || generateTitle(),
+    createdAt: now,
+    updatedAt: now,
+    messageCount: 0,
+    messages: [],
+    version: CONVERSATION_FORMAT_VERSION
+  }
+
+  const conversationsDir = getConversationsDir(spaceId)
+
+  if (!existsSync(conversationsDir)) {
+    mkdirSync(conversationsDir, { recursive: true })
+  }
+
+  const filePath = join(conversationsDir, `${id}.json`)
+  cachedWrite(id, conversation, filePath, conversationsDir, spaceId)
+
+  updateIndexEntry(conversationsDir, spaceId, id, toMeta(conversation))
+
+  return conversation
+}
+
+// Create a task conversation with a namespaced ID for workspace task isolation.
+// The ID follows the format wstask-{taskId} so it can be filtered from regular listings.
+export function createTaskConversation(spaceId: string, taskId: string, title?: string): Conversation {
+  const id = getWorkspaceTaskConversationId(taskId)
   const now = new Date().toISOString()
 
   const conversation: Conversation = {

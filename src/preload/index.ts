@@ -84,6 +84,7 @@ export interface DevXAPI {
   // Conversation
   listConversations: (spaceId: string) => Promise<IpcResponse>
   createConversation: (spaceId: string, title?: string) => Promise<IpcResponse>
+  createTaskConversation: (spaceId: string, taskId: string, title?: string) => Promise<IpcResponse>
   getConversation: (spaceId: string, conversationId: string) => Promise<IpcResponse>
   updateConversation: (
     spaceId: string,
@@ -604,6 +605,7 @@ const api: DevXAPI = {
   // Conversation
   listConversations: (spaceId) => ipcRenderer.invoke('conversation:list', spaceId),
   createConversation: (spaceId, title) => ipcRenderer.invoke('conversation:create', spaceId, title),
+  createTaskConversation: (spaceId, taskId, title) => ipcRenderer.invoke('conversation:create-task', spaceId, taskId, title),
   getConversation: (spaceId, conversationId) =>
     ipcRenderer.invoke('conversation:get', spaceId, conversationId),
   updateConversation: (spaceId, conversationId, updates) =>

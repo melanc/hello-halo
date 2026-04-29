@@ -41,6 +41,7 @@ import { useSearchShortcuts } from '../hooks/useSearchShortcuts'
 import { useTranslation } from '../i18n'
 import { useIsMobile } from '../hooks/useIsMobile'
 import { useTaskStore } from '../stores/task.store'
+import { isWorkspaceTaskConversationId } from '../../shared/workspace-task-conversation'
 import type { LayoutConfig } from '../types'
 
 /** Persist a partial layout update to backend config + sync in-memory store */
@@ -259,7 +260,9 @@ export function SpacePage() {
 
     const chatState = useChatStore.getState()
     const spaceState = chatState.getSpaceState(currentSpace.id)
-    if (!spaceState.conversations.some(c => c.id === task.conversationId)) return
+    // Task conversations use namespaced IDs (wstask-*) that are filtered from
+    // the regular conversation listing. Skip the list membership check for tasks.
+    if (!isWorkspaceTaskConversationId(task.conversationId) && !spaceState.conversations.some(c => c.id === task.conversationId)) return
     if (spaceState.currentConversationId === task.conversationId) return
 
     void chatState.selectConversation(task.conversationId)

@@ -181,7 +181,8 @@ export const useTaskStore = create<TaskState>()(
         const kbRaw = (input as { knowledgeBaseSpaceId?: string }).knowledgeBaseSpaceId?.trim()
         const knowledgeBaseSpaceId = kbRaw || undefined
 
-        const conv = await useChatStore.getState().createConversation(spaceId, input.name)
+        const taskId = newTaskId()
+        const conv = await useChatStore.getState().createTaskConversation(spaceId, taskId, input.name)
         if (!conv) return null
 
         const now = Date.now()
@@ -189,7 +190,7 @@ export const useTaskStore = create<TaskState>()(
         const spacePath = (input as { spacePath?: string }).spacePath?.trim() || undefined
         const kbRootPath = (input as { kbRootPath?: string }).kbRootPath?.trim() || undefined
         const task: WorkspaceTask = {
-          id: newTaskId(),
+          id: taskId,
           name: input.name.trim(),
           spaceId,
           ...(knowledgeBaseSpaceId ? { knowledgeBaseSpaceId } : {}),
@@ -259,7 +260,7 @@ export const useTaskStore = create<TaskState>()(
         const sid = newSpaceId.trim()
         const task = get().tasks.find((t) => t.id === taskId)
         if (!task || task.spaceId === sid) return true
-        const conv = await useChatStore.getState().createConversation(sid, task.name)
+        const conv = await useChatStore.getState().createTaskConversation(sid, taskId, task.name)
         if (!conv) return false
         const resolvedSpacePath = newSpacePath?.trim() || undefined
         set((s) => ({

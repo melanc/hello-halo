@@ -25,6 +25,7 @@ import type { Conversation, ConversationMeta, Message, ToolCall, Artifact, Thoug
 import type { SessionInitInfo } from '../types/slash-command'
 import { PULSE_READ_GRACE_PERIOD_MS } from '../types'
 import { canvasLifecycle } from '../services/canvas-lifecycle'
+import { isWorkspaceTaskConversationId } from '../../shared/workspace-task-conversation'
 
 // LRU cache size limit
 const CONVERSATION_CACHE_SIZE = 10
@@ -148,6 +149,7 @@ interface ChatState {
   loadConversations: (spaceId: string, options?: { silent?: boolean }) => Promise<void>
   preloadAllSpaceConversations: (spaceIds: string[]) => void
   createConversation: (spaceId: string, title?: string) => Promise<Conversation | null>
+  createTaskConversation: (spaceId: string, taskId: string, title?: string) => Promise<Conversation | null>
   selectConversation: (conversationId: string) => void
   deleteConversation: (spaceId: string, conversationId: string) => Promise<boolean>
   renameConversation: (spaceId: string, conversationId: string, newTitle: string) => Promise<boolean>
@@ -436,6 +438,65 @@ export const useChatStore = create<ChatState>((set, get) => ({
     }
   },
 
+  // Create task conversation (namespaced ID for workspace task isolation)
+  createTaskConversation: async (spaceId, taskId, title) => {
+    try {
+      const response = await api.createTaskConversation(spaceId, taskId, title)
+
+      if (response.success && response.data) {
+        const newConversation = response.data as Conversation
+
+        // Extract metadata for the list
+        const meta: ConversationMeta = {
+          id: newConversation.id,
+          spaceId: newConversation.spaceId,
+          title: newConversation.title,
+          createdAt: newConversation.createdAt,
+          updatedAt: newConversation.updatedAt,
+          messageCount: newConversation.messages?.length || 0,
+          preview: undefined
+        }
+
+        set((state) => {
+          const newSpaceStates = new Map(state.spaceStates)
+          const existingState = newSpaceStates.get(spaceId) || createEmptySpaceState()
+
+          // Add to conversation cache (new conversation is full)
+          const newCache = new Map(state.conversationCache)
+          newCache.set(newConversation.id, newConversation)
+
+          // LRU eviction
+          if (newCache.size > CONVERSATION_CACHE_SIZE) {
+            const firstKey = newCache.keys().next().value
+            if (firstKey) newCache.delete(firstKey)
+          }
+
+          newSpaceStates.set(spaceId, {
+            conversations: [meta, ...existingState.conversations],
+            currentConversationId: newConversation.id
+          })
+
+          return { spaceStates: newSpaceStates, conversationCache: newCache }
+        })
+
+        // Warm up V2 Session for new conversation - non-blocking
+        try {
+          api.ensureSessionWarm(spaceId, newConversation.id)
+            .catch((error) => console.error('[ChatStore] Session warm up failed:', error))
+        } catch (error) {
+          console.error('[ChatStore] Failed to trigger session warm up:', error)
+        }
+
+        return newConversation
+      }
+
+      return null
+    } catch (error) {
+      console.error('Failed to create task conversation:', error)
+      return null
+    }
+  },
+
   // Select conversation (changes pointer, loads full conversation on-demand)
   selectConversation: async (conversationId) => {
     const { currentSpaceId, spaceStates, conversationCache } = get()
@@ -444,7 +505,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const spaceState = spaceStates.get(currentSpaceId)
     if (!spaceState) return
 
-    const conversationMeta = spaceState.conversations.find((c) => c.id === conversationId)
+    let conversationMeta = spaceState.conversations.find((c) => c.id === conversationId)
+
+    // Task conversations use namespaced IDs (wstask-*) that are filtered from the
+    // regular conversation listing. If not found in the metadata list, create a
+    // placeholder meta so the conversation can still be selected and displayed.
+    if (!conversationMeta && isWorkspaceTaskConversationId(conversationId)) {
+      conversationMeta = {
+        id: conversationId,
+        spaceId: currentSpaceId,
+        title: 'Task',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        messageCount: 0
+      }
+    }
+
     if (!conversationMeta) return
 
     // Subscribe to conversation events (for remote mode)

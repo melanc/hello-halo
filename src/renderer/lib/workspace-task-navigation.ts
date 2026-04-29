@@ -5,6 +5,7 @@
 import { useChatStore } from '../stores/chat.store'
 import { useSpaceStore } from '../stores/space.store'
 import { useTaskStore } from '../stores/task.store'
+import { isWorkspaceTaskConversationId } from '../../shared/workspace-task-conversation'
 import type { Space, WorkspaceTask } from '../types'
 
 export function taskHasRequirementContent(task: WorkspaceTask): boolean {
@@ -37,7 +38,10 @@ export async function navigateToWorkspaceTaskConversation(options: {
 
   const chatBefore = useChatStore.getState()
   const alreadyOnSpace = chatBefore.currentSpaceId === space.id
-  const taskMetaPresent = chatBefore
+  // Task conversations use namespaced IDs (wstask-*) that are filtered from
+  // the regular conversation listing. They are always considered "present"
+  // since the task's existence guarantees its conversation exists on disk.
+  const taskMetaPresent = isWorkspaceTaskConversationId(task.conversationId) || chatBefore
     .getSpaceState(space.id)
     .conversations.some((c) => c.id === task.conversationId)
 
