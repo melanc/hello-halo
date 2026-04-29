@@ -89,6 +89,26 @@ export function createApp(options: RouterOptions = {}): Express {
     })
   })
 
+  // Model validation endpoints
+  // CC SDK (>=2.1.x) calls GET /v1/models/:modelId at session startup to validate the model.
+  // Our router only proxies messages — there is no real Anthropic /models endpoint behind it.
+  // Return a stub 200 response so the SDK's validation passes for any model ID.
+  app.get('/v1/models/:modelId', (req: Request, res: Response) => {
+    const { modelId } = req.params
+    console.log(`[Router] GET /v1/models/${modelId} — returning stub (model validation)`)
+    res.json({
+      type: 'model',
+      id: modelId,
+      display_name: modelId,
+      created_at: '2025-01-01T00:00:00Z'
+    })
+  })
+
+  app.get('/v1/models', (_req: Request, res: Response) => {
+    console.log('[Router] GET /v1/models — returning empty list stub (model validation)')
+    res.json({ data: [], has_more: false, first_id: null, last_id: null })
+  })
+
   // Token counting endpoint
   app.post('/v1/messages/count_tokens', (req: Request, res: Response) => {
     const { messages, system, model } = (req.body || {}) as { messages?: unknown; system?: unknown; model?: string }
