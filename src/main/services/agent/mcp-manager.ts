@@ -172,7 +172,8 @@ export async function testMcpConnections(): Promise<{ success: boolean; servers:
         || (credentials.provider === 'oauth' ? 'chat_completions' : inferOpenAIWireApi(credentials.baseUrl))
 
       anthropicApiKey = encodeBackendConfig(credentialsToBackendConfig(credentials, { apiType }))
-      sdkModel = 'claude-sonnet-4-5-20250929'
+      // Keep MCP test aligned with the active backend model.
+      sdkModel = credentials.model || sdkModel
       console.log(`[Agent] MCP test: ${credentials.provider} provider enabled via ${anthropicBaseUrl}, apiType=${apiType}`)
     }
 
