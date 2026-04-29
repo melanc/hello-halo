@@ -54,6 +54,7 @@ export const ConversationList = memo(function ConversationList({
     return spaceState?.currentConversationId ?? undefined
   })
   const layoutConfig = useAppStore(state => state.config?.layout)
+  const setView = useAppStore(s => s.setView)
 
   // Single batch subscription for all conversation statuses (replaces N individual hooks)
   const conversationStatuses = useAllConversationStatuses()
@@ -401,17 +402,14 @@ export const ConversationList = memo(function ConversationList({
         />
       </div>
 
-      {/* New conversation button */}
+      {/* Back to home button */}
       <div className="p-2 border-t border-border">
         <button
-          onClick={() => {
-            const spaceId = useSpaceStore.getState().currentSpace?.id
-            if (spaceId) useChatStore.getState().createConversation(spaceId)
-          }}
+          onClick={() => setView('home')}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
-          {t('New conversation')}
+          {t('Back to home')}
         </button>
       </div>
 
