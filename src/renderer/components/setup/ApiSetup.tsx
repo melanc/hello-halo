@@ -137,7 +137,7 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
         // If current model is not in list (and we found models), select the first one?
         // Or just let user decide.
         // If current model is default generic one, maybe switch to first fetched.
-        if (models.length > 0 && (!model || model === 'gpt-4o-mini' || model === 'deepseek-chat')) {
+        if (models.length > 0 && (!model || model === 'gpt-4o-mini' || model === 'deepseek-chat' || model === 'deepseek-v4-flash')) {
           setModel(models[0])
         }
       } else {
@@ -459,7 +459,7 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
                         type="text"
                         value={model}
                         onChange={(e) => setModel(e.target.value)}
-                        placeholder="gpt-4o-mini / deepseek-chat"
+                        placeholder="gpt-4o-mini / deepseek-v4-flash"
                         className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
                       />
                     )}

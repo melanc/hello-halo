@@ -105,18 +105,19 @@ export const BUILTIN_PROVIDERS: BuiltinProvider[] = [
     id: 'deepseek',
     name: 'DeepSeek',
     authType: 'api-key',
-    apiUrl: 'https://api.deepseek.com',
+    apiUrl: 'https://api.deepseek.com/anthropic',
+    apiType: 'anthropic_passthrough',
     modelsUrl: 'https://api.deepseek.com/models',
     models: [
-      { id: 'deepseek-chat', name: 'DeepSeek Chat (V3.2)' },
-      { id: 'deepseek-reasoner', name: 'DeepSeek Reasoner (R1)' }
+      { id: 'deepseek-v4-flash', name: 'DeepSeek V4 Flash' },
+      { id: 'deepseek-v4-pro', name: 'DeepSeek V4 Pro' }
     ],
-    description: 'DeepSeek official API with V3.2 and R1 reasoning model',
+    description: 'DeepSeek official API via Anthropic-compatible endpoint',
     website: 'https://platform.deepseek.com/',
     region: 'cn',
     recommended: true,
     icon: 'search',
-    notes: 'R1 model returns reasoning_content field for chain of thought'
+    notes: 'Uses Anthropic SDK endpoint (https://api.deepseek.com/anthropic). Legacy model IDs deepseek-chat and deepseek-reasoner are deprecated.'
   },
   {
     id: 'siliconflow',
