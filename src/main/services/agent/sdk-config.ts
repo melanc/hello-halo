@@ -135,7 +135,10 @@ export async function resolveCredentialsForSdk(
     const apiType = credentials.apiType
       || (credentials.provider === 'oauth' ? 'chat_completions' : inferOpenAIWireApi(credentials.baseUrl))
 
-    anthropicApiKey = encodeBackendConfig(credentialsToBackendConfig(credentials, { apiType }))
+    const backendUrl = apiType === 'anthropic_passthrough'
+      ? `${credentials.baseUrl.replace(/\/+$/, '')}/v1/messages`
+      : credentials.baseUrl
+    anthropicApiKey = encodeBackendConfig(credentialsToBackendConfig(credentials, { apiType, url: backendUrl }))
 
     // Use user-configured backend model for non-Anthropic providers.
     // A hardcoded Claude model can fail in some CLI/account combinations.
