@@ -7,7 +7,7 @@
   "author": "DevX Team",
   "license": "MIT",
   "scripts": {
-    "dev": "cross-env DEVX_DATA_DIR=~/.devx-dev electron-vite dev",
+    "dev": "cross-env DEVX_DATA_DIR=~/.devx electron-vite dev",
     "build": "electron-vite build",
     "start": "electron-vite preview",
     "postinstall": "patch-package && electron-builder install-app-deps && electron-rebuild -f -w better-sqlite3",

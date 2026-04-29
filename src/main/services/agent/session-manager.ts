@@ -13,7 +13,7 @@ import os from 'os'
 import { existsSync, copyFileSync, mkdirSync } from 'fs'
 import { app } from 'electron'
 import { unstable_v2_createSession } from '@anthropic-ai/claude-agent-sdk'
-import { getConfig, onApiConfigChange, getCredentialsGeneration } from '../config.service'
+import { getConfig, onApiConfigChange, getCredentialsGeneration, getDevXDir } from '../config.service'
 import { onMcpAppsChange } from '../../apps/manager/service'
 import { getConversation } from '../conversation.service'
 import type {
@@ -288,7 +288,7 @@ function migrateSessionIfNeeded(workDir: string, sessionId: string): boolean {
   console.log(`[Agent] Migration check: workDir="${workDir}" -> projectDir="${projectDir}"`)
 
   // 2. Build old and new paths
-  const newConfigDir = path.join(app.getPath('userData'), 'claude-config')
+  const newConfigDir = path.join(getDevXDir(), 'claude-config')
   const oldConfigDir = path.join(os.homedir(), '.claude')
 
   const newPath = path.join(newConfigDir, 'projects', projectDir, sessionFile)

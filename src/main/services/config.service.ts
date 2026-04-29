@@ -523,9 +523,9 @@ export function resolveClaudeConfigDir(
     case 'cc':
       return join(homedir(), '.claude')
     case 'custom':
-      return customDir || join(app.getPath('userData'), 'claude-config')
+      return customDir || join(getDevXDir(), 'claude-config')
     default:
-      return join(app.getPath('userData'), 'claude-config')
+      return join(getDevXDir(), 'claude-config')
   }
 }
 

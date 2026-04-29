@@ -422,16 +422,10 @@ function applyTemplateVariables(template: string, ctx: SystemPromptContext): str
   // DevX data directory (e.g. ~/.devx/ — name from product.json dataFolderName)
   const devxDataDir = `${home}/.${folderName}/`
 
-  // Claude config directory based on platform (Electron's userData + /claude-config)
+  // Claude config directory under DevX data dir (~/.devx/claude-config/)
   let claudeConfigDir = ctx.claudeConfigDir
   if (!claudeConfigDir) {
-    if (process.platform === 'darwin') {
-      claudeConfigDir = `${home}/Library/Application Support/${folderName}/claude-config`
-    } else if (process.platform === 'win32') {
-      claudeConfigDir = `${process.env.APPDATA || home + '/AppData/Roaming'}/${folderName}/claude-config`
-    } else {
-      claudeConfigDir = `${home}/.config/${folderName}/claude-config`
-    }
+    claudeConfigDir = `${devxDataDir}claude-config`
   }
 
   // Build file access restriction based on workspace context

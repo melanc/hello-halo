@@ -17,13 +17,14 @@ import { app } from 'electron'
 import type { InstalledApp } from './types'
 import type { SkillSpec } from '../../apps/spec/schema'
 import { normalizeSkillMd } from '../../../shared/skill-frontmatter'
+import { getDevXDir } from '../../services/config.service'
 
 /**
  * Get the global Claude config skills directory.
  * Creates it if it doesn't exist.
  */
 function getGlobalSkillsDir(): string {
-  const configDir = join(app.getPath('userData'), 'claude-config')
+  const configDir = join(getDevXDir(), 'claude-config')
   const skillsDir = join(configDir, 'skills')
   if (!existsSync(skillsDir)) {
     mkdirSync(skillsDir, { recursive: true })

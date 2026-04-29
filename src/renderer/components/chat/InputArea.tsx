@@ -1456,21 +1456,6 @@ function InputToolbar({
                 </button>
                 <button
                   type="button"
-                  onClick={onWordClick}
-                  disabled={isAttachmentBusy}
-                  className={`w-full px-3 py-2 flex items-center gap-3 text-sm text-left
-                    transition-colors duration-150
-                    ${isAttachmentBusy
-                      ? 'text-muted-foreground/40 cursor-not-allowed'
-                      : 'text-foreground hover:bg-muted/50'
-                    }
-                  `}
-                >
-                  <FileText size={16} className="text-muted-foreground shrink-0" />
-                  <span>{t('Add Word')}</span>
-                </button>
-                <button
-                  type="button"
                   onClick={onTextFileClick}
                   disabled={isAttachmentBusy}
                   className={`w-full px-3 py-2 flex items-center gap-3 text-sm text-left
@@ -1483,6 +1468,21 @@ function InputToolbar({
                 >
                   <FileCode size={16} className="text-muted-foreground shrink-0" />
                   <span>{t('Add text file')}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onWordClick}
+                  disabled={isAttachmentBusy}
+                  className={`w-full px-3 py-2 flex items-center gap-3 text-sm text-left
+                    transition-colors duration-150
+                    ${isAttachmentBusy
+                      ? 'text-muted-foreground/40 cursor-not-allowed'
+                      : 'text-foreground hover:bg-muted/50'
+                    }
+                  `}
+                >
+                  <FileText size={16} className="text-muted-foreground shrink-0" />
+                  <span>{t('Add Word')}</span>
                 </button>
               </div>
             )}
