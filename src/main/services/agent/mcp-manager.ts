@@ -160,7 +160,7 @@ export async function testMcpConnections(): Promise<{ success: boolean; servers:
     // Route through OpenAI compat router for non-Anthropic providers
     let anthropicBaseUrl = credentials.baseUrl
     let anthropicApiKey = credentials.apiKey
-    let sdkModel = credentials.model || 'claude-sonnet-4-20250514'
+    let sdkModel = credentials.model || 'claude-sonnet-4-5-20250929'
 
     // For non-Anthropic providers (openai or oauth), use the OpenAI compat router
     if (credentials.provider !== 'anthropic') {
@@ -172,7 +172,7 @@ export async function testMcpConnections(): Promise<{ success: boolean; servers:
         || (credentials.provider === 'oauth' ? 'chat_completions' : inferOpenAIWireApi(credentials.baseUrl))
 
       anthropicApiKey = encodeBackendConfig(credentialsToBackendConfig(credentials, { apiType }))
-      sdkModel = 'claude-sonnet-4-20250514'
+      sdkModel = 'claude-sonnet-4-5-20250929'
       console.log(`[Agent] MCP test: ${credentials.provider} provider enabled via ${anthropicBaseUrl}, apiType=${apiType}`)
     }
 

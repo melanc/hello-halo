@@ -138,7 +138,7 @@ export async function resolveCredentialsForSdk(
     anthropicApiKey = encodeBackendConfig(credentialsToBackendConfig(credentials, { apiType }))
 
     // Pass a fake Claude model to CC for normal request handling
-    sdkModel = 'claude-sonnet-4-20250514'
+    sdkModel = 'claude-sonnet-4-5-20250929'
 
     console.log(`[SDK Config] ${credentials.provider} provider: routing via ${anthropicBaseUrl}, apiType=${apiType}`)
   }
