@@ -52,7 +52,6 @@ export function createSpace(input: {
   name: string
   icon: string
   customPath?: string
-  workspaceKind?: 'regular' | 'knowledge_base'
 }): ControllerResponse {
   try {
     const space = serviceCreateSpace(input)

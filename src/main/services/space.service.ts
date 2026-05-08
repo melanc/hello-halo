@@ -28,8 +28,6 @@ export { getSpacesDir } from './config.service'
 // Types
 // ============================================================================
 
-type SpaceWorkspaceKind = 'regular' | 'knowledge_base'
-
 interface Space {
   id: string
   name: string
@@ -38,7 +36,6 @@ interface Space {
   isTemp: boolean
   createdAt: string
   updatedAt: string
-  workspaceKind: SpaceWorkspaceKind
   preferences?: SpacePreferences
   workingDir?: string  // Project directory for custom spaces (agent cwd, artifacts, file explorer)
 }
@@ -58,8 +55,6 @@ interface SpaceMeta {
   icon: string
   createdAt: string
   updatedAt: string
-  /** Default regular when missing (legacy spaces) */
-  workspaceKind?: SpaceWorkspaceKind
   preferences?: SpacePreferences
   workingDir?: string  // Project directory for custom spaces
 }
@@ -75,8 +70,6 @@ interface SpaceIndexEntry {
   createdAt: string
   updatedAt: string
   workingDir?: string
-  /** Default regular when missing (legacy index rows) */
-  workspaceKind?: SpaceWorkspaceKind
   isTemp?: boolean  // true only for halo-temp (not persisted to disk)
 }
 
@@ -119,7 +112,6 @@ function metaToEntry(meta: SpaceMeta, spacePath: string): SpaceIndexEntry {
     createdAt: meta.createdAt,
     updatedAt: meta.updatedAt,
     workingDir: meta.workingDir,
-    workspaceKind: meta.workspaceKind ?? 'regular'
   }
 }
 
@@ -225,7 +217,6 @@ function registerDevXTemp(map: Map<string, SpaceIndexEntry>): void {
     icon: 'sparkles',
     createdAt: now,
     updatedAt: now,
-    workspaceKind: 'regular',
     isTemp: true
   })
 }
@@ -293,7 +284,6 @@ function entryToSpace(id: string, entry: SpaceIndexEntry): Space {
     isTemp: !!entry.isTemp,
     createdAt: entry.createdAt,
     updatedAt: entry.updatedAt,
-    workspaceKind: entry.workspaceKind === 'knowledge_base' ? 'knowledge_base' : 'regular',
     workingDir: entry.workingDir
   }
 }
@@ -394,12 +384,9 @@ export function createSpace(input: {
   name: string
   icon: string
   customPath?: string
-  workspaceKind?: SpaceWorkspaceKind
 }): Space {
   const id = uuidv4()
   const now = new Date().toISOString()
-  const workspaceKind: SpaceWorkspaceKind =
-    input.workspaceKind === 'knowledge_base' ? 'knowledge_base' : 'regular'
 
   // Data always stored centrally under ~/.halo/spaces/{id}/
   const spacePath = join(getSpacesDir(), id)
@@ -420,7 +407,6 @@ export function createSpace(input: {
     createdAt: now,
     updatedAt: now,
     workingDir,
-    workspaceKind
   }
 
   writeFileSync(join(spacePath, '.halo', 'meta.json'), JSON.stringify(meta, null, 2))
@@ -433,7 +419,6 @@ export function createSpace(input: {
     createdAt: now,
     updatedAt: now,
     workingDir,
-    workspaceKind
   }
   getRegistry().set(id, entry)
   persistIndex(getRegistry())
@@ -523,18 +508,9 @@ export function updateSpace(spaceId: string, updates: { name?: string; icon?: st
     if (updates.name) entry.name = updates.name
     if (updates.icon) entry.icon = updates.icon
     entry.updatedAt = new Date().toISOString()
-
-    // Write meta.json — read existing to preserve preferences and workspaceKind
-    const existingMeta = tryReadMeta(entry.path)
-    const resolvedKind: SpaceWorkspaceKind =
-      existingMeta?.workspaceKind === 'knowledge_base' || entry.workspaceKind === 'knowledge_base'
-        ? 'knowledge_base'
-        : 'regular'
-    entry.workspaceKind = resolvedKind
-
-    // Persist index (includes workspaceKind for listSpaces)
     persistIndex(getRegistry())
 
+    const existingMeta = tryReadMeta(entry.path)
     const meta: SpaceMeta = {
       id: spaceId,
       name: entry.name,
@@ -543,7 +519,6 @@ export function updateSpace(spaceId: string, updates: { name?: string; icon?: st
       updatedAt: entry.updatedAt,
       preferences: existingMeta?.preferences,
       workingDir: entry.workingDir,
-      workspaceKind: resolvedKind
     }
     writeFileSync(join(entry.path, '.halo', 'meta.json'), JSON.stringify(meta, null, 2))
 
@@ -586,12 +561,6 @@ export function updateSpacePreferences(
       }
     }
 
-    const resolvedKind: SpaceWorkspaceKind =
-      existingMeta?.workspaceKind === 'knowledge_base' || entry.workspaceKind === 'knowledge_base'
-        ? 'knowledge_base'
-        : 'regular'
-    entry.workspaceKind = resolvedKind
-
     // Write meta.json with merged preferences
     const meta: SpaceMeta = {
       id: spaceId,
@@ -601,7 +570,6 @@ export function updateSpacePreferences(
       updatedAt: entry.isTemp ? entry.updatedAt : new Date().toISOString(),
       preferences: currentPrefs,
       workingDir: entry.workingDir,
-      workspaceKind: resolvedKind
     }
 
     // Update updatedAt in registry for non-temp spaces

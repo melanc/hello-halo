@@ -57,7 +57,6 @@ interface TaskState {
   addTask: (input: {
     name: string
     spaceId: string
-    knowledgeBaseSpaceId?: string
     requirementDocName: string
     requirementDocContent: string
     requirementDescription: string
@@ -65,7 +64,6 @@ interface TaskState {
     branchName: string
     taskType?: 'simple' | 'complex'
     spacePath?: string
-    kbRootPath?: string
   }) => Promise<WorkspaceTask | null>
 
   removeTask: (id: string) => void
@@ -84,9 +82,6 @@ interface TaskState {
    * Returns false if conversation could not be created.
    */
   moveTaskToSpace: (taskId: string, newSpaceId: string, newSpacePath?: string) => Promise<boolean>
-
-  /** Link or clear optional knowledge-base space (Markdown docs) for pipeline context */
-  updateTaskKnowledgeBaseSpaceId: (taskId: string, knowledgeBaseSpaceId: string | null, kbRootPath?: string) => void
 
   /** Record first-level project dir from artifact relativePath for the active task */
   recordArtifactTouch: (spaceId: string, relativePath: string) => void
@@ -178,9 +173,6 @@ export const useTaskStore = create<TaskState>()(
 
         const branchName = input.branchName.trim()
         const projectDirs = input.projectDirs.map((d) => d.trim()).filter(Boolean)
-        const kbRaw = (input as { knowledgeBaseSpaceId?: string }).knowledgeBaseSpaceId?.trim()
-        const knowledgeBaseSpaceId = kbRaw || undefined
-
         const taskId = newTaskId()
         const conv = await useChatStore.getState().createTaskConversation(spaceId, taskId, input.name)
         if (!conv) return null
@@ -188,12 +180,10 @@ export const useTaskStore = create<TaskState>()(
         const now = Date.now()
         const taskType = (input as { taskType?: 'simple' | 'complex' }).taskType ?? 'complex'
         const spacePath = (input as { spacePath?: string }).spacePath?.trim() || undefined
-        const kbRootPath = (input as { kbRootPath?: string }).kbRootPath?.trim() || undefined
         const task: WorkspaceTask = {
           id: taskId,
           name: input.name.trim(),
           spaceId,
-          ...(knowledgeBaseSpaceId ? { knowledgeBaseSpaceId } : {}),
           requirementDocName,
           requirementDocContent,
           requirementDescription,
@@ -205,7 +195,6 @@ export const useTaskStore = create<TaskState>()(
           touchedProjectDirs: [],
           taskType,
           ...(spacePath ? { spacePath } : {}),
-          ...(kbRootPath ? { kbRootPath } : {}),
         }
 
         set((s) => ({ tasks: [task, ...s.tasks] }))
@@ -272,7 +261,6 @@ export const useTaskStore = create<TaskState>()(
                   spaceId: sid,
                   conversationId: conv.id,
                   updatedAt: Date.now(),
-                  knowledgeBaseSpaceId: t.knowledgeBaseSpaceId,
                   spacePath: resolvedSpacePath,
                   requirementIdentifyUsed: false,
                   requirementBreakdownUsed: false,
@@ -291,23 +279,6 @@ export const useTaskStore = create<TaskState>()(
           ),
         }))
         return true
-      },
-
-      updateTaskKnowledgeBaseSpaceId: (taskId, knowledgeBaseSpaceId, kbRootPath) => {
-        const kb = knowledgeBaseSpaceId?.trim()
-        const resolvedKbRoot = kb ? kbRootPath?.trim() || undefined : undefined
-        set((s) => ({
-          tasks: s.tasks.map((t) =>
-            t.id === taskId
-              ? {
-                  ...t,
-                  ...(kb ? { knowledgeBaseSpaceId: kb } : { knowledgeBaseSpaceId: undefined }),
-                  kbRootPath: resolvedKbRoot,
-                  updatedAt: Date.now(),
-                }
-              : t
-          ),
-        }))
       },
 
       recordArtifactTouch: (spaceId, relativePath) => {

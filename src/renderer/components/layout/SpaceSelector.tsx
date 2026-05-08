@@ -107,22 +107,12 @@ export function SpaceSelector({ spaceSwitchLocked = false }: SpaceSelectorProps)
     return spaces
   }, [spaces, currentSpace])
 
-  const regularSpaces = useMemo(
-    () => spacesForDropdown.filter((s) => s.workspaceKind !== 'knowledge_base'),
-    [spacesForDropdown]
-  )
-  const knowledgeBaseSpaces = useMemo(
-    () => spacesForDropdown.filter((s) => s.workspaceKind === 'knowledge_base'),
-    [spacesForDropdown]
-  )
-
-  /** Halo first, then dedicated — for loading / empty checks */
+  /** All spaces for dropdown + loading checks */
   const allSpaces: Space[] = useMemo(() => {
-    const dedicated = [...regularSpaces, ...knowledgeBaseSpaces]
-    const withDevx = devxSpace ? [devxSpace, ...dedicated] : dedicated
+    const withDevx = devxSpace ? [devxSpace, ...spacesForDropdown] : spacesForDropdown
     if (withDevx.length > 0) return withDevx
     return currentSpace ? [currentSpace] : []
-  }, [devxSpace, regularSpaces, knowledgeBaseSpaces, currentSpace])
+  }, [devxSpace, spacesForDropdown, currentSpace])
 
   const displayName = currentSpace
     ? (currentSpace.isTemp ? t('DevX') : currentSpace.name)
@@ -181,7 +171,7 @@ export function SpaceSelector({ spaceSwitchLocked = false }: SpaceSelectorProps)
             )
           })()}
 
-          {regularSpaces.length > 0 && (
+          {spacesForDropdown.length > 0 && (
             <>
               <div
                 className={`px-3 pb-1 text-[10px] font-semibold text-muted-foreground ${
@@ -190,38 +180,7 @@ export function SpaceSelector({ spaceSwitchLocked = false }: SpaceSelectorProps)
               >
                 {t('常规空间')}
               </div>
-              {regularSpaces.map((space) => {
-                const isActive = space.id === currentSpace?.id
-                return (
-                  <button
-                    key={space.id}
-                    type="button"
-                    onClick={() => handleSelectSpace(space)}
-                    className={`w-full px-3 py-2.5 text-left text-sm hover:bg-secondary/80 transition-colors flex items-center gap-2.5 ${
-                      isActive ? 'text-primary bg-primary/5' : 'text-foreground'
-                    }`}
-                  >
-                    <SpaceIcon iconId={space.icon || 'folder'} size={16} className="flex-shrink-0 self-center" />
-                    <span className="truncate flex-1 min-w-0">{space.name}</span>
-                    {isActive && (
-                      <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                    )}
-                  </button>
-                )
-              })}
-            </>
-          )}
-
-          {knowledgeBaseSpaces.length > 0 && (
-            <>
-              <div
-                className={`px-3 pb-1 text-[10px] font-semibold text-muted-foreground ${
-                  devxSpace || regularSpaces.length > 0 ? 'border-t border-border/50 mt-1 pt-2' : 'pt-2'
-                }`}
-              >
-                {t('知识库')}
-              </div>
-              {knowledgeBaseSpaces.map((space) => {
+              {spacesForDropdown.map((space) => {
                 const isActive = space.id === currentSpace?.id
                 return (
                   <button

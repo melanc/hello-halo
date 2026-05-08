@@ -2,12 +2,11 @@
  * Home Page - Space list view
  */
 
-import React, { useEffect, useState, useRef, useMemo } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '../stores/app.store'
 import { useSpaceStore } from '../stores/space.store'
 import { SPACE_ICONS, DEFAULT_SPACE_ICON } from '../types'
-import type { Space, CreateSpaceInput, SpaceIconId, SpaceWorkspaceKind } from '../types'
-import { DEFAULT_SPACE_WORKSPACE_KIND } from '../types'
+import type { Space, CreateSpaceInput, SpaceIconId } from '../types'
 import {
   SpaceIcon,
   Sparkles,
@@ -46,7 +45,6 @@ export function HomePage() {
   const [showCreateDialog, setShowCreateDialog] = useState(false)
   const [newSpaceName, setNewSpaceName] = useState('')
   const [newSpaceIcon, setNewSpaceIcon] = useState<SpaceIconId>(DEFAULT_SPACE_ICON)
-  const [newWorkspaceKind, setNewWorkspaceKind] = useState<SpaceWorkspaceKind>(DEFAULT_SPACE_WORKSPACE_KIND)
 
   // Edit dialog state
   const [editingSpace, setEditingSpace] = useState<Space | null>(null)
@@ -107,21 +105,11 @@ export function HomePage() {
     setShowCreateDialog(false)
     setNewSpaceName('')
     setNewSpaceIcon(DEFAULT_SPACE_ICON)
-    setNewWorkspaceKind(DEFAULT_SPACE_WORKSPACE_KIND)
     setUseCustomPath(false)
     setCustomPath(null)
   }
 
   const clearActiveTask = useTaskStore((s) => s.clearActiveTask)
-
-  const regularSpaces = useMemo(
-    () => spaces.filter((s) => s.workspaceKind !== 'knowledge_base'),
-    [spaces]
-  )
-  const knowledgeBaseSpaces = useMemo(
-    () => spaces.filter((s) => s.workspaceKind === 'knowledge_base'),
-    [spaces]
-  )
 
   // Handle space click - no reset needed, SpacePage handles its own state
   const handleSpaceClick = (space: Space) => {
@@ -139,7 +127,6 @@ export function HomePage() {
       name: newSpaceName.trim(),
       icon: newSpaceIcon,
       customPath: useCustomPath && customPath ? customPath : undefined,
-      workspaceKind: newWorkspaceKind,
     }
 
     const newSpace = await createSpace(input)
@@ -171,10 +158,7 @@ export function HomePage() {
     const isCentralizedSpace = space.path.includes('/spaces/') && lastSegment.length === 36
     const isProjectSpace = !!space.workingDir || !isCentralizedSpace
 
-    const isKnowledgeBase = space.workspaceKind === 'knowledge_base'
-    const message = isKnowledgeBase
-      ? t('确认删除此知识库？\n\n仅会删除 DevX 中的记录，本地文件不受影响。')
-      : t('确认删除此空间？\n\n仅会删除 DevX 数据（对话记录），本地文件不受影响。')
+    const message = t('确认删除此空间？\n\n仅会删除 DevX 数据（对话记录），本地文件不受影响。')
 
     if (confirm(message)) {
       await deleteSpace(spaceId)
@@ -343,53 +327,11 @@ export function HomePage() {
           </div>
         ) : (
           <div className="space-y-6">
-            {regularSpaces.length > 0 && (
+            {spaces.length > 0 && (
               <section>
                 <h4 className="text-xs font-medium text-muted-foreground mb-2">{t('常规空间')}</h4>
                 <div className="grid grid-cols-2 gap-4">
-                  {regularSpaces.map((space) => (
-                    <div
-                      key={space.id}
-                      onClick={() => handleSpaceClick(space)}
-                      className="space-card p-4 group animate-fade-in"
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          <SpaceIcon iconId={space.icon} size={20} />
-                          <span className="font-medium truncate">{space.name}</span>
-                        </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                          <button
-                            type="button"
-                            onClick={(e) => handleEditSpace(e, space)}
-                            className="p-1 hover:bg-secondary rounded transition-all"
-                            title={t('Edit Space')}
-                          >
-                            <Pencil className="w-4 h-4 text-muted-foreground" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteSpace(e, space.id)}
-                            className="p-1 hover:bg-destructive/20 rounded transition-all"
-                            title={t('Delete space')}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {formatTimeAgo(space.updatedAt)}{t('active')}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              </section>
-            )}
-            {knowledgeBaseSpaces.length > 0 && (
-              <section>
-                <h4 className="text-xs font-medium text-muted-foreground mb-2">{t('知识库')}</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  {knowledgeBaseSpaces.map((space) => (
+                  {spaces.map((space) => (
                     <div
                       key={space.id}
                       onClick={() => handleSpaceClick(space)}
@@ -440,45 +382,6 @@ export function HomePage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-card border border-border rounded-xl p-6 w-full max-w-md animate-fade-in">
             <h2 className="text-lg font-medium mb-4">{t('Create Dedicated Space')}</h2>
-
-            {/* Space type */}
-            <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">{t('空间类型')}</label>
-              <div className="space-y-2">
-                <label
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    newWorkspaceKind === 'regular'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-muted-foreground/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="workspaceKind"
-                    checked={newWorkspaceKind === 'regular'}
-                    onChange={() => setNewWorkspaceKind('regular')}
-                    className="w-4 h-4 text-primary"
-                  />
-                  <span className="text-sm">{t('常规空间')}</span>
-                </label>
-                <label
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                    newWorkspaceKind === 'knowledge_base'
-                      ? 'border-primary bg-primary/5'
-                      : 'border-border hover:border-muted-foreground/50'
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="workspaceKind"
-                    checked={newWorkspaceKind === 'knowledge_base'}
-                    onChange={() => setNewWorkspaceKind('knowledge_base')}
-                    className="w-4 h-4 text-primary"
-                  />
-                  <span className="text-sm">{t('知识库')}</span>
-                </label>
-              </div>
-            </div>
 
             {/* Icon select */}
             <div className="mb-4">

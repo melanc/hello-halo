@@ -20,10 +20,6 @@ const isWebMode = api.isRemoteMode()
 /** Sentinel for <select> "none" — avoids controlled-select glitches when clearing the other field. */
 const SPACE_SELECT_NONE = '__none__'
 
-function isKnowledgeBaseSpace(s: Space): boolean {
-  return s.workspaceKind === 'knowledge_base'
-}
-
 function resolveSpacePath(spaces: Space[], spaceId: string): string | undefined {
   const sp = spaces.find((s) => s.id === spaceId)
   return sp ? (sp.workingDir || sp.path || undefined) : undefined
@@ -57,7 +53,6 @@ export function HomeTasksPanel() {
   const updateTaskRequirementDoc = useTaskStore((s) => s.updateTaskRequirementDoc)
   const updateTaskName = useTaskStore((s) => s.updateTaskName)
   const moveTaskToSpace = useTaskStore((s) => s.moveTaskToSpace)
-  const updateTaskKnowledgeBaseSpaceId = useTaskStore((s) => s.updateTaskKnowledgeBaseSpaceId)
 
   const [showDialog, setShowDialog] = useState(false)
   const [editingTaskId, setEditingTaskId] = useState<string | null>(null)
@@ -66,8 +61,6 @@ export function HomeTasksPanel() {
   const [spaceId, setSpaceId] = useState<string>('')
   /** Regular workspace for this task — sole source for `spaceId` on create/save. */
   const [regularSelection, setRegularSelection] = useState<string>(SPACE_SELECT_NONE)
-  /** Knowledge-base dropdown; independent of `spaceId`. */
-  const [kbSelection, setKbSelection] = useState<string>(SPACE_SELECT_NONE)
   const [requirementDocName, setRequirementDocName] = useState('')
   const [requirementDocContent, setRequirementDocContent] = useState('')
   const [requirementDescription, setRequirementDescription] = useState('')
@@ -94,27 +87,12 @@ export function HomeTasksPanel() {
     [removeTask, showConfirm, t]
   )
 
-  const knowledgeBaseSpaces: Space[] = useMemo(
-    () => spaces.filter((s) => isKnowledgeBaseSpace(s)),
-    [spaces]
-  )
-
-  const knowledgeBaseIdSet = useMemo(
-    () => new Set(knowledgeBaseSpaces.map((s) => s.id)),
-    [knowledgeBaseSpaces]
-  )
-
   const regularSpaces: Space[] = useMemo(() => {
     const list: Space[] = []
-    if (devxSpace && !knowledgeBaseIdSet.has(devxSpace.id) && !isKnowledgeBaseSpace(devxSpace)) {
-      list.push(devxSpace)
-    }
-    for (const s of spaces) {
-      if (knowledgeBaseIdSet.has(s.id) || isKnowledgeBaseSpace(s)) continue
-      list.push(s)
-    }
+    if (devxSpace) list.push(devxSpace)
+    list.push(...spaces)
     return list
-  }, [devxSpace, spaces, knowledgeBaseIdSet])
+  }, [devxSpace, spaces])
 
   const allSpaces: Space[] = useMemo(() => {
     const list: Space[] = []
@@ -143,9 +121,7 @@ export function HomeTasksPanel() {
     setRequirementDescription('')
     setTaskType('complex')
     const firstReg = regularSpaces[0]?.id
-    const firstKb = knowledgeBaseSpaces[0]?.id
     setRegularSelection(firstReg ?? SPACE_SELECT_NONE)
-    setKbSelection(firstKb ?? SPACE_SELECT_NONE)
     if (firstReg) setSpaceId(firstReg)
     else setSpaceId('')
     setShowDialog(true)
@@ -160,7 +136,6 @@ export function HomeTasksPanel() {
     setRequirementDescription('')
     setSpaceId('')
     setRegularSelection(SPACE_SELECT_NONE)
-    setKbSelection(SPACE_SELECT_NONE)
     setTaskType('complex')
     setIsParsingDoc(false)
   }
@@ -197,18 +172,12 @@ export function HomeTasksPanel() {
     const hasDoc = Boolean(requirementName && requirementContent)
     const sidOk = Boolean(sid) && regularSpaces.some((s) => s.id === sid)
     if (!name || !sidOk || (!hasDoc && !requirementDesc)) return
-    const kbPersist =
-      kbSelection !== SPACE_SELECT_NONE && knowledgeBaseSpaces.some((s) => s.id === kbSelection)
-        ? kbSelection
-        : undefined
     const spacePath = resolveSpacePath(regularSpaces, sid)
-    const kbRootPath = kbPersist ? resolveSpacePath(knowledgeBaseSpaces, kbPersist) : undefined
     setCreating(true)
     try {
       const task = await addTask({
         name,
         spaceId: sid,
-        ...(kbPersist ? { knowledgeBaseSpaceId: kbPersist } : {}),
         requirementDocName: requirementName,
         requirementDocContent: requirementContent,
         requirementDescription: requirementDesc,
@@ -216,7 +185,6 @@ export function HomeTasksPanel() {
         branchName: '',
         taskType,
         ...(spacePath ? { spacePath } : {}),
-        ...(kbRootPath ? { kbRootPath } : {}),
       })
       if (task) resetDialog()
     } finally {
@@ -230,21 +198,17 @@ export function HomeTasksPanel() {
       if (!task) return
       const sid = task.spaceId
       const inRegular = regularSpaces.some((s) => s.id === sid)
-      const inKb = knowledgeBaseSpaces.some((s) => s.id === sid)
-      const linkedKb = task.knowledgeBaseSpaceId?.trim()
-      const linkedKbValid = Boolean(linkedKb && knowledgeBaseSpaces.some((s) => s.id === linkedKb))
       setEditingTaskId(task.id)
       setTaskName(task.name)
       setSpaceId(inRegular ? sid : '')
       setRegularSelection(inRegular ? sid : SPACE_SELECT_NONE)
-      setKbSelection(linkedKbValid && linkedKb ? linkedKb : inKb ? sid : SPACE_SELECT_NONE)
       setRequirementDocName(task.requirementDocName || '')
       setRequirementDocContent(task.requirementDocContent || '')
       setRequirementDescription(task.requirementDescription || '')
       setTaskType(task.taskType ?? 'complex')
       setShowDialog(true)
     },
-    [tasks, regularSpaces, knowledgeBaseSpaces]
+    [tasks, regularSpaces]
   )
 
   const handleSaveTask = async () => {
@@ -269,12 +233,6 @@ export function HomeTasksPanel() {
         if (!ok) return
       }
       updateTaskRequirementDoc(editingTaskId, requirementName, requirementContent, requirementDesc)
-      const kbPersist =
-        kbSelection !== SPACE_SELECT_NONE && knowledgeBaseSpaces.some((s) => s.id === kbSelection)
-          ? kbSelection
-          : null
-      const newKbRootPath = kbPersist ? resolveSpacePath(knowledgeBaseSpaces, kbPersist) : undefined
-      updateTaskKnowledgeBaseSpaceId(editingTaskId, kbPersist, newKbRootPath)
       resetDialog()
     } finally {
       setCreating(false)
@@ -299,10 +257,6 @@ export function HomeTasksPanel() {
       }
       const space = spaceById[task.spaceId]
       if (!space) return
-      if (isKnowledgeBaseSpace(space)) {
-        openEditTaskDialog(task.id)
-        return
-      }
 
       const chatBefore = useChatStore.getState()
       const alreadyOnSpace = chatBefore.currentSpaceId === space.id
@@ -368,18 +322,7 @@ export function HomeTasksPanel() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
           {tasks.map((task) => {
-            const sp = spaceById[task.spaceId]
-            const boundKb = Boolean(sp && isKnowledgeBaseSpace(sp))
             const displayName = spaceNameById[task.spaceId] ?? task.spaceId
-            const linkedKbId = task.knowledgeBaseSpaceId?.trim()
-            const linkedSp = linkedKbId ? spaceById[linkedKbId] : undefined
-            const linkedIsKb = Boolean(linkedSp && isKnowledgeBaseSpace(linkedSp))
-            const kbRowName =
-              linkedKbId && linkedIsKb
-                ? (spaceNameById[linkedKbId] ?? linkedKbId)
-                : boundKb
-                  ? displayName
-                  : null
             return (
               <div
                 key={task.id}
@@ -409,15 +352,9 @@ export function HomeTasksPanel() {
                       </span>
                     </div>
                     <div className="text-xs mt-1">
-                      <span className="text-foreground">{t('常规空间')}：</span>
+                      <span className="text-foreground">{t('空间')}：</span>
                       <span className="text-muted-foreground">
-                        {boundKb ? t('无') : displayName}
-                      </span>
-                    </div>
-                    <div className="text-xs mt-1">
-                      <span className="text-foreground">{t('知识库')}：</span>
-                      <span className="text-muted-foreground">
-                        {kbRowName ?? t('无')}
+                        {displayName}
                       </span>
                     </div>
                     <div className="text-xs mt-1">
@@ -609,30 +546,6 @@ export function HomeTasksPanel() {
               </select>
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">{t('知识库')}</label>
-              <select
-                value={kbSelection}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setKbSelection(v)
-                }}
-                disabled={knowledgeBaseSpaces.length === 0}
-                className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
-              >
-                <option value={SPACE_SELECT_NONE}>{t('无')}</option>
-                {knowledgeBaseSpaces.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <p className="mb-4 text-xs text-muted-foreground">
-              {t(
-                'Pick a regular workspace for implementation. Knowledge base is optional and only enriches prompts with existing docs — it is not the task workspace.'
-              )}
-            </p>
 
             {editingTaskId && !requirementReady && (
               <div className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-foreground">

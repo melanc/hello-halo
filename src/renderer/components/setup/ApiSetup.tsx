@@ -11,8 +11,8 @@ import { useAppStore } from '../../stores/app.store'
 import { api } from '../../api'
 import { Lightbulb, CheckCircle2, XCircle } from '../icons/ToolIcons'
 import { Globe, ChevronDown, ArrowLeft, Eye, EyeOff, Loader2, RefreshCw } from 'lucide-react'
-import { AVAILABLE_MODELS, DEFAULT_MODEL, type AISourcesConfig, type AISource } from '../../types'
-import { getBuiltinProvider } from '../../types'
+import { AVAILABLE_MODELS, DEFAULT_MODEL, type AISourcesConfig, type AISource, type ProviderId } from '../../types'
+import { getBuiltinProvider, getApiKeyProviders, isAnthropicProvider } from '../../types'
 import { useTranslation, setLanguage, getCurrentLanguage, SUPPORTED_LOCALES, type LocaleCode } from '../../i18n'
 
 interface ApiSetupProps {
@@ -63,21 +63,31 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
     setIsLangDropdownOpen(false)
   }
 
-  const handleProviderChange = (next: string) => {
-    setProvider(next as any)
-    setError(null)
+  const allProviders = getApiKeyProviders()
+  const recommendedProviders = allProviders.filter(p => p.recommended)
+  const cnProviders = allProviders.filter(p => !p.recommended && p.region === 'cn')
+  const globalProviders = allProviders.filter(p => !p.recommended && p.region === 'global')
 
-    if (next === 'anthropic') {
-      // Claude
-      if (!apiUrl || apiUrl.includes('openai')) setApiUrl('https://api.anthropic.com')
-      if (!model || !model.startsWith('claude-')) {
-        setModel(DEFAULT_MODEL)
-        setUseCustomModel(false)
+  const handleProviderChange = (next: string) => {
+    setProvider(next as ProviderId)
+    setError(null)
+    setFetchedModels([])
+
+    const providerConfig = getBuiltinProvider(next as ProviderId)
+    if (!providerConfig) return
+
+    // Set API URL from provider config
+    setApiUrl(providerConfig.apiUrl)
+
+    // Set model from provider config
+    if (providerConfig.models.length > 0) {
+      setModel(providerConfig.models[0].id)
+      setUseCustomModel(false)
+    } else {
+      // openai (protocol entry) has empty models, keep text input
+      if (next === 'openai') {
+        setModel('gpt-4o-mini')
       }
-    } else if (next === 'openai') {
-      // OpenAI compatible
-      if (!apiUrl || apiUrl.includes('anthropic')) setApiUrl('https://api.openai.com')
-      if (!model || model.startsWith('claude-')) setModel('gpt-4o-mini')
     }
   }
 
@@ -164,15 +174,16 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
       const now = new Date().toISOString()
 
       // Build v2 AISource
-      const providerType = provider as 'anthropic' | 'openai'
+      const providerType = provider as ProviderId
       const builtin = getBuiltinProvider(providerType)
 
       const newSource: AISource = {
         id: uuidv4(),
-        name: builtin?.name || (providerType === 'anthropic' ? 'Claude API' : 'Custom API'),
+        name: builtin?.name || 'Custom API',
         provider: providerType,
         authType: 'api-key',
         apiUrl: effectiveApiUrl,
+        apiType: builtin?.apiType,
         apiKey,
         model,
         availableModels: fetchedModels.length > 0
@@ -227,7 +238,9 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
 
     try {
       const effectiveApiUrl = apiUrl || 'https://api.anthropic.com'
-      const result = await api.validateApi(apiKey, effectiveApiUrl, provider, model)
+      const currentProviderConfig = getBuiltinProvider(provider as ProviderId)
+      const isAnthropicCompat = isAnthropicProvider(provider as ProviderId) || currentProviderConfig?.apiType === 'anthropic_passthrough'
+      const result = await api.validateApi(apiKey, effectiveApiUrl, isAnthropicCompat ? 'anthropic' : 'openai', model)
 
       if (!result.success || !result.data?.valid) {
         setValidationResult({
@@ -320,32 +333,60 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
 
         <div className="bg-card rounded-xl p-6 border border-border">
           {/* Provider */}
-          <div className="mb-4 flex items-center justify-between gap-3 p-3 bg-secondary/50 rounded-lg">
-            <div className="w-8 h-8 rounded-lg bg-[#da7756]/20 flex items-center justify-center">
-              <svg className="w-5 h-5 text-[#da7756]" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M4.709 15.955l4.72-2.647.08-.08 2.726-1.529.08-.08 6.206-3.48a.25.25 0 00.125-.216V6.177a.25.25 0 00-.375-.217l-6.206 3.48-.08.08-2.726 1.53-.08.079-4.72 2.647a.25.25 0 00-.125.217v1.746c0 .18.193.294.354.216h.001zm13.937-3.584l-4.72 2.647-.08.08-2.726 1.529-.08.08-6.206 3.48a.25.25 0 00-.125.216v1.746a.25.25 0 00.375.217l6.206-3.48.08-.08 2.726-1.53.08-.079 4.72-2.647a.25.25 0 00.125-.217v-1.746a.25.25 0 00-.375-.216z" />
-              </svg>
-            </div>
-            <div>
-              <p className="font-medium text-sm">
-                {provider === 'anthropic'
-                  ? t('Claude (Recommended)')
-                  : t('OpenAI Compatible')}
+          <div className="mb-4">
+            <label className="block text-sm text-muted-foreground mb-2">{t('Provider')}</label>
+            <div className="relative">
+              <div className="w-full bg-input rounded-lg border border-border">
+                {/* Current provider display */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3 p-3">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <span className="text-sm font-bold text-primary">
+                        {(getBuiltinProvider(provider as ProviderId)?.name || provider).charAt(0)}
+                      </span>
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm text-foreground">
+                        {getBuiltinProvider(provider as ProviderId)?.name || provider}
+                      </p>
+                      {getBuiltinProvider(provider as ProviderId)?.description && (
+                        <p className="text-xs text-muted-foreground">
+                          {getBuiltinProvider(provider as ProviderId)?.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <select
+                    value={provider}
+                    onChange={(e) => handleProviderChange(e.target.value)}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  >
+                    <optgroup label={t('Recommended')}>
+                      {recommendedProviders.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label={t('China Region')}>
+                      {cnProviders.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label={t('Global Providers')}>
+                      {globalProviders.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                  {/* Chevron overlay */}
+                  <div className="pr-3 pointer-events-none text-muted-foreground">
+                    <ChevronDown className="w-5 h-5" />
+                  </div>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {getBuiltinProvider(provider as ProviderId)?.notes || ''}
               </p>
-              <p className="text-xs text-muted-foreground">
-                {provider === 'openai'
-                  ? t('Support OpenAI/compatible models via local protocol conversion')
-                  : t('Connect directly to Anthropic official or compatible proxy')}
-              </p>
             </div>
-            <select
-              value={provider}
-              onChange={(e) => handleProviderChange(e.target.value)}
-              className="px-3 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors text-sm"
-            >
-              <option value="anthropic">{t('Claude (Recommended)')}</option>
-              <option value="openai">{t('OpenAI Compatible')}</option>
-            </select>
           </div>
 
           {/* API Key input */}
@@ -389,103 +430,162 @@ export function ApiSetup({ onBack, showBack = false }: ApiSetupProps) {
           {/* Model */}
           <div className="mb-2">
             <label className="block text-sm text-muted-foreground mb-2">{t('Model')}</label>
-            {provider === 'anthropic' ? (
-              <>
-                {useCustomModel ? (
-                  <input
-                    type="text"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    placeholder="claude-sonnet-4-5-20250929"
-                    className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
-                  />
-                ) : (
-                  <select
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
-                  >
-                    {AVAILABLE_MODELS.map((m) => (
-                      <option key={m.id} value={m.id}>
-                        {m.name}
-                      </option>
-                    ))}
-                  </select>
-                )}
-                <div className="mt-1 flex items-center justify-between gap-4">
-                  <span className="text-xs text-muted-foreground">
-                    {useCustomModel
-                      ? t('Enter official Claude model name')
-                      : t(AVAILABLE_MODELS.find((m) => m.id === model)?.description || '')}
-                  </span>
-                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground/70 cursor-pointer hover:text-muted-foreground transition-colors whitespace-nowrap shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={useCustomModel}
-                      onChange={(e) => {
-                        setUseCustomModel(e.target.checked)
-                        if (!e.target.checked && !AVAILABLE_MODELS.some(m => m.id === model)) {
-                          setModel(DEFAULT_MODEL)
-                        }
-                      }}
-                      className="w-3 h-3 rounded border-border"
-                    />
-                    {t('Custom')}
-                  </label>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    {fetchedModels.length > 0 ? (
-                      <select
-                        value={model}
-                        onChange={(e) => setModel(e.target.value)}
-                        className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors appearance-none"
-                      >
-                        {/* Ensure current model is an option even if not in fetched list (e.g. manual entry previously) */}
-                        {!fetchedModels.includes(model) && model && (
-                          <option value={model}>{model}</option>
-                        )}
-                        {fetchedModels.map((m) => (
-                          <option key={m} value={m}>
-                            {m}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
+
+            {/* Get current provider's models */}
+            {(() => {
+              const currentProviderConfig = getBuiltinProvider(provider as ProviderId)
+              const hasBuiltinModels = currentProviderConfig && currentProviderConfig.models.length > 0
+
+              // Anthropic: show Claude model list or custom input
+              if (provider === 'anthropic' || (currentProviderConfig?.apiType === 'anthropic_passthrough' && hasBuiltinModels)) {
+                const modelsToShow = currentProviderConfig?.models || AVAILABLE_MODELS
+                return (
+                  <>
+                    {useCustomModel ? (
                       <input
                         type="text"
                         value={model}
                         onChange={(e) => setModel(e.target.value)}
-                        placeholder="gpt-4o-mini / deepseek-v4-flash"
+                        placeholder={modelsToShow[0]?.id || 'claude-sonnet-4-5-20250929'}
                         className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
                       />
+                    ) : (
+                      <select
+                        value={model}
+                        onChange={(e) => setModel(e.target.value)}
+                        className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
+                      >
+                        {modelsToShow.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </select>
                     )}
-                    {/* Chevron for select */}
-                    {fetchedModels.length > 0 && (
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
-                        <ChevronDown className="w-4 h-4" />
-                      </div>
-                    )}
-                  </div>
+                    <div className="mt-1 flex items-center justify-between gap-4">
+                      <span className="text-xs text-muted-foreground">
+                        {useCustomModel
+                          ? t('Enter official model name')
+                          : (modelsToShow.find((m) => m.id === model)?.description || '')}
+                      </span>
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground/70 cursor-pointer hover:text-muted-foreground transition-colors whitespace-nowrap shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={useCustomModel}
+                          onChange={(e) => {
+                            setUseCustomModel(e.target.checked)
+                            if (!e.target.checked && !modelsToShow.some(m => m.id === model)) {
+                              setModel(modelsToShow[0]?.id || DEFAULT_MODEL)
+                            }
+                          }}
+                          className="w-3 h-3 rounded border-border"
+                        />
+                        {t('Custom')}
+                      </label>
+                    </div>
+                  </>
+                )
+              }
 
-                  <button
-                    type="button"
-                    onClick={fetchModels}
-                    disabled={isFetchingModels || !apiKey || !apiUrl}
-                    className="px-3 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={t('Fetch available models')}
-                  >
-                    <RefreshCw className={`w-4 h-4 ${isFetchingModels ? 'animate-spin' : ''}`} />
-                  </button>
-                </div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {t('Enter OpenAI compatible service model name')}
-                </p>
-              </>
-            )}
+              // Providers with built-in models (non-Anthropic)
+              if (hasBuiltinModels) {
+                const modelsToShow = currentProviderConfig!.models
+                return (
+                  <>
+                    {useCustomModel ? (
+                      <input
+                        type="text"
+                        value={model}
+                        onChange={(e) => setModel(e.target.value)}
+                        placeholder={modelsToShow[0]?.id}
+                        className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
+                      />
+                    ) : (
+                      <select
+                        value={model}
+                        onChange={(e) => setModel(e.target.value)}
+                        className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
+                      >
+                        {modelsToShow.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <div className="mt-1 flex items-center justify-between gap-4">
+                      <span className="text-xs text-muted-foreground"></span>
+                      <label className="flex items-center gap-1.5 text-xs text-muted-foreground/70 cursor-pointer hover:text-muted-foreground transition-colors whitespace-nowrap shrink-0">
+                        <input
+                          type="checkbox"
+                          checked={useCustomModel}
+                          onChange={(e) => {
+                            setUseCustomModel(e.target.checked)
+                            if (!e.target.checked && !modelsToShow.some(m => m.id === model)) {
+                              setModel(modelsToShow[0]?.id)
+                            }
+                          }}
+                          className="w-3 h-3 rounded border-border"
+                        />
+                        {t('Custom')}
+                      </label>
+                    </div>
+                  </>
+                )
+              }
+
+              // OpenAI compatible or providers without built-in models: text input + fetch
+              return (
+                <>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      {fetchedModels.length > 0 ? (
+                        <select
+                          value={model}
+                          onChange={(e) => setModel(e.target.value)}
+                          className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors appearance-none"
+                        >
+                          {!fetchedModels.includes(model) && model && (
+                            <option value={model}>{model}</option>
+                          )}
+                          {fetchedModels.map((m) => (
+                            <option key={m} value={m}>
+                              {m}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type="text"
+                          value={model}
+                          onChange={(e) => setModel(e.target.value)}
+                          placeholder="gpt-4o-mini / deepseek-v4-flash"
+                          className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors"
+                        />
+                      )}
+                      {fetchedModels.length > 0 && (
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
+                          <ChevronDown className="w-4 h-4" />
+                        </div>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={fetchModels}
+                      disabled={isFetchingModels || !apiKey || !apiUrl}
+                      className="px-3 py-2 bg-secondary hover:bg-secondary/80 text-foreground rounded-lg border border-border transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      title={t('Fetch available models')}
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isFetchingModels ? 'animate-spin' : ''}`} />
+                    </button>
+                  </div>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {t('Enter model name or fetch available models from API')}
+                  </p>
+                </>
+              )
+            })()}
           </div>
         </div>
 

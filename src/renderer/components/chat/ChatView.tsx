@@ -41,7 +41,6 @@ import {
   type BreakdownTreeNode,
 } from '../../lib/parse-implementation-breakdown'
 import { buildSubTaskImplementationPlanKickoffMessage } from '../../lib/workspace-task-messages'
-import { loadKnowledgeBaseContextForTask } from '../../lib/knowledge-base-prompt-context'
 
 /** Identify / Breakdown — default idle (light gray) */
 const TASK_IDENTIFY_BREAKDOWN_IDLE =
@@ -596,16 +595,6 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
       taskId: activeTask.id,
     }
     setRequirementActionLoading('identify')
-    const kbMd = await loadKnowledgeBaseContextForTask(activeTask)
-    const kbAppend =
-      kbMd.trim().length > 0
-        ? [
-            '',
-            t('--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---'),
-            '',
-            kbMd,
-          ]
-        : []
     const prompt = [
       t('Please analyze the requirement document below and output structured requirement points using exactly the following 9 Markdown sections.'),
       t('Every section is required. If information is missing from the document, record it in section 8 (open questions) — do NOT fill in guesses.'),
@@ -638,7 +627,6 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
       t('TASK-01, TASK-02… format. Each includes: involved client/platform, task content, acceptance criteria.'),
       '',
       requirementContext,
-      ...kbAppend,
     ].join('\n')
     await handleSend(prompt)
     const sessionAfter = useChatStore.getState().sessions.get(cid)
@@ -666,16 +654,6 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
       taskId: activeTask.id,
     }
     setRequirementActionLoading('breakdown')
-    const kbMd = await loadKnowledgeBaseContextForTask(activeTask)
-    const kbAppend =
-      kbMd.trim().length > 0
-        ? [
-            '',
-            t('--- Linked knowledge base (Markdown excerpts, for business/architecture context) ---'),
-            '',
-            kbMd,
-          ]
-        : []
     const prompt = [
       t('Break down implementation tasks based on the requirement document.'),
       t('For each requirement, list impacted projects, interfaces to modify, and interfaces to create.'),
@@ -684,7 +662,6 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
       t('Number tasks as "1.", "2." for top-level items and "1.1", "1.2" for nested sub-tasks under each top-level item.'),
       '',
       requirementContext,
-      ...kbAppend,
     ].join('\n')
     await handleSend(prompt)
     const sessionAfter = useChatStore.getState().sessions.get(cid)
@@ -1087,7 +1064,7 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
         clearComposerReferenceChips={clearComposerReferenceChips}
         taskContext={activeTask ? {
           name: activeTask.name,
-          stage: ({ 1: t('需求识别'), 2: t('任务拆解'), 3: t('开发计划'), 4: t('编码实现'), 5: t('验证收尾') } as Record<number, string>)[activeTask.pipelineStage ?? 1],
+          stage: ({ 1: t('需求识别'), 2: t('计划与实现'), 3: t('用例验证') } as Record<number, string>)[activeTask.pipelineStage ?? 1] ?? t('需求识别'),
         } : undefined}
         appendBlock={appendInputBlock}
         onAppendBlockConsumed={() => setAppendInputBlock(null)}

@@ -11,10 +11,6 @@ import { useAppStore } from '../../stores/app.store'
 import { useTaskStore } from '../../stores/task.store'
 import type { Space, WorkspaceTask } from '../../types'
 
-function isKnowledgeBaseSpace(s: Space): boolean {
-  return s.workspaceKind === 'knowledge_base'
-}
-
 const MIN_WIDTH = 140
 const MAX_WIDTH = 360
 const DEFAULT_WIDTH = 260
@@ -23,10 +19,8 @@ const clampWidth = (v: number) => Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, v))
 // Stage pill: compact label showing which pipeline step the task is currently on
 const STAGE_CONFIG = {
   1: { label: '需求', className: 'bg-blue-500/15 text-blue-400' },
-  2: { label: '分解', className: 'bg-indigo-500/15 text-indigo-400' },
-  3: { label: '规划', className: 'bg-violet-500/15 text-violet-400' },
-  4: { label: '编码', className: 'bg-amber-500/15 text-amber-500' },
-  5: { label: '验证', className: 'bg-emerald-500/15 text-emerald-400' },
+  2: { label: '实现', className: 'bg-violet-500/15 text-violet-400' },
+  3: { label: '验证', className: 'bg-emerald-500/15 text-emerald-400' },
 } as const
 
 function StagePill({ stage }: { stage?: number | null }) {
@@ -167,12 +161,6 @@ export const TaskListSidebar = memo(function TaskListSidebar({
       const spaceList = [...(devxSpace ? [devxSpace] : []), ...spaces]
       const space = spaceList.find((s) => s.id === task.spaceId)
       if (!space) return
-      if (isKnowledgeBaseSpace(space)) {
-        setPendingRequirementTask(task.id)
-        clearActiveTask()
-        setView('home')
-        return
-      }
 
       const chatBefore = useChatStore.getState()
       const alreadyOnSpace = chatBefore.currentSpaceId === space.id

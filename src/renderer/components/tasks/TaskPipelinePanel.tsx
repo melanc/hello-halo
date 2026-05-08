@@ -4,7 +4,7 @@
  * Stage bar doubles as a tab navigator — clicking any stage switches
  * the body to show that stage's content regardless of current progress.
  *
- * Stages: 1=需求识别  2=任务拆解  3=计划与实现（含编码）  4=用例验证
+ * Stages: 1=需求识别  2=计划与实现（含编码）  3=用例验证
  */
 
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
@@ -39,7 +39,6 @@ import { extractWordDocument, DOC_IMG_PLACEHOLDER_PREFIX } from '../../utils/wor
 import {
   buildRequirementIdentifyMessage,
   buildIntentAnalysisMessage,
-  buildTaskBreakdownExecuteMessage,
   buildDevPlanExecuteMessage,
   buildCodingKickoffMessage,
   buildVerificationExecuteMessage,
@@ -183,10 +182,9 @@ function waitForAssistantReply(conversationId: string): Promise<string | undefin
 // ─────────────────────────────────────────────
 
 const STAGES: { id: PipelineStage; label: string; activeColor: string; mutedColor: string; selectedBg: string }[] = [
-  { id: 1, label: '需求识别', activeColor: 'text-violet-500',  mutedColor: 'text-violet-400/30',  selectedBg: 'bg-violet-500/15'  },
-  { id: 2, label: '任务拆解', activeColor: 'text-blue-500',    mutedColor: 'text-blue-400/30',    selectedBg: 'bg-blue-500/15'    },
-  { id: 3, label: '计划与实现', activeColor: 'text-emerald-500', mutedColor: 'text-emerald-400/30', selectedBg: 'bg-emerald-500/15' },
-  { id: 4, label: '用例验证', activeColor: 'text-pink-500',    mutedColor: 'text-pink-400/30',    selectedBg: 'bg-pink-500/15'    },
+  { id: 1, label: '需求识别',   activeColor: 'text-violet-500',   mutedColor: 'text-violet-400/30',   selectedBg: 'bg-violet-500/15'  },
+  { id: 2, label: '计划与实现', activeColor: 'text-emerald-500',  mutedColor: 'text-emerald-400/30',  selectedBg: 'bg-emerald-500/15' },
+  { id: 3, label: '用例验证',   activeColor: 'text-pink-500',     mutedColor: 'text-pink-400/30',     selectedBg: 'bg-pink-500/15'    },
 ]
 
 // ─────────────────────────────────────────────
@@ -423,11 +421,21 @@ function Tab1Requirements({
   stage,
   isSimple,
   onBreakdown,
+  subtasks,
+  onToggle,
+  onEdit,
+  onAdd,
+  onRemove,
 }: {
   task: WorkspaceTask
   stage: PipelineStage
   isSimple?: boolean
   onBreakdown: () => void
+  subtasks: PipelineSubtask[]
+  onToggle: (id: string, next: PipelineSubtaskStatus) => void
+  onEdit: (id: string, title: string, description: string) => void
+  onAdd: () => void
+  onRemove: (id: string) => void
 }) {
   const { t } = useTranslation()
   const updateTaskRequirementDoc = useTaskStore((s) => s.updateTaskRequirementDoc)
@@ -642,99 +650,65 @@ function Tab1Requirements({
           <span className="text-[11px] text-muted-foreground">{t('AI 自动拆解子任务，分析影响范围')}</span>
         </div>
       )}
-    </div>
-  )
-}
 
-/** Tab 2 — 任务拆解 */
-function Tab2Breakdown({
-  subtasks,
-  stage,
-  onBreakdown,
-  onToggle,
-  onEdit,
-  onAdd,
-  onRemove,
-}: {
-  subtasks: PipelineSubtask[]
-  stage: PipelineStage
-  onBreakdown: () => void
-  onToggle: (id: string, next: PipelineSubtaskStatus) => void
-  onEdit: (id: string, title: string, description: string) => void
-  onAdd: () => void
-  onRemove: (id: string) => void
-}) {
-  const { t } = useTranslation()
-  if (subtasks.length === 0) {
-    return (
-      <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={onBreakdown}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-        >
-          <ClipboardList className="w-3 h-3" />
-          {t('拆解任务')}
-        </button>
-        <span className="text-[11px] text-muted-foreground">{t('AI 自动拆解子任务，分析影响范围')}</span>
-      </div>
-    )
-  }
-
-  // Group subtasks by their group field, preserving insertion order
-  const groupEntries: [string, PipelineSubtask[]][] = []
-  const groupMap = new Map<string, PipelineSubtask[]>()
-  for (const st of subtasks) {
-    const key = st.group ?? ''
-    if (!groupMap.has(key)) {
-      const bucket: PipelineSubtask[] = []
-      groupMap.set(key, bucket)
-      groupEntries.push([key, bucket])
-    }
-    groupMap.get(key)!.push(st)
-  }
-  const hasGroups = groupEntries.some(([key]) => key !== '')
-
-  return (
-    <div className="space-y-3">
-      {groupEntries.map(([groupName, groupTasks]) => (
-        <div key={groupName || '__ungrouped'}>
-          {hasGroups && groupName && (
-            <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 pb-1 mb-0.5 border-b border-border/40">
-              {groupName}
-            </div>
-          )}
-          <div className="space-y-0.5">
-            {groupTasks.map((st) => (
-              <SubtaskItem key={st.id} subtask={st} onToggle={onToggle} onEdit={onEdit} onRemove={onRemove} />
-            ))}
+      {/* Subtask list (from task breakdown) — shown inline within stage 1 */}
+      {subtasks.length > 0 && (
+        <div className="pt-1 border-t border-border/40">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">{t('子任务')}</p>
+          {(() => {
+            const groupEntries: [string, PipelineSubtask[]][] = []
+            const groupMap = new Map<string, PipelineSubtask[]>()
+            for (const st of subtasks) {
+              const key = st.group ?? ''
+              if (!groupMap.has(key)) {
+                const bucket: PipelineSubtask[] = []
+                groupMap.set(key, bucket)
+                groupEntries.push([key, bucket])
+              }
+              groupMap.get(key)!.push(st)
+            }
+            const hasGroups = groupEntries.some(([key]) => key !== '')
+            return groupEntries.map(([groupName, groupTasks]) => (
+              <div key={groupName || '__ungrouped'}>
+                {hasGroups && groupName && (
+                  <div className="flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-0.5 pb-1 mb-0.5 border-b border-border/40">
+                    {groupName}
+                  </div>
+                )}
+                <div className="space-y-0.5">
+                  {groupTasks.map((st) => (
+                    <SubtaskItem key={st.id} subtask={st} onToggle={onToggle} onEdit={onEdit} onRemove={onRemove} />
+                  ))}
+                </div>
+              </div>
+            ))
+          })()}
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={onAdd}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-dashed border-border rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
+            >
+              <Plus className="w-3 h-3" />
+              {t('添加子任务')}
+            </button>
+            {stage === 1 && (
+              <button
+                type="button"
+                onClick={onBreakdown}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-border rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
+              >
+                {t('重新拆解')}
+              </button>
+            )}
           </div>
         </div>
-      ))}
-      <div className="flex items-center gap-2 pt-1">
-        <button
-          type="button"
-          onClick={onAdd}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-dashed border-border rounded-lg hover:bg-secondary transition-colors text-muted-foreground hover:text-foreground"
-        >
-          <Plus className="w-3 h-3" />
-          {t('添加子任务')}
-        </button>
-        {stage === 1 && (
-          <button
-            type="button"
-            onClick={onBreakdown}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs border border-border rounded-lg hover:bg-secondary transition-colors text-muted-foreground"
-          >
-            {t('重新拆解')}
-          </button>
-        )}
-      </div>
+      )}
     </div>
   )
 }
 
-/** Tab 3 — 计划与实现（合并了原 开发计划 + 编码实现） */
+/** Tab 2 — 计划与实现（合并了原 开发计划 + 编码实现） */
 // ─────────────────────────────────────────────
 // Interactive dev plan: project checkboxes + file-item done toggles
 // ─────────────────────────────────────────────
@@ -1092,7 +1066,7 @@ function Tab3PlanAndImpl({
   )
 }
 
-/** Tab 4 — 用例验证：依赖检查命令 + 编译检查命令 */
+/** Tab 3 — 用例验证：依赖检查命令 + 编译检查命令 */
 function Tab4Review({
   task,
   onSaveDepCheckCmd,
@@ -1246,37 +1220,9 @@ function formatTokens(n: number): string {
   return String(n)
 }
 
-function buildTaskContextForKb(task: WorkspaceTask): string {
-  const lines: string[] = [`任务名称：${task.name}`]
-
-  if (task.requirementAnalysis?.trim()) {
-    lines.push('', '需求分析：', task.requirementAnalysis.trim().slice(0, 1000))
-  } else if (task.requirementKeyPoints?.length) {
-    lines.push('', '需求要点：')
-    task.requirementKeyPoints.forEach(p => lines.push(`- ${p}`))
-  }
-
-  if (task.pipelineSubtasks?.length) {
-    lines.push('', '子任务：')
-    task.pipelineSubtasks.forEach(st =>
-      lines.push(`- [${st.status}] ${st.title}${st.description ? '：' + st.description : ''}`)
-    )
-  }
-
-  if (task.pipelineDevPlan?.trim()) {
-    lines.push('', '开发计划：', task.pipelineDevPlan.trim().slice(0, 1200))
-  }
-
-  if (task.projectDirs?.length) {
-    lines.push('', `涉及项目：${task.projectDirs.join('、')}`)
-  }
-
-  return lines.join('\n')
-}
-
 function SessionReportCard({ report }: { report: SessionReport }) {
   const { t } = useTranslation()
-  const showCodeStats = (report.stage === 4 || report.stage === 5) && report.fileChanges
+  const showCodeStats = report.stage >= 2 && report.fileChanges
 
   return (
     <div className="mx-3 mb-2 rounded-lg border border-border/50 bg-secondary/40 px-3 py-2 text-[11px] text-foreground/80 space-y-1.5">
@@ -1330,14 +1276,13 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
   const workspaceRoot = task.spacePath?.trim() || ''
   const workspaceRootForUi = workspaceRoot || null
-  const knowledgeBaseRoot = task.kbRootPath?.trim() || null
 
   const stage: PipelineStage = task.pipelineStage ?? 1
   const subtasks: PipelineSubtask[] = task.pipelineSubtasks ?? []
   const resumeHint = task.pipelineResumeHint ?? ''
   const isSimple = task.taskType === 'simple'
-  // Coding is internal to stage 3 (计划与实现); stage 4 = 用例验证
-  const visibleStageIds: readonly PipelineStage[] = isSimple ? [1, 3, 4] : [1, 2, 3, 4]
+  // All three stages are now sequential: 需求识别 → 计划与实现 → 用例验证
+  const visibleStageIds: readonly PipelineStage[] = [1, 2, 3]
 
   // selectedTab follows progress stage, but user can freely switch
   const [selectedTab, setSelectedTab] = useState<PipelineStage>(stage)
@@ -1345,6 +1290,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const [checkResult, setCheckResult] = useState<{ ok: boolean; message: string } | null>(null)
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isIdentifying, setIsIdentifying] = useState(false)
+  const [identifyHovered, setIdentifyHovered] = useState(false)
   const [sessionReport, setSessionReport] = useState<SessionReport | null>(null)
 
   // Shared artifacts tree data for Tab3 and Tab4 — fetched once per spaceId instead of
@@ -1369,9 +1315,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const selectedTabRef = useRef<PipelineStage>(selectedTab)
   useEffect(() => { selectedTabRef.current = selectedTab }, [selectedTab])
 
-  // Refs for KB write trigger (avoid stale closures in store subscription)
-  const knowledgeBaseRootRef = useRef(knowledgeBaseRoot)
-  useEffect(() => { knowledgeBaseRootRef.current = knowledgeBaseRoot }, [knowledgeBaseRoot])
   const taskRef = useRef(task)
   useEffect(() => { taskRef.current = task }, [task])
 
@@ -1410,6 +1353,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         reportStageRef.current = pendingStageOverrideRef.current ?? selectedTabRef.current
         pendingStageOverrideRef.current = null
         setSessionReport(null)
+        // Auto-collapse during generation; user expands manually afterward
+        setCollapsed(true)
       }
 
       // Generation finished — compute report and process any deferred pipeline action
@@ -1451,21 +1396,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           useTaskStore.getState().markPipelineStageWorked(taskRef.current.id, 3)
         }
 
-        // Auto-expand the panel when generation ends so results are visible
-        setCollapsed(false)
-
-        // Trigger background KB write if knowledge base is configured
-        const kbRoot = knowledgeBaseRootRef.current
-        const currentTask = taskRef.current
-        if (kbRoot && currentTask.knowledgeBaseSpaceId) {
-          api.triggerKbWrite({
-            kbSpaceId: currentTask.knowledgeBaseSpaceId,
-            kbRootPath: kbRoot,
-            taskName: currentTask.name,
-            taskContext: buildTaskContextForKb(currentTask),
-            projectDirs: currentTask.projectDirs ?? [],
-          }).catch(err => console.error('[TaskPipelinePanel] Failed to trigger KB write:', err))
-        }
       }
 
       wasGeneratingRef.current = isGenerating
@@ -1503,9 +1433,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     document.addEventListener('mouseup', onUp)
   }, []) // stable — reads height from ref, not from state
 
-  // When progress advances, follow it. Stage 4 (coding) is shown in the merged tab 3.
+  // When progress advances, follow it.
   useEffect(() => {
-    setSelectedTab(stage === 4 ? 3 : stage)
+    setSelectedTab(stage)
   }, [stage])
 
   // Clear check result when tab changes
@@ -1523,6 +1453,11 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       else if (pendingTab === 3) void handleRegeneratePlanRef.current()
     }
   }, [selectedTab])
+
+  // Auto-expand on first entry when switching to a different task
+  useEffect(() => {
+    setCollapsed(false)
+  }, [task.id])
 
   const doneCount = subtasks.filter((s) => s.status === 'done').length
 
@@ -1571,11 +1506,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       { id: `st-${now}-5`, title: t('编写单元测试'), description: t('覆盖核心逻辑和边界情况'), status: 'pending', group: t('测试') },
     ]
     updateTaskPipelineState(task.id, {
-      stage: 2,
       pipelineSubtasks: placeholders,
-      pipelineResumeHint: t('子任务已生成，请确认后开始工作'),
+      pipelineResumeHint: t('子任务已生成'),
     })
-    setSelectedTab(2)
   }, [task.id, updateTaskPipelineState, t])
 
   const getTabCheck = useCallback((tab: PipelineStage): { ok: boolean; message: string } => {
@@ -1591,14 +1524,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         return { ok: true, message: t('AI 将识别需求要点，自动填入列表') }
       }
       case 2: {
-        const hasContext =
-          (task.requirementKeyPoints?.length ?? 0) > 0 ||
-          !!task.requirementDocContent?.trim() ||
-          !!task.requirementDescription?.trim()
-        if (!hasContext) return { ok: false, message: t('请先在需求识别中上传文档或填写描述') }
-        return { ok: true, message: t('AI 将按讨论结果生成子任务列表') }
-      }
-      case 3: {
         if (task.pipelineDevPlan?.trim()) {
           // Plan exists — check coding prereqs
           const pre = evaluateCodingPrereqs(task, t)
@@ -1611,20 +1536,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           }
         }
         // No plan — check plan generation prereqs
-        if (subtasks.length === 0 && !isSimple) return { ok: false, message: t('请先在任务拆解中生成子任务') }
+        if (subtasks.length === 0 && !isSimple) return { ok: false, message: t('请先生成子任务') }
         return { ok: true, message: t('AI 将按讨论结果生成代码改动计划') }
       }
-      case 4: {
-        const pre = evaluateCodingPrereqs(task, t)
-        if (!pre.ok) return { ok: false, message: pre.message }
-        return {
-          ok: true,
-          message: isSimple
-            ? t('AI 将根据需求分析直接开始编码。')
-            : t('AI will run coding using the saved development plan, projects, and branch.'),
-        }
-      }
-      case 5:
+      case 3:
         return { ok: true, message: t('AI 将执行语法检查、依赖检查和编译检查') }
       default:
         return { ok: true, message: '' }
@@ -1648,10 +1563,10 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
       const codingProjectPaths =
         workspaceRoot ? buildProjectDisplayPaths(workspaceRoot, dirNames) : dirNames
 
-      // Tab 3 with plan → coding intent (internal case 4); Tab 4 (verification) → verification intent (internal case 5)
+      // Tab 2 with plan → coding intent; Tab 3 → verification intent
       const intentTab =
-        selectedTab === 3 && task.pipelineDevPlan?.trim() ? 4 :
-        selectedTab === 4 ? 5 :
+        selectedTab === 2 && task.pipelineDevPlan?.trim() ? 4 :
+        selectedTab === 3 ? 5 :
         selectedTab
       await chat.sendMessage(
         buildIntentAnalysisMessage(
@@ -1660,8 +1575,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           {
             subtasks,
             keyPoints: task.requirementKeyPoints ?? [],
-            ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
-            ...(selectedTab === 3 && !task.pipelineDevPlan?.trim()
+            ...(selectedTab === 2 && !task.pipelineDevPlan?.trim()
               ? { projectDirs: dirNames.length ? dirNames : undefined }
               : {}),
             ...(intentTab === 4
@@ -1677,7 +1591,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     } finally {
       setIsIdentifying(false)
     }
-  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t, workspaceRoot, knowledgeBaseRoot, getTabCheck])
+  }, [isIdentifying, isSendingMessage, selectedTab, task, subtasks, t, workspaceRoot, getTabCheck])
 
   const handleStartWork = useCallback(async () => {
     const check = getTabCheck(selectedTab)
@@ -1697,32 +1611,18 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         pendingPipelineActionRef.current = (reply) => {
           if (reply.trim()) {
             useTaskStore.getState().updateTaskRequirementAnalysis(task.id, reply.trim())
-            // For simple tasks, auto-advance to coding stage (tab 3) after requirement identification
+            // For simple tasks, auto-advance to coding stage (tab 2) after requirement identification
             if (isSimple) {
-              updateTaskPipelineState(task.id, { stage: 3 })
-              setSelectedTab(3)
+              updateTaskPipelineState(task.id, { stage: 2 })
+              setSelectedTab(2)
             }
           }
           // Stay on Tab1 so the user can review the generated analysis before proceeding (complex tasks)
         }
-        await chat.sendMessage(buildRequirementIdentifyMessage(task, t, knowledgeBaseRoot ? { knowledgeBaseRoot } : undefined))
+        await chat.sendMessage(buildRequirementIdentifyMessage(task, t))
         deferred = true
 
       } else if (selectedTab === 2) {
-        pendingPipelineActionRef.current = (reply) => {
-          const generated = extractSubtasks(reply)
-          if (generated.length > 0) {
-            updateTaskPipelineState(task.id, {
-              pipelineSubtasks: generated,
-              stage: Math.max(stage, 2) as PipelineStage,
-            })
-          }
-          setSelectedTab(2)
-        }
-        await chat.sendMessage(buildTaskBreakdownExecuteMessage(t, knowledgeBaseRoot ? { knowledgeBaseRoot } : undefined))
-        deferred = true
-
-      } else if (selectedTab === 3) {
         if (task.pipelineDevPlan?.trim()) {
           // ── CODING PATH (plan already exists) ──────────────────────────────
           const dirs = getInvolvedProjectDirNames(task)
@@ -1796,14 +1696,13 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
           })
           useTaskStore.getState().appendPipelineCodingLog(task.id, logLine)
           updateTaskPipelineState(task.id, {
-            stage: Math.max(stage, 3) as PipelineStage,
+            stage: Math.max(stage, 2) as PipelineStage,
             pipelineResumeHint: t('正在编写代码'),
           })
           await chat.sendMessage(
             buildCodingKickoffMessage(task, t, {
               workspaceRoot: workspaceRoot || undefined,
               projectPaths: projectPaths.length ? projectPaths : undefined,
-              ...(knowledgeBaseRoot ? { knowledgeBaseRoot } : {}),
               ...(selectedPlanMarkdown ? { selectedPlanMarkdown } : {}),
             })
           )
@@ -1829,25 +1728,22 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             updateTaskPipelineState(task.id, {
               pipelineDevPlan: reply.trim(),
               pipelineProjectChanges: undefined,
-              stage: Math.max(stage, 3) as PipelineStage,
+              stage: Math.max(stage, 2) as PipelineStage,
             })
-            setSelectedTab(3)
+            setSelectedTab(2)
           }
-          const tab3Opts = knowledgeBaseRoot
-            ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
-            : undefined
+          const tab3Opts: { projectDirs?: string[] } | undefined = tab3ProjectDirs.length ? { projectDirs: tab3ProjectDirs } : undefined
           await chat.sendMessage(buildDevPlanExecuteMessage(task, subtasks, t, tab3Opts))
           deferred = true
         }
 
-      } else if (selectedTab === 4) {
-        updateTaskPipelineState(task.id, { stage: 4, pipelineResumeHint: t('正在执行验证检查') })
+      } else if (selectedTab === 3) {
+        updateTaskPipelineState(task.id, { stage: 3, pipelineResumeHint: t('正在执行验证检查') })
         await chat.sendMessage(
           buildVerificationExecuteMessage(task, t, {
             depCheckCmd: task.pipelineDepCheckCmd,
             buildCheckCmd: task.pipelineBuildCheckCmd,
             apiTestCmd: task.pipelineApiTestCmd,
-            knowledgeBaseRoot: knowledgeBaseRoot || undefined,
           })
         )
       }
@@ -1861,7 +1757,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         setIsSendingMessage(false)
       }
     }
-  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, knowledgeBaseRoot, isSimple])
+  }, [selectedTab, stage, task, subtasks, getTabCheck, updateTaskPipelineState, t, workspaceRoot, isSimple])
 
   const handleSaveDevPlan = useCallback(
     (text: string) => updateTaskPipelineState(task.id, { pipelineDevPlan: text }),
@@ -1873,7 +1769,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
     if (isSendingMessage) return
     const titledSubtasks = subtasks.filter((s) => s.title.trim())
     if (!isSimple && titledSubtasks.length === 0) {
-      setCheckResult({ ok: false, message: t('请先在任务拆解中生成子任务') })
+      setCheckResult({ ok: false, message: t('请先生成子任务') })
       return
     }
     const tab3ProjectDirs = getInvolvedProjectDirNames(task)
@@ -1887,19 +1783,17 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
         updateTaskPipelineState(task.id, {
           pipelineDevPlan: reply.trim(),
           pipelineProjectChanges: undefined,
-          stage: Math.max(stage, 3) as PipelineStage,
+          stage: Math.max(stage, 2) as PipelineStage,
         })
-        setSelectedTab(3)
+        setSelectedTab(2)
       }
-      const tab3Opts = knowledgeBaseRoot
-        ? { knowledgeBaseRoot, projectDirs: tab3ProjectDirs.length ? tab3ProjectDirs : undefined }
-        : undefined
+      const tab3Opts: { projectDirs?: string[] } | undefined = tab3ProjectDirs.length ? { projectDirs: tab3ProjectDirs } : undefined
       await chat.sendMessage(buildDevPlanExecuteMessage(task, subtasks, t, tab3Opts))
       deferred = true
     } finally {
       if (!deferred) setIsSendingMessage(false)
     }
-  }, [isSendingMessage, task, subtasks, isSimple, stage, updateTaskPipelineState, knowledgeBaseRoot, t])
+  }, [isSendingMessage, task, subtasks, isSimple, stage, updateTaskPipelineState, t])
 
   // Always-fresh ref updates — must be in render body so they're current before effects fire
   handleStartWorkRef.current = handleStartWork
@@ -1973,20 +1867,14 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 stage={stage}
                 isSimple={isSimple}
                 onBreakdown={handleBreakdown}
-              />
-            )}
-            {selectedTab === 2 && (
-              <Tab2Breakdown
                 subtasks={subtasks}
-                stage={stage}
-                onBreakdown={handleBreakdown}
                 onToggle={handleToggleSubtask}
                 onEdit={handleEditSubtask}
                 onAdd={handleAddSubtask}
                 onRemove={handleRemoveSubtask}
               />
             )}
-            {selectedTab === 3 && (
+            {selectedTab === 2 && (
               <Tab3PlanAndImpl
                 task={task}
                 workspaceRoot={workspaceRootForUi}
@@ -2000,7 +1888,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 isSendingMessage={isSendingMessage}
               />
             )}
-            {selectedTab === 4 && (
+            {selectedTab === 3 && (
               <Tab4Review
                 task={task}
                 onSaveDepCheckCmd={handleSaveDepCheckCmd}
@@ -2021,114 +1909,63 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               {/* ── Tab 1: 需求识别 ───────────────────────────────────── */}
               {selectedTab === 1 && (
                 <>
-                  {/* 意图识别 / 重新识别 — hidden once requirementAnalysis exists */}
-                  {!task.requirementAnalysis?.trim() && (
-                    <button
-                      type="button"
-                      onClick={() => void handleIdentifyIntent()}
-                      disabled={isIdentifying || isSendingMessage}
-                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
-                    >
-                      {isIdentifying
-                        ? <Loader2 className="w-3 h-3 animate-spin" />
-                        : <ScanText className="w-3 h-3 opacity-70" />
-                      }
-                      {task.pipelineWorkedStages?.includes(1) ? t('重新识别') : t('意图识别')}
-                    </button>
-                  )}
-                  {/* 确认需求 → 下一步 → 已确认 */}
-                  {!task.requirementAnalysis?.trim() ? (
-                    <button
-                      type="button"
-                      onClick={() => void handleStartWork()}
-                      disabled={isSendingMessage}
-                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
-                    >
-                      {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
-                      {t('确认需求')}
-                    </button>
-                  ) : stage >= 2 ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border text-foreground disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="w-3 h-3 opacity-70" />
-                      {t('已确认')}
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleNextStep(1)}
-                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
-                    >
-                      {t('下一步')}
-                      <ChevronRight className="w-3 h-3" />
-                    </button>
-                  )}
-                </>
-              )}
-
-              {/* ── Tab 2: 任务拆解 ───────────────────────────────────── */}
-              {selectedTab === 2 && (
-                <>
-                  {stage >= 3 ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border text-foreground disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="w-3 h-3 opacity-70" />
-                      {t('已完成')}
-                    </button>
-                  ) : subtasks.filter((s) => s.title.trim()).length > 0 ? (
-                    <>
+                  {/* 开始识别 / 已识别 → hover:重新识别 */}
+                  <button
+                    type="button"
+                    onClick={() => void handleIdentifyIntent()}
+                    disabled={isIdentifying || isSendingMessage}
+                    onMouseEnter={() => setIdentifyHovered(true)}
+                    onMouseLeave={() => setIdentifyHovered(false)}
+                    className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
+                  >
+                    {isIdentifying
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <ScanText className="w-3 h-3 opacity-70" />
+                    }
+                    {task.pipelineWorkedStages?.includes(1)
+                      ? identifyHovered ? t('重新识别') : t('已识别')
+                      : t('开始识别')
+                    }
+                  </button>
+                  {/* 下一步 → 已确认 */}
+                  {task.requirementAnalysis?.trim() && (
+                    stage >= 2 ? (
                       <button
                         type="button"
-                        onClick={() => void handleStartWork()}
-                        disabled={isSendingMessage}
-                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
+                        disabled
+                        className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border text-foreground disabled:opacity-50"
                       >
-                        {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
-                        {t('重新拆解')}
+                        <CheckCircle2 className="w-3 h-3 opacity-70" />
+                        {t('已确认')}
                       </button>
+                    ) : (
                       <button
                         type="button"
-                        onClick={() => handleNextStep(2)}
+                        onClick={() => handleNextStep(1)}
                         className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
                       >
-                        {t('确认，下一步')}
+                        {t('下一步')}
                         <ChevronRight className="w-3 h-3" />
                       </button>
-                    </>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => void handleStartWork()}
-                      disabled={isSendingMessage}
-                      className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-70"
-                    >
-                      {isSendingMessage && <Loader2 className="w-3 h-3 animate-spin" />}
-                      {t('开始拆解')}
-                    </button>
+                    )
                   )}
                 </>
               )}
 
-              {/* ── Tab 3: 计划与实现 ─────────────────────────────────── */}
+              {/* ── Tab 2: 计划与实现 ─────────────────────────────────── */}
               {/* 生成计划 / 重新生成 / 已生成 */}
-              {selectedTab === 3 && (
+              {selectedTab === 2 && (
                 <button
                   type="button"
                   onClick={() => void handleRegeneratePlan()}
-                  disabled={stage >= 4 || isSendingMessage}
+                  disabled={stage >= 3 || isSendingMessage}
                   className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition-colors border border-border hover:bg-secondary text-foreground disabled:opacity-50"
                 >
                   {isSendingMessage && !task.pipelineDevPlan?.trim()
                     ? <Loader2 className="w-3 h-3 animate-spin" />
                     : <ScanText className="w-3 h-3 opacity-70" />
                   }
-                  {stage >= 4
+                  {stage >= 3
                     ? t('已生成')
                     : task.pipelineDevPlan?.trim()
                       ? t('重新生成')
@@ -2137,7 +1974,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 </button>
               )}
               {/* 开始编码 */}
-              {selectedTab === 3 && (
+              {selectedTab === 2 && (
                 <button
                   type="button"
                   onClick={() => void handleStartWork()}
@@ -2152,8 +1989,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 </button>
               )}
 
-              {/* ── Tab 4: 用例验证 ───────────────────────────────────── */}
-              {selectedTab === 4 && (
+              {/* ── Tab 3: 用例验证 ───────────────────────────────────── */}
+              {selectedTab === 3 && (
                 <button
                   type="button"
                   onClick={() => void handleStartWork()}

@@ -18,7 +18,7 @@ import { useOnboardingStore } from '../../stores/onboarding.store'
 import { useCanvasLifecycle } from '../../hooks/useCanvasLifecycle'
 import { useCanvasStore } from '../../stores/canvas.store'
 import { useTaskStore } from '../../stores/task.store'
-import { BookOpen, ChevronRight, ExternalLink, FolderOpen, Monitor, X, Globe, GitBranch, Search } from 'lucide-react'
+import { ChevronRight, ExternalLink, FolderOpen, Monitor, X, Globe, GitBranch, Search } from 'lucide-react'
 import { GitSourceControlPanel } from '../git/GitSourceControlPanel'
 import { RailWorkspaceFindPanel } from './RailWorkspaceFindPanel'
 import { ONBOARDING_ARTIFACT_NAME } from '../onboarding/onboardingData'
@@ -32,7 +32,7 @@ const isWebMode = api.isRemoteMode()
 // Storage keys
 const RAIL_MAIN_TAB_KEY = 'devx:rail-main-tab'
 
-type RailMainTab = 'files' | 'source-control' | 'workspace-find' | 'knowledge-base'
+type RailMainTab = 'files' | 'source-control' | 'workspace-find'
 
 function getInitialRailMainTab(): RailMainTab {
   if (typeof window === 'undefined') return 'files'
@@ -40,7 +40,6 @@ function getInitialRailMainTab(): RailMainTab {
     localStorage.getItem(RAIL_MAIN_TAB_KEY) ?? localStorage.getItem('halo:rail-main-tab')
   if (s === 'source-control') return 'source-control'
   if (s === 'workspace-find') return 'workspace-find'
-  // knowledge-base is session-only (depends on active task), never restore from storage
   return 'files'
 }
 
@@ -114,22 +113,7 @@ export function ArtifactRail({
     return workspaceTasks.find((t) => t.id === activeTaskId && t.spaceId === spaceId) ?? null
   }, [spaceId, activeTaskId, workspaceTasks])
 
-  const linkedKnowledgeBaseSpaceId = useMemo(
-    () => activeTaskForSpace?.knowledgeBaseSpaceId?.trim() ?? '',
-    [activeTaskForSpace?.knowledgeBaseSpaceId]
-  )
-
-  /**
-   * Legacy guard: `WorkspaceTask.spaceId` must be a regular workspace. If persisted data still
-   * points at a knowledge-base space, do not show KB trees in the rail until the task is fixed.
-   */
-  const kbOnlyTaskFocus = useMemo(() => {
-    if (!activeTaskForSpace || !currentSpace) return false
-    if (activeTaskForSpace.spaceId !== currentSpace.id) return false
-    return currentSpace.workspaceKind === 'knowledge_base'
-  }, [activeTaskForSpace, currentSpace])
-
-  /** Task-scoped file tree: always a Set when this space’s active task is open (may be empty). */
+  /** Task-scoped file tree: always a Set when this space's active task is open (may be empty). */
   const taskProjectRootSetForSpace = useMemo(() => {
     if (!activeTaskForSpace) return null
     return new Set([...activeTaskForSpace.projectDirs, ...(activeTaskForSpace.touchedProjectDirs ?? [])])
@@ -157,7 +141,6 @@ export function ArtifactRail({
   const railRef = useRef<HTMLDivElement>(null)
   /** Tracks last task session for this rail; `undefined` = not yet seeded (incl. after space change). */
   const prevRailTaskSessionRef = useRef<string | null | undefined>(undefined)
-  const prevKbOnlyTaskFocusRef = useRef(false)
   const onWidthChangeRef = useRef(onWidthChange)
   onWidthChangeRef.current = onWidthChange
   const isGenerating = useIsGenerating()
@@ -166,13 +149,7 @@ export function ArtifactRail({
 
   // ── Callbacks ──
 
-  const folderTargetSpaceId = useMemo(() => {
-    if (kbOnlyTaskFocus) return ''
-    if (railMainTab === 'knowledge-base' && linkedKnowledgeBaseSpaceId) {
-      return linkedKnowledgeBaseSpaceId
-    }
-    return spaceId
-  }, [kbOnlyTaskFocus, railMainTab, linkedKnowledgeBaseSpaceId, spaceId])
+  const folderTargetSpaceId = spaceId
 
   const handleOpenFolder = useCallback(() => {
     if (folderTargetSpaceId) {
@@ -232,22 +209,11 @@ export function ArtifactRail({
   const setRailMainTabPersist = useCallback((tab: RailMainTab) => {
     setRailMainTab(tab)
     try {
-      if (tab !== 'knowledge-base') {
-        localStorage.setItem(RAIL_MAIN_TAB_KEY, tab)
-      }
+      localStorage.setItem(RAIL_MAIN_TAB_KEY, tab)
     } catch {
       /* ignore quota */
     }
   }, [])
-
-  const expandRailAndOpenKnowledgeBaseTab = useCallback(() => {
-    setRailMainTabPersist('knowledge-base')
-    if (isControlled) {
-      onExpandedChange?.(true)
-    } else {
-      setInternalExpanded(true)
-    }
-  }, [isControlled, onExpandedChange, setRailMainTabPersist])
 
   useEffect(() => {
     prevRailTaskSessionRef.current = undefined
@@ -266,13 +232,6 @@ export function ArtifactRail({
     }
     prevRailTaskSessionRef.current = sid
   }, [activeTaskForSpace?.id, setRailMainTabPersist])
-
-  useEffect(() => {
-    if (kbOnlyTaskFocus && !prevKbOnlyTaskFocusRef.current) {
-      setRailMainTabPersist('files')
-    }
-    prevKbOnlyTaskFocusRef.current = kbOnlyTaskFocus
-  }, [kbOnlyTaskFocus, setRailMainTabPersist])
 
   // Handle drag resize (desktop only)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -421,24 +380,6 @@ export function ArtifactRail({
         </div>
       ) : railMainTab === 'workspace-find' ? (
         <RailWorkspaceFindPanel spaceId={spaceId} isWebMode={isWebMode} />
-      ) : railMainTab === 'knowledge-base' ? (
-        !kbOnlyTaskFocus && linkedKnowledgeBaseSpaceId ? (
-          <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
-            <ArtifactTree
-              key={`rail-knowledge-base-${linkedKnowledgeBaseSpaceId}`}
-              spaceId={linkedKnowledgeBaseSpaceId}
-              taskProjectRootSet={null}
-              taskFocusSessionId={null}
-              taskNoExplicitProjectDirs={false}
-              onboardingHighlightFileName={isOnboardingViewStep ? ONBOARDING_ARTIFACT_NAME : undefined}
-              onboardingArtifactActivate={isOnboardingViewStep ? handleOnboardingArtifactClick : undefined}
-            />
-          </div>
-        ) : (
-          <div className="flex-1 min-h-0" aria-hidden />
-        )
-      ) : kbOnlyTaskFocus ? (
-        <div className="flex-1 min-h-0" aria-hidden />
       ) : (
         <div className="flex-1 min-h-0 overflow-hidden flex flex-col">
           <ArtifactTree
@@ -578,19 +519,6 @@ export function ArtifactRail({
                   >
                     <GitBranch className="w-5 h-5" />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setRailMainTabPersist('knowledge-base')}
-                    className={`
-                      h-10 w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
-                      hover:bg-secondary/80
-                      ${railMainTab === 'knowledge-base' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
-                    `}
-                    title={t('Show linked knowledge base file tree')}
-                    aria-label={t('Show linked knowledge base file tree')}
-                  >
-                    <BookOpen className="w-5 h-5" aria-hidden />
-                  </button>
                   {railMainTab === 'source-control' && !isWebMode && (
                     <button
                       type="button"
@@ -687,19 +615,6 @@ export function ArtifactRail({
             >
               <GitBranch className="w-[18px] h-[18px] sm:w-5 sm:h-5" />
             </button>
-            <button
-              type="button"
-              onClick={() => setRailMainTabPersist('knowledge-base')}
-              className={`
-                h-9 w-9 sm:h-10 sm:w-10 shrink-0 flex items-center justify-center rounded-lg transition-all duration-200
-                hover:bg-secondary/80
-                ${railMainTab === 'knowledge-base' ? 'bg-secondary text-primary' : 'text-muted-foreground/50 hover:text-muted-foreground'}
-              `}
-              title={t('Show linked knowledge base file tree')}
-              aria-label={t('Show linked knowledge base file tree')}
-            >
-              <BookOpen className="w-[18px] h-[18px] sm:w-5 sm:h-5" aria-hidden />
-            </button>
             {railMainTab === 'source-control' && !isWebMode && (
               <button
                 type="button"
@@ -746,15 +661,6 @@ export function ArtifactRail({
                 title={t('Expand')}
               >
                 <FolderOpen className="w-5 h-5 text-amber-500" />
-              </button>
-              <button
-                type="button"
-                onClick={expandRailAndOpenKnowledgeBaseTab}
-                className="p-2 hover:bg-secondary rounded-lg transition-colors"
-                title={t('Show linked knowledge base file tree')}
-                aria-label={t('Show linked knowledge base file tree')}
-              >
-                <BookOpen className="w-5 h-5 text-primary" aria-hidden />
               </button>
               <button
                 onClick={handleOpenBrowser}

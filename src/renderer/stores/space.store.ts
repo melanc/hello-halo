@@ -5,18 +5,10 @@
 import { create } from 'zustand'
 import { api } from '../api'
 import {
-  DEFAULT_SPACE_WORKSPACE_KIND,
   type CreateSpaceInput,
   type Space,
   type SpacePreferences,
-  type SpaceWorkspaceKind,
 } from '../types'
-
-function normalizeSpace(raw: Space): Space {
-  const workspaceKind: SpaceWorkspaceKind =
-    raw.workspaceKind === 'knowledge_base' ? 'knowledge_base' : DEFAULT_SPACE_WORKSPACE_KIND
-  return { ...raw, workspaceKind }
-}
 
 interface SpaceState {
   // Spaces data
@@ -58,7 +50,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
       console.log('[SpaceStore] getDevXSpace: success=%s id=%s', response.success, (response.data as Space)?.id)
 
       if (response.success && response.data) {
-        set({ devxSpace: normalizeSpace(response.data as Space) })
+        set({ devxSpace: response.data as Space })
       }
     } catch (error) {
       console.error('[SpaceStore] Failed to load DevX space:', error)
@@ -77,7 +69,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
       console.log('[SpaceStore] listSpaces: success=%s count=%d', response.success, Array.isArray(response.data) ? (response.data as Space[]).length : 0)
 
       if (response.success && response.data) {
-        set({ spaces: (response.data as Space[]).map(normalizeSpace) })
+        set({ spaces: (response.data as Space[]) })
       } else {
         set({ error: response.error || 'Failed to load spaces' })
       }
@@ -91,7 +83,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
 
   // Set current space
   setCurrentSpace: (space) => {
-    set({ currentSpace: space ? normalizeSpace(space) : null })
+    set({ currentSpace: space })
   },
 
   // Create new space
@@ -100,7 +92,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
       const response = await api.createSpace(input)
 
       if (response.success && response.data) {
-        const newSpace = normalizeSpace(response.data as Space)
+        const newSpace = response.data as Space
 
         // Add to spaces list
         set((state) => ({
@@ -125,7 +117,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
       const response = await api.updateSpace(spaceId, updates)
 
       if (response.success && response.data) {
-        const updatedSpace = normalizeSpace(response.data as Space)
+        const updatedSpace = response.data as Space
 
         // Update in spaces list
         set((state) => ({
@@ -198,7 +190,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
       const response = await api.getSpace(currentSpace.id)
 
       if (response.success && response.data) {
-        const refreshed = normalizeSpace(response.data as Space)
+        const refreshed = response.data as Space
         set({ currentSpace: refreshed })
 
         // Also update in spaces list
@@ -223,7 +215,7 @@ export const useSpaceStore = create<SpaceState>((set, get) => ({
       const response = await api.updateSpacePreferences(spaceId, preferences)
 
       if (response.success && response.data) {
-        const updatedSpace = normalizeSpace(response.data as Space)
+        const updatedSpace = response.data as Space
 
         // Update in current space if it matches
         const currentSpace = get().currentSpace

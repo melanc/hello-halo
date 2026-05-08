@@ -295,7 +295,6 @@ export const api = {
     name: string
     icon: string
     customPath?: string
-    workspaceKind?: 'regular' | 'knowledge_base'
   }): Promise<ApiResponse> => {
     if (isElectron()) {
       return window.devx.createSpace(input)
@@ -607,20 +606,6 @@ export const api = {
       return window.devx.confirmFileChanges(data)
     }
     return httpRequest('POST', '/api/agent/confirm-file-changes', data)
-  },
-
-  // Trigger background KB write after a pipeline session completes (fire-and-forget)
-  triggerKbWrite: async (request: {
-    kbSpaceId: string
-    kbRootPath: string
-    taskName: string
-    taskContext: string
-    projectDirs: string[]
-  }): Promise<ApiResponse> => {
-    if (isElectron()) {
-      return window.devx.triggerKbWrite(request)
-    }
-    return { success: false, error: 'KB write not supported in remote mode' }
   },
 
   // Test MCP server connections
@@ -1330,8 +1315,6 @@ export const api = {
     onEvent('agent:ask-question', callback),
   onAgentAnnounceFileChanges: (callback: (data: unknown) => void) =>
     onEvent('agent:announce-file-changes', callback),
-  onAgentKbWriteComplete: (callback: (data: unknown) => void) =>
-    onEvent('agent:kb-write-complete', callback),
   onAgentSessionInfo: (callback: (data: unknown) => void) =>
     onEvent('agent:session-info', callback),
   onRemoteStatusChange: (callback: (data: unknown) => void) =>

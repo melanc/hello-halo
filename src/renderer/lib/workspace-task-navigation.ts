@@ -31,11 +31,6 @@ export async function navigateToWorkspaceTaskConversation(options: {
 
   const space = allSpaces.find((s) => s.id === task.spaceId)
   if (!space) return false
-  if (space.workspaceKind === 'knowledge_base') {
-    onMissingRequirement(task.id)
-    return false
-  }
-
   const chatBefore = useChatStore.getState()
   const alreadyOnSpace = chatBefore.currentSpaceId === space.id
   // Task conversations use namespaced IDs (wstask-*) that are filtered from

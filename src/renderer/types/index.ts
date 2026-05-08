@@ -265,11 +265,6 @@ export interface DevXConfig {
 // Space Types
 // ============================================
 
-/** Dedicated space category: default project workspace vs knowledge-base style space */
-export type SpaceWorkspaceKind = 'regular' | 'knowledge_base'
-
-export const DEFAULT_SPACE_WORKSPACE_KIND: SpaceWorkspaceKind = 'regular'
-
 // Layout preferences for a space (persisted to meta.json)
 export interface SpaceLayoutPreferences {
   artifactRailExpanded?: boolean;  // Whether rail stays expanded when canvas is open
@@ -289,8 +284,6 @@ export interface Space {
   isTemp: boolean;
   createdAt: string;
   updatedAt: string;
-  /** Regular workspace vs knowledge base (existing data default to regular) */
-  workspaceKind: SpaceWorkspaceKind;
   preferences?: SpacePreferences;  // User preferences for this space
   workingDir?: string;  // Project directory for custom spaces (agent cwd, artifacts, file explorer)
 }
@@ -299,12 +292,10 @@ export interface CreateSpaceInput {
   name: string;
   icon: string;
   customPath?: string;
-  /** Omit or regular: default dedicated project space; knowledge_base for KB-style space */
-  workspaceKind?: SpaceWorkspaceKind;
 }
 
-// Pipeline stage for the inline task workflow
-export type PipelineStage = 1 | 2 | 3 | 4
+// Pipeline stage for the inline task workflow (3 stages: 需求识别→计划与实现→用例验证)
+export type PipelineStage = 1 | 2 | 3
 export type PipelineSubtaskStatus = 'pending' | 'in_progress' | 'done'
 export interface PipelineSubtask {
   id: string;
@@ -342,16 +333,8 @@ export interface PipelineDevPlanProject {
 export interface WorkspaceTask {
   id: string;
   name: string;
-  /**
-   * Regular workspace space only — code and requirements are implemented here.
-   * Knowledge bases are linked separately via `knowledgeBaseSpaceId` for prompt context only.
-   */
+  /** Space ID */
   spaceId: string;
-  /**
-   * Optional linked knowledge-base space (Markdown docs: business, architecture, call graph).
-   * When set, pipeline prompts append excerpts from this space to help the model understand context.
-   */
-  knowledgeBaseSpaceId?: string;
   /** Requirement document filename uploaded at task creation */
   requirementDocName: string;
   /** Plain text extracted from the requirement document */
@@ -376,9 +359,9 @@ export interface WorkspaceTask {
   requirementBreakdownUsed?: boolean;
   /** Last assistant breakdown reply (Markdown), for sub-task actions */
   breakdownPlanMarkdown?: string;
-  /** Current pipeline stage (1=需求理解, 2=任务拆解, 3=计划与实现, 4=验证收尾) */
+  /** Current pipeline stage (1=需求识别, 2=计划与实现, 3=用例验证) */
   pipelineStage?: PipelineStage;
-  /** Stages where "开始工作" has been clicked at least once (or code was saved for stage 3) */
+  /** Stages where "开始工作" has been clicked at least once (or code was saved for stage 2) */
   pipelineWorkedStages?: PipelineStage[];
   /** Structured subtasks produced during task breakdown */
   pipelineSubtasks?: PipelineSubtask[];
@@ -407,12 +390,10 @@ export interface WorkspaceTask {
   pipelineBuildCheckCmd?: string;
   /** curl command(s) for API test (stage 5) */
   pipelineApiTestCmd?: string;
-  /** Task type — simple (3 stages: 需求识别/编码实现/用例验证) or complex (all 5 stages). Default: complex. */
+  /** Task type — simple (3 stages: 需求识别/计划与实现/用例验证) or complex (all 3 stages, with subtask planning). Default: complex. */
   taskType?: 'simple' | 'complex';
   /** Resolved filesystem path of the regular workspace space (agent cwd, artifact root). Stored at creation time. */
   spacePath?: string;
-  /** Resolved filesystem path of the knowledge-base space root. Undefined if no KB linked. Stored at creation time. */
-  kbRootPath?: string;
 }
 
 // ============================================

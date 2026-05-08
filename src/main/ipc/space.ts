@@ -57,7 +57,7 @@ export function registerSpaceHandlers(): void {
   // Create a new space
   ipcMain.handle(
     'space:create',
-    async (_event, input: { name: string; icon: string; customPath?: string; workspaceKind?: 'regular' | 'knowledge_base' }) => {
+    async (_event, input: { name: string; icon: string; customPath?: string }) => {
       try {
         const space = createSpace(input)
         return { success: true, data: space }
