@@ -10,8 +10,7 @@ import { useChatStore } from '../../stores/chat.store'
 import { useSpaceStore } from '../../stores/space.store'
 import { useTaskStore } from '../../stores/task.store'
 import type { Space } from '../../types'
-import { extractWordDocument } from '../../utils/wordDocumentExtract'
-import { DOC_IMG_PLACEHOLDER_PREFIX } from '../../utils/wordDocumentExtract'
+import { extractDocument } from '../../utils/documentExtract'
 import { api } from '../../api'
 import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 
@@ -144,15 +143,14 @@ export function HomeTasksPanel() {
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
-    if (!file.name.toLowerCase().endsWith('.docx')) return
     setIsParsingDoc(true)
     try {
-      const arrayBuffer = await file.arrayBuffer()
-      const { textWithPlaceholders } = await extractWordDocument(arrayBuffer, {
+      const result = await extractDocument(file, {
         unsupportedImageLabel: t('Word document image omitted'),
       })
-      const normalized = textWithPlaceholders
-        .replace(new RegExp(`\\n?\\${DOC_IMG_PLACEHOLDER_PREFIX}\\d+\\]\\n?`, 'g'), '\n')
+      const normalized = result.text
+        // Remove image placeholders for non-docx formats (no-op for docx)
+        .replace(/\n?\[DOCIMG:\d+\]\n?/g, '\n')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
       setRequirementDocName(file.name)
@@ -485,7 +483,7 @@ export function HomeTasksPanel() {
               <input
                 ref={requirementInputRef}
                 type="file"
-                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                accept=".docx,.xlsx,.csv,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain,text/markdown"
                 onChange={(e) => void handleRequirementUpload(e)}
                 className="hidden"
               />
@@ -496,7 +494,7 @@ export function HomeTasksPanel() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-secondary transition-colors disabled:opacity-60"
               >
                 <Upload className="w-4 h-4" />
-                {isParsingDoc ? t('Processing Word document...') : t('Upload requirement document (.docx)')}
+                {isParsingDoc ? t('Processing document...') : t('Upload requirement document (.docx / .xlsx / .csv / .txt / .md)')}
               </button>
               <div className="mt-2 min-h-6 text-xs text-muted-foreground">
                 {requirementDocName ? (
