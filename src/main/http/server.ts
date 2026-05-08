@@ -15,10 +15,42 @@ import { initWebSocket, shutdownWebSocket, getClientCount } from './websocket'
 import { registerApiRoutes } from './routes'
 import { getMainWindow as getMainWindowFromService } from '../services/window.service'
 
-// Vite dev server URL
-const VITE_DEV_SERVER = 'http://localhost:5173'
-const VITE_DEV_HOST = 'localhost'
-const VITE_DEV_PORT = 5173
+/**
+ * Vite dev server address for proxying remote HTTP → renderer in development.
+ * electron-vite sets ELECTRON_RENDERER_URL to the actual URL (including port).
+ * When 5173 is busy, Vite picks another port; hardcoding localhost:5173 breaks lazy-loaded chunks.
+ */
+function resolveViteDevServer(): { origin: string; host: string; port: number } {
+  const rendererUrl = process.env.ELECTRON_RENDERER_URL
+  if (rendererUrl) {
+    try {
+      const u = new URL(rendererUrl)
+      const port =
+        u.port !== ''
+          ? Number(u.port)
+          : u.protocol === 'https:'
+            ? 443
+            : 80
+      return {
+        origin: `${u.protocol}//${u.host}`,
+        host: u.hostname,
+        port
+      }
+    } catch {
+      console.warn('[HTTP] Invalid ELECTRON_RENDERER_URL; using http://localhost:5173 for Vite proxy')
+    }
+  }
+  return {
+    origin: 'http://localhost:5173',
+    host: 'localhost',
+    port: 5173
+  }
+}
+
+const viteDev = resolveViteDevServer()
+const VITE_DEV_SERVER = viteDev.origin
+const VITE_DEV_HOST = viteDev.host
+const VITE_DEV_PORT = viteDev.port
 
 // Server state
 let httpServer: Server | null = null
