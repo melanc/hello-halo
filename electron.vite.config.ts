@@ -97,6 +97,12 @@ export default defineConfig({
   },
   renderer: {
     root: resolve(__dirname, 'src/renderer'),
+    // Fail fast if the default port is taken — avoids silent fallback to another port,
+    // which breaks bookmarks and any tooling still assuming 5173.
+    server: {
+      port: 5173,
+      strictPort: true
+    },
     build: {
       rollupOptions: {
         input: {
