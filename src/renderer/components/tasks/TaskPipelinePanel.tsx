@@ -573,7 +573,7 @@ function Tab1Requirements({
             ? <Loader2 className="w-3 h-3 animate-spin" />
             : <Upload className="w-3 h-3" />
           }
-          {isParsingDoc ? t('正在解析文档...') : t('上传需求文档 (md/txt/csv/docx/xlsx)')}
+          {isParsingDoc ? t('正在解析文档...') : t('上传文档')}
         </button>
       )}
 

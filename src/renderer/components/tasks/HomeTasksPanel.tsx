@@ -176,9 +176,10 @@ export function HomeTasksPanel() {
     let spacePath: string | undefined
 
     if (taskType === 'simple') {
+      if (!simpleTaskDir) return
       sid = devxSpace?.id ?? ''
-      projectDirs = simpleTaskDir ? [simpleTaskDir] : []
-      spacePath = simpleTaskDir || undefined
+      projectDirs = [simpleTaskDir]
+      spacePath = simpleTaskDir
     } else {
       sid = regularSelection !== SPACE_SELECT_NONE ? regularSelection.trim() : ''
       const sidOk = Boolean(sid) && regularSpaces.some((s) => s.id === sid)
@@ -464,7 +465,7 @@ export function HomeTasksPanel() {
               <div className="mb-4">
                 <label className="block text-sm text-muted-foreground mb-2">{t('任务类型')}</label>
                 <div className="flex gap-2">
-                  {(['complex', 'simple'] as const).map((type) => (
+                  {(['simple', 'complex'] as const).map((type) => (
                     <button
                       key={type}
                       type="button"
@@ -504,7 +505,7 @@ export function HomeTasksPanel() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-secondary transition-colors disabled:opacity-60"
               >
                 <Upload className="w-4 h-4" />
-                {isParsingDoc ? t('Processing document...') : t('Upload requirement document (md/txt/csv/docx/xlsx)')}
+                {isParsingDoc ? t('Processing document...') : t('上传文档')}
               </button>
               <div className="mt-2 min-h-6 text-xs text-muted-foreground">
                 {requirementDocName ? (
