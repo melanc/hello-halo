@@ -35,7 +35,7 @@ import { MarkdownRenderer } from '../chat/MarkdownRenderer'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
 import { useChatStore } from '../../stores/chat.store'
-import { extractWordDocument, DOC_IMG_PLACEHOLDER_PREFIX } from '../../utils/wordDocumentExtract'
+import { extractDocument } from '../../utils/documentExtract'
 import {
   buildRequirementIdentifyMessage,
   buildIntentAnalysisMessage,
@@ -508,15 +508,13 @@ function Tab1Requirements({
     const file = e.target.files?.[0]
     if (!file) return
     e.target.value = ''
-    if (!file.name.toLowerCase().endsWith('.docx')) return
     setIsParsingDoc(true)
     try {
-      const arrayBuffer = await file.arrayBuffer()
-      const { textWithPlaceholders } = await extractWordDocument(arrayBuffer, {
+      const result = await extractDocument(file, {
         unsupportedImageLabel: t('Word document image omitted'),
       })
-      const normalized = textWithPlaceholders
-        .replace(new RegExp(`\\n?\\${DOC_IMG_PLACEHOLDER_PREFIX}\\d+\\]\\n?`, 'g'), '\n')
+      const normalized = result.text
+        .replace(/\n?\[DOCIMG:\d+\]\n?/g, '\n')
         .replace(/\n{3,}/g, '\n\n')
         .trim()
       updateTaskRequirementDoc(task.id, file.name, normalized, task.requirementDescription ?? '')
@@ -533,7 +531,7 @@ function Tab1Requirements({
       <input
         ref={fileInputRef}
         type="file"
-        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        accept=".docx,.xlsx,.csv,.txt,.md,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv,text/plain,text/markdown"
         onChange={(e) => void handleFileChange(e)}
         className="hidden"
       />
@@ -575,7 +573,7 @@ function Tab1Requirements({
             ? <Loader2 className="w-3 h-3 animate-spin" />
             : <Upload className="w-3 h-3" />
           }
-          {isParsingDoc ? t('正在解析文档...') : t('上传需求文档 (.docx)')}
+          {isParsingDoc ? t('正在解析文档...') : t('上传需求文档 (md/txt/csv/docx/xlsx)')}
         </button>
       )}
 

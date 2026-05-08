@@ -66,6 +66,7 @@ export function HomeTasksPanel() {
   const [isParsingDoc, setIsParsingDoc] = useState(false)
   const [creating, setCreating] = useState(false)
   const [taskType, setTaskType] = useState<'simple' | 'complex'>('complex')
+  const [simpleTaskDir, setSimpleTaskDir] = useState<string>('')
   const requirementInputRef = useRef<HTMLInputElement>(null)
   const addTask = useTaskStore((s) => s.addTask)
 
@@ -119,6 +120,7 @@ export function HomeTasksPanel() {
     setRequirementDocContent('')
     setRequirementDescription('')
     setTaskType('complex')
+    setSimpleTaskDir('')
     const firstReg = regularSpaces[0]?.id
     setRegularSelection(firstReg ?? SPACE_SELECT_NONE)
     if (firstReg) setSpaceId(firstReg)
@@ -135,6 +137,7 @@ export function HomeTasksPanel() {
     setRequirementDescription('')
     setSpaceId('')
     setRegularSelection(SPACE_SELECT_NONE)
+    setSimpleTaskDir('')
     setTaskType('complex')
     setIsParsingDoc(false)
   }
@@ -162,15 +165,28 @@ export function HomeTasksPanel() {
 
   const handleCreate = async () => {
     const name = taskName.trim()
-    const sid =
-      regularSelection !== SPACE_SELECT_NONE ? regularSelection.trim() : ''
     const requirementName = requirementDocName.trim()
     const requirementContent = requirementDocContent.trim()
     const requirementDesc = requirementDescription.trim()
     const hasDoc = Boolean(requirementName && requirementContent)
-    const sidOk = Boolean(sid) && regularSpaces.some((s) => s.id === sid)
-    if (!name || !sidOk || (!hasDoc && !requirementDesc)) return
-    const spacePath = resolveSpacePath(regularSpaces, sid)
+    if (!name || (!hasDoc && !requirementDesc)) return
+
+    let sid: string
+    let projectDirs: string[]
+    let spacePath: string | undefined
+
+    if (taskType === 'simple') {
+      sid = devxSpace?.id ?? ''
+      projectDirs = simpleTaskDir ? [simpleTaskDir] : []
+      spacePath = simpleTaskDir || undefined
+    } else {
+      sid = regularSelection !== SPACE_SELECT_NONE ? regularSelection.trim() : ''
+      const sidOk = Boolean(sid) && regularSpaces.some((s) => s.id === sid)
+      if (!sidOk) return
+      projectDirs = []
+      spacePath = resolveSpacePath(regularSpaces, sid)
+    }
+
     setCreating(true)
     try {
       const task = await addTask({
@@ -179,7 +195,7 @@ export function HomeTasksPanel() {
         requirementDocName: requirementName,
         requirementDocContent: requirementContent,
         requirementDescription: requirementDesc,
-        projectDirs: [],
+        projectDirs,
         branchName: '',
         taskType,
         ...(spacePath ? { spacePath } : {}),
@@ -439,12 +455,7 @@ export function HomeTasksPanel() {
                     ? 'border-blue-500/30 bg-blue-500/8 text-blue-700 dark:text-blue-400'
                     : 'border-violet-500/30 bg-violet-500/8 text-violet-700 dark:text-violet-400'
                 }`}>
-                  <span>{taskType === 'simple' ? t('简单任务') : t('复杂任务')}</span>
-                  <span className="text-[11px] text-muted-foreground">
-                    {taskType === 'simple'
-                      ? t('需求识别 → 编码实现 → 用例验证')
-                      : t('需求识别 → 任务拆解 → 开发计划 → 编码 → 验证')}
-                  </span>
+                  <span>{taskType === 'simple' ? t('简单任务') : t('常规任务')}</span>
                 </div>
               </div>
             )}
@@ -457,21 +468,20 @@ export function HomeTasksPanel() {
                     <button
                       key={type}
                       type="button"
-                      onClick={() => setTaskType(type)}
-                      className={`flex-1 flex flex-col items-start gap-0.5 px-3 py-2.5 rounded-lg border text-left transition-colors ${
+                      onClick={() => {
+                        setTaskType(type)
+                        if (type === 'simple') {
+                          setRegularSelection(SPACE_SELECT_NONE)
+                          setSpaceId('')
+                        }
+                      }}
+                      className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-colors ${
                         taskType === type
                           ? 'border-primary bg-primary/10 text-foreground'
                           : 'border-border hover:bg-secondary text-muted-foreground'
                       }`}
                     >
-                      <span className="text-sm font-medium">
-                        {type === 'complex' ? t('复杂任务') : t('简单任务')}
-                      </span>
-                      <span className="text-[11px] text-muted-foreground leading-snug">
-                        {type === 'complex'
-                          ? t('需求识别 → 任务拆解 → 开发计划 → 编码 → 验证')
-                          : t('需求识别 → 编码实现 → 用例验证')}
-                      </span>
+                      {type === 'complex' ? t('常规任务') : t('简单任务')}
                     </button>
                   ))}
                 </div>
@@ -494,7 +504,7 @@ export function HomeTasksPanel() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg border border-border hover:bg-secondary transition-colors disabled:opacity-60"
               >
                 <Upload className="w-4 h-4" />
-                {isParsingDoc ? t('Processing document...') : t('Upload requirement document (.docx / .xlsx / .csv / .txt / .md)')}
+                {isParsingDoc ? t('Processing document...') : t('Upload requirement document (md/txt/csv/docx/xlsx)')}
               </button>
               <div className="mt-2 min-h-6 text-xs text-muted-foreground">
                 {requirementDocName ? (
@@ -514,35 +524,62 @@ export function HomeTasksPanel() {
                 value={requirementDescription}
                 onChange={(e) => setRequirementDescription(e.target.value)}
                 rows={4}
-                placeholder={t('Describe requirement details when no Word document is provided')}
+                placeholder={t('Describe requirement details when no document is uploaded')}
                 className="w-full px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors resize-y"
               />
             </div>
 
-            <div className="mb-4">
-              <label className="block text-sm text-muted-foreground mb-2">{t('常规空间')}</label>
-              <select
-                value={regularSelection}
-                onChange={(e) => {
-                  const v = e.target.value
-                  setRegularSelection(v)
-                  if (v !== SPACE_SELECT_NONE) {
-                    setSpaceId(v)
-                    return
-                  }
-                  setSpaceId('')
-                }}
-                disabled={regularSpaces.length === 0}
-                className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
-              >
-                <option value={SPACE_SELECT_NONE}>{t('无')}</option>
-                {regularSpaces.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.isTemp ? t('DevX') : s.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+            {taskType === 'complex' ? (
+              <div className="mb-4">
+                <label className="block text-sm text-muted-foreground mb-2">{t('常规空间')}</label>
+                <select
+                  value={regularSelection}
+                  onChange={(e) => {
+                    const v = e.target.value
+                    setRegularSelection(v)
+                    if (v !== SPACE_SELECT_NONE) {
+                      setSpaceId(v)
+                      return
+                    }
+                    setSpaceId('')
+                  }}
+                  disabled={regularSpaces.length === 0}
+                  className={`w-full px-4 py-2 bg-input rounded-lg border focus:outline-none transition-colors disabled:opacity-60 ${selectInvalidClass}`}
+                >
+                  <option value={SPACE_SELECT_NONE}>{t('无')}</option>
+                  {regularSpaces.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.isTemp ? t('DevX') : s.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div className="mb-4">
+                <label className="block text-sm text-muted-foreground mb-2">{t('工作目录')}</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={simpleTaskDir}
+                    readOnly
+                    placeholder={t('Select working directory...')}
+                    className="flex-1 px-4 py-2 bg-input rounded-lg border border-border focus:border-primary focus:outline-none transition-colors text-sm truncate"
+                  />
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const res = await api.selectFolder()
+                      if (res.success && res.data) {
+                        setSimpleTaskDir(res.data as string)
+                      }
+                    }}
+                    className="shrink-0 px-3 py-2 rounded-lg border border-border hover:bg-secondary transition-colors text-sm"
+                  >
+                    {t('Browse...')}
+                  </button>
+                </div>
+              </div>
+            )}
 
 
             {editingTaskId && !requirementReady && (
