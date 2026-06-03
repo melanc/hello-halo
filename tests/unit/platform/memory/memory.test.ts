@@ -423,53 +423,36 @@ describe('File Operations', () => {
 
 describe('generatePromptInstructions', () => {
   it('should generate instructions for user caller', async () => {
-    const caller: MemoryCallerScope = {
-      type: 'user',
-      spaceId: 'space-1',
-      spacePath: '/tmp/nonexistent-space'
-    }
-
-    const instructions = await generatePromptInstructions(caller)
+    const instructions = generatePromptInstructions()
+    // V3: memory.md #now/#History structure
     expect(instructions).toContain('## Memory')
-    expect(instructions).toContain('memory_read')
-    expect(instructions).toContain('memory_write')
-    expect(instructions).toContain('user')
-    expect(instructions).toContain('space')
-    expect(instructions).not.toContain('append-only') // User has full access
-    // V2: state-document rules
-    expect(instructions).toContain('STATE document')
-    expect(instructions).toContain('headers')
-    expect(instructions).toContain('replace')
+    expect(instructions).toContain('# now')
+    expect(instructions).toContain('# History')
+    // V3: native tools instead of MCP tools
+    expect(instructions).toContain('Edit')
+    // V3: How to Update section
+    expect(instructions).toContain('How to Update')
   })
 
   it('should generate instructions for app caller', async () => {
-    const caller: MemoryCallerScope = {
-      type: 'app',
-      spaceId: 'space-1',
-      spacePath: '/tmp/nonexistent-space',
-      appId: 'test-app'
-    }
-
-    const instructions = await generatePromptInstructions(caller)
+    const instructions = generatePromptInstructions()
+    // V3: memory.md structure
     expect(instructions).toContain('## Memory')
-    expect(instructions).toContain('read-only') // user scope for apps
-    expect(instructions).toContain('append-only') // space scope for apps
-    // V2: state-document rules
-    expect(instructions).toContain('STATE document')
-    expect(instructions).toContain('## State')
+    expect(instructions).toContain('# now')
+    expect(instructions).toContain('# History')
+    // V3: How to Update
+    expect(instructions).toContain('How to Update')
+    // Daily log instructions
+    expect(instructions).toContain('Daily Work Log')
   })
 
   it('should include read mode descriptions', async () => {
-    const caller: MemoryCallerScope = {
-      type: 'app',
-      spaceId: 'space-1',
-      spacePath: '/tmp/nonexistent-space',
-      appId: 'test-app'
-    }
-
-    const instructions = await generatePromptInstructions(caller)
-    expect(instructions).toContain('headers')
-    expect(instructions).toContain('section')
-    expect(instructions).toContain('tail')
+    const instructions = generatePromptInstructions()
+    // V3: native tool instructions
+    expect(instructions).toContain('Read')
+    expect(instructions).toContain('Edit')
+    expect(instructions).toContain('Write')
+    // Archive section
+    expect(instructions).toContain('Archive Files')
   })
 })

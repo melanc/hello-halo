@@ -17,7 +17,6 @@ import {
   Pencil
 } from '../components/icons/ToolIcons'
 import { Header } from '../components/layout/Header'
-import { SpaceGuide } from '../components/space/SpaceGuide'
 import { Monitor, Blocks, ArrowRight, AlertCircle, SendHorizontal } from 'lucide-react'
 import { api } from '../api'
 import { useTranslation } from '../i18n'
@@ -310,7 +309,7 @@ export function HomePage() {
         <HomeTasksPanel />
 
         {/* Spaces Section */}
-        <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium text-muted-foreground">{t('Dedicated Spaces')}</h3>
           <button
             onClick={() => setShowCreateDialog(true)}
@@ -324,12 +323,12 @@ export function HomePage() {
         {spaces.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <p className="text-sm">{t('No dedicated spaces yet')}</p>
+            <p className="text-xs opacity-70 mt-1">{t('空间管理说明')}</p>
           </div>
         ) : (
           <div className="space-y-6">
             {spaces.length > 0 && (
               <section>
-                <h4 className="text-xs font-medium text-muted-foreground mb-2">{t('常规空间')}</h4>
                 <div className="grid grid-cols-2 gap-4">
                   {spaces.map((space) => (
                     <div
@@ -361,7 +360,10 @@ export function HomePage() {
                           </button>
                         </div>
                       </div>
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="text-xs text-muted-foreground/70 mt-[5px] truncate pl-3" title={space.workingDir || space.path}>
+                        {shortenPath(space.workingDir || space.path)}
+                      </p>
+                      <p className="text-xs text-muted-foreground/60 pl-3 mt-[3px]">
                         {formatTimeAgo(space.updatedAt)}{t('active')}
                       </p>
                     </div>
@@ -372,9 +374,6 @@ export function HomePage() {
           </div>
         )}
 
-        <div className="mt-6">
-          <SpaceGuide />
-        </div>
       </main>
 
       {/* Create Space Dialog */}

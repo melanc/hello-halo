@@ -48,7 +48,6 @@ interface TaskState {
   activeTaskId: string | null
   /** Task that needs requirement document editing (session-only) */
   pendingRequirementTaskId: string | null
-
   setActiveTask: (id: string | null) => void
   clearActiveTask: () => void
   setPendingRequirementTask: (id: string | null) => void
@@ -153,32 +152,41 @@ export const useTaskStore = create<TaskState>()(
       tasks: [],
       activeTaskId: null,
       pendingRequirementTaskId: null,
-
       setActiveTask: (id) => set({ activeTaskId: id }),
       clearActiveTask: () => set({ activeTaskId: null }),
       setPendingRequirementTask: (id) => set({ pendingRequirementTaskId: id }),
       clearPendingRequirementTask: () => set({ pendingRequirementTaskId: null }),
 
       addTask: async (input) => {
+        const taskType = (input as { taskType?: 'simple' | 'complex' }).taskType ?? 'complex'
         const spaceId = input.spaceId.trim()
-        if (!spaceId) return null
 
         const requirementDocName = (input as { requirementDocName?: string }).requirementDocName?.trim() || ''
         const requirementDocContent =
           (input as { requirementDocContent?: string }).requirementDocContent?.trim() || ''
         const requirementDescription =
           (input as { requirementDescription?: string }).requirementDescription?.trim() || ''
-        const hasDoc = Boolean(requirementDocName && requirementDocContent)
-        if (!hasDoc && !requirementDescription) return null
+
+        // Complex tasks require a valid space and at least a requirement doc or description.
+        if (taskType !== 'simple') {
+          if (!spaceId) return null
+          const hasDoc = Boolean(requirementDocName && requirementDocContent)
+          if (!hasDoc && !requirementDescription) return null
+        }
 
         const branchName = input.branchName.trim()
         const projectDirs = input.projectDirs.map((d) => d.trim()).filter(Boolean)
         const taskId = newTaskId()
-        const conv = await useChatStore.getState().createTaskConversation(spaceId, taskId, input.name)
-        if (!conv) return null
+
+        // Create a conversation only when we have a valid space
+        let conversationId = ''
+        if (spaceId) {
+          const conv = await useChatStore.getState().createTaskConversation(spaceId, taskId, input.name)
+          if (!conv) return null
+          conversationId = conv.id
+        }
 
         const now = Date.now()
-        const taskType = (input as { taskType?: 'simple' | 'complex' }).taskType ?? 'complex'
         const spacePath = (input as { spacePath?: string }).spacePath?.trim() || undefined
         const task: WorkspaceTask = {
           id: taskId,
@@ -189,7 +197,7 @@ export const useTaskStore = create<TaskState>()(
           requirementDescription,
           projectDirs,
           branchName,
-          conversationId: conv.id,
+          conversationId,
           createdAt: now,
           updatedAt: now,
           touchedProjectDirs: [],

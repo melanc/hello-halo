@@ -52,7 +52,6 @@ import {
 } from './file-ops'
 import { generatePromptInstructions } from './prompt'
 import { join } from 'path'
-import { existsSync } from 'fs'
 import { mkdir } from 'fs/promises'
 
 // Re-export types for consumers

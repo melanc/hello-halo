@@ -267,6 +267,11 @@ body {
   color: var(--shiki-dark, inherit) !important;
 }
 
+/* Hide the download button on Streamdown code blocks */
+.code-block-download-button {
+  display: none !important;
+}
+
 /* Thought content - reduced saturation for code highlighting in dark mode */
 .thought-content .hljs {
   filter: saturate(0.6);

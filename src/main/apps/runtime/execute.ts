@@ -325,7 +325,7 @@ export async function executeRun(options: ExecuteRunOptions): Promise<AppRunResu
       },
       mcpServers: {
         ...requiredMcpServers,              // declared MCP dependencies
-        'halo-memory': memoryMcpServer,     // built-in: persistent memory
+        'halo-memory': memoryMcpServer,     // built-in: persistent memory (V3 #now/#History)
         'halo-report': reportMcpServer,     // built-in: completion signal
         'halo-notify': notifyMcpServer,     // built-in: user notification
         ...(usesAIBrowser ? { 'ai-browser': createAIBrowserMcpServer(scopedBrowserCtx, workDir) } : {}),
@@ -1308,3 +1308,4 @@ async function preInsertHistoryHeading(
     await writeFile(memoryFilePath, appendContent, 'utf-8')
   }
 }
+

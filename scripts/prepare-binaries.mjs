@@ -35,6 +35,30 @@ const log = {
   error: (msg) => console.log(`${colors.red}[ERROR]${colors.reset} ${msg}`)
 }
 
+/**
+ * Extract .tar.gz using a tar that understands Windows paths.
+ * Git/MSYS tar treats "D:\..." as host "D" ("Cannot connect to D: resolve failed");
+ * Windows System32\\tar.exe does not.
+ */
+function extractTarGz(archivePath, destDir, extraArgs = '') {
+  const ap = path.resolve(archivePath)
+  const dp = path.resolve(destDir)
+  let cmd
+  if (process.platform === 'win32') {
+    const sysTar = path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'tar.exe')
+    if (fs.existsSync(sysTar)) {
+      cmd = `"${sysTar}" -xzf "${ap}" -C "${dp}"${extraArgs ? ` ${extraArgs}` : ''}`
+    } else {
+      const msys = ap.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, d) => `/${d.toLowerCase()}`)
+      const mdest = dp.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, d) => `/${d.toLowerCase()}`)
+      cmd = `tar -xzf "${msys}" -C "${mdest}"${extraArgs ? ` ${extraArgs}` : ''}`
+    }
+  } else {
+    cmd = `tar -xzf "${ap}" -C "${dp}"${extraArgs ? ` ${extraArgs}` : ''}`
+  }
+  execSync(cmd, { stdio: 'pipe' })
+}
+
 // Cloudflared download URLs
 const CLOUDFLARED_URLS = {
   'mac-arm64': 'https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-darwin-arm64.tgz',
@@ -145,7 +169,7 @@ function downloadCloudflared(platform) {
     // Mac: download and extract tgz
     const tgzPath = outputPath + '.tgz'
     curlDownload(url, tgzPath)
-    execSync(`tar -xzf "${tgzPath}" -C "${outputDir}"`, { stdio: 'pipe' })
+    extractTarGz(tgzPath, outputDir)
 
     // Rename extracted file if needed (for mac-x64)
     const extractedPath = path.join(outputDir, 'cloudflared')
@@ -256,7 +280,7 @@ function downloadBetterSqlite3(platform) {
     const tmpExtract = path.join(PROJECT_ROOT, `node_modules/.better-sqlite3-extract-${targetPlatform}-${targetArch}`)
     if (fs.existsSync(tmpExtract)) fs.rmSync(tmpExtract, { recursive: true })
     fs.mkdirSync(tmpExtract, { recursive: true })
-    execSync(`tar -xzf "${tmpTgz}" -C "${tmpExtract}"`, { stdio: 'pipe' })
+    extractTarGz(tmpTgz, tmpExtract)
 
     const extractedNode = path.join(tmpExtract, 'build', 'Release', 'better_sqlite3.node')
     if (!fs.existsSync(extractedNode)) {
@@ -304,7 +328,7 @@ function installWatcher(platform) {
 
     // Download tarball and extract (--strip-components=1 removes the "package/" prefix)
     curlDownload(tarballUrl, tmpTgz)
-    execSync(`tar -xzf "${tmpTgz}" -C "${destDir}" --strip-components=1`, { stdio: 'pipe' })
+    extractTarGz(tmpTgz, destDir, '--strip-components=1')
     fs.unlinkSync(tmpTgz)
 
     // Verify .node file exists

@@ -486,3 +486,22 @@ export function buildSystemPromptWithAIBrowser(
 ): string {
   return buildSystemPrompt(ctx) + '\n\n' + aiBrowserPrompt
 }
+
+/**
+ * Build system prompt with memory instructions appended.
+ *
+ * This function appends instructions about the persistent memory system
+ * (V3 memory.md) to any base system prompt.
+ * Used primarily for interactive chat where memory instructions are not
+ * present by default.
+ *
+ * @param ctx - Dynamic context for the prompt
+ * @param memoryInstructions - Memory system instructions to append
+ * @returns Complete system prompt with memory instructions
+ */
+export function buildSystemPromptWithMemory(
+  ctx: SystemPromptContext,
+  memoryInstructions: string
+): string {
+  return buildSystemPrompt(ctx) + '\n\n' + memoryInstructions
+}

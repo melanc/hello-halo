@@ -15,10 +15,9 @@
 import { proxyFetch } from './proxy-fetch'
 import { unstable_v2_createSession } from '@anthropic-ai/claude-agent-sdk'
 import { app } from 'electron'
-import path from 'path'
 import { ensureOpenAICompatRouter, encodeBackendConfig, normalizeApiUrl } from '../openai-compat-router'
 import type { BackendConfig } from '../openai-compat-router'
-import { buildSdkEnv } from './agent/sdk-config'
+import { buildSdkEnv, resolveClaudeCodeCliPath } from './agent/sdk-config'
 import { AVAILABLE_MODELS } from '../../shared/types/ai-sources'
 import { getHeadlessElectronPath } from './agent/helpers'
 
@@ -192,11 +191,9 @@ export async function validateApiConnection(params: ValidateApiParams): Promise<
       maxTurns: 1,
       allowedTools: [],
       permissionMode: 'bypassPermissions' as const,
-      // Use the same cli.js path as the agent module (sdk-config.ts buildBaseSdkOptions)
-      // This avoids spawning a full Electron subprocess for headless node usage,
-      // which can fail on Windows when the executable path contains spaces or
-      // when the Electron binary is not recognized as a Node.js runtime.
-      pathToClaudeCodeExecutable: path.join(app.getAppPath(), 'node_modules/@anthropic-ai/claude-code/cli.js'),
+      // Same CLI resolution as the agent module (sdk-config.ts).
+      // Native bin/claude.exe is spawned directly; legacy cli.js uses Electron as Node.
+      pathToClaudeCodeExecutable: resolveClaudeCodeCliPath(),
       executable: electronPath,
       executableArgs: ['--no-warnings'],
       extraArgs: {

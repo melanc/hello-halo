@@ -2,7 +2,7 @@
  * System IPC Handlers - Auto launch, window controls, and logging
  */
 
-import { ipcMain, BrowserWindow, shell } from 'electron'
+import { ipcMain, BrowserWindow, shell, clipboard } from 'electron'
 import { dirname } from 'path'
 import log from 'electron-log/main.js'
 import { setAutoLaunch, getAutoLaunch } from '../services/config.service'
@@ -140,6 +140,17 @@ export function registerSystemHandlers(): void {
     } catch (error) {
       const err = error as Error
       console.error('[Settings] system:open-log-folder - Failed:', err.message)
+      return { success: false, error: err.message }
+    }
+  })
+
+  // Write text to system clipboard (native Electron clipboard, works reliably in all contexts)
+  ipcMain.handle('system:clipboard-write-text', async (_event, text: string) => {
+    try {
+      clipboard.writeText(text)
+      return { success: true }
+    } catch (error) {
+      const err = error as Error
       return { success: false, error: err.message }
     }
   })

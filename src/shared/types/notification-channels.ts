@@ -88,6 +88,46 @@ export interface FeishuChannelConfig {
   defaultUserId?: string // default recipient user open_id (optional)
 }
 
+/**
+ * Feishu Intelligent Bot (飞书机器人) configuration.
+ *
+ * Enables bidirectional communication with DevX conversations via Feishu
+ * WebSocket long-connection mode. The same app credentials (appId/appSecret)
+ * from the Feishu notification channel can be reused.
+ *
+ * The Feishu app must have:
+ * - Permission: im:message:send_as_bot
+ * - Event type: im.message.receive_v1 subscribed
+ */
+export interface FeishuBotConfig {
+  enabled: boolean
+  /** Feishu app ID (from Feishu Open Platform) */
+  appId: string
+  /** Feishu app secret */
+  appSecret: string
+  /** Route inbound messages to a specific DevX conversation */
+  routeTo?: FeishuBotRouteTo
+}
+
+/**
+ * Route-to configuration for Feishu bot inbound messages.
+ *
+ * Defines which DevX conversation receives messages from this Feishu bot.
+ * The user configures this in the Feishu Bot settings panel.
+ */
+export interface FeishuBotRouteTo {
+  /** 'main-session' = a dedicated conversation in the space, 'task' = a workspace task conversation */
+  type: 'main-session' | 'task'
+  /** Space ID where the target conversation lives */
+  spaceId: string
+  /** Conversation ID (for main-session, stored after auto-creation) */
+  conversationId?: string
+  /** Task UUID (for task type only) */
+  taskId?: string
+  /** Task title for display in settings UI */
+  taskTitle?: string
+}
+
 /** Generic HTTP webhook channel configuration */
 export interface WebhookChannelConfig {
   enabled: boolean

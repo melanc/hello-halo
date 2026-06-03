@@ -114,6 +114,9 @@ interface Conversation extends ConversationMeta {
   messages: Message[]
   sessionId?: string
   version?: number  // 2 = thoughts stored separately
+  /** Set to true when the user explicitly renames the conversation.
+   *  When true, the auto-title from first message is skipped. */
+  userSetTitle?: boolean
 }
 
 // Thoughts file structure
@@ -637,6 +640,36 @@ export function listConversations(spaceId: string): ConversationMeta[] {
   return metas
 }
 
+/**
+ * List all task conversations (wstask-* prefixed) in a space.
+ * These are conversations created for workspace tasks and are filtered
+ * out of the regular listConversations() result.
+ */
+export function listTaskConversations(spaceId: string): ConversationMeta[] {
+  const conversationsDir = getConversationsDir(spaceId)
+
+  if (!existsSync(conversationsDir)) {
+    return []
+  }
+
+  const metas: ConversationMeta[] = []
+  const files = readdirSync(conversationsDir).filter(isConversationFile)
+
+  for (const file of files) {
+    try {
+      const content = readFileSync(join(conversationsDir, file), 'utf-8')
+      const conversation: Conversation = JSON.parse(content)
+      if (!isWorkspaceTaskConversationId(conversation.id)) continue
+      metas.push(toMeta(conversation))
+    } catch {
+      // Skip corrupt files
+    }
+  }
+
+  metas.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+  return metas
+}
+
 // Create a new conversation (always v2 format)
 export function createConversation(spaceId: string, title?: string): Conversation {
   const id = uuidv4()
@@ -650,7 +683,8 @@ export function createConversation(spaceId: string, title?: string): Conversatio
     updatedAt: now,
     messageCount: 0,
     messages: [],
-    version: CONVERSATION_FORMAT_VERSION
+    version: CONVERSATION_FORMAT_VERSION,
+    userSetTitle: !!title
   }
 
   const conversationsDir = getConversationsDir(spaceId)
@@ -681,7 +715,8 @@ export function createTaskConversation(spaceId: string, taskId: string, title?: 
     updatedAt: now,
     messageCount: 0,
     messages: [],
-    version: CONVERSATION_FORMAT_VERSION
+    version: CONVERSATION_FORMAT_VERSION,
+    userSetTitle: !!title
   }
 
   const conversationsDir = getConversationsDir(spaceId)
@@ -727,6 +762,11 @@ export function updateConversation(
     updatedAt: new Date().toISOString()
   }
 
+  // Track when user explicitly renames the conversation
+  if (updates.title !== undefined && updates.title !== conversation.title) {
+    updated.userSetTitle = true
+  }
+
   cachedWrite(conversationId, updated, filePath, conversationsDir, spaceId)
   debouncedUpdateIndexEntry(conversationsDir, spaceId, conversationId, toMeta(updated))
 
@@ -755,8 +795,8 @@ export function addMessage(spaceId: string, conversationId: string, message: Omi
   conversation.updatedAt = new Date().toISOString()
   conversation.messageCount = conversation.messages.length
 
-  // Auto-update title from first user message
-  if (conversation.messages.length === 1 && message.role === 'user') {
+  // Auto-update title from first user message (only if title wasn't explicitly set by user)
+  if (conversation.messages.length === 1 && message.role === 'user' && !conversation.userSetTitle) {
     conversation.title = message.content.slice(0, 50) + (message.content.length > 50 ? '...' : '')
   }
 

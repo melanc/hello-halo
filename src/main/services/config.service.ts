@@ -374,6 +374,8 @@ interface DevXConfig {
   // WeCom Intelligent Bot (企业微信智能机器人) — bidirectional WebSocket chat
   // Independent from notificationChannels.wecom (self-built app for push only)
   wecomBot?: import('../../shared/types/notification-channels').WecomBotConfig
+  // Feishu Intelligent Bot (飞书机器人) — bidirectional event subscription chat
+  feishuBot?: import('../../shared/types/notification-channels').FeishuBotConfig
   // Global IM channel configuration (default digital human routing, etc.)
   imChannels?: import('../../shared/types/notification-channels').ImChannelsConfig
   // Analytics configuration (auto-generated on first launch)

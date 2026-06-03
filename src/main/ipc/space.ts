@@ -3,7 +3,8 @@
  */
 
 import { ipcMain, dialog } from 'electron'
-import { existsSync } from 'fs'
+import { existsSync, readdirSync, watch, readFileSync, type FSWatcher } from 'fs'
+import { sendToRenderer } from '../services/window.service'
 import {
   getDevXSpace,
   listSpaces,
@@ -180,4 +181,77 @@ export function registerSpaceHandlers(): void {
     }
   })
 
+  // List directory contents at an arbitrary path (for external project dirs)
+  ipcMain.handle('fs:readdir', async (_event, dirPath: string) => {
+    try {
+      const entries = readdirSync(dirPath, { withFileTypes: true })
+      return {
+        success: true,
+        data: entries
+          .filter(e => !e.name.startsWith('.'))
+          .map(e => ({
+            name: e.name,
+            isDirectory: e.isDirectory(),
+            isFile: e.isFile(),
+          }))
+          .sort((a, b) => {
+            if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1
+            return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' })
+          }),
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      return { success: false, error: message }
+    }
+  })
+
+  // ── File watching (individual files) ──────────────────────────────
+  const fileWatchers = new Map<string, FSWatcher>()
+
+  // Watch a file for external changes and push new content to renderer
+  ipcMain.handle('fs:watch-file', async (_event, filePath: string) => {
+    try {
+      // Close existing watcher if any
+      const existing = fileWatchers.get(filePath)
+      if (existing) {
+        existing.close()
+      }
+
+      const watcher = watch(filePath, (eventType) => {
+        if (eventType !== 'change') return
+
+        // Debounce: read and send after a short delay
+        // fs.watch may fire multiple times for a single save
+        setTimeout(() => {
+          try {
+            const content = readFileSync(filePath, 'utf-8')
+            sendToRenderer('fs:file-changed', { path: filePath, content })
+          } catch {
+            // File may be temporarily locked or deleted
+          }
+        }, 100)
+      })
+
+      fileWatchers.set(filePath, watcher)
+      return { success: true }
+    } catch (error: unknown) {
+      const err = error as Error
+      return { success: false, error: err.message }
+    }
+  })
+
+  // Stop watching a file
+  ipcMain.handle('fs:unwatch-file', async (_event, filePath: string) => {
+    try {
+      const watcher = fileWatchers.get(filePath)
+      if (watcher) {
+        watcher.close()
+        fileWatchers.delete(filePath)
+      }
+      return { success: true }
+    } catch (error: unknown) {
+      const err = error as Error
+      return { success: false, error: err.message }
+    }
+  })
 }

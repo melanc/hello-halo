@@ -79,6 +79,7 @@ export interface DevXAPI {
   }) => Promise<IpcResponse>
   getSpacePreferences: (spaceId: string) => Promise<IpcResponse>
   checkPathExists: (fsPath: string) => Promise<IpcResponse<{ exists: boolean }>>
+  readDirectory: (dirPath: string) => Promise<IpcResponse>
 
   // Conversation
   listConversations: (spaceId: string) => Promise<IpcResponse>
@@ -293,6 +294,7 @@ export interface DevXAPI {
   getAutoLaunch: () => Promise<IpcResponse>
   setAutoLaunch: (enabled: boolean) => Promise<IpcResponse>
   openLogFolder: () => Promise<IpcResponse>
+  clipboardWriteText: (text: string) => Promise<IpcResponse>
 
   // Window
   setTitleBarOverlay: (options: { color: string; symbolColor: string }) => Promise<IpcResponse>
@@ -425,6 +427,14 @@ export interface DevXAPI {
   getWecomBotStatus: () => Promise<IpcResponse>
   reconnectWecomBot: () => Promise<IpcResponse>
 
+  // Feishu Bot (飞书机器人)
+  getFeishuBotStatus: () => Promise<IpcResponse>
+  reconnectFeishuBot: () => Promise<IpcResponse>
+  listFeishuBotSpaces: () => Promise<IpcResponse>
+  listFeishuBotTasks: () => Promise<IpcResponse>
+  listFeishuBotMainSessions: () => Promise<IpcResponse>
+  listFeishuBotTaskSessions: () => Promise<IpcResponse>
+
   // IM Sessions (会话管理)
   imSessionsList: (appId?: string) => Promise<IpcResponse>
   imSessionsSetProactive: (input: { appId: string; channel: string; chatId: string; proactive: boolean }) => Promise<IpcResponse>
@@ -494,6 +504,14 @@ export interface DevXAPI {
   onTerminalOutput: (callback: (data: unknown) => void) => () => void
   onTerminalDone: (callback: (data: unknown) => void) => () => void
 
+  // Terminal: PTY (xterm.js + node-pty)
+  ptyCreate: (opts?: { cols?: number; rows?: number }) => Promise<IpcResponse>
+  ptyWrite: (opts: { id: string; data: string }) => Promise<IpcResponse>
+  ptyResize: (opts: { id: string; cols: number; rows: number }) => Promise<IpcResponse>
+  ptyKill: (opts: { id: string }) => Promise<IpcResponse>
+  onPtyData: (callback: (data: unknown) => void) => () => void
+  onPtyExit: (callback: (data: unknown) => void) => () => void
+
   // Store (App Registry)
   storeQuery: (params: { search?: string; type?: string; category?: string; page?: number; pageSize?: number; locale?: string }) => Promise<IpcResponse>
   storeListApps: (query: { search?: string; locale?: string; category?: string; type?: string; tags?: string[] }) => Promise<IpcResponse>
@@ -510,6 +528,11 @@ export interface DevXAPI {
   storeToggleRegistry: (input: { registryId: string; enabled: boolean }) => Promise<IpcResponse>
   storeUpdateRegistryAdapterConfig: (input: { registryId: string; adapterConfig: Record<string, unknown> }) => Promise<IpcResponse>
   onStoreSyncStatusChanged: (callback: (data: { registryId: string; status: string; appCount: number; error?: string }) => void) => () => void
+
+  // File watching for external file changes
+  watchFile: (filePath: string) => Promise<IpcResponse>
+  unwatchFile: (filePath: string) => Promise<IpcResponse>
+  onFileChanged: (callback: (data: { path: string; content: string }) => void) => () => void
 }
 
 interface IpcResponse<T = unknown> {
@@ -597,6 +620,7 @@ const api: DevXAPI = {
     ipcRenderer.invoke('space:update-preferences', spaceId, preferences),
   getSpacePreferences: (spaceId) => ipcRenderer.invoke('space:get-preferences', spaceId),
   checkPathExists: (fsPath) => ipcRenderer.invoke('fs:path-exists', fsPath),
+  readDirectory: (dirPath) => ipcRenderer.invoke('fs:readdir', dirPath),
 
   // Conversation
   listConversations: (spaceId) => ipcRenderer.invoke('conversation:list', spaceId),
@@ -730,6 +754,7 @@ const api: DevXAPI = {
   getAutoLaunch: () => ipcRenderer.invoke('system:get-auto-launch'),
   setAutoLaunch: (enabled) => ipcRenderer.invoke('system:set-auto-launch', enabled),
   openLogFolder: () => ipcRenderer.invoke('system:open-log-folder'),
+  clipboardWriteText: (text) => ipcRenderer.invoke('system:clipboard-write-text', text),
 
   // Window
   setTitleBarOverlay: (options) => ipcRenderer.invoke('window:set-title-bar-overlay', options),
@@ -841,6 +866,14 @@ const api: DevXAPI = {
   getWecomBotStatus: () => ipcRenderer.invoke('wecom-bot:status'),
   reconnectWecomBot: () => ipcRenderer.invoke('wecom-bot:reconnect'),
 
+  // Feishu Bot (飞书机器人)
+  getFeishuBotStatus: () => ipcRenderer.invoke('feishu-bot:status'),
+  reconnectFeishuBot: () => ipcRenderer.invoke('feishu-bot:reconnect'),
+  listFeishuBotSpaces: () => ipcRenderer.invoke('feishu-bot:list-spaces'),
+  listFeishuBotTasks: () => ipcRenderer.invoke('feishu-bot:list-tasks'),
+  listFeishuBotMainSessions: () => ipcRenderer.invoke('feishu-bot:list-main-sessions'),
+  listFeishuBotTaskSessions: () => ipcRenderer.invoke('feishu-bot:list-task-sessions'),
+
   // IM Sessions (会话管理)
   imSessionsList: (appId) => ipcRenderer.invoke('im-sessions:list', appId),
   imSessionsSetProactive: (input) => ipcRenderer.invoke('im-sessions:set-proactive', input),
@@ -938,6 +971,19 @@ const api: DevXAPI = {
   terminalCd: (opts) => ipcRenderer.invoke('terminal:cd', opts),
   onTerminalOutput: (callback) => createEventListener('terminal:output', callback),
   onTerminalDone: (callback) => createEventListener('terminal:done', callback),
+
+  // Terminal: PTY (xterm.js + node-pty)
+  ptyCreate: (opts) => ipcRenderer.invoke('terminal-pty:create', opts),
+  ptyWrite: (opts) => ipcRenderer.invoke('terminal-pty:write', opts),
+  ptyResize: (opts) => ipcRenderer.invoke('terminal-pty:resize', opts),
+  ptyKill: (opts) => ipcRenderer.invoke('terminal-pty:kill', opts),
+  onPtyData: (callback) => createEventListener('terminal-pty:data', callback),
+  onPtyExit: (callback) => createEventListener('terminal-pty:exit', callback),
+
+  // File watching for external file changes
+  watchFile: (filePath) => ipcRenderer.invoke('fs:watch-file', filePath),
+  unwatchFile: (filePath) => ipcRenderer.invoke('fs:unwatch-file', filePath),
+  onFileChanged: (callback) => createEventListener('fs:file-changed', callback),
 }
 
 contextBridge.exposeInMainWorld('devx', api)

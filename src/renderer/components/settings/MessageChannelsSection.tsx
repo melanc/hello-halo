@@ -26,6 +26,8 @@ import { NOTIFICATION_CHANNEL_META } from '../../../shared/types/notification-ch
 import type {
   NotificationChannelType,
   NotificationChannelsConfig,
+  FeishuBotRouteTo,
+  FeishuBotConfig,
 } from '../../../shared/types/notification-channels'
 
 // ============================================
@@ -87,6 +89,18 @@ function buildChannelDefs(): ChannelDef[] {
         { key: 'wsUrl', label: 'WebSocket URL', type: 'text', placeholder: 'wss://openws.work.weixin.qq.com' },
       ],
       defaults: { enabled: false, botId: '', secret: '', wsUrl: '' },
+    },
+    {
+      id: 'feishu-bot',
+      icon: MessageSquare,
+      labelKey: 'Feishu Bot',
+      descriptionKey: 'Bidirectional messaging via Feishu Bot WebSocket long-connection mode',
+      direction: 'bidirectional',
+      fields: [
+        { key: 'appId', label: 'App ID', type: 'text', required: true },
+        { key: 'appSecret', label: 'App Secret', type: 'password', required: true },
+      ],
+      defaults: { enabled: false, appId: '', appSecret: '' },
     },
     // ── One-way notification channels ──
     {
@@ -529,6 +543,14 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
   const [testingChannel, setTestingChannel] = useState<string | null>(null)
   const [testResults, setTestResults] = useState<Record<string, TestResult>>({})
   const [botStatus, setBotStatus] = useState<{ connected: boolean }>({ connected: false })
+  const [feishuBotStatus, setFeishuBotStatus] = useState<{ connected: boolean }>({ connected: false })
+  const [feishuBotDevxSessions, setFeishuBotDevxSessions] = useState<Array<{ id: string; title: string; updatedAt: string }>>([])
+  const [feishuBotTaskSessions, setFeishuBotTaskSessions] = useState<Array<{ id: string; conversationId: string; spaceId: string; spaceName: string; title: string; taskId: string }>>([])
+  // Ref to track latest feishuBot routeTo across debounced save closures
+  const feishuBotRouteToRef = useRef(config?.feishuBot?.routeTo)
+  useEffect(() => {
+    feishuBotRouteToRef.current = config?.feishuBot?.routeTo
+  }, [config?.feishuBot?.routeTo])
 
   // Load automation apps for the default digital human selector
   const { apps, loadApps } = useAppsStore()
@@ -556,6 +578,58 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
     return () => { cancelled = true; clearInterval(interval) }
   }, [])
 
+  // Poll Feishu Bot status
+  useEffect(() => {
+    let cancelled = false
+    async function fetchStatus() {
+      try {
+        const res = await api.getFeishuBotStatus() as { success: boolean; data?: { connected: boolean } }
+        if (!cancelled && res.success && res.data) {
+          setFeishuBotStatus({ connected: res.data.connected })
+        }
+      } catch {
+        // Ignore
+      }
+    }
+    fetchStatus()
+    const interval = setInterval(fetchStatus, 10_000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [])
+
+  // Load Feishu Bot session lists when its card is expanded
+  useEffect(() => {
+    if (!expandedChannels.has('feishu-bot')) return
+    let cancelled = false
+    async function loadData() {
+      try {
+        const [devxSpaceRes, taskRes] = await Promise.all([
+          api.getDevXSpace(),
+          api.listFeishuBotTaskSessions(),
+        ])
+        if (!cancelled) {
+          // Load DevX main space conversations for Main Session dropdown
+          if (devxSpaceRes.success && devxSpaceRes.data) {
+            const space = devxSpaceRes.data as { id: string }
+            const convRes = await api.listConversations(space.id)
+            if (!cancelled && convRes.success && convRes.data) {
+              const convs = convRes.data as Array<{ id: string; title: string; updatedAt: string }>
+              convs.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+              setFeishuBotDevxSessions(convs)
+            }
+          }
+          // Load task sessions
+          if (taskRes.success && taskRes.data) {
+            setFeishuBotTaskSessions(taskRes.data as Array<{ id: string; conversationId: string; spaceId: string; spaceName: string; title: string; taskId: string }>)
+          }
+        }
+      } catch (err) {
+        if (!cancelled) console.error('[FeishuBot] Failed to load routing data:', err)
+      }
+    }
+    loadData()
+    return () => { cancelled = true }
+  }, [expandedChannels])
+
   const toggleExpanded = useCallback((channelId: string) => {
     setExpandedChannels((prev) => {
       const next = new Set(prev)
@@ -582,6 +656,22 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
         setConfig(updatedConfig)
       } catch (error) {
         console.error('[MessageChannelsSection] Failed to save WeCom Bot config:', error)
+      }
+    } else if (def.id === 'feishu-bot') {
+      // Preserve routeTo if the debounced channelConfig doesn't have it
+      // (prevents debounced save from overwriting routeTo set by routing UI)
+      const channelConfigWithRouteTo = !('routeTo' in channelConfig) && feishuBotRouteToRef.current
+        ? { ...channelConfig, routeTo: feishuBotRouteToRef.current }
+        : channelConfig
+      const updatedConfig = {
+        ...config,
+        feishuBot: channelConfigWithRouteTo,
+      } as DevXConfig
+      try {
+        await api.setConfig({ feishuBot: updatedConfig.feishuBot })
+        setConfig(updatedConfig)
+      } catch (error) {
+        console.error('[MessageChannelsSection] Failed to save Feishu Bot config:', error)
       }
     } else if (def.notifyType) {
       // Save notification channel config
@@ -627,6 +717,110 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
     }
   }, [])
 
+  const handleFeishuBotReconnect = useCallback(async () => {
+    try {
+      await api.reconnectFeishuBot()
+    } catch {
+      // Ignore
+    }
+  }, [])
+
+  const handleFeishuBotRouteTypeChange = useCallback(async (type: 'main-session' | 'task' | null) => {
+    if (!config) return
+
+    let routeTo: FeishuBotRouteTo | undefined
+    if (type === 'main-session') {
+      // Save with DevX space ID, conversation will be selected from dropdown
+      try {
+        const spaceRes = await api.getDevXSpace()
+        if (spaceRes.success && spaceRes.data) {
+          const space = spaceRes.data as { id: string }
+          routeTo = { type: 'main-session', spaceId: space.id }
+        }
+      } catch {
+        // Ignore
+      }
+      if (!routeTo) {
+        routeTo = { type: 'main-session', spaceId: '' }
+      }
+    } else if (type === 'task') {
+      routeTo = { type: 'task', spaceId: '' }
+      // Load task sessions if not already loaded (ensures dropdown has options)
+      if (feishuBotTaskSessions.length === 0) {
+        try {
+          const taskRes = await api.listFeishuBotTaskSessions()
+          if (taskRes.success && taskRes.data) {
+            setFeishuBotTaskSessions(taskRes.data as Array<{ id: string; conversationId: string; spaceId: string; spaceName: string; title: string; taskId: string }>)
+          }
+        } catch {}
+      }
+    }
+
+    const updatedConfig = {
+      ...config,
+      feishuBot: {
+        ...(config.feishuBot ?? {}) as FeishuBotConfig,
+        routeTo,
+      },
+    }
+    try {
+      await api.setConfig({ feishuBot: updatedConfig.feishuBot })
+      setConfig(updatedConfig as DevXConfig)
+    } catch (err) {
+      console.error('[FeishuBot] Failed to save route type:', err)
+    }
+  }, [config, setConfig])
+
+  const handleFeishuBotDevxSessionSelect = useCallback(async (sessionId: string) => {
+    if (!config || !sessionId) return
+    const session = feishuBotDevxSessions.find(s => s.id === sessionId)
+    if (!session) return
+    const routeTo: FeishuBotRouteTo = {
+      type: 'main-session',
+      spaceId: config.feishuBot?.routeTo?.spaceId || '',
+      conversationId: session.id,
+    }
+    const updatedConfig = {
+      ...config,
+      feishuBot: {
+        ...(config.feishuBot ?? {}) as FeishuBotConfig,
+        routeTo,
+      },
+    }
+    try {
+      await api.setConfig({ feishuBot: updatedConfig.feishuBot })
+      setConfig(updatedConfig as DevXConfig)
+    } catch (err) {
+      console.error('[FeishuBot] Failed to save DevX session route:', err)
+    }
+  }, [config, setConfig, feishuBotDevxSessions])
+
+  const handleFeishuBotTaskSessionSelect = useCallback(async (sessionId: string) => {
+    if (!config || !sessionId) return
+    const session = feishuBotTaskSessions.find(s => s.id === sessionId)
+    if (!session) return
+    const routeTo: FeishuBotRouteTo = {
+      type: 'task',
+      spaceId: session.spaceId,
+      conversationId: session.conversationId,
+      taskId: session.taskId,
+      taskTitle: session.title,
+    }
+    const updatedConfig = {
+      ...config,
+      feishuBot: {
+        ...(config.feishuBot ?? {}) as FeishuBotConfig,
+        routeTo,
+      },
+    }
+    try {
+      await api.setConfig({ feishuBot: updatedConfig.feishuBot })
+      setConfig(updatedConfig as DevXConfig)
+    } catch (err) {
+      console.error('[FeishuBot] Failed to save task session route:', err)
+    }
+  }, [config, setConfig, feishuBotTaskSessions])
+
   const handleDefaultAppChange = useCallback(async (appId: string) => {
     if (!config) return
     const imChannels = { ...config.imChannels, defaultAppId: appId || undefined }
@@ -641,6 +835,10 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
   const getChannelConfig = (def: ChannelDef): Record<string, unknown> => {
     if (def.id === 'wecom-bot') {
       const bot = config?.wecomBot as Record<string, unknown> | undefined
+      return bot ?? {}
+    }
+    if (def.id === 'feishu-bot') {
+      const bot = config?.feishuBot as Record<string, unknown> | undefined
       return bot ?? {}
     }
     if (def.notifyType) {
@@ -673,10 +871,10 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
             onTest={def.notifyType ? handleTestChannel : undefined}
             isTesting={testingChannel === def.notifyType}
             testResult={def.notifyType ? testResults[def.notifyType] : undefined}
-            botStatus={def.id === 'wecom-bot' ? botStatus : undefined}
-            onReconnect={def.id === 'wecom-bot' ? handleReconnect : undefined}
+            botStatus={def.id === 'wecom-bot' ? botStatus : def.id === 'feishu-bot' ? feishuBotStatus : undefined}
+            onReconnect={def.id === 'wecom-bot' ? handleReconnect : def.id === 'feishu-bot' ? handleFeishuBotReconnect : undefined}
           >
-            {/* Default Digital Human selector — WeCom Bot only */}
+            {/* WeCom Bot: Default Digital Human selector */}
             {def.id === 'wecom-bot' && (
               <div className="space-y-1">
                 <label className="text-sm text-muted-foreground">
@@ -700,6 +898,112 @@ export function MessageChannelsSection({ config, setConfig }: MessageChannelsSec
                 <p className="text-xs text-muted-foreground">
                   {t('Inbound messages will be routed to this digital human for conversation')}
                 </p>
+              </div>
+            )}
+
+            {/* Feishu Bot: Routing configuration */}
+            {def.id === 'feishu-bot' && (
+              <div className="space-y-3 pt-2 border-t border-border">
+                <p className="text-sm font-medium">{t('Route Inbound Messages To')}</p>
+
+                {/* Route type selector */}
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="feishuRouteType"
+                      checked={config?.feishuBot?.routeTo?.type === 'main-session'}
+                      onChange={() => handleFeishuBotRouteTypeChange(
+                        config?.feishuBot?.routeTo?.type === 'main-session' ? null : 'main-session'
+                      )}
+                      className="text-primary"
+                    />
+                    <span className="text-sm">{t('Main Session')}</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="feishuRouteType"
+                      checked={config?.feishuBot?.routeTo?.type === 'task'}
+                      onChange={() => handleFeishuBotRouteTypeChange(
+                        config?.feishuBot?.routeTo?.type === 'task' ? null : 'task'
+                      )}
+                      className="text-primary"
+                    />
+                    <span className="text-sm">{t('Task Session')}</span>
+                  </label>
+                </div>
+
+                {/* Main Session: dropdown of DevX main space conversations */}
+                {config?.feishuBot?.routeTo?.type === 'main-session' && (
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <label className="text-sm text-muted-foreground">{t('Main Session')}</label>
+                      <select
+                        value={config.feishuBot.routeTo.conversationId || ''}
+                        onChange={(e) => handleFeishuBotDevxSessionSelect(e.target.value)}
+                        className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                      >
+                        <option value="">{t('Select a session')}</option>
+                        {feishuBotDevxSessions.map(s => (
+                          <option key={s.id} value={s.id}>{s.title || t('Untitled')}</option>
+                        ))}
+                      </select>
+                    </div>
+                    {(() => {
+                      const selected = feishuBotDevxSessions.find(s => s.id === config!.feishuBot!.routeTo!.conversationId)
+                      if (!selected) return null
+                      return (
+                        <div className="bg-muted/50 rounded-lg px-3 py-2 space-y-0.5">
+                          <p className="text-xs text-muted-foreground">{t('Session')}</p>
+                          <p className="text-sm font-medium">{selected.title || t('Untitled')}</p>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                {/* Task Session: task session selector */}
+                {config?.feishuBot?.routeTo?.type === 'task' && (
+                  <div className="space-y-2">
+                    <div className="space-y-1">
+                      <label className="text-sm text-muted-foreground">{t('Task Session')}</label>
+                      {feishuBotTaskSessions.length > 0 ? (
+                        <select
+                          value={config.feishuBot.routeTo.conversationId || ''}
+                          onChange={(e) => handleFeishuBotTaskSessionSelect(e.target.value)}
+                          className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                        >
+                          <option value="">{t('Select a session')}</option>
+                          {feishuBotTaskSessions.map(s => (
+                            <option key={s.id} value={s.id}>{s.spaceName} / {s.title}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          {t('No task sessions found. Create a task in task focus mode first')}
+                        </p>
+                      )}
+                    </div>
+                    {(() => {
+                      const selected = feishuBotTaskSessions.find(s => s.id === config!.feishuBot!.routeTo!.conversationId)
+                      if (!selected) return null
+                      return (
+                        <div className="bg-muted/50 rounded-lg px-3 py-2 space-y-0.5">
+                          <p className="text-xs text-muted-foreground">{t('Session')}</p>
+                          <p className="text-sm font-medium">{selected.spaceName} / {selected.title}</p>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+
+                {/* No routing configured hint */}
+                {!config?.feishuBot?.routeTo && (
+                  <p className="text-xs text-muted-foreground">
+                    {t('Inbound messages will not be processed until routing is configured')}
+                  </p>
+                )}
               </div>
             )}
           </ChannelCard>

@@ -1,0 +1,281 @@
+# Page: "codemirror" searchPanel "next" "previous" DOM button structure - 搜索
+URL: https://cn.bing.com/search?q=%22codemirror%22+searchPanel+%22next%22+%22previous%22+DOM+button+structure&rdr=1&rdrig=42DEB21223614B61BA7628929CF32949
+
+uid=snap_22_0 RootWebArea ""codemirror" searchPanel "next" "previous" DOM button structure - 搜索"
+  uid=snap_22_277 group
+    uid=snap_22_1 banner
+      uid=snap_22_2 button "跳至内容"
+        uid=snap_22_3 StaticText "跳至内容"
+          uid=snap_22_4 InlineTextBox
+      uid=snap_22_5 button "辅助功能反馈"
+        uid=snap_22_6 StaticText "辅助功能反馈"
+          uid=snap_22_7 InlineTextBox
+      uid=snap_22_8 Section
+        uid=snap_22_9 link "返回到必应搜索"
+          uid=snap_22_10 heading "返回到必应搜索" level="1"
+            uid=snap_22_11 image
+        uid=snap_22_12 search
+          uid=snap_22_13 button "搜索"
+            uid=snap_22_14 StaticText "搜索"
+              uid=snap_22_15 InlineTextBox
+          uid=snap_22_16 searchbox "在此处输入你的搜索 — 输入时会显示搜索建议" value=""codemirror" searchPanel "next" "previous" DOM button structure"
+            uid=snap_22_17 StaticText ""codemirror" searchPanel "next" "previous" DOM button structure"
+              uid=snap_22_18 InlineTextBox
+          uid=snap_22_19 image
+          uid=snap_22_20 status
+      uid=snap_22_21 complementary "帐户奖励和偏好设置"
+        uid=snap_22_22 button "Microsoft Rewards" expandable
+          uid=snap_22_26 group
+            uid=snap_22_23 StaticText "Rewards"
+              uid=snap_22_24 InlineTextBox
+            uid=snap_22_25 image
+        uid=snap_22_27 link "登录"
+          uid=snap_22_28 generic "登录"
+      uid=snap_22_35 group
+        uid=snap_22_29 generic "国内版"
+          uid=snap_22_30 StaticText "国内版"
+            uid=snap_22_31 InlineTextBox
+        uid=snap_22_32 generic "国际版"
+          uid=snap_22_33 StaticText "国际版"
+            uid=snap_22_34 InlineTextBox
+      uid=snap_22_36 navigation "主菜单"
+        uid=snap_22_37 list
+          uid=snap_22_38 listitem level="1"
+            uid=snap_22_39 link "网页"
+              uid=snap_22_40 StaticText "网页"
+                uid=snap_22_41 InlineTextBox
+          uid=snap_22_42 listitem level="1"
+            uid=snap_22_43 link "图片"
+              uid=snap_22_44 StaticText "图片"
+                uid=snap_22_45 InlineTextBox
+          uid=snap_22_46 listitem level="1"
+            uid=snap_22_47 link "视频"
+              uid=snap_22_48 StaticText "视频"
+                uid=snap_22_49 InlineTextBox
+          uid=snap_22_50 listitem level="1"
+            uid=snap_22_51 link "学术"
+              uid=snap_22_52 StaticText "学术"
+                uid=snap_22_53 InlineTextBox
+          uid=snap_22_54 listitem level="1"
+            uid=snap_22_55 link "词典"
+              uid=snap_22_56 StaticText "词典"
+                uid=snap_22_57 InlineTextBox
+          uid=snap_22_58 listitem level="1"
+            uid=snap_22_59 link "地图"
+              uid=snap_22_60 StaticText "地图"
+                uid=snap_22_61 InlineTextBox
+          uid=snap_22_62 listitem level="1"
+            uid=snap_22_63 button "更多"
+              uid=snap_22_64 image
+              uid=snap_22_65 StaticText "更多"
+                uid=snap_22_66 InlineTextBox
+    uid=snap_22_263 group
+      uid=snap_22_67 main "搜索结果"
+        uid=snap_22_68 StaticText "约 8,390 个结果"
+          uid=snap_22_69 InlineTextBox
+        uid=snap_22_70 list
+          uid=snap_22_71 listitem level="1"
+            uid=snap_22_72 link "codemirror.net"
+              uid=snap_22_73 image "全球 Web 图标"
+              uid=snap_22_78 group
+                uid=snap_22_74 StaticText "codemirror.net"
+                  uid=snap_22_75 InlineTextBox
+                uid=snap_22_76 StaticText "https://codemirror.net"
+                  uid=snap_22_77 InlineTextBox
+            uid=snap_22_79 heading "CodeMirror" level="2"
+              uid=snap_22_80 link "CodeMirror"
+                uid=snap_22_81 strong
+                  uid=snap_22_82 StaticText "CodeMirror"
+                    uid=snap_22_83 InlineTextBox
+            uid=snap_22_84 paragraph
+              uid=snap_22_85 StaticText "3 天之前 · CodeMirror is a code editor component for the web. It can be used in websites to implement a text input field with support for many editing features, and has a rich programming interface to allow …"
+                uid=snap_22_86 InlineTextBox
+                uid=snap_22_87 InlineTextBox
+          uid=snap_22_88 listitem level="1"
+            uid=snap_22_89 link "juejin.cn"
+              uid=snap_22_90 image "全球 Web 图标"
+              uid=snap_22_95 group
+                uid=snap_22_91 StaticText "juejin.cn"
+                  uid=snap_22_92 InlineTextBox
+                uid=snap_22_93 StaticText "https://juejin.cn › post"
+                  uid=snap_22_94 InlineTextBox
+            uid=snap_22_96 heading "CodeMirror介绍CodeMirror 是一个用 JavaScript 编写的功能 ..." level="2"
+              uid=snap_22_97 link "CodeMirror介绍CodeMirror 是一个用 JavaScript 编写的功能 ..."
+                uid=snap_22_98 strong
+                  uid=snap_22_99 StaticText "CodeMirror"
+                    uid=snap_22_100 InlineTextBox
+                uid=snap_22_101 StaticText "介绍"
+                  uid=snap_22_102 InlineTextBox
+                uid=snap_22_103 strong
+                  uid=snap_22_104 StaticText "CodeMirror"
+                    uid=snap_22_105 InlineTextBox
+                uid=snap_22_106 StaticText " 是一个用 JavaScript 编写的功能 ..."
+                  uid=snap_22_107 InlineTextBox
+            uid=snap_22_108 paragraph
+              uid=snap_22_109 StaticText "2025年3月10日 · CodeMirror 是一个用 JavaScript 编写的功能强大的文本编辑器库，专为网页端设计，尤其适用于代码编辑场景。 它提供了丰富的功能，适用于开发者、教育平台、在线 IDE 或需要代码编 …"
+                uid=snap_22_110 InlineTextBox
+                uid=snap_22_111 InlineTextBox
+          uid=snap_22_112 listitem level="1"
+            uid=snap_22_113 link "zhihu.com"
+              uid=snap_22_114 image "全球 Web 图标"
+              uid=snap_22_119 group
+                uid=snap_22_115 StaticText "zhihu.com"
+                  uid=snap_22_116 InlineTextBox
+                uid=snap_22_117 StaticText "https://zhuanlan.zhihu.com"
+                  uid=snap_22_118 InlineTextBox
+            uid=snap_22_120 heading "在线代码编辑器CodeMirror简介 - 知乎" level="2"
+              uid=snap_22_121 link "在线代码编辑器CodeMirror简介 - 知乎"
+                uid=snap_22_122 StaticText "在线代码编辑器"
+                  uid=snap_22_123 InlineTextBox
+                uid=snap_22_124 strong
+                  uid=snap_22_125 StaticText "CodeMirror"
+                    uid=snap_22_126 InlineTextBox
+                uid=snap_22_127 StaticText "简介 - 知乎"
+                  uid=snap_22_128 InlineTextBox
+            uid=snap_22_129 paragraph
+              uid=snap_22_130 StaticText "2019年2月15日 · value: string | CodeMirror.Doc 编辑器的初始值（文本），可以是字符串或者CodeMirror文档对象 (不同于HTML文档对象)。 mode: string | object 通用的或者在CodeMirror中使用 …"
+                uid=snap_22_131 InlineTextBox
+                uid=snap_22_132 InlineTextBox
+          uid=snap_22_133 listitem level="1"
+            uid=snap_22_134 link "mirckmuse.github.io"
+              uid=snap_22_135 image "全球 Web 图标"
+              uid=snap_22_140 group
+                uid=snap_22_136 StaticText "mirckmuse.github.io"
+                  uid=snap_22_137 InlineTextBox
+                uid=snap_22_138 StaticText "https://mirckmuse.github.io › codemirror.cn › documentation › ..."
+                  uid=snap_22_139 InlineTextBox
+            uid=snap_22_141 heading "系统指南 | CodeMirror [持续翻译]" level="2"
+              uid=snap_22_142 link "系统指南 | CodeMirror [持续翻译]"
+                uid=snap_22_143 StaticText "系统指南 | "
+                  uid=snap_22_144 InlineTextBox
+                uid=snap_22_145 strong
+                  uid=snap_22_146 StaticText "CodeMirror"
+                    uid=snap_22_147 InlineTextBox
+                uid=snap_22_148 StaticText " [持续翻译]"
+                  uid=snap_22_149 InlineTextBox
+            uid=snap_22_150 paragraph
+              uid=snap_22_151 StaticText "2024年4月22日 · 函数式核心、命令式壳 指导 CodeMirror 架构的一个态度就是函数式（纯）代码，比命令式代码更容易使用，它会创建新值，不会有副作用。 但浏览器 DOM 很显然是命令式，集成 …"
+                uid=snap_22_152 InlineTextBox
+                uid=snap_22_153 InlineTextBox
+          uid=snap_22_154 listitem level="1"
+            uid=snap_22_155 link "gitbooks.io"
+              uid=snap_22_156 image "全球 Web 图标"
+              uid=snap_22_161 group
+                uid=snap_22_157 StaticText "gitbooks.io"
+                  uid=snap_22_158 InlineTextBox
+                uid=snap_22_159 StaticText "https://olindk.gitbooks.io › codemirror › content › basic..."
+                  uid=snap_22_160 InlineTextBox
+            uid=snap_22_162 heading "Basic Usage · CodeMirror 中文版" level="2"
+              uid=snap_22_163 link "Basic Usage · CodeMirror 中文版"
+                uid=snap_22_164 StaticText "Basic Usage · "
+                uid=snap_22_165 strong
+                  uid=snap_22_166 StaticText "CodeMirror"
+                uid=snap_22_167 StaticText " 中文版"
+            uid=snap_22_168 StaticText "使用CodeMirror最简单的方法就是加载lib/文件夹下的js和css文件，外加一个在mode/文件夹下的mode脚本。 接下来就可以这样创建一个编辑器的实例： var myCodeMirror = CodeMirror(document.body);  …"
+          uid=snap_22_169 listitem level="1"
+            uid=snap_22_170 link "csdn.net"
+              uid=snap_22_171 image "全球 Web 图标"
+              uid=snap_22_176 group
+                uid=snap_22_172 StaticText "csdn.net"
+                  uid=snap_22_173 InlineTextBox
+                uid=snap_22_174 StaticText "https://blog.csdn.net › misstianyun › article › details"
+                  uid=snap_22_175 InlineTextBox
+            uid=snap_22_177 heading "vue3项目中使用 CodeMirror 组件的详细教程，中文帮助文档 ..." level="2"
+              uid=snap_22_178 link "vue3项目中使用 CodeMirror 组件的详细教程，中文帮助文档 ..."
+                uid=snap_22_179 StaticText "vue3项目中使用"
+                uid=snap_22_180 strong
+                  uid=snap_22_181 StaticText "CodeMirror"
+                uid=snap_22_182 StaticText "组件的详细教程，中文帮助文档 ..."
+            uid=snap_22_183 StaticText "2025年5月12日 · 这是基于 Vue 3 开发的 CodeMirror 组件。 该组件基于 CodeMirror 5 开发，仅支持 Vue 3。 除了支持官方提供的各种语法模式外，还额外添加了日志输出展示模式，开箱即用，但不一定适 …"
+          uid=snap_22_184 listitem level="1"
+            uid=snap_22_185 link "github.com"
+              uid=snap_22_186 image "全球 Web 图标"
+              uid=snap_22_191 group
+                uid=snap_22_187 StaticText "github.com"
+                  uid=snap_22_188 InlineTextBox
+                uid=snap_22_189 StaticText "https://github.com › codemirror"
+                  uid=snap_22_190 InlineTextBox
+            uid=snap_22_192 heading "CodeMirror - GitHub" level="2"
+              uid=snap_22_193 link "CodeMirror - GitHub"
+                uid=snap_22_194 strong
+                  uid=snap_22_195 StaticText "CodeMirror"
+                uid=snap_22_196 StaticText " - GitHub"
+            uid=snap_22_197 StaticText "The in-browser code editor. CodeMirror has 57 repositories available. Follow their code on GitHub."
+          uid=snap_22_198 listitem level="1"
+            uid=snap_22_199 link "cnblogs.com"
+              uid=snap_22_200 image "全球 Web 图标"
+              uid=snap_22_205 group
+                uid=snap_22_201 StaticText "cnblogs.com"
+                  uid=snap_22_202 InlineTextBox
+                uid=snap_22_203 StaticText "https://www.cnblogs.com › yalier"
+                  uid=snap_22_204 InlineTextBox
+            uid=snap_22_206 heading "codemirror6教程 - 鸭梨的药丸哥 - 博客园" level="2"
+              uid=snap_22_207 link "codemirror6教程 - 鸭梨的药丸哥 - 博客园"
+                uid=snap_22_208 StaticText "codemirror6教程 - 鸭梨的药丸哥 - 博客园"
+            uid=snap_22_209 StaticText "2022年11月30日 · 两个概念 编辑器视图 视图用于展示文本的，在 codemirror6 中文本信息的展示使用的是 EditorView 这个类 编辑器状态 在codemirror6中，文本信息放到了 EditorState 这个类， …"
+          uid=snap_22_210 listitem level="1"
+            uid=snap_22_211 link "codemirror.net"
+              uid=snap_22_212 image "全球 Web 图标"
+              uid=snap_22_217 group
+                uid=snap_22_213 StaticText "codemirror.net"
+                  uid=snap_22_214 InlineTextBox
+                uid=snap_22_215 StaticText "https://codemirror.net"
+                  uid=snap_22_216 InlineTextBox
+            uid=snap_22_218 heading "CodeMirror 5" level="2"
+              uid=snap_22_219 link "CodeMirror 5"
+                uid=snap_22_220 strong
+                  uid=snap_22_221 StaticText "CodeMirror"
+                uid=snap_22_222 StaticText " 5"
+            uid=snap_22_223 StaticText "2026年4月16日 · CodeMirror is a versatile text editor implemented in JavaScript for the browser. It is specialized for editing code, and comes with a number of language modes and addons that …"
+          uid=snap_22_224 listitem level="1"
+            uid=snap_22_225 link "mirckmuse.github.io"
+              uid=snap_22_226 image "全球 Web 图标"
+              uid=snap_22_231 group
+                uid=snap_22_227 StaticText "mirckmuse.github.io"
+                  uid=snap_22_228 InlineTextBox
+                uid=snap_22_229 StaticText "https://mirckmuse.github.io › codemirror.cn › documentation"
+                  uid=snap_22_230 InlineTextBox
+            uid=snap_22_232 heading "文档 | CodeMirror [持续翻译]" level="2"
+              uid=snap_22_233 link "文档 | CodeMirror [持续翻译]"
+                uid=snap_22_234 StaticText "文档 | "
+                uid=snap_22_235 strong
+                  uid=snap_22_236 StaticText "CodeMirror"
+                uid=snap_22_237 StaticText " [持续翻译]"
+            uid=snap_22_238 StaticText "2024年3月27日 · 系统指南 对系统的描述，以及实现一些共同目标的指南。 指引手册 库导出的公共API的完整列表和说明。 核心拓展 核心包中可用扩展的有序集合。 案例 一组示例，展示了如何实现各种用 …"
+          uid=snap_22_239 listitem level="1"
+            uid=snap_22_240 StaticText "为回应符合本地法律要求的通知，部分搜索结果未予显示。有关详细信息，请参阅"
+              uid=snap_22_241 InlineTextBox
+            uid=snap_22_242 link "此处"
+              uid=snap_22_243 StaticText "此处"
+                uid=snap_22_244 InlineTextBox
+            uid=snap_22_245 StaticText "。"
+              uid=snap_22_246 InlineTextBox
+          uid=snap_22_247 listitem level="1"
+            uid=snap_22_248 navigation ""codemirror" searchPanel "next" "previous" DOM button structure 的更多搜索结果"
+              uid=snap_22_249 heading "分页" level="4"
+                uid=snap_22_250 StaticText "分页"
+              uid=snap_22_251 list
+                uid=snap_22_252 link "第 1 页"
+                  uid=snap_22_253 StaticText "1"
+                uid=snap_22_254 link "第 2 页"
+                  uid=snap_22_255 StaticText "2"
+                uid=snap_22_256 link "第 3 页"
+                  uid=snap_22_257 StaticText "3"
+                uid=snap_22_258 link "下一页"
+                  uid=snap_22_259 StaticText "下一页"
+      uid=snap_22_260 complementary "更多结果"
+        uid=snap_22_261 list
+      uid=snap_22_262 complementary "浏览更多"
+    uid=snap_22_264 contentinfo
+      uid=snap_22_265 list
+        uid=snap_22_266 link "增值电信业务经营许可证：合字B2-20090007"
+          uid=snap_22_267 StaticText "增值电信业务经营许可证：合字B2-20090007"
+        uid=snap_22_268 link "京ICP备10036305号-7"
+          uid=snap_22_269 StaticText "京ICP备10036305号-7"
+        uid=snap_22_270 link "京公网安备11010802047360号"
+          uid=snap_22_271 StaticText "京公网安备11010802047360号"
+        uid=snap_22_272 link "隐私"
+          uid=snap_22_273 StaticText "隐私"
+        uid=snap_22_274 link "条款"
+          uid=snap_22_275 StaticText "条款"
+    uid=snap_22_276 dialog "Quick Search"

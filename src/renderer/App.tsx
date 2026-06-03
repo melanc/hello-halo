@@ -332,13 +332,12 @@ export default function App() {
   //   3. If the backend says "not active" but the frontend still has isGenerating=true,
   //      triggers handleAgentComplete to unblock the UI and reload the conversation.
   useEffect(() => {
-    if (isElectron()) return // Electron uses IPC, not WebSocket — no recovery needed
-
     const recoverOnResume = () => {
       if (document.hidden) return // Only recover when becoming visible
       console.log('[App] Visibility resumed — recovering WebSocket + session state')
 
       // 1. Force-reconnect WebSocket immediately (resets backoff, re-subscribes)
+      //    No-op in Electron (uses IPC instead).
       api.forceReconnectWebSocket()
 
       // 2. Check all sessions that think they're still generating

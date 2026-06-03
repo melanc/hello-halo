@@ -380,6 +380,26 @@ export const api = {
     return { success: false, error: 'Not available in browser' }
   },
 
+  // Read directory contents at an arbitrary filesystem path (for external project dirs)
+  readDirectory: async (dirPath: string): Promise<ApiResponse> => {
+    if (isElectron()) return window.devx.readDirectory(dirPath)
+    return { success: false, error: 'Not available in browser' }
+  },
+
+  // ===== File Watching =====
+  watchFile: async (filePath: string): Promise<ApiResponse> => {
+    if (isElectron()) return window.devx.watchFile(filePath)
+    return { success: false, error: 'not-electron' }
+  },
+
+  unwatchFile: async (filePath: string): Promise<ApiResponse> => {
+    if (isElectron()) return window.devx.unwatchFile(filePath)
+    return { success: false, error: 'not-electron' }
+  },
+
+  onFileChanged: (callback: (data: { path: string; content: string }) => void): (() => void) =>
+    onEvent('fs:file-changed', callback),
+
   // ===== Conversation =====
   listConversations: async (spaceId: string): Promise<ApiResponse> => {
     if (isElectron()) {
@@ -1245,6 +1265,50 @@ export const api = {
       return window.devx.clearNotificationChannelCache()
     }
     return httpRequest('POST', '/api/notify-channels/clear-cache')
+  },
+
+  // ===== Feishu Bot (飞书机器人) =====
+  getFeishuBotStatus: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.getFeishuBotStatus()
+    }
+    return httpRequest('GET', '/api/feishu-bot/status')
+  },
+
+  reconnectFeishuBot: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.reconnectFeishuBot()
+    }
+    return httpRequest('POST', '/api/feishu-bot/reconnect')
+  },
+
+  // ===== Feishu Bot (飞书机器人) =====
+  listFeishuBotSpaces: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.listFeishuBotSpaces()
+    }
+    return httpRequest('GET', '/api/feishu-bot/spaces')
+  },
+
+  listFeishuBotTasks: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.listFeishuBotTasks()
+    }
+    return httpRequest('GET', '/api/feishu-bot/tasks')
+  },
+
+  listFeishuBotMainSessions: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.listFeishuBotMainSessions()
+    }
+    return httpRequest('GET', '/api/feishu-bot/main-sessions')
+  },
+
+  listFeishuBotTaskSessions: async (): Promise<ApiResponse> => {
+    if (isElectron()) {
+      return window.devx.listFeishuBotTaskSessions()
+    }
+    return httpRequest('GET', '/api/feishu-bot/task-sessions')
   },
 
   // ===== WeCom Bot (企业微信智能机器人) =====
@@ -2224,6 +2288,33 @@ export const api = {
 
   onTerminalDone: (callback: (data: unknown) => void) =>
     onEvent('terminal:done', callback),
+
+  // ===== PTY Terminal (xterm.js + node-pty, Electron only) =====
+  ptyCreate: async (opts?: { cols?: number; rows?: number }): Promise<ApiResponse> => {
+    if (!isElectron()) return { success: false, error: 'Electron only' }
+    return window.devx.ptyCreate(opts)
+  },
+
+  ptyWrite: async (opts: { id: string; data: string }): Promise<ApiResponse> => {
+    if (!isElectron()) return { success: false, error: 'Electron only' }
+    return window.devx.ptyWrite(opts)
+  },
+
+  ptyResize: async (opts: { id: string; cols: number; rows: number }): Promise<ApiResponse> => {
+    if (!isElectron()) return { success: false, error: 'Electron only' }
+    return window.devx.ptyResize(opts)
+  },
+
+  ptyKill: async (opts: { id: string }): Promise<ApiResponse> => {
+    if (!isElectron()) return { success: false, error: 'Electron only' }
+    return window.devx.ptyKill(opts)
+  },
+
+  onPtyData: (callback: (data: unknown) => void) =>
+    onEvent('terminal-pty:data', callback),
+
+  onPtyExit: (callback: (data: unknown) => void) =>
+    onEvent('terminal-pty:exit', callback),
 }
 
 // Export type for the API

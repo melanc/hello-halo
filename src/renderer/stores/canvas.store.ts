@@ -53,6 +53,8 @@ interface CanvasState {
     isBinary: boolean
   ) => Promise<string>
   openUrl: (url: string, title?: string) => Promise<void>
+  openRequirementDevTab: (title?: string) => Promise<string>
+  openTerminalTab: (title?: string) => Promise<string>
   attachAIBrowserView: (viewId: string, url: string, title?: string) => void
   openContent: (content: string, title: string, type: ContentType, language?: string) => void
   closeTab: (tabId: string) => void
@@ -139,6 +141,14 @@ export const useCanvasStore = create<CanvasState>((set, get) => {
 
     openUrl: async (url: string, title?: string) => {
       await canvasLifecycle.openUrl(url, title)
+    },
+
+    openRequirementDevTab: async (title?: string) => {
+      return canvasLifecycle.openRequirementDevTab(title)
+    },
+
+    openTerminalTab: async (title?: string) => {
+      return canvasLifecycle.openTerminalTab(title)
     },
 
     attachAIBrowserView: (viewId: string, url: string, title?: string) => {

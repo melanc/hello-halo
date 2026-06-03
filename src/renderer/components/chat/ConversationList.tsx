@@ -13,6 +13,7 @@ import { useTranslation } from '../../i18n'
 import { useChatStore, useAllConversationStatuses } from '../../stores/chat.store'
 import { useSpaceStore } from '../../stores/space.store'
 import { useAppStore } from '../../stores/app.store'
+import { useTaskStore } from '../../stores/task.store'
 import { api } from '../../api'
 import { TaskStatusDot } from '../pulse/TaskStatusDot'
 import { PulseSidebarSection } from '../pulse/PulseSidebarSection'
@@ -54,10 +55,9 @@ export const ConversationList = memo(function ConversationList({
     return spaceState?.currentConversationId ?? undefined
   })
   const layoutConfig = useAppStore(state => state.config?.layout)
-  const setView = useAppStore(s => s.setView)
-
   // Single batch subscription for all conversation statuses (replaces N individual hooks)
   const conversationStatuses = useAllConversationStatuses()
+  const activeTaskId = useTaskStore((s) => s.activeTaskId)
 
   // Width state - initialized from persisted config
   const initialWidth = layoutConfig?.sidebarWidth
@@ -402,14 +402,24 @@ export const ConversationList = memo(function ConversationList({
         />
       </div>
 
-      {/* Back to home button */}
+      {/* New conversation button */}
       <div className="p-2 border-t border-border">
         <button
-          onClick={() => setView('home')}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 text-sm text-primary hover:bg-primary/10 rounded-lg transition-colors"
+          onClick={() => {
+            const currentSpace = useSpaceStore.getState().currentSpace
+            if (currentSpace) {
+              useChatStore.getState().createConversation(currentSpace.id)
+            }
+          }}
+          disabled={!!activeTaskId}
+          className={`w-full flex items-center justify-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
+            activeTaskId
+              ? 'text-muted-foreground/30 cursor-not-allowed'
+              : 'text-primary hover:bg-primary/10'
+          }`}
         >
           <Plus className="w-4 h-4" />
-          {t('Back to home')}
+          {t('New conversation')}
         </button>
       </div>
 

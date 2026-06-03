@@ -13,6 +13,18 @@ if (typeof window !== 'undefined' && 'devx' in window) {
   import('electron-log/renderer.js').then(({ default: log }) => {
     Object.assign(console, log.functions)
   })
+
+  // Override navigator.clipboard.writeText to use Electron native clipboard.
+  // The Web Clipboard API is unreliable in Electron renderer contexts.
+  // This ensures all copy operations (including third-party libraries like Streamdown) work.
+  const originalWriteText = navigator.clipboard.writeText.bind(navigator.clipboard)
+  navigator.clipboard.writeText = async (text: string) => {
+    try {
+      await window.devx.clipboardWriteText(text)
+    } catch {
+      return originalWriteText(text)
+    }
+  }
 }
 
 import ReactDOM from 'react-dom/client'

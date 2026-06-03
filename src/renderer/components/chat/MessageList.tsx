@@ -324,16 +324,27 @@ export const MessageList = forwardRef<MessageListHandle, MessageListProps>(funct
   const streamingRevisionRef = useRef(streamingRevision)
   streamingRevisionRef.current = streamingRevision
 
+  // Ref for pending confirm state — read by Footer without being a dependency.
+  // When stopGeneration fires, isGenerating → false triggers a Footer re-render,
+  // but the Footer would normally skip rendering StreamingFooterContent (and its
+  // AskUserQuestionCard / AnnounceFileChangesCard children) when !isGenerating.
+  // This ref lets Footer know that a confirm dialog is still pending and must be
+  // rendered so it can show its cancelled/answered state before unmounting.
+  const footerForceVisibleRef = useRef(false)
+  footerForceVisibleRef.current = !!(pendingQuestion || pendingFileChanges)
+
   // Footer: stable callback — only depends on low-frequency values
   // High-frequency streaming updates are handled by StreamingFooterContent internally
   const Footer = useCallback(() => {
-    const hasFooterContent = isGenerating || (!isGenerating && error) || compactInfo
+    const hasFooterContent = isGenerating || (!isGenerating && error) || compactInfo || footerForceVisibleRef.current
     if (!hasFooterContent) return <div className="pb-6" />
 
     return (
       <div className={contentWidthClass}>
-        {/* Streaming area — isolated component reads from refs, re-renders independently */}
-        {isGenerating && <StreamingFooterContent revisionRef={streamingRevisionRef} />}
+        {/* Streaming area — isolated component reads from refs, re-renders independently.
+            Also rendered when a pending confirm dialog exists (not just during generation),
+            so that cancelled/answered cards can display their final state on timeout. */}
+        {(isGenerating || footerForceVisibleRef.current) && <StreamingFooterContent revisionRef={streamingRevisionRef} />}
 
         {/* Error message - shown when generation fails (not during generation) */}
         {/* Interrupted errors get special friendly UI, other errors show standard error bubble */}

@@ -1,0 +1,4 @@
+# Page: devx
+URL: file:///D:/workspace/node/devx
+
+uid=snap_1_0 RootWebArea

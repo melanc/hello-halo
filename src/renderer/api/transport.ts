@@ -446,8 +446,11 @@ export function onEvent(channel: string, callback: (data: unknown) => void): () 
       'app:escalation:new': 'onAppEscalation',
       'app:navigate': 'onAppNavigate',
       'notification:toast': 'onNotificationToast',
+      'fs:file-changed': 'onFileChanged',
       'terminal:output': 'onTerminalOutput',
       'terminal:done': 'onTerminalDone',
+      'terminal-pty:data': 'onPtyData',
+      'terminal-pty:exit': 'onPtyExit',
     }
 
     const method = methodMap[channel]

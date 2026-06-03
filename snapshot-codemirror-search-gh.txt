@@ -1,0 +1,3431 @@
+# Page: search/src/search.ts at main · codemirror/search · GitHub
+URL: https://github.com/codemirror/search/blob/main/src/search.ts
+
+uid=snap_13_0 RootWebArea "search/src/search.ts at main · codemirror/search · GitHub"
+  uid=snap_13_1781 group
+    uid=snap_13_1779 group
+      uid=snap_13_29 group
+        uid=snap_13_1 link "Skip to content"
+          uid=snap_13_2 StaticText "Skip to content"
+            uid=snap_13_3 InlineTextBox
+            uid=snap_13_4 InlineTextBox
+            uid=snap_13_5 InlineTextBox
+            uid=snap_13_6 InlineTextBox
+            uid=snap_13_7 InlineTextBox
+            uid=snap_13_8 InlineTextBox
+            uid=snap_13_9 InlineTextBox
+            uid=snap_13_10 InlineTextBox
+            uid=snap_13_11 InlineTextBox
+            uid=snap_13_12 InlineTextBox
+            uid=snap_13_13 InlineTextBox
+            uid=snap_13_14 InlineTextBox
+            uid=snap_13_15 InlineTextBox
+        uid=snap_13_16 banner
+          uid=snap_13_17 heading "Navigation Menu" level="2"
+            uid=snap_13_18 StaticText "Navigation Menu"
+              uid=snap_13_19 InlineTextBox
+              uid=snap_13_20 InlineTextBox
+          uid=snap_13_28 group
+            uid=snap_13_21 button "Toggle navigation" expandable
+            uid=snap_13_22 link "Homepage"
+            uid=snap_13_27 group
+              uid=snap_13_23 link "Sign in"
+                uid=snap_13_24 StaticText "Sign in"
+                  uid=snap_13_25 InlineTextBox
+              uid=snap_13_26 button "Appearance settings" disableable disabled
+      uid=snap_13_30 main
+        uid=snap_13_31 StaticText "This repository was archived by the owner on Apr 15, 2026. It is now read-only."
+          uid=snap_13_32 InlineTextBox
+          uid=snap_13_33 InlineTextBox
+          uid=snap_13_34 InlineTextBox
+          uid=snap_13_35 InlineTextBox
+          uid=snap_13_36 InlineTextBox
+          uid=snap_13_37 InlineTextBox
+          uid=snap_13_38 InlineTextBox
+          uid=snap_13_39 InlineTextBox
+          uid=snap_13_40 InlineTextBox
+          uid=snap_13_41 InlineTextBox
+          uid=snap_13_42 InlineTextBox
+          uid=snap_13_43 InlineTextBox
+          uid=snap_13_44 InlineTextBox
+          uid=snap_13_45 InlineTextBox
+          uid=snap_13_46 InlineTextBox
+          uid=snap_13_47 InlineTextBox
+          uid=snap_13_48 InlineTextBox
+          uid=snap_13_49 InlineTextBox
+          uid=snap_13_50 InlineTextBox
+          uid=snap_13_51 InlineTextBox
+          uid=snap_13_52 InlineTextBox
+          uid=snap_13_53 InlineTextBox
+          uid=snap_13_54 InlineTextBox
+          uid=snap_13_55 InlineTextBox
+          uid=snap_13_56 InlineTextBox
+          uid=snap_13_57 InlineTextBox
+          uid=snap_13_58 InlineTextBox
+          uid=snap_13_59 InlineTextBox
+          uid=snap_13_60 InlineTextBox
+          uid=snap_13_61 InlineTextBox
+          uid=snap_13_62 InlineTextBox
+          uid=snap_13_63 InlineTextBox
+          uid=snap_13_64 InlineTextBox
+          uid=snap_13_65 InlineTextBox
+          uid=snap_13_66 InlineTextBox
+          uid=snap_13_67 InlineTextBox
+          uid=snap_13_68 InlineTextBox
+          uid=snap_13_69 InlineTextBox
+          uid=snap_13_70 InlineTextBox
+          uid=snap_13_71 InlineTextBox
+          uid=snap_13_72 InlineTextBox
+          uid=snap_13_73 InlineTextBox
+          uid=snap_13_74 InlineTextBox
+          uid=snap_13_75 InlineTextBox
+          uid=snap_13_76 InlineTextBox
+          uid=snap_13_77 InlineTextBox
+          uid=snap_13_78 InlineTextBox
+          uid=snap_13_79 InlineTextBox
+          uid=snap_13_80 InlineTextBox
+          uid=snap_13_81 InlineTextBox
+          uid=snap_13_82 InlineTextBox
+          uid=snap_13_83 InlineTextBox
+          uid=snap_13_84 InlineTextBox
+          uid=snap_13_85 InlineTextBox
+          uid=snap_13_86 InlineTextBox
+          uid=snap_13_87 InlineTextBox
+          uid=snap_13_88 InlineTextBox
+          uid=snap_13_89 InlineTextBox
+          uid=snap_13_90 InlineTextBox
+          uid=snap_13_91 InlineTextBox
+          uid=snap_13_92 InlineTextBox
+          uid=snap_13_93 InlineTextBox
+          uid=snap_13_94 InlineTextBox
+          uid=snap_13_95 InlineTextBox
+          uid=snap_13_96 InlineTextBox
+        uid=snap_13_130 group
+          uid=snap_13_121 group
+            uid=snap_13_97 link "codemirror"
+              uid=snap_13_98 StaticText "codemirror"
+                uid=snap_13_99 InlineTextBox
+                uid=snap_13_100 InlineTextBox
+                uid=snap_13_101 InlineTextBox
+                uid=snap_13_102 InlineTextBox
+                uid=snap_13_103 InlineTextBox
+                uid=snap_13_104 InlineTextBox
+                uid=snap_13_105 InlineTextBox
+                uid=snap_13_106 InlineTextBox
+                uid=snap_13_107 InlineTextBox
+            uid=snap_13_108 StaticText "/"
+              uid=snap_13_109 InlineTextBox
+            uid=snap_13_110 strong
+              uid=snap_13_111 link "search"
+                uid=snap_13_112 StaticText "search"
+                  uid=snap_13_113 InlineTextBox
+                  uid=snap_13_114 InlineTextBox
+                  uid=snap_13_115 InlineTextBox
+                  uid=snap_13_116 InlineTextBox
+                  uid=snap_13_117 InlineTextBox
+                  uid=snap_13_118 InlineTextBox
+            uid=snap_13_119 StaticText "Public archive"
+              uid=snap_13_120 InlineTextBox
+          uid=snap_13_122 navigation "Repository"
+            uid=snap_13_123 list
+              uid=snap_13_124 listitem level="1"
+              uid=snap_13_125 listitem level="1"
+              uid=snap_13_126 listitem level="1"
+              uid=snap_13_127 listitem level="1"
+              uid=snap_13_128 listitem level="1"
+            uid=snap_13_129 button "Additional navigation options" expandable
+        uid=snap_13_131 generic "Expand file tree main branch Breadcrumbs search.ts Copy path More file actions Latest commit marijnh commits by marijnh 4 months ago History Open commit details View commit history for this file. 824 lines (730 loc) · 30.5 KB File metadata and controls File view Open symbols panel Edit and raw actions import {EditorView, ViewPlugin, ViewUpdate, Command, Decoration, DecorationSet, runScopeHandlers, KeyBinding, PanelConstructor, showPanel, Panel, getPanel} from "@codemirror/view" import {EditorState, StateField, StateEffect, EditorSelection, SelectionRange, StateCommand, Prec, Facet, Extension, RangeSetBuilder, Text, CharCategory, findClusterBreak, combineConfig} from "@codemirror/state" import elt from "crelt" import {SearchCursor} from "./cursor" import {RegExpCursor, validRegExp} from "./regexp" import {gotoLine} from "./goto-line" import {selectNextOccurrence} from "./selection-match" export {highlightSelectionMatches} from "./selection-match" export {SearchCursor, RegExpCursor, gotoLine, selectNextOccurrence} interface SearchConfig { /// Whether to position the search panel at the top of the editor /// (the default is at the bottom). top?: boolean /// Whether to enable case sensitivity by default when the search /// panel is activated (defaults to false). caseSensitive?: boolean /// Whether to treat string searches literally by default (defaults to false). literal?: boolean /// Controls whether the default query has by-word matching enabled. /// Defaults to false. wholeWord?: boolean /// Used to turn on regular expression search in the default query. /// Defaults to false. regexp?: boolean /// Can be used to override the way the search panel is implemented. /// Should create a [Panel](#view.Panel) that contains a form /// which lets the user: /// /// - See the [current](#search.getSearchQuery) search query. /// - Manipulate the [query](#search.SearchQuery) and /// [update](#search.setSearchQuery) the search state with a new /// query. /// - Notice external changes to the query by reacting to the /// appropriate [state effect](#search.setSearchQuery). /// - Run some of the search commands. /// /// The field that should be focused when opening the panel must be /// tagged with a `main-field=true` DOM attribute. createPanel?: (view: EditorView) => Panel, /// By default, matches are scrolled into view using the default /// behavior of /// [`EditorView.scrollIntoView`](#view.EditorView^scrollIntoView). /// This option allows you to pass a custom function to produce the /// scroll effect. scrollToMatch?: (range: SelectionRange, view: EditorView) => StateEffect<unknown> } const searchConfigFacet: Facet<SearchConfig, Required<SearchConfig>> = Facet.define({ combine(configs) { return combineConfig(configs, { top: false, caseSensitive: false, literal: false, regexp: false, wholeWord: false, createPanel: view => new SearchPanel(view), scrollToMatch: range => EditorView.scrollIntoView(range) }) } }) /// Add search state to the editor configuration, and optionally /// configure the search extension. /// ([`openSearchPanel`](#search.openSearchPanel) will automatically /// enable this if it isn't already on). export function search(config?: SearchConfig): Extension { return config ? [searchConfigFacet.of(config), searchExtensions] : searchExtensions } /// A search query. Part of the editor's search state. export class SearchQuery { /// The search string (or regular expression). readonly search: string /// Indicates whether the search is case-sensitive. readonly caseSensitive: boolean /// By default, string search will replace `\n`, `\r`, and `\t` in /// the query with newline, return, and tab characters. When this /// is set to true, that behavior is disabled. readonly literal: boolean /// When true, the search string is interpreted as a regular /// expression. readonly regexp: boolean /// The replace text, or the empty string if no replace text has /// been given. readonly replace: string /// Whether this query is non-empty and, in case of a regular /// expression search, syntactically valid. readonly valid: boolean /// When true, matches that contain words are ignored when there are /// further word characters around them. readonly wholeWord: boolean /// @internal readonly unquoted: string /// Optional test function used to filter matches. readonly test: ((match: string, state: EditorState, from: number, to: number) => boolean) | undefined /// Create a query object. constructor(config: { /// The search string. search: string, /// Controls whether the search should be case-sensitive. caseSensitive?: boolean, /// By default, string search will replace `\n`, `\r`, and `\t` in /// the query with newline, return, and tab characters. When this /// is set to true, that behavior is disabled. literal?: boolean, /// When true, interpret the search string as a regular expression. regexp?: boolean, /// The replace text. replace?: string, /// Enable whole-word matching. wholeWord?: boolean /// Optional custom filter. It is passed the matched string, the /// editor state, and the match range. Matches for which it /// returns false will be ignored. test?: (match: string, state: EditorState, from: number, to: number) => boolean }) { this.search = config.search this.caseSensitive = !!config.caseSensitive this.literal = !!config.literal this.regexp = !!config.regexp this.replace = config.replace || "" this.valid = !!this.search && (!this.regexp || validRegExp(this.search)) this.unquoted = this.unquote(this.search) this.wholeWord = !!config.wholeWord this.test = config.test } /// @internal unquote(text: string) { return this.literal ? text : text.replace(/\\([nrt\\])/g, (_, ch) => ch == "n" ? "\n" : ch == "r" ? "\r" : ch == "t" ? "\t" : "\\") } /// Compare this query to another query. eq(other: SearchQuery) { return this.search == other.search && this.replace == other.replace && this.caseSensitive == other.caseSensitive && this.regexp == other.regexp && this.wholeWord == other.wholeWord && this.test == other.test } /// @internal create(): QueryType { return this.regexp ? new RegExpQuery(this) : new StringQuery(this) } /// Get a search cursor for this query, searching through the given /// range in the given state. getCursor(state: EditorState | Text, from: number = 0, to?: number): Iterator<{from: number, to: number}> { let st = (state as any).doc ? state as EditorState : EditorState.create({doc: state as Text}) if (to == null) to = st.doc.length return this.regexp ? regexpCursor(this, st, from, to) : stringCursor(this, st, from, to) } } type SearchResult = typeof SearchCursor.prototype.value abstract class QueryType<Result extends SearchResult = SearchResult> { constructor(readonly spec: SearchQuery) {} abstract nextMatch(state: EditorState, curFrom: number, curTo: number): Result | null abstract prevMatch(state: EditorState, curFrom: number, curTo: number): Result | null abstract getReplacement(result: Result): string abstract matchAll(state: EditorState, limit: number): readonly Result[] | null abstract highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void): void } const enum FindPrev { ChunkSize = 10000 } function wrapStringTest(test: (match: string, state: EditorState, from: number, to: number) => boolean, state: EditorState, inner: ((from: number, to: number, buffer: string, bufferPos: number) => boolean) | undefined) { return (from: number, to: number, buffer: string, bufferPos: number) => { if (inner && !inner(from, to, buffer, bufferPos)) return false let match = from >= bufferPos && to <= bufferPos + buffer.length ? buffer.slice(from - bufferPos, to - bufferPos) : state.doc.sliceString(from, to) return test(match, state, from, to) } } function stringCursor(spec: SearchQuery, state: EditorState, from: number, to: number) { let test: ((from: number, to: number, buffer: string, bufferPos: number) => boolean) | undefined if (spec.wholeWord) test = stringWordTest(state.doc, state.charCategorizer(state.selection.main.head)) if (spec.test) test = wrapStringTest(spec.test, state, test) return new SearchCursor(state.doc, spec.unquoted, from, to, spec.caseSensitive ? undefined : x => x.toLowerCase(), test) } function stringWordTest(doc: Text, categorizer: (ch: string) => CharCategory) { return (from: number, to: number, buf: string, bufPos: number) => { if (bufPos > from || bufPos + buf.length < to) { bufPos = Math.max(0, from - 2) buf = doc.sliceString(bufPos, Math.min(doc.length, to + 2)) } return (categorizer(charBefore(buf, from - bufPos)) != CharCategory.Word || categorizer(charAfter(buf, from - bufPos)) != CharCategory.Word) && (categorizer(charAfter(buf, to - bufPos)) != CharCategory.Word || categorizer(charBefore(buf, to - bufPos)) != CharCategory.Word) } } class StringQuery extends QueryType<SearchResult> { constructor(spec: SearchQuery) { super(spec) } nextMatch(state: EditorState, curFrom: number, curTo: number) { let cursor = stringCursor(this.spec, state, curTo, state.doc.length).nextOverlapping() if (cursor.done) { let end = Math.min(state.doc.length, curFrom + this.spec.unquoted.length) cursor = stringCursor(this.spec, state, 0, end).nextOverlapping() } return cursor.done || cursor.value.from == curFrom && cursor.value.to == curTo ? null : cursor.value } // Searching in reverse is, rather than implementing an inverted search // cursor, done by scanning chunk after chunk forward. private prevMatchInRange(state: EditorState, from: number, to: number) { for (let pos = to;;) { let start = Math.max(from, pos - FindPrev.ChunkSize - this.spec.unquoted.length) let cursor = stringCursor(this.spec, state, start, pos), range: SearchResult | null = null while (!cursor.nextOverlapping().done) range = cursor.value if (range) return range if (start == from) return null pos -= FindPrev.ChunkSize } } prevMatch(state: EditorState, curFrom: number, curTo: number) { let found = this.prevMatchInRange(state, 0, curFrom) if (!found) found = this.prevMatchInRange(state, Math.max(0, curTo - this.spec.unquoted.length), state.doc.length) return found && (found.from != curFrom || found.to != curTo) ? found : null } getReplacement(_result: SearchResult) { return this.spec.unquote(this.spec.replace) } matchAll(state: EditorState, limit: number) { let cursor = stringCursor(this.spec, state, 0, state.doc.length), ranges = [] while (!cursor.next().done) { if (ranges.length >= limit) return null ranges.push(cursor.value) } return ranges } highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void) { let cursor = stringCursor(this.spec, state, Math.max(0, from - this.spec.unquoted.length), Math.min(to + this.spec.unquoted.length, state.doc.length)) while (!cursor.next().done) add(cursor.value.from, cursor.value.to) } } const enum RegExp { HighlightMargin = 250 } type RegExpResult = typeof RegExpCursor.prototype.value function wrapRegexpTest(test: (match: string, state: EditorState, from: number, to: number) => boolean, state: EditorState, inner: ((from: number, to: number, match: RegExpExecArray) => boolean) | undefined) { return (from: number, to: number, match: RegExpExecArray) => { return (!inner || inner(from, to, match)) && test(match[0], state, from, to) } } function regexpCursor(spec: SearchQuery, state: EditorState, from: number, to: number) { let test: ((from: number, to: number, match: RegExpExecArray) => boolean) | undefined if (spec.wholeWord) test = regexpWordTest(state.charCategorizer(state.selection.main.head)) if (spec.test) test = wrapRegexpTest(spec.test, state, test) return new RegExpCursor(state.doc, spec.search, {ignoreCase: !spec.caseSensitive, test}, from, to) } function charBefore(str: string, index: number) { return str.slice(findClusterBreak(str, index, false), index) } function charAfter(str: string, index: number) { return str.slice(index, findClusterBreak(str, index)) } function regexpWordTest(categorizer: (ch: string) => CharCategory) { return (_from: number, _to: number, match: RegExpExecArray) => !match[0].length || (categorizer(charBefore(match.input, match.index)) != CharCategory.Word || categorizer(charAfter(match.input, match.index)) != CharCategory.Word) && (categorizer(charAfter(match.input, match.index + match[0].length)) != CharCategory.Word || categorizer(charBefore(match.input, match.index + match[0].length)) != CharCategory.Word) } class RegExpQuery extends QueryType<RegExpResult> { nextMatch(state: EditorState, curFrom: number, curTo: number) { let cursor = regexpCursor(this.spec, state, curTo, state.doc.length).next() if (cursor.done) cursor = regexpCursor(this.spec, state, 0, curFrom).next() return cursor.done ? null : cursor.value } private prevMatchInRange(state: EditorState, from: number, to: number) { for (let size = 1;; size++) { let start = Math.max(from, to - size * FindPrev.ChunkSize) let cursor = regexpCursor(this.spec, state, start, to), range: RegExpResult | null = null while (!cursor.next().done) range = cursor.value if (range && (start == from || range.from > start + 10)) return range if (start == from) return null } } prevMatch(state: EditorState, curFrom: number, curTo: number) { return this.prevMatchInRange(state, 0, curFrom) || this.prevMatchInRange(state, curTo, state.doc.length) } getReplacement(result: RegExpResult) { return this.spec.unquote(this.spec.replace).replace(/\$([$&]|\d+)/g, (m, i) => { if (i == "&") return result.match[0] if (i == "$") return "$" for (let l = i.length; l > 0; l--) { let n = +i.slice(0, l) if (n > 0 && n < result.match.length) return result.match[n] + i.slice(l) } return m }) } matchAll(state: EditorState, limit: number) { let cursor = regexpCursor(this.spec, state, 0, state.doc.length), ranges = [] while (!cursor.next().done) { if (ranges.length >= limit) return null ranges.push(cursor.value) } return ranges } highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void) { let cursor = regexpCursor(this.spec, state, Math.max(0, from - RegExp.HighlightMargin), Math.min(to + RegExp.HighlightMargin, state.doc.length)) while (!cursor.next().done) add(cursor.value.from, cursor.value.to) } } /// A state effect that updates the current search query. Note that /// this only has an effect if the search state has been initialized /// (by including [`search`](#search.search) in your configuration or /// by running [`openSearchPanel`](#search.openSearchPanel) at least /// once). export const setSearchQuery = StateEffect.define<SearchQuery>() const togglePanel = StateEffect.define<boolean>() const searchState: StateField<SearchState> = StateField.define<SearchState>({ create(state) { return new SearchState(defaultQuery(state).create(), null) }, update(value, tr) { for (let effect of tr.effects) { if (effect.is(setSearchQuery)) value = new SearchState(effect.value.create(), value.panel) else if (effect.is(togglePanel)) value = new SearchState(value.query, effect.value ? createSearchPanel : null) } return value }, provide: f => showPanel.from(f, val => val.panel) }) /// Get the current search query from an editor state. export function getSearchQuery(state: EditorState) { let curState = state.field(searchState, false) return curState ? curState.query.spec : defaultQuery(state) } /// Query whether the search panel is open in the given editor state. export function searchPanelOpen(state: EditorState) { return state.field(searchState, false)?.panel != null } class SearchState { constructor(readonly query: QueryType, readonly panel: PanelConstructor | null) {} } const matchMark = Decoration.mark({class: "cm-searchMatch"}), selectedMatchMark = Decoration.mark({class: "cm-searchMatch cm-searchMatch-selected"}) const searchHighlighter = ViewPlugin.fromClass(class { decorations: DecorationSet constructor(readonly view: EditorView) { this.decorations = this.highlight(view.state.field(searchState)) } update(update: ViewUpdate) { let state = update.state.field(searchState) if (state != update.startState.field(searchState) || update.docChanged || update.selectionSet || update.viewportChanged) this.decorations = this.highlight(state) } highlight({query, panel}: SearchState) { if (!panel || !query.spec.valid) return Decoration.none let {view} = this let builder = new RangeSetBuilder<Decoration>() for (let i = 0, ranges = view.visibleRanges, l = ranges.length; i < l; i++) { let {from, to} = ranges[i] while (i < l - 1 && to > ranges[i + 1].from - 2 * RegExp.HighlightMargin) to = ranges[++i].to query.highlight(view.state, from, to, (from, to) => { let selected = view.state.selection.ranges.some(r => r.from == from && r.to == to) builder.add(from, to, selected ? selectedMatchMark : matchMark) }) } return builder.finish() } }, { decorations: v => v.decorations }) function searchCommand(f: (view: EditorView, state: SearchState) => boolean): Command { return view => { let state = view.state.field(searchState, false) return state && state.query.spec.valid ? f(view, state) : openSearchPanel(view) } } /// Open the search panel if it isn't already open, and move the /// selection to the first match after the current main selection. /// Will wrap around to the start of the document when it reaches the /// end. export const findNext = searchCommand((view, {query}) => { let {to} = view.state.selection.main let next = query.nextMatch(view.state, to, to) if (!next) return false let selection = EditorSelection.single(next.from, next.to) let config = view.state.facet(searchConfigFacet) view.dispatch({ selection, effects: [announceMatch(view, next), config.scrollToMatch(selection.main, view)], userEvent: "select.search" }) selectSearchInput(view) return true }) /// Move the selection to the previous instance of the search query, /// before the current main selection. Will wrap past the start /// of the document to start searching at the end again. export const findPrevious = searchCommand((view, {query}) => { let {state} = view, {from} = state.selection.main let prev = query.prevMatch(state, from, from) if (!prev) return false let selection = EditorSelection.single(prev.from, prev.to) let config = view.state.facet(searchConfigFacet) view.dispatch({ selection, effects: [announceMatch(view, prev), config.scrollToMatch(selection.main, view)], userEvent: "select.search" }) selectSearchInput(view) return true }) /// Select all instances of the search query. export const selectMatches = searchCommand((view, {query}) => { let ranges = query.matchAll(view.state, 1000) if (!ranges || !ranges.length) return false view.dispatch({ selection: EditorSelection.create(ranges.map(r => EditorSelection.range(r.from, r.to))), userEvent: "select.search.matches" }) return true }) /// Select all instances of the currently selected text. export const selectSelectionMatches: StateCommand = ({state, dispatch}) => { let sel = state.selection if (sel.ranges.length > 1 || sel.main.empty) return false let {from, to} = sel.main let ranges = [], main = 0 for (let cur = new SearchCursor(state.doc, state.sliceDoc(from, to)); !cur.next().done;) { if (ranges.length > 1000) return false if (cur.value.from == from) main = ranges.length ranges.push(EditorSelection.range(cur.value.from, cur.value.to)) } dispatch(state.update({ selection: EditorSelection.create(ranges, main), userEvent: "select.search.matches" })) return true } /// Replace the current match of the search query. export const replaceNext = searchCommand((view, {query}) => { let {state} = view, {from, to} = state.selection.main if (state.readOnly) return false let match = query.nextMatch(state, from, from) if (!match) return false let next: SearchResult | null = match let changes = [], selection: EditorSelection | undefined, replacement: Text | undefined let effects: StateEffect<unknown>[] = [] if (next.from == from && next.to == to) { replacement = state.toText(query.getReplacement(next)) changes.push({from: next.from, to: next.to, insert: replacement}) next = query.nextMatch(state, next.from, next.to) effects.push(EditorView.announce.of( state.phrase("replaced match on line $", state.doc.lineAt(from).number) + ".")) } let changeSet = view.state.changes(changes) if (next) { selection = EditorSelection.single(next.from, next.to).map(changeSet) effects.push(announceMatch(view, next)) effects.push(state.facet(searchConfigFacet).scrollToMatch(selection.main, view)) } view.dispatch({ changes: changeSet, selection, effects, userEvent: "input.replace" }) return true }) /// Replace all instances of the search query with the given /// replacement. export const replaceAll = searchCommand((view, {query}) => { if (view.state.readOnly) return false let changes = query.matchAll(view.state, 1e9)!.map(match => { let {from, to} = match return {from, to, insert: query.getReplacement(match)} }) if (!changes.length) return false let announceText = view.state.phrase("replaced $ matches", changes.length) + "." view.dispatch({ changes, effects: EditorView.announce.of(announceText), userEvent: "input.replace.all" }) return true }) function createSearchPanel(view: EditorView) { return view.state.facet(searchConfigFacet).createPanel(view) } function defaultQuery(state: EditorState, fallback?: SearchQuery) { let sel = state.selection.main let selText = sel.empty || sel.to > sel.from + 100 ? "" : state.sliceDoc(sel.from, sel.to) if (fallback && !selText) return fallback let config = state.facet(searchConfigFacet) return new SearchQuery({ search: (fallback?.literal ?? config.literal) ? selText : selText.replace(/\n/g, "\\n"), caseSensitive: fallback?.caseSensitive ?? config.caseSensitive, literal: fallback?.literal ?? config.literal, regexp: fallback?.regexp ?? config.regexp, wholeWord: fallback?.wholeWord ?? config.wholeWord }) } function getSearchInput(view: EditorView) { let panel = getPanel(view, createSearchPanel) return panel && panel.dom.querySelector("[main-field]") as HTMLInputElement | null } function selectSearchInput(view: EditorView) { let input = getSearchInput(view) if (input && input == view.root.activeElement) input.select() } /// Make sure the search panel is open and focused. export const openSearchPanel: Command = view => { let state = view.state.field(searchState, false) if (state && state.panel) { let searchInput = getSearchInput(view) if (searchInput && searchInput != view.root.activeElement) { let query = defaultQuery(view.state, state.query.spec) if (query.valid) view.dispatch({effects: setSearchQuery.of(query)}) searchInput.focus() searchInput.select() } } else { view.dispatch({effects: [ togglePanel.of(true), state ? setSearchQuery.of(defaultQuery(view.state, state.query.spec)) : StateEffect.appendConfig.of(searchExtensions) ]}) } return true } /// Close the search panel. export const closeSearchPanel: Command = view => { let state = view.state.field(searchState, false) if (!state || !state.panel) return false let panel = getPanel(view, createSearchPanel) if (panel && panel.dom.contains(view.root.activeElement)) view.focus() view.dispatch({effects: togglePanel.of(false)}) return true } /// Default search-related key bindings. /// /// - Mod-f: [`openSearchPanel`](#search.openSearchPanel) /// - F3, Mod-g: [`findNext`](#search.findNext) /// - Shift-F3, Shift-Mod-g: [`findPrevious`](#search.findPrevious) /// - Mod-Alt-g: [`gotoLine`](#search.gotoLine) /// - Mod-d: [`selectNextOccurrence`](#search.selectNextOccurrence) export const searchKeymap: readonly KeyBinding[] = [ {key: "Mod-f", run: openSearchPanel, scope: "editor search-panel"}, {key: "F3", run: findNext, shift: findPrevious, scope: "editor search-panel", preventDefault: true}, {key: "Mod-g", run: findNext, shift: findPrevious, scope: "editor search-panel", preventDefault: true}, {key: "Escape", run: closeSearchPanel, scope: "editor search-panel"}, {key: "Mod-Shift-l", run: selectSelectionMatches}, {key: "Mod-Alt-g", run: gotoLine}, {key: "Mod-d", run: selectNextOccurrence, preventDefault: true}, ] class SearchPanel implements Panel { searchField: HTMLInputElement replaceField: HTMLInputElement caseField: HTMLInputElement reField: HTMLInputElement wordField: HTMLInputElement dom: HTMLElement query: SearchQuery constructor(readonly view: EditorView) { let query = this.query = view.state.field(searchState).query.spec this.commit = this.commit.bind(this) this.searchField = elt("input", { value: query.search, placeholder: phrase(view, "Find"), "aria-label": phrase(view, "Find"), class: "cm-textfield", name: "search", form: "", "main-field": "true", onchange: this.commit, onkeyup: this.commit }) as HTMLInputElement this.replaceField = elt("input", { value: query.replace, placeholder: phrase(view, "Replace"), "aria-label": phrase(view, "Replace"), class: "cm-textfield", name: "replace", form: "", onchange: this.commit, onkeyup: this.commit }) as HTMLInputElement this.caseField = elt("input", { type: "checkbox", name: "case", form: "", checked: query.caseSensitive, onchange: this.commit }) as HTMLInputElement this.reField = elt("input", { type: "checkbox", name: "re", form: "", checked: query.regexp, onchange: this.commit }) as HTMLInputElement this.wordField = elt("input", { type: "checkbox", name: "word", form: "", checked: query.wholeWord, onchange: this.commit }) as HTMLInputElement function button(name: string, onclick: () => void, content: (Node | string)[]) { return elt("button", {class: "cm-button", name, onclick, type: "button"}, content) } this.dom = elt("div", {onkeydown: (e: KeyboardEvent) => this.keydown(e), class: "cm-search"}, [ this.searchField, button("next", () => findNext(view), [phrase(view, "next")]), button("prev", () => findPrevious(view), [phrase(view, "previous")]), button("select", () => selectMatches(view), [phrase(view, "all")]), elt("label", null, [this.caseField, phrase(view, "match case")]), elt("label", null, [this.reField, phrase(view, "regexp")]), elt("label", null, [this.wordField, phrase(view, "by word")]), ...view.state.readOnly ? [] : [ elt("br"), this.replaceField, button("replace", () => replaceNext(view), [phrase(view, "replace")]), button("replaceAll", () => replaceAll(view), [phrase(view, "replace all")]) ], elt("button", { name: "close", onclick: () => closeSearchPanel(view), "aria-label": phrase(view, "close"), type: "button" }, ["×"]) ]) } commit() { let query = new SearchQuery({ search: this.searchField.value, caseSensitive: this.caseField.checked, regexp: this.reField.checked, wholeWord: this.wordField.checked, replace: this.replaceField.value, }) if (!query.eq(this.query)) { this.query = query this.view.dispatch({effects: setSearchQuery.of(query)}) } } keydown(e: KeyboardEvent) { if (runScopeHandlers(this.view, e, "search-panel")) { e.preventDefault() } else if (e.keyCode == 13 && e.target == this.searchField) { e.preventDefault() ;(e.shiftKey ? findPrevious : findNext)(this.view) } else if (e.keyCode == 13 && e.target == this.replaceField) { e.preventDefault() replaceNext(this.view) } } update(update: ViewUpdate) { for (let tr of update.transactions) for (let effect of tr.effects) { if (effect.is(setSearchQuery) && !effect.value.eq(this.query)) this.setQuery(effect.value) } } setQuery(query: SearchQuery) { this.query = query this.searchField.value = query.search this.replaceField.value = query.replace this.caseField.checked = query.caseSensitive this.reField.checked = query.regexp this.wordField.checked = query.wholeWord } mount() { this.searchField.select() } get pos() { return 80 } get top() { return this.view.state.facet(searchConfigFacet).top } } function phrase(view: EditorView, phrase: string) { return view.state.phrase(phrase) } const AnnounceMargin = 30 const Break = /[\s\.,:;?!]/ function announceMatch(view: EditorView, {from, to}: {from: number, to: number}) { let line = view.state.doc.lineAt(from), lineEnd = view.state.doc.lineAt(to).to let start = Math.max(line.from, from - AnnounceMargin), end = Math.min(lineEnd, to + AnnounceMargin) let text = view.state.sliceDoc(start, end) if (start != line.from) { for (let i = 0; i < AnnounceMargin; i++) if (!Break.test(text[i + 1]) && Break.test(text[i])) { text = text.slice(i) break } } if (end != lineEnd) { for (let i = text.length - 1; i > text.length - AnnounceMargin; i--) if (!Break.test(text[i - 1]) && Break.test(text[i])) { text = text.slice(0, i) break } } return EditorView.announce.of( `${view.state.phrase("current match")}. ${text} ${view.state.phrase("on line")} ${line.number}.`) } const baseTheme = EditorView.baseTheme({ ".cm-panel.cm-search": { padding: "2px 6px 4px", position: "relative", "& [name=close]": { position: "absolute", top: "0", right: "4px", backgroundColor: "inherit", border: "none", font: "inherit", padding: 0, margin: 0 }, "& input, & button, & label": { margin: ".2em .6em .2em 0" }, "& input[type=checkbox]": { marginRight: ".2em" }, "& label": { fontSize: "80%", whiteSpace: "pre" } }, "&light .cm-searchMatch": { backgroundColor: "#ffff0054" }, "&dark .cm-searchMatch": { backgroundColor: "#00ffff8a" }, "&light .cm-searchMatch-selected": { backgroundColor: "#ff6a0054" }, "&dark .cm-searchMatch-selected": { backgroundColor: "#ff00ff8a" } }) const searchExtensions = [ searchState, Prec.low(searchHighlighter), baseTheme ]"
+          uid=snap_13_177 group
+            uid=snap_13_175 group
+              uid=snap_13_132 heading "Expand file tree" level="2"
+                uid=snap_13_133 button "Expand file tree"
+                  uid=snap_13_134 StaticText "Files"
+                    uid=snap_13_135 InlineTextBox
+              uid=snap_13_136 button "main branch" expandable
+                uid=snap_13_141 group
+                  uid=snap_13_137 StaticText " "
+                    uid=snap_13_138 InlineTextBox
+                  uid=snap_13_139 StaticText "main"
+                    uid=snap_13_140 InlineTextBox
+              uid=snap_13_174 group
+                uid=snap_13_142 navigation "Breadcrumbs"
+                  uid=snap_13_143 heading "Breadcrumbs" level="2"
+                    uid=snap_13_144 StaticText "Breadcrumbs"
+                      uid=snap_13_145 InlineTextBox
+                  uid=snap_13_146 list
+                    uid=snap_13_147 listitem level="1"
+                      uid=snap_13_148 link "search"
+                        uid=snap_13_149 StaticText "search"
+                          uid=snap_13_150 InlineTextBox
+                          uid=snap_13_151 InlineTextBox
+                          uid=snap_13_152 InlineTextBox
+                          uid=snap_13_153 InlineTextBox
+                          uid=snap_13_154 InlineTextBox
+                          uid=snap_13_155 InlineTextBox
+                    uid=snap_13_156 listitem level="1"
+                      uid=snap_13_157 link "src"
+                        uid=snap_13_158 StaticText "src"
+                          uid=snap_13_159 InlineTextBox
+                          uid=snap_13_160 InlineTextBox
+                          uid=snap_13_161 InlineTextBox
+                uid=snap_13_162 heading "search.ts" level="1"
+                  uid=snap_13_163 StaticText "search.ts"
+                    uid=snap_13_164 InlineTextBox
+                    uid=snap_13_165 InlineTextBox
+                    uid=snap_13_166 InlineTextBox
+                    uid=snap_13_167 InlineTextBox
+                    uid=snap_13_168 InlineTextBox
+                    uid=snap_13_169 InlineTextBox
+                    uid=snap_13_170 InlineTextBox
+                    uid=snap_13_171 InlineTextBox
+                    uid=snap_13_172 InlineTextBox
+                uid=snap_13_173 button "Copy path"
+            uid=snap_13_176 button "More file actions" expandable
+          uid=snap_13_1778 group
+            uid=snap_13_198 group
+              uid=snap_13_178 heading "Latest commit" level="2"
+                uid=snap_13_179 StaticText "Latest commit"
+                  uid=snap_13_180 InlineTextBox
+                  uid=snap_13_181 InlineTextBox
+              uid=snap_13_191 group
+                uid=snap_13_187 group
+                  uid=snap_13_182 link "marijnh"
+                    uid=snap_13_183 image "marijnh"
+                  uid=snap_13_184 link "commits by marijnh"
+                    uid=snap_13_185 StaticText "marijnh"
+                      uid=snap_13_186 InlineTextBox
+                uid=snap_13_188 generic "Jan 13, 2026, 5:59 PM GMT+8"
+                  uid=snap_13_189 StaticText "4 months ago"
+                    uid=snap_13_190 InlineTextBox
+              uid=snap_13_197 group
+                uid=snap_13_192 heading "History" level="2"
+                  uid=snap_13_193 StaticText "History"
+                    uid=snap_13_194 InlineTextBox
+                uid=snap_13_195 button "Open commit details" expandable
+                uid=snap_13_196 link "View commit history for this file."
+            uid=snap_13_1777 group
+              uid=snap_13_199 generic "30.5 KB"
+                uid=snap_13_200 StaticText "824 lines (730 loc) · 30.5 KB"
+                  uid=snap_13_201 InlineTextBox
+              uid=snap_13_220 group
+                uid=snap_13_202 heading "File metadata and controls" level="2"
+                  uid=snap_13_203 StaticText "File metadata and controls"
+                    uid=snap_13_204 InlineTextBox
+                    uid=snap_13_205 InlineTextBox
+                    uid=snap_13_206 InlineTextBox
+                    uid=snap_13_207 InlineTextBox
+                uid=snap_13_208 list "File view"
+                  uid=snap_13_209 listitem level="1"
+                    uid=snap_13_210 button "Code"
+                      uid=snap_13_211 StaticText "Code"
+                        uid=snap_13_212 InlineTextBox
+                  uid=snap_13_213 listitem level="1"
+                    uid=snap_13_214 button "Blame"
+                      uid=snap_13_215 StaticText "Blame"
+                        uid=snap_13_216 InlineTextBox
+                uid=snap_13_219 group
+                  uid=snap_13_217 button "Open symbols panel" expandable
+                  uid=snap_13_218 button "Edit and raw actions" expandable
+              uid=snap_13_221 Section
+                uid=snap_13_222 textbox "file content" value="import {EditorView, ViewPlugin, ViewUpdate, Command, Decoration, DecorationSet,
+        runScopeHandlers, KeyBinding,
+        PanelConstructor, showPanel, Panel, getPanel} from "@codemirror/view"
+import {EditorState, StateField, StateEffect, EditorSelection, SelectionRange, StateCommand, Prec,
+        Facet, Extension, RangeSetBuilder, Text, CharCategory, findClusterBreak,
+        combineConfig} from "@codemirror/state"
+import elt from "crelt"
+import {SearchCursor} from "./cursor"
+import {RegExpCursor, validRegExp} from "./regexp"
+import {gotoLine} from "./goto-line"
+import {selectNextOccurrence} from "./selection-match"
+
+export {highlightSelectionMatches} from "./selection-match"
+export {SearchCursor, RegExpCursor, gotoLine, selectNextOccurrence}
+
+interface SearchConfig {
+  /// Whether to position the search panel at the top of the editor
+  /// (the default is at the bottom).
+  top?: boolean
+
+  /// Whether to enable case sensitivity by default when the search
+  /// panel is activated (defaults to false).
+  caseSensitive?: boolean
+
+  /// Whether to treat string searches literally by default (defaults to false).
+  literal?: boolean
+
+  /// Controls whether the default query has by-word matching enabled.
+  /// Defaults to false.
+  wholeWord?: boolean
+
+  /// Used to turn on regular expression search in the default query.
+  /// Defaults to false.
+  regexp?: boolean
+
+  /// Can be used to override the way the search panel is implemented.
+  /// Should create a [Panel](#view.Panel) that contains a form
+  /// which lets the user:
+  ///
+  /// - See the [current](#search.getSearchQuery) search query.
+  /// - Manipulate the [query](#search.SearchQuery) and
+  ///   [update](#search.setSearchQuery) the search state with a new
+  ///   query.
+  /// - Notice external changes to the query by reacting to the
+  ///   appropriate [state effect](#search.setSearchQuery).
+  /// - Run some of the search commands.
+  ///
+  /// The field that should be focused when opening the panel must be
+  /// tagged with a `main-field=true` DOM attribute.
+  createPanel?: (view: EditorView) => Panel,
+
+  /// By default, matches are scrolled into view using the default
+  /// behavior of
+  /// [`EditorView.scrollIntoView`](#view.EditorView^scrollIntoView).
+  /// This option allows you to pass a custom function to produce the
+  /// scroll effect.
+  scrollToMatch?: (range: SelectionRange, view: EditorView) => StateEffect<unknown>
+}
+
+const searchConfigFacet: Facet<SearchConfig, Required<SearchConfig>> = Facet.define({
+  combine(configs) {
+    return combineConfig(configs, {
+      top: false,
+      caseSensitive: false,
+      literal: false,
+      regexp: false,
+      wholeWord: false,
+      createPanel: view => new SearchPanel(view),
+      scrollToMatch: range => EditorView.scrollIntoView(range)
+    })
+  }
+})
+
+/// Add search state to the editor configuration, and optionally
+/// configure the search extension.
+/// ([`openSearchPanel`](#search.openSearchPanel) will automatically
+/// enable this if it isn't already on).
+export function search(config?: SearchConfig): Extension {
+  return config ? [searchConfigFacet.of(config), searchExtensions] : searchExtensions
+}
+
+/// A search query. Part of the editor's search state.
+export class SearchQuery {
+  /// The search string (or regular expression).
+  readonly search: string
+  /// Indicates whether the search is case-sensitive.
+  readonly caseSensitive: boolean
+  /// By default, string search will replace `\n`, `\r`, and `\t` in
+  /// the query with newline, return, and tab characters. When this
+  /// is set to true, that behavior is disabled.
+  readonly literal: boolean
+  /// When true, the search string is interpreted as a regular
+  /// expression.
+  readonly regexp: boolean
+  /// The replace text, or the empty string if no replace text has
+  /// been given.
+  readonly replace: string
+  /// Whether this query is non-empty and, in case of a regular
+  /// expression search, syntactically valid.
+  readonly valid: boolean
+  /// When true, matches that contain words are ignored when there are
+  /// further word characters around them.
+  readonly wholeWord: boolean
+
+  /// @internal
+  readonly unquoted: string
+
+  /// Optional test function used to filter matches.
+  readonly test: ((match: string, state: EditorState, from: number, to: number) => boolean) | undefined
+
+  /// Create a query object.
+  constructor(config: {
+    /// The search string.
+    search: string,
+    /// Controls whether the search should be case-sensitive.
+    caseSensitive?: boolean,
+    /// By default, string search will replace `\n`, `\r`, and `\t` in
+    /// the query with newline, return, and tab characters. When this
+    /// is set to true, that behavior is disabled.
+    literal?: boolean,
+    /// When true, interpret the search string as a regular expression.
+    regexp?: boolean,
+    /// The replace text.
+    replace?: string,
+    /// Enable whole-word matching.
+    wholeWord?: boolean
+
+    /// Optional custom filter. It is passed the matched string, the
+    /// editor state, and the match range. Matches for which it
+    /// returns false will be ignored.
+    test?: (match: string, state: EditorState, from: number, to: number) => boolean
+  }) {
+    this.search = config.search
+    this.caseSensitive = !!config.caseSensitive
+    this.literal = !!config.literal
+    this.regexp = !!config.regexp
+    this.replace = config.replace || ""
+    this.valid = !!this.search && (!this.regexp || validRegExp(this.search))
+    this.unquoted = this.unquote(this.search)
+    this.wholeWord = !!config.wholeWord
+    this.test = config.test
+  }
+
+  /// @internal
+  unquote(text: string) {
+    return this.literal ? text :
+      text.replace(/\\([nrt\\])/g, (_, ch) => ch == "n" ? "\n" : ch == "r" ? "\r" : ch == "t" ? "\t" : "\\")
+  }
+
+  /// Compare this query to another query.
+  eq(other: SearchQuery) {
+    return this.search == other.search && this.replace == other.replace &&
+      this.caseSensitive == other.caseSensitive && this.regexp == other.regexp &&
+      this.wholeWord == other.wholeWord && this.test == other.test
+  }
+
+  /// @internal
+  create(): QueryType {
+    return this.regexp ? new RegExpQuery(this) : new StringQuery(this)
+  }
+
+  /// Get a search cursor for this query, searching through the given
+  /// range in the given state.
+  getCursor(state: EditorState | Text, from: number = 0, to?: number): Iterator<{from: number, to: number}> {
+    let st = (state as any).doc ? state as EditorState : EditorState.create({doc: state as Text})
+    if (to == null) to = st.doc.length
+    return this.regexp ? regexpCursor(this, st, from, to) : stringCursor(this, st, from, to)
+  }
+}
+
+type SearchResult = typeof SearchCursor.prototype.value
+
+abstract class QueryType<Result extends SearchResult = SearchResult> {
+  constructor(readonly spec: SearchQuery) {}
+
+  abstract nextMatch(state: EditorState, curFrom: number, curTo: number): Result | null
+
+  abstract prevMatch(state: EditorState, curFrom: number, curTo: number): Result | null
+
+  abstract getReplacement(result: Result): string
+
+  abstract matchAll(state: EditorState, limit: number): readonly Result[] | null
+
+  abstract highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void): void
+}
+
+const enum FindPrev { ChunkSize = 10000 }
+
+function wrapStringTest(test: (match: string, state: EditorState, from: number, to: number) => boolean,
+                        state: EditorState,
+                        inner: ((from: number, to: number, buffer: string, bufferPos: number) => boolean) | undefined) {
+  return (from: number, to: number, buffer: string, bufferPos: number) => {
+    if (inner && !inner(from, to, buffer, bufferPos)) return false
+    let match = from >= bufferPos && to <= bufferPos + buffer.length
+      ? buffer.slice(from - bufferPos, to - bufferPos)
+      : state.doc.sliceString(from, to)
+    return test(match, state, from, to)
+  }
+}
+
+function stringCursor(spec: SearchQuery, state: EditorState, from: number, to: number) {
+  let test: ((from: number, to: number, buffer: string, bufferPos: number) => boolean) | undefined
+  if (spec.wholeWord) test = stringWordTest(state.doc, state.charCategorizer(state.selection.main.head))
+  if (spec.test) test = wrapStringTest(spec.test, state, test)
+  return new SearchCursor(state.doc, spec.unquoted, from, to, spec.caseSensitive ? undefined : x => x.toLowerCase(), test)
+}
+
+function stringWordTest(doc: Text, categorizer: (ch: string) => CharCategory) {
+  return (from: number, to: number, buf: string, bufPos: number) => {
+    if (bufPos > from || bufPos + buf.length < to) {
+      bufPos = Math.max(0, from - 2)
+      buf = doc.sliceString(bufPos, Math.min(doc.length, to + 2))
+    }
+    return (categorizer(charBefore(buf, from - bufPos)) != CharCategory.Word ||
+            categorizer(charAfter(buf, from - bufPos)) != CharCategory.Word) &&
+           (categorizer(charAfter(buf, to - bufPos)) != CharCategory.Word ||
+            categorizer(charBefore(buf, to - bufPos)) != CharCategory.Word)
+  }
+}
+
+class StringQuery extends QueryType<SearchResult> {
+  constructor(spec: SearchQuery) {
+    super(spec)
+  }
+
+  nextMatch(state: EditorState, curFrom: number, curTo: number) {
+    let cursor = stringCursor(this.spec, state, curTo, state.doc.length).nextOverlapping()
+    if (cursor.done) {
+      let end = Math.min(state.doc.length, curFrom + this.spec.unquoted.length)
+      cursor = stringCursor(this.spec, state, 0, end).nextOverlapping()
+    }
+    return cursor.done || cursor.value.from == curFrom && cursor.value.to == curTo ? null : cursor.value
+  }
+
+  // Searching in reverse is, rather than implementing an inverted search
+  // cursor, done by scanning chunk after chunk forward.
+  private prevMatchInRange(state: EditorState, from: number, to: number) {
+    for (let pos = to;;) {
+      let start = Math.max(from, pos - FindPrev.ChunkSize - this.spec.unquoted.length)
+      let cursor = stringCursor(this.spec, state, start, pos), range: SearchResult | null = null
+      while (!cursor.nextOverlapping().done) range = cursor.value
+      if (range) return range
+      if (start == from) return null
+      pos -= FindPrev.ChunkSize
+    }
+  }
+
+  prevMatch(state: EditorState, curFrom: number, curTo: number) {
+    let found = this.prevMatchInRange(state, 0, curFrom)
+    if (!found)
+      found = this.prevMatchInRange(state, Math.max(0, curTo - this.spec.unquoted.length), state.doc.length)
+    return found && (found.from != curFrom || found.to != curTo) ? found : null
+  }
+
+  getReplacement(_result: SearchResult) { return this.spec.unquote(this.spec.replace) }
+
+  matchAll(state: EditorState, limit: number) {
+    let cursor = stringCursor(this.spec, state, 0, state.doc.length), ranges = []
+    while (!cursor.next().done) {
+      if (ranges.length >= limit) return null
+      ranges.push(cursor.value)
+    }
+    return ranges
+  }
+
+  highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void) {
+    let cursor = stringCursor(this.spec, state, Math.max(0, from - this.spec.unquoted.length),
+                              Math.min(to + this.spec.unquoted.length, state.doc.length))
+    while (!cursor.next().done) add(cursor.value.from, cursor.value.to)
+  }
+}
+
+const enum RegExp { HighlightMargin = 250 }
+
+type RegExpResult = typeof RegExpCursor.prototype.value
+
+function wrapRegexpTest(test: (match: string, state: EditorState, from: number, to: number) => boolean,
+                        state: EditorState,
+                        inner: ((from: number, to: number, match: RegExpExecArray) => boolean) | undefined) {
+  return (from: number, to: number, match: RegExpExecArray) => {
+    return (!inner || inner(from, to, match)) && test(match[0], state, from, to)
+  }
+}
+
+function regexpCursor(spec: SearchQuery, state: EditorState, from: number, to: number) {
+  let test: ((from: number, to: number, match: RegExpExecArray) => boolean) | undefined
+  if (spec.wholeWord) test = regexpWordTest(state.charCategorizer(state.selection.main.head))
+  if (spec.test) test = wrapRegexpTest(spec.test, state, test)
+  return new RegExpCursor(state.doc, spec.search, {ignoreCase: !spec.caseSensitive, test}, from, to)
+}
+
+function charBefore(str: string, index: number) {
+  return str.slice(findClusterBreak(str, index, false), index)
+}
+function charAfter(str: string, index: number) {
+  return str.slice(index, findClusterBreak(str, index))
+}
+
+function regexpWordTest(categorizer: (ch: string) => CharCategory) {
+  return (_from: number, _to: number, match: RegExpExecArray) =>
+    !match[0].length ||
+    (categorizer(charBefore(match.input, match.index)) != CharCategory.Word ||
+     categorizer(charAfter(match.input, match.index)) != CharCategory.Word) &&
+    (categorizer(charAfter(match.input, match.index + match[0].length)) != CharCategory.Word ||
+     categorizer(charBefore(match.input, match.index + match[0].length)) != CharCategory.Word)
+}
+
+class RegExpQuery extends QueryType<RegExpResult> {
+  nextMatch(state: EditorState, curFrom: number, curTo: number) {
+    let cursor = regexpCursor(this.spec, state, curTo, state.doc.length).next()
+    if (cursor.done) cursor = regexpCursor(this.spec, state, 0, curFrom).next()
+    return cursor.done ? null : cursor.value
+  }
+
+  private prevMatchInRange(state: EditorState, from: number, to: number) {
+    for (let size = 1;; size++) {
+      let start = Math.max(from, to - size * FindPrev.ChunkSize)
+      let cursor = regexpCursor(this.spec, state, start, to), range: RegExpResult | null = null
+      while (!cursor.next().done) range = cursor.value
+      if (range && (start == from || range.from > start + 10)) return range
+      if (start == from) return null
+    }
+  }
+
+  prevMatch(state: EditorState, curFrom: number, curTo: number) {
+    return this.prevMatchInRange(state, 0, curFrom) ||
+      this.prevMatchInRange(state, curTo, state.doc.length)
+  }
+
+  getReplacement(result: RegExpResult) {
+    return this.spec.unquote(this.spec.replace).replace(/\$([$&]|\d+)/g, (m, i) => {
+      if (i == "&") return result.match[0]
+      if (i == "$") return "$"
+      for (let l = i.length; l > 0; l--) {
+        let n = +i.slice(0, l)
+        if (n > 0 && n < result.match.length) return result.match[n] + i.slice(l)
+      }
+      return m
+    })
+  }
+
+  matchAll(state: EditorState, limit: number) {
+    let cursor = regexpCursor(this.spec, state, 0, state.doc.length), ranges = []
+    while (!cursor.next().done) {
+      if (ranges.length >= limit) return null
+      ranges.push(cursor.value)
+    }
+    return ranges
+  }
+
+  highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void) {
+    let cursor = regexpCursor(this.spec, state, Math.max(0, from - RegExp.HighlightMargin),
+                              Math.min(to + RegExp.HighlightMargin, state.doc.length))
+    while (!cursor.next().done) add(cursor.value.from, cursor.value.to)
+  }
+}
+
+/// A state effect that updates the current search query. Note that
+/// this only has an effect if the search state has been initialized
+/// (by including [`search`](#search.search) in your configuration or
+/// by running [`openSearchPanel`](#search.openSearchPanel) at least
+/// once).
+export const setSearchQuery = StateEffect.define<SearchQuery>()
+
+const togglePanel = StateEffect.define<boolean>()
+
+const searchState: StateField<SearchState> = StateField.define<SearchState>({
+  create(state) {
+    return new SearchState(defaultQuery(state).create(), null)
+  },
+  update(value, tr) {
+    for (let effect of tr.effects) {
+      if (effect.is(setSearchQuery)) value = new SearchState(effect.value.create(), value.panel)
+      else if (effect.is(togglePanel)) value = new SearchState(value.query, effect.value ? createSearchPanel : null)
+    }
+    return value
+  },
+  provide: f => showPanel.from(f, val => val.panel)
+})
+
+/// Get the current search query from an editor state.
+export function getSearchQuery(state: EditorState) {
+  let curState = state.field(searchState, false)
+  return curState ? curState.query.spec : defaultQuery(state)
+}
+
+/// Query whether the search panel is open in the given editor state.
+export function searchPanelOpen(state: EditorState) {
+  return state.field(searchState, false)?.panel != null
+}
+
+class SearchState {
+  constructor(readonly query: QueryType, readonly panel: PanelConstructor | null) {}
+}
+
+const matchMark = Decoration.mark({class: "cm-searchMatch"}),
+      selectedMatchMark = Decoration.mark({class: "cm-searchMatch cm-searchMatch-selected"})
+
+const searchHighlighter = ViewPlugin.fromClass(class {
+  decorations: DecorationSet
+
+  constructor(readonly view: EditorView) {
+    this.decorations = this.highlight(view.state.field(searchState))
+  }
+
+  update(update: ViewUpdate) {
+    let state = update.state.field(searchState)
+    if (state != update.startState.field(searchState) || update.docChanged || update.selectionSet || update.viewportChanged)
+      this.decorations = this.highlight(state)
+  }
+
+  highlight({query, panel}: SearchState) {
+    if (!panel || !query.spec.valid) return Decoration.none
+    let {view} = this
+    let builder = new RangeSetBuilder<Decoration>()
+    for (let i = 0, ranges = view.visibleRanges, l = ranges.length; i < l; i++) {
+      let {from, to} = ranges[i]
+      while (i < l - 1 && to > ranges[i + 1].from - 2 * RegExp.HighlightMargin) to = ranges[++i].to
+      query.highlight(view.state, from, to, (from, to) => {
+        let selected = view.state.selection.ranges.some(r => r.from == from && r.to == to)
+        builder.add(from, to, selected ? selectedMatchMark : matchMark)
+      })
+    }
+    return builder.finish()
+  }
+}, {
+  decorations: v => v.decorations
+})
+
+function searchCommand(f: (view: EditorView, state: SearchState) => boolean): Command {
+  return view => {
+    let state = view.state.field(searchState, false)
+    return state && state.query.spec.valid ? f(view, state) : openSearchPanel(view)
+  }
+}
+
+/// Open the search panel if it isn't already open, and move the
+/// selection to the first match after the current main selection.
+/// Will wrap around to the start of the document when it reaches the
+/// end.
+export const findNext = searchCommand((view, {query}) => {
+  let {to} = view.state.selection.main
+  let next = query.nextMatch(view.state, to, to)
+  if (!next) return false
+  let selection = EditorSelection.single(next.from, next.to)
+  let config = view.state.facet(searchConfigFacet)
+  view.dispatch({
+    selection,
+    effects: [announceMatch(view, next), config.scrollToMatch(selection.main, view)],
+    userEvent: "select.search"
+  })
+  selectSearchInput(view)
+  return true
+})
+
+/// Move the selection to the previous instance of the search query,
+/// before the current main selection. Will wrap past the start
+/// of the document to start searching at the end again.
+export const findPrevious = searchCommand((view, {query}) => {
+  let {state} = view, {from} = state.selection.main
+  let prev = query.prevMatch(state, from, from)
+  if (!prev) return false
+  let selection = EditorSelection.single(prev.from, prev.to)
+  let config = view.state.facet(searchConfigFacet)
+  view.dispatch({
+    selection,
+    effects: [announceMatch(view, prev), config.scrollToMatch(selection.main, view)],
+    userEvent: "select.search"
+  })
+  selectSearchInput(view)
+  return true
+})
+
+/// Select all instances of the search query.
+export const selectMatches = searchCommand((view, {query}) => {
+  let ranges = query.matchAll(view.state, 1000)
+  if (!ranges || !ranges.length) return false
+  view.dispatch({
+    selection: EditorSelection.create(ranges.map(r => EditorSelection.range(r.from, r.to))),
+    userEvent: "select.search.matches"
+  })
+  return true
+})
+
+/// Select all instances of the currently selected text.
+export const selectSelectionMatches: StateCommand = ({state, dispatch}) => {
+  let sel = state.selection
+  if (sel.ranges.length > 1 || sel.main.empty) return false
+  let {from, to} = sel.main
+  let ranges = [], main = 0
+  for (let cur = new SearchCursor(state.doc, state.sliceDoc(from, to)); !cur.next().done;) {
+    if (ranges.length > 1000) return false
+    if (cur.value.from == from) main = ranges.length
+    ranges.push(EditorSelection.range(cur.value.from, cur.value.to))
+  }
+  dispatch(state.update({
+    selection: EditorSelection.create(ranges, main),
+    userEvent: "select.search.matches"
+  }))
+  return true
+}
+
+/// Replace the current match of the search query.
+export const replaceNext = searchCommand((view, {query}) => {
+  let {state} = view, {from, to} = state.selection.main
+  if (state.readOnly) return false
+  let match = query.nextMatch(state, from, from)
+  if (!match) return false
+  let next: SearchResult | null = match
+  let changes = [], selection: EditorSelection | undefined, replacement: Text | undefined
+  let effects: StateEffect<unknown>[] = []
+  if (next.from == from && next.to == to) {
+    replacement = state.toText(query.getReplacement(next))
+    changes.push({from: next.from, to: next.to, insert: replacement})
+    next = query.nextMatch(state, next.from, next.to)
+    effects.push(EditorView.announce.of(
+      state.phrase("replaced match on line $", state.doc.lineAt(from).number) + "."))
+  }
+  let changeSet = view.state.changes(changes)
+  if (next) {
+    selection = EditorSelection.single(next.from, next.to).map(changeSet)
+    effects.push(announceMatch(view, next))
+    effects.push(state.facet(searchConfigFacet).scrollToMatch(selection.main, view))
+  }
+  view.dispatch({
+    changes: changeSet,
+    selection,
+    effects,
+    userEvent: "input.replace"
+  })
+  return true
+})
+
+/// Replace all instances of the search query with the given
+/// replacement.
+export const replaceAll = searchCommand((view, {query}) => {
+  if (view.state.readOnly) return false
+  let changes = query.matchAll(view.state, 1e9)!.map(match => {
+    let {from, to} = match
+    return {from, to, insert: query.getReplacement(match)}
+  })
+  if (!changes.length) return false
+  let announceText = view.state.phrase("replaced $ matches", changes.length) + "."
+  view.dispatch({
+    changes,
+    effects: EditorView.announce.of(announceText),
+    userEvent: "input.replace.all"
+  })
+  return true
+})
+
+function createSearchPanel(view: EditorView) {
+  return view.state.facet(searchConfigFacet).createPanel(view)
+}
+
+function defaultQuery(state: EditorState, fallback?: SearchQuery) {
+  let sel = state.selection.main
+  let selText = sel.empty || sel.to > sel.from + 100 ? "" : state.sliceDoc(sel.from, sel.to)
+  if (fallback && !selText) return fallback
+  let config = state.facet(searchConfigFacet)
+  return new SearchQuery({
+    search: (fallback?.literal ?? config.literal) ? selText : selText.replace(/\n/g, "\\n"),
+    caseSensitive: fallback?.caseSensitive ?? config.caseSensitive,
+    literal: fallback?.literal ?? config.literal,
+    regexp: fallback?.regexp ?? config.regexp,
+    wholeWord: fallback?.wholeWord ?? config.wholeWord
+  })
+}
+
+function getSearchInput(view: EditorView) {
+  let panel = getPanel(view, createSearchPanel)
+  return panel && panel.dom.querySelector("[main-field]") as HTMLInputElement | null
+}
+
+function selectSearchInput(view: EditorView) {
+  let input = getSearchInput(view)
+  if (input && input == view.root.activeElement)
+    input.select()
+}
+
+/// Make sure the search panel is open and focused.
+export const openSearchPanel: Command = view => {
+  let state = view.state.field(searchState, false)
+  if (state && state.panel) {
+    let searchInput = getSearchInput(view)
+    if (searchInput && searchInput != view.root.activeElement) {
+      let query = defaultQuery(view.state, state.query.spec)
+      if (query.valid) view.dispatch({effects: setSearchQuery.of(query)})
+      searchInput.focus()
+      searchInput.select()
+    }
+  } else {
+    view.dispatch({effects: [
+      togglePanel.of(true),
+      state ? setSearchQuery.of(defaultQuery(view.state, state.query.spec)) : StateEffect.appendConfig.of(searchExtensions)
+    ]})
+  }
+  return true
+}
+
+/// Close the search panel.
+export const closeSearchPanel: Command = view => {
+  let state = view.state.field(searchState, false)
+  if (!state || !state.panel) return false
+  let panel = getPanel(view, createSearchPanel)
+  if (panel && panel.dom.contains(view.root.activeElement)) view.focus()
+  view.dispatch({effects: togglePanel.of(false)})
+  return true
+}
+
+/// Default search-related key bindings.
+///
+///  - Mod-f: [`openSearchPanel`](#search.openSearchPanel)
+///  - F3, Mod-g: [`findNext`](#search.findNext)
+///  - Shift-F3, Shift-Mod-g: [`findPrevious`](#search.findPrevious)
+///  - Mod-Alt-g: [`gotoLine`](#search.gotoLine)
+///  - Mod-d: [`selectNextOccurrence`](#search.selectNextOccurrence)
+export const searchKeymap: readonly KeyBinding[] = [
+  {key: "Mod-f", run: openSearchPanel, scope: "editor search-panel"},
+  {key: "F3", run: findNext, shift: findPrevious, scope: "editor search-panel", preventDefault: true},
+  {key: "Mod-g", run: findNext, shift: findPrevious, scope: "editor search-panel", preventDefault: true},
+  {key: "Escape", run: closeSearchPanel, scope: "editor search-panel"},
+  {key: "Mod-Shift-l", run: selectSelectionMatches},
+  {key: "Mod-Alt-g", run: gotoLine},
+  {key: "Mod-d", run: selectNextOccurrence, preventDefault: true},
+]
+
+class SearchPanel implements Panel {
+  searchField: HTMLInputElement
+  replaceField: HTMLInputElement
+  caseField: HTMLInputElement
+  reField: HTMLInputElement
+  wordField: HTMLInputElement
+  dom: HTMLElement
+  query: SearchQuery
+
+  constructor(readonly view: EditorView) {
+    let query = this.query = view.state.field(searchState).query.spec
+    this.commit = this.commit.bind(this)
+
+    this.searchField = elt("input", {
+      value: query.search,
+      placeholder: phrase(view, "Find"),
+      "aria-label": phrase(view, "Find"),
+      class: "cm-textfield",
+      name: "search",
+      form: "",
+      "main-field": "true",
+      onchange: this.commit,
+      onkeyup: this.commit
+    }) as HTMLInputElement
+    this.replaceField = elt("input", {
+      value: query.replace,
+      placeholder: phrase(view, "Replace"),
+      "aria-label": phrase(view, "Replace"),
+      class: "cm-textfield",
+      name: "replace",
+      form: "",
+      onchange: this.commit,
+      onkeyup: this.commit
+    }) as HTMLInputElement
+    this.caseField = elt("input", {
+      type: "checkbox",
+      name: "case",
+      form: "",
+      checked: query.caseSensitive,
+      onchange: this.commit
+    }) as HTMLInputElement
+    this.reField = elt("input", {
+      type: "checkbox",
+      name: "re",
+      form: "",
+      checked: query.regexp,
+      onchange: this.commit
+    }) as HTMLInputElement
+    this.wordField = elt("input", {
+      type: "checkbox",
+      name: "word",
+      form: "",
+      checked: query.wholeWord,
+      onchange: this.commit
+    }) as HTMLInputElement
+
+    function button(name: string, onclick: () => void, content: (Node | string)[]) {
+      return elt("button", {class: "cm-button", name, onclick, type: "button"}, content)
+    }
+    this.dom = elt("div", {onkeydown: (e: KeyboardEvent) => this.keydown(e), class: "cm-search"}, [
+      this.searchField,
+      button("next", () => findNext(view), [phrase(view, "next")]),
+      button("prev", () => findPrevious(view), [phrase(view, "previous")]),
+      button("select", () => selectMatches(view), [phrase(view, "all")]),
+      elt("label", null, [this.caseField, phrase(view, "match case")]),
+      elt("label", null, [this.reField, phrase(view, "regexp")]),
+      elt("label", null, [this.wordField, phrase(view, "by word")]),
+      ...view.state.readOnly ? [] : [
+        elt("br"),
+        this.replaceField,
+        button("replace", () => replaceNext(view), [phrase(view, "replace")]),
+        button("replaceAll", () => replaceAll(view), [phrase(view, "replace all")])
+      ],
+      elt("button", {
+        name: "close",
+        onclick: () => closeSearchPanel(view),
+        "aria-label": phrase(view, "close"),
+        type: "button"
+      }, ["×"])
+    ])
+  }
+
+  commit() {
+    let query = new SearchQuery({
+      search: this.searchField.value,
+      caseSensitive: this.caseField.checked,
+      regexp: this.reField.checked,
+      wholeWord: this.wordField.checked,
+      replace: this.replaceField.value,
+    })
+    if (!query.eq(this.query)) {
+      this.query = query
+      this.view.dispatch({effects: setSearchQuery.of(query)})
+    }
+  }
+
+  keydown(e: KeyboardEvent) {
+    if (runScopeHandlers(this.view, e, "search-panel")) {
+      e.preventDefault()
+    } else if (e.keyCode == 13 && e.target == this.searchField) {
+      e.preventDefault()
+      ;(e.shiftKey ? findPrevious : findNext)(this.view)
+    } else if (e.keyCode == 13 && e.target == this.replaceField) {
+      e.preventDefault()
+      replaceNext(this.view)
+    }
+  }
+
+  update(update: ViewUpdate) {
+    for (let tr of update.transactions) for (let effect of tr.effects) {
+      if (effect.is(setSearchQuery) && !effect.value.eq(this.query)) this.setQuery(effect.value)
+    }
+  }
+
+  setQuery(query: SearchQuery) {
+    this.query = query
+    this.searchField.value = query.search
+    this.replaceField.value = query.replace
+    this.caseField.checked = query.caseSensitive
+    this.reField.checked = query.regexp
+    this.wordField.checked = query.wholeWord
+  }
+
+  mount() {
+    this.searchField.select()
+  }
+
+  get pos() { return 80 }
+
+  get top() { return this.view.state.facet(searchConfigFacet).top }
+}
+
+function phrase(view: EditorView, phrase: string) { return view.state.phrase(phrase) }
+
+const AnnounceMargin = 30
+
+const Break = /[\s\.,:;?!]/
+
+function announceMatch(view: EditorView, {from, to}: {from: number, to: number}) {
+  let line = view.state.doc.lineAt(from), lineEnd = view.state.doc.lineAt(to).to
+  let start = Math.max(line.from, from - AnnounceMargin), end = Math.min(lineEnd, to + AnnounceMargin)
+  let text = view.state.sliceDoc(start, end)
+  if (start != line.from) {
+    for (let i = 0; i < AnnounceMargin; i++) if (!Break.test(text[i + 1]) && Break.test(text[i])) {
+      text = text.slice(i)
+      break
+    }
+  }
+  if (end != lineEnd) {
+    for (let i = text.length - 1; i > text.length - AnnounceMargin; i--) if (!Break.test(text[i - 1]) && Break.test(text[i])) {
+      text = text.slice(0, i)
+      break
+    }
+  }
+
+  return EditorView.announce.of(
+    `${view.state.phrase("current match")}. ${text} ${view.state.phrase("on line")} ${line.number}.`)
+}
+
+const baseTheme = EditorView.baseTheme({
+  ".cm-panel.cm-search": {
+    padding: "2px 6px 4px",
+    position: "relative",
+    "& [name=close]": {
+      position: "absolute",
+      top: "0",
+      right: "4px",
+      backgroundColor: "inherit",
+      border: "none",
+      font: "inherit",
+      padding: 0,
+      margin: 0
+    },
+    "& input, & button, & label": {
+      margin: ".2em .6em .2em 0"
+    },
+    "& input[type=checkbox]": {
+      marginRight: ".2em"
+    },
+    "& label": {
+      fontSize: "80%",
+      whiteSpace: "pre"
+    }
+  },
+
+  "&light .cm-searchMatch": { backgroundColor: "#ffff0054" },
+  "&dark .cm-searchMatch": { backgroundColor: "#00ffff8a" },
+
+  "&light .cm-searchMatch-selected": { backgroundColor: "#ff6a0054" },
+  "&dark .cm-searchMatch-selected": { backgroundColor: "#ff00ff8a" }
+})
+
+const searchExtensions = [
+  searchState,
+  Prec.low(searchHighlighter),
+  baseTheme
+]"
+                  uid=snap_13_223 StaticText "import {EditorView, ViewPlugin, ViewUpdate, Command, Decoration, DecorationSet,
+        runScopeHandlers, KeyBinding,
+        PanelConstructor, showPanel, Panel, getPanel} from "@codemirror/view"
+import {EditorState, StateField, StateEffect, EditorSelection, SelectionRange, StateCommand, Prec,
+        Facet, Extension, RangeSetBuilder, Text, CharCategory, findClusterBreak,
+        combineConfig} from "@codemirror/state"
+import elt from "crelt"
+import {SearchCursor} from "./cursor"
+import {RegExpCursor, validRegExp} from "./regexp"
+import {gotoLine} from "./goto-line"
+import {selectNextOccurrence} from "./selection-match"
+
+export {highlightSelectionMatches} from "./selection-match"
+export {SearchCursor, RegExpCursor, gotoLine, selectNextOccurrence}
+
+interface SearchConfig {
+  /// Whether to position the search panel at the top of the editor
+  /// (the default is at the bottom).
+  top?: boolean
+
+  /// Whether to enable case sensitivity by default when the search
+  /// panel is activated (defaults to false).
+  caseSensitive?: boolean
+
+  /// Whether to treat string searches literally by default (defaults to false).
+  literal?: boolean
+
+  /// Controls whether the default query has by-word matching enabled.
+  /// Defaults to false.
+  wholeWord?: boolean
+
+  /// Used to turn on regular expression search in the default query.
+  /// Defaults to false.
+  regexp?: boolean
+
+  /// Can be used to override the way the search panel is implemented.
+  /// Should create a [Panel](#view.Panel) that contains a form
+  /// which lets the user:
+  ///
+  /// - See the [current](#search.getSearchQuery) search query.
+  /// - Manipulate the [query](#search.SearchQuery) and
+  ///   [update](#search.setSearchQuery) the search state with a new
+  ///   query.
+  /// - Notice external changes to the query by reacting to the
+  ///   appropriate [state effect](#search.setSearchQuery).
+  /// - Run some of the search commands.
+  ///
+  /// The field that should be focused when opening the panel must be
+  /// tagged with a `main-field=true` DOM attribute.
+  createPanel?: (view: EditorView) => Panel,
+
+  /// By default, matches are scrolled into view using the default
+  /// behavior of
+  /// [`EditorView.scrollIntoView`](#view.EditorView^scrollIntoView).
+  /// This option allows you to pass a custom function to produce the
+  /// scroll effect.
+  scrollToMatch?: (range: SelectionRange, view: EditorView) => StateEffect<unknown>
+}
+
+const searchConfigFacet: Facet<SearchConfig, Required<SearchConfig>> = Facet.define({
+  combine(configs) {
+    return combineConfig(configs, {
+      top: false,
+      caseSensitive: false,
+      literal: false,
+      regexp: false,
+      wholeWord: false,
+      createPanel: view => new SearchPanel(view),
+      scrollToMatch: range => EditorView.scrollIntoView(range)
+    })
+  }
+})
+
+/// Add search state to the editor configuration, and optionally
+/// configure the search extension.
+/// ([`openSearchPanel`](#search.openSearchPanel) will automatically
+/// enable this if it isn't already on).
+export function search(config?: SearchConfig): Extension {
+  return config ? [searchConfigFacet.of(config), searchExtensions] : searchExtensions
+}
+
+/// A search query. Part of the editor's search state.
+export class SearchQuery {
+  /// The search string (or regular expression).
+  readonly search: string
+  /// Indicates whether the search is case-sensitive.
+  readonly caseSensitive: boolean
+  /// By default, string search will replace `\n`, `\r`, and `\t` in
+  /// the query with newline, return, and tab characters. When this
+  /// is set to true, that behavior is disabled.
+  readonly literal: boolean
+  /// When true, the search string is interpreted as a regular
+  /// expression.
+  readonly regexp: boolean
+  /// The replace text, or the empty string if no replace text has
+  /// been given.
+  readonly replace: string
+  /// Whether this query is non-empty and, in case of a regular
+  /// expression search, syntactically valid.
+  readonly valid: boolean
+  /// When true, matches that contain words are ignored when there are
+  /// further word characters around them.
+  readonly wholeWord: boolean
+
+  /// @internal
+  readonly unquoted: string
+
+  /// Optional test function used to filter matches.
+  readonly test: ((match: string, state: EditorState, from: number, to: number) => boolean) | undefined
+
+  /// Create a query object.
+  constructor(config: {
+    /// The search string.
+    search: string,
+    /// Controls whether the search should be case-sensitive.
+    caseSensitive?: boolean,
+    /// By default, string search will replace `\n`, `\r`, and `\t` in
+    /// the query with newline, return, and tab characters. When this
+    /// is set to true, that behavior is disabled.
+    literal?: boolean,
+    /// When true, interpret the search string as a regular expression.
+    regexp?: boolean,
+    /// The replace text.
+    replace?: string,
+    /// Enable whole-word matching.
+    wholeWord?: boolean
+
+    /// Optional custom filter. It is passed the matched string, the
+    /// editor state, and the match range. Matches for which it
+    /// returns false will be ignored.
+    test?: (match: string, state: EditorState, from: number, to: number) => boolean
+  }) {
+    this.search = config.search
+    this.caseSensitive = !!config.caseSensitive
+    this.literal = !!config.literal
+    this.regexp = !!config.regexp
+    this.replace = config.replace || ""
+    this.valid = !!this.search && (!this.regexp || validRegExp(this.search))
+    this.unquoted = this.unquote(this.search)
+    this.wholeWord = !!config.wholeWord
+    this.test = config.test
+  }
+
+  /// @internal
+  unquote(text: string) {
+    return this.literal ? text :
+      text.replace(/\\([nrt\\])/g, (_, ch) => ch == "n" ? "\n" : ch == "r" ? "\r" : ch == "t" ? "\t" : "\\")
+  }
+
+  /// Compare this query to another query.
+  eq(other: SearchQuery) {
+    return this.search == other.search && this.replace == other.replace &&
+      this.caseSensitive == other.caseSensitive && this.regexp == other.regexp &&
+      this.wholeWord == other.wholeWord && this.test == other.test
+  }
+
+  /// @internal
+  create(): QueryType {
+    return this.regexp ? new RegExpQuery(this) : new StringQuery(this)
+  }
+
+  /// Get a search cursor for this query, searching through the given
+  /// range in the given state.
+  getCursor(state: EditorState | Text, from: number = 0, to?: number): Iterator<{from: number, to: number}> {
+    let st = (state as any).doc ? state as EditorState : EditorState.create({doc: state as Text})
+    if (to == null) to = st.doc.length
+    return this.regexp ? regexpCursor(this, st, from, to) : stringCursor(this, st, from, to)
+  }
+}
+
+type SearchResult = typeof SearchCursor.prototype.value
+
+abstract class QueryType<Result extends SearchResult = SearchResult> {
+  constructor(readonly spec: SearchQuery) {}
+
+  abstract nextMatch(state: EditorState, curFrom: number, curTo: number): Result | null
+
+  abstract prevMatch(state: EditorState, curFrom: number, curTo: number): Result | null
+
+  abstract getReplacement(result: Result): string
+
+  abstract matchAll(state: EditorState, limit: number): readonly Result[] | null
+
+  abstract highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void): void
+}
+
+const enum FindPrev { ChunkSize = 10000 }
+
+function wrapStringTest(test: (match: string, state: EditorState, from: number, to: number) => boolean,
+                        state: EditorState,
+                        inner: ((from: number, to: number, buffer: string, bufferPos: number) => boolean) | undefined) {
+  return (from: number, to: number, buffer: string, bufferPos: number) => {
+    if (inner && !inner(from, to, buffer, bufferPos)) return false
+    let match = from >= bufferPos && to <= bufferPos + buffer.length
+      ? buffer.slice(from - bufferPos, to - bufferPos)
+      : state.doc.sliceString(from, to)
+    return test(match, state, from, to)
+  }
+}
+
+function stringCursor(spec: SearchQuery, state: EditorState, from: number, to: number) {
+  let test: ((from: number, to: number, buffer: string, bufferPos: number) => boolean) | undefined
+  if (spec.wholeWord) test = stringWordTest(state.doc, state.charCategorizer(state.selection.main.head))
+  if (spec.test) test = wrapStringTest(spec.test, state, test)
+  return new SearchCursor(state.doc, spec.unquoted, from, to, spec.caseSensitive ? undefined : x => x.toLowerCase(), test)
+}
+
+function stringWordTest(doc: Text, categorizer: (ch: string) => CharCategory) {
+  return (from: number, to: number, buf: string, bufPos: number) => {
+    if (bufPos > from || bufPos + buf.length < to) {
+      bufPos = Math.max(0, from - 2)
+      buf = doc.sliceString(bufPos, Math.min(doc.length, to + 2))
+    }
+    return (categorizer(charBefore(buf, from - bufPos)) != CharCategory.Word ||
+            categorizer(charAfter(buf, from - bufPos)) != CharCategory.Word) &&
+           (categorizer(charAfter(buf, to - bufPos)) != CharCategory.Word ||
+            categorizer(charBefore(buf, to - bufPos)) != CharCategory.Word)
+  }
+}
+
+class StringQuery extends QueryType<SearchResult> {
+  constructor(spec: SearchQuery) {
+    super(spec)
+  }
+
+  nextMatch(state: EditorState, curFrom: number, curTo: number) {
+    let cursor = stringCursor(this.spec, state, curTo, state.doc.length).nextOverlapping()
+    if (cursor.done) {
+      let end = Math.min(state.doc.length, curFrom + this.spec.unquoted.length)
+      cursor = stringCursor(this.spec, state, 0, end).nextOverlapping()
+    }
+    return cursor.done || cursor.value.from == curFrom && cursor.value.to == curTo ? null : cursor.value
+  }
+
+  // Searching in reverse is, rather than implementing an inverted search
+  // cursor, done by scanning chunk after chunk forward.
+  private prevMatchInRange(state: EditorState, from: number, to: number) {
+    for (let pos = to;;) {
+      let start = Math.max(from, pos - FindPrev.ChunkSize - this.spec.unquoted.length)
+      let cursor = stringCursor(this.spec, state, start, pos), range: SearchResult | null = null
+      while (!cursor.nextOverlapping().done) range = cursor.value
+      if (range) return range
+      if (start == from) return null
+      pos -= FindPrev.ChunkSize
+    }
+  }
+
+  prevMatch(state: EditorState, curFrom: number, curTo: number) {
+    let found = this.prevMatchInRange(state, 0, curFrom)
+    if (!found)
+      found = this.prevMatchInRange(state, Math.max(0, curTo - this.spec.unquoted.length), state.doc.length)
+    return found && (found.from != curFrom || found.to != curTo) ? found : null
+  }
+
+  getReplacement(_result: SearchResult) { return this.spec.unquote(this.spec.replace) }
+
+  matchAll(state: EditorState, limit: number) {
+    let cursor = stringCursor(this.spec, state, 0, state.doc.length), ranges = []
+    while (!cursor.next().done) {
+      if (ranges.length >= limit) return null
+      ranges.push(cursor.value)
+    }
+    return ranges
+  }
+
+  highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void) {
+    let cursor = stringCursor(this.spec, state, Math.max(0, from - this.spec.unquoted.length),
+                              Math.min(to + this.spec.unquoted.length, state.doc.length))
+    while (!cursor.next().done) add(cursor.value.from, cursor.value.to)
+  }
+}
+
+const enum RegExp { HighlightMargin = 250 }
+
+type RegExpResult = typeof RegExpCursor.prototype.value
+
+function wrapRegexpTest(test: (match: string, state: EditorState, from: number, to: number) => boolean,
+                        state: EditorState,
+                        inner: ((from: number, to: number, match: RegExpExecArray) => boolean) | undefined) {
+  return (from: number, to: number, match: RegExpExecArray) => {
+    return (!inner || inner(from, to, match)) && test(match[0], state, from, to)
+  }
+}
+
+function regexpCursor(spec: SearchQuery, state: EditorState, from: number, to: number) {
+  let test: ((from: number, to: number, match: RegExpExecArray) => boolean) | undefined
+  if (spec.wholeWord) test = regexpWordTest(state.charCategorizer(state.selection.main.head))
+  if (spec.test) test = wrapRegexpTest(spec.test, state, test)
+  return new RegExpCursor(state.doc, spec.search, {ignoreCase: !spec.caseSensitive, test}, from, to)
+}
+
+function charBefore(str: string, index: number) {
+  return str.slice(findClusterBreak(str, index, false), index)
+}
+function charAfter(str: string, index: number) {
+  return str.slice(index, findClusterBreak(str, index))
+}
+
+function regexpWordTest(categorizer: (ch: string) => CharCategory) {
+  return (_from: number, _to: number, match: RegExpExecArray) =>
+    !match[0].length ||
+    (categorizer(charBefore(match.input, match.index)) != CharCategory.Word ||
+     categorizer(charAfter(match.input, match.index)) != CharCategory.Word) &&
+    (categorizer(charAfter(match.input, match.index + match[0].length)) != CharCategory.Word ||
+     categorizer(charBefore(match.input, match.index + match[0].length)) != CharCategory.Word)
+}
+
+class RegExpQuery extends QueryType<RegExpResult> {
+  nextMatch(state: EditorState, curFrom: number, curTo: number) {
+    let cursor = regexpCursor(this.spec, state, curTo, state.doc.length).next()
+    if (cursor.done) cursor = regexpCursor(this.spec, state, 0, curFrom).next()
+    return cursor.done ? null : cursor.value
+  }
+
+  private prevMatchInRange(state: EditorState, from: number, to: number) {
+    for (let size = 1;; size++) {
+      let start = Math.max(from, to - size * FindPrev.ChunkSize)
+      let cursor = regexpCursor(this.spec, state, start, to), range: RegExpResult | null = null
+      while (!cursor.next().done) range = cursor.value
+      if (range && (start == from || range.from > start + 10)) return range
+      if (start == from) return null
+    }
+  }
+
+  prevMatch(state: EditorState, curFrom: number, curTo: number) {
+    return this.prevMatchInRange(state, 0, curFrom) ||
+      this.prevMatchInRange(state, curTo, state.doc.length)
+  }
+
+  getReplacement(result: RegExpResult) {
+    return this.spec.unquote(this.spec.replace).replace(/\$([$&]|\d+)/g, (m, i) => {
+      if (i == "&") return result.match[0]
+      if (i == "$") return "$"
+      for (let l = i.length; l > 0; l--) {
+        let n = +i.slice(0, l)
+        if (n > 0 && n < result.match.length) return result.match[n] + i.slice(l)
+      }
+      return m
+    })
+  }
+
+  matchAll(state: EditorState, limit: number) {
+    let cursor = regexpCursor(this.spec, state, 0, state.doc.length), ranges = []
+    while (!cursor.next().done) {
+      if (ranges.length >= limit) return null
+      ranges.push(cursor.value)
+    }
+    return ranges
+  }
+
+  highlight(state: EditorState, from: number, to: number, add: (from: number, to: number) => void) {
+    let cursor = regexpCursor(this.spec, state, Math.max(0, from - RegExp.HighlightMargin),
+                              Math.min(to + RegExp.HighlightMargin, state.doc.length))
+    while (!cursor.next().done) add(cursor.value.from, cursor.value.to)
+  }
+}
+
+/// A state effect that updates the current search query. Note that
+/// this only has an effect if the search state has been initialized
+/// (by including [`search`](#search.search) in your configuration or
+/// by running [`openSearchPanel`](#search.openSearchPanel) at least
+/// once).
+export const setSearchQuery = StateEffect.define<SearchQuery>()
+
+const togglePanel = StateEffect.define<boolean>()
+
+const searchState: StateField<SearchState> = StateField.define<SearchState>({
+  create(state) {
+    return new SearchState(defaultQuery(state).create(), null)
+  },
+  update(value, tr) {
+    for (let effect of tr.effects) {
+      if (effect.is(setSearchQuery)) value = new SearchState(effect.value.create(), value.panel)
+      else if (effect.is(togglePanel)) value = new SearchState(value.query, effect.value ? createSearchPanel : null)
+    }
+    return value
+  },
+  provide: f => showPanel.from(f, val => val.panel)
+})
+
+/// Get the current search query from an editor state.
+export function getSearchQuery(state: EditorState) {
+  let curState = state.field(searchState, false)
+  return curState ? curState.query.spec : defaultQuery(state)
+}
+
+/// Query whether the search panel is open in the given editor state.
+export function searchPanelOpen(state: EditorState) {
+  return state.field(searchState, false)?.panel != null
+}
+
+class SearchState {
+  constructor(readonly query: QueryType, readonly panel: PanelConstructor | null) {}
+}
+
+const matchMark = Decoration.mark({class: "cm-searchMatch"}),
+      selectedMatchMark = Decoration.mark({class: "cm-searchMatch cm-searchMatch-selected"})
+
+const searchHighlighter = ViewPlugin.fromClass(class {
+  decorations: DecorationSet
+
+  constructor(readonly view: EditorView) {
+    this.decorations = this.highlight(view.state.field(searchState))
+  }
+
+  update(update: ViewUpdate) {
+    let state = update.state.field(searchState)
+    if (state != update.startState.field(searchState) || update.docChanged || update.selectionSet || update.viewportChanged)
+      this.decorations = this.highlight(state)
+  }
+
+  highlight({query, panel}: SearchState) {
+    if (!panel || !query.spec.valid) return Decoration.none
+    let {view} = this
+    let builder = new RangeSetBuilder<Decoration>()
+    for (let i = 0, ranges = view.visibleRanges, l = ranges.length; i < l; i++) {
+      let {from, to} = ranges[i]
+      while (i < l - 1 && to > ranges[i + 1].from - 2 * RegExp.HighlightMargin) to = ranges[++i].to
+      query.highlight(view.state, from, to, (from, to) => {
+        let selected = view.state.selection.ranges.some(r => r.from == from && r.to == to)
+        builder.add(from, to, selected ? selectedMatchMark : matchMark)
+      })
+    }
+    return builder.finish()
+  }
+}, {
+  decorations: v => v.decorations
+})
+
+function searchCommand(f: (view: EditorView, state: SearchState) => boolean): Command {
+  return view => {
+    let state = view.state.field(searchState, false)
+    return state && state.query.spec.valid ? f(view, state) : openSearchPanel(view)
+  }
+}
+
+/// Open the search panel if it isn't already open, and move the
+/// selection to the first match after the current main selection.
+/// Will wrap around to the start of the document when it reaches the
+/// end.
+export const findNext = searchCommand((view, {query}) => {
+  let {to} = view.state.selection.main
+  let next = query.nextMatch(view.state, to, to)
+  if (!next) return false
+  let selection = EditorSelection.single(next.from, next.to)
+  let config = view.state.facet(searchConfigFacet)
+  view.dispatch({
+    selection,
+    effects: [announceMatch(view, next), config.scrollToMatch(selection.main, view)],
+    userEvent: "select.search"
+  })
+  selectSearchInput(view)
+  return true
+})
+
+/// Move the selection to the previous instance of the search query,
+/// before the current main selection. Will wrap past the start
+/// of the document to start searching at the end again.
+export const findPrevious = searchCommand((view, {query}) => {
+  let {state} = view, {from} = state.selection.main
+  let prev = query.prevMatch(state, from, from)
+  if (!prev) return false
+  let selection = EditorSelection.single(prev.from, prev.to)
+  let config = view.state.facet(searchConfigFacet)
+  view.dispatch({
+    selection,
+    effects: [announceMatch(view, prev), config.scrollToMatch(selection.main, view)],
+    userEvent: "select.search"
+  })
+  selectSearchInput(view)
+  return true
+})
+
+/// Select all instances of the search query.
+export const selectMatches = searchCommand((view, {query}) => {
+  let ranges = query.matchAll(view.state, 1000)
+  if (!ranges || !ranges.length) return false
+  view.dispatch({
+    selection: EditorSelection.create(ranges.map(r => EditorSelection.range(r.from, r.to))),
+    userEvent: "select.search.matches"
+  })
+  return true
+})
+
+/// Select all instances of the currently selected text.
+export const selectSelectionMatches: StateCommand = ({state, dispatch}) => {
+  let sel = state.selection
+  if (sel.ranges.length > 1 || sel.main.empty) return false
+  let {from, to} = sel.main
+  let ranges = [], main = 0
+  for (let cur = new SearchCursor(state.doc, state.sliceDoc(from, to)); !cur.next().done;) {
+    if (ranges.length > 1000) return false
+    if (cur.value.from == from) main = ranges.length
+    ranges.push(EditorSelection.range(cur.value.from, cur.value.to))
+  }
+  dispatch(state.update({
+    selection: EditorSelection.create(ranges, main),
+    userEvent: "select.search.matches"
+  }))
+  return true
+}
+
+/// Replace the current match of the search query.
+export const replaceNext = searchCommand((view, {query}) => {
+  let {state} = view, {from, to} = state.selection.main
+  if (state.readOnly) return false
+  let match = query.nextMatch(state, from, from)
+  if (!match) return false
+  let next: SearchResult | null = match
+  let changes = [], selection: EditorSelection | undefined, replacement: Text | undefined
+  let effects: StateEffect<unknown>[] = []
+  if (next.from == from && next.to == to) {
+    replacement = state.toText(query.getReplacement(next))
+    changes.push({from: next.from, to: next.to, insert: replacement})
+    next = query.nextMatch(state, next.from, next.to)
+    effects.push(EditorView.announce.of(
+      state.phrase("replaced match on line $", state.doc.lineAt(from).number) + "."))
+  }
+  let changeSet = view.state.changes(changes)
+  if (next) {
+    selection = EditorSelection.single(next.from, next.to).map(changeSet)
+    effects.push(announceMatch(view, next))
+    effects.push(state.facet(searchConfigFacet).scrollToMatch(selection.main, view))
+  }
+  view.dispatch({
+    changes: changeSet,
+    selection,
+    effects,
+    userEvent: "input.replace"
+  })
+  return true
+})
+
+/// Replace all instances of the search query with the given
+/// replacement.
+export const replaceAll = searchCommand((view, {query}) => {
+  if (view.state.readOnly) return false
+  let changes = query.matchAll(view.state, 1e9)!.map(match => {
+    let {from, to} = match
+    return {from, to, insert: query.getReplacement(match)}
+  })
+  if (!changes.length) return false
+  let announceText = view.state.phrase("replaced $ matches", changes.length) + "."
+  view.dispatch({
+    changes,
+    effects: EditorView.announce.of(announceText),
+    userEvent: "input.replace.all"
+  })
+  return true
+})
+
+function createSearchPanel(view: EditorView) {
+  return view.state.facet(searchConfigFacet).createPanel(view)
+}
+
+function defaultQuery(state: EditorState, fallback?: SearchQuery) {
+  let sel = state.selection.main
+  let selText = sel.empty || sel.to > sel.from + 100 ? "" : state.sliceDoc(sel.from, sel.to)
+  if (fallback && !selText) return fallback
+  let config = state.facet(searchConfigFacet)
+  return new SearchQuery({
+    search: (fallback?.literal ?? config.literal) ? selText : selText.replace(/\n/g, "\\n"),
+    caseSensitive: fallback?.caseSensitive ?? config.caseSensitive,
+    literal: fallback?.literal ?? config.literal,
+    regexp: fallback?.regexp ?? config.regexp,
+    wholeWord: fallback?.wholeWord ?? config.wholeWord
+  })
+}
+
+function getSearchInput(view: EditorView) {
+  let panel = getPanel(view, createSearchPanel)
+  return panel && panel.dom.querySelector("[main-field]") as HTMLInputElement | null
+}
+
+function selectSearchInput(view: EditorView) {
+  let input = getSearchInput(view)
+  if (input && input == view.root.activeElement)
+    input.select()
+}
+
+/// Make sure the search panel is open and focused.
+export const openSearchPanel: Command = view => {
+  let state = view.state.field(searchState, false)
+  if (state && state.panel) {
+    let searchInput = getSearchInput(view)
+    if (searchInput && searchInput != view.root.activeElement) {
+      let query = defaultQuery(view.state, state.query.spec)
+      if (query.valid) view.dispatch({effects: setSearchQuery.of(query)})
+      searchInput.focus()
+      searchInput.select()
+    }
+  } else {
+    view.dispatch({effects: [
+      togglePanel.of(true),
+      state ? setSearchQuery.of(defaultQuery(view.state, state.query.spec)) : StateEffect.appendConfig.of(searchExtensions)
+    ]})
+  }
+  return true
+}
+
+/// Close the search panel.
+export const closeSearchPanel: Command = view => {
+  let state = view.state.field(searchState, false)
+  if (!state || !state.panel) return false
+  let panel = getPanel(view, createSearchPanel)
+  if (panel && panel.dom.contains(view.root.activeElement)) view.focus()
+  view.dispatch({effects: togglePanel.of(false)})
+  return true
+}
+
+/// Default search-related key bindings.
+///
+///  - Mod-f: [`openSearchPanel`](#search.openSearchPanel)
+///  - F3, Mod-g: [`findNext`](#search.findNext)
+///  - Shift-F3, Shift-Mod-g: [`findPrevious`](#search.findPrevious)
+///  - Mod-Alt-g: [`gotoLine`](#search.gotoLine)
+///  - Mod-d: [`selectNextOccurrence`](#search.selectNextOccurrence)
+export const searchKeymap: readonly KeyBinding[] = [
+  {key: "Mod-f", run: openSearchPanel, scope: "editor search-panel"},
+  {key: "F3", run: findNext, shift: findPrevious, scope: "editor search-panel", preventDefault: true},
+  {key: "Mod-g", run: findNext, shift: findPrevious, scope: "editor search-panel", preventDefault: true},
+  {key: "Escape", run: closeSearchPanel, scope: "editor search-panel"},
+  {key: "Mod-Shift-l", run: selectSelectionMatches},
+  {key: "Mod-Alt-g", run: gotoLine},
+  {key: "Mod-d", run: selectNextOccurrence, preventDefault: true},
+]
+
+class SearchPanel implements Panel {
+  searchField: HTMLInputElement
+  replaceField: HTMLInputElement
+  caseField: HTMLInputElement
+  reField: HTMLInputElement
+  wordField: HTMLInputElement
+  dom: HTMLElement
+  query: SearchQuery
+
+  constructor(readonly view: EditorView) {
+    let query = this.query = view.state.field(searchState).query.spec
+    this.commit = this.commit.bind(this)
+
+    this.searchField = elt("input", {
+      value: query.search,
+      placeholder: phrase(view, "Find"),
+      "aria-label": phrase(view, "Find"),
+      class: "cm-textfield",
+      name: "search",
+      form: "",
+      "main-field": "true",
+      onchange: this.commit,
+      onkeyup: this.commit
+    }) as HTMLInputElement
+    this.replaceField = elt("input", {
+      value: query.replace,
+      placeholder: phrase(view, "Replace"),
+      "aria-label": phrase(view, "Replace"),
+      class: "cm-textfield",
+      name: "replace",
+      form: "",
+      onchange: this.commit,
+      onkeyup: this.commit
+    }) as HTMLInputElement
+    this.caseField = elt("input", {
+      type: "checkbox",
+      name: "case",
+      form: "",
+      checked: query.caseSensitive,
+      onchange: this.commit
+    }) as HTMLInputElement
+    this.reField = elt("input", {
+      type: "checkbox",
+      name: "re",
+      form: "",
+      checked: query.regexp,
+      onchange: this.commit
+    }) as HTMLInputElement
+    this.wordField = elt("input", {
+      type: "checkbox",
+      name: "word",
+      form: "",
+      checked: query.wholeWord,
+      onchange: this.commit
+    }) as HTMLInputElement
+
+    function button(name: string, onclick: () => void, content: (Node | string)[]) {
+      return elt("button", {class: "cm-button", name, onclick, type: "button"}, content)
+    }
+    this.dom = elt("div", {onkeydown: (e: KeyboardEvent) => this.keydown(e), class: "cm-search"}, [
+      this.searchField,
+      button("next", () => findNext(view), [phrase(view, "next")]),
+      button("prev", () => findPrevious(view), [phrase(view, "previous")]),
+      button("select", () => selectMatches(view), [phrase(view, "all")]),
+      elt("label", null, [this.caseField, phrase(view, "match case")]),
+      elt("label", null, [this.reField, phrase(view, "regexp")]),
+      elt("label", null, [this.wordField, phrase(view, "by word")]),
+      ...view.state.readOnly ? [] : [
+        elt("br"),
+        this.replaceField,
+        button("replace", () => replaceNext(view), [phrase(view, "replace")]),
+        button("replaceAll", () => replaceAll(view), [phrase(view, "replace all")])
+      ],
+      elt("button", {
+        name: "close",
+        onclick: () => closeSearchPanel(view),
+        "aria-label": phrase(view, "close"),
+        type: "button"
+      }, ["×"])
+    ])
+  }
+
+  commit() {
+    let query = new SearchQuery({
+      search: this.searchField.value,
+      caseSensitive: this.caseField.checked,
+      regexp: this.reField.checked,
+      wholeWord: this.wordField.checked,
+      replace: this.replaceField.value,
+    })
+    if (!query.eq(this.query)) {
+      this.query = query
+      this.view.dispatch({effects: setSearchQuery.of(query)})
+    }
+  }
+
+  keydown(e: KeyboardEvent) {
+    if (runScopeHandlers(this.view, e, "search-panel")) {
+      e.preventDefault()
+    } else if (e.keyCode == 13 && e.target == this.searchField) {
+      e.preventDefault()
+      ;(e.shiftKey ? findPrevious : findNext)(this.view)
+    } else if (e.keyCode == 13 && e.target == this.replaceField) {
+      e.preventDefault()
+      replaceNext(this.view)
+    }
+  }
+
+  update(update: ViewUpdate) {
+    for (let tr of update.transactions) for (let effect of tr.effects) {
+      if (effect.is(setSearchQuery) && !effect.value.eq(this.query)) this.setQuery(effect.value)
+    }
+  }
+
+  setQuery(query: SearchQuery) {
+    this.query = query
+    this.searchField.value = query.search
+    this.replaceField.value = query.replace
+    this.caseField.checked = query.caseSensitive
+    this.reField.checked = query.regexp
+    this.wordField.checked = query.wholeWord
+  }
+
+  mount() {
+    this.searchField.select()
+  }
+
+  get pos() { return 80 }
+
+  get top() { return this.view.state.facet(searchConfigFacet).top }
+}
+
+function phrase(view: EditorView, phrase: string) { return view.state.phrase(phrase) }
+
+const AnnounceMargin = 30
+
+const Break = /[\s\.,:;?!]/
+
+function announceMatch(view: EditorView, {from, to}: {from: number, to: number}) {
+  let line = view.state.doc.lineAt(from), lineEnd = view.state.doc.lineAt(to).to
+  let start = Math.max(line.from, from - AnnounceMargin), end = Math.min(lineEnd, to + AnnounceMargin)
+  let text = view.state.sliceDoc(start, end)
+  if (start != line.from) {
+    for (let i = 0; i < AnnounceMargin; i++) if (!Break.test(text[i + 1]) && Break.test(text[i])) {
+      text = text.slice(i)
+      break
+    }
+  }
+  if (end != lineEnd) {
+    for (let i = text.length - 1; i > text.length - AnnounceMargin; i--) if (!Break.test(text[i - 1]) && Break.test(text[i])) {
+      text = text.slice(0, i)
+      break
+    }
+  }
+
+  return EditorView.announce.of(
+    `${view.state.phrase("current match")}. ${text} ${view.state.phrase("on line")} ${line.number}.`)
+}
+
+const baseTheme = EditorView.baseTheme({
+  ".cm-panel.cm-search": {
+    padding: "2px 6px 4px",
+    position: "relative",
+    "& [name=close]": {
+      position: "absolute",
+      top: "0",
+      right: "4px",
+      backgroundColor: "inherit",
+      border: "none",
+      font: "inherit",
+      padding: 0,
+      margin: 0
+    },
+    "& input, & button, & label": {
+      margin: ".2em .6em .2em 0"
+    },
+    "& input[type=checkbox]": {
+      marginRight: ".2em"
+    },
+    "& label": {
+      fontSize: "80%",
+      whiteSpace: "pre"
+    }
+  },
+
+  "&light .cm-searchMatch": { backgroundColor: "#ffff0054" },
+  "&dark .cm-searchMatch": { backgroundColor: "#00ffff8a" },
+
+  "&light .cm-searchMatch-selected": { backgroundColor: "#ff6a0054" },
+  "&dark .cm-searchMatch-selected": { backgroundColor: "#ff00ff8a" }
+})
+
+const searchExtensions = [
+  searchState,
+  Prec.low(searchHighlighter),
+  baseTheme
+]"
+                    uid=snap_13_224 InlineTextBox
+                    uid=snap_13_225 InlineTextBox
+                    uid=snap_13_226 InlineTextBox
+                    uid=snap_13_227 InlineTextBox
+                    uid=snap_13_228 InlineTextBox
+                    uid=snap_13_229 InlineTextBox
+                    uid=snap_13_230 InlineTextBox
+                    uid=snap_13_231 InlineTextBox
+                    uid=snap_13_232 InlineTextBox
+                    uid=snap_13_233 InlineTextBox
+                    uid=snap_13_234 InlineTextBox
+                    uid=snap_13_235 InlineTextBox
+                    uid=snap_13_236 InlineTextBox
+                    uid=snap_13_237 InlineTextBox
+                    uid=snap_13_238 InlineTextBox
+                    uid=snap_13_239 InlineTextBox
+                    uid=snap_13_240 InlineTextBox
+                    uid=snap_13_241 InlineTextBox
+                    uid=snap_13_242 InlineTextBox
+                    uid=snap_13_243 InlineTextBox
+                    uid=snap_13_244 InlineTextBox
+                    uid=snap_13_245 InlineTextBox
+                    uid=snap_13_246 InlineTextBox
+                    uid=snap_13_247 InlineTextBox
+                    uid=snap_13_248 InlineTextBox
+                    uid=snap_13_249 InlineTextBox
+                    uid=snap_13_250 InlineTextBox
+                    uid=snap_13_251 InlineTextBox
+                    uid=snap_13_252 InlineTextBox
+                    uid=snap_13_253 InlineTextBox
+                    uid=snap_13_254 InlineTextBox
+                    uid=snap_13_255 InlineTextBox
+                    uid=snap_13_256 InlineTextBox
+                    uid=snap_13_257 InlineTextBox
+                    uid=snap_13_258 InlineTextBox
+                    uid=snap_13_259 InlineTextBox
+                    uid=snap_13_260 InlineTextBox
+                    uid=snap_13_261 InlineTextBox
+                    uid=snap_13_262 InlineTextBox
+                    uid=snap_13_263 InlineTextBox
+                    uid=snap_13_264 InlineTextBox
+                    uid=snap_13_265 InlineTextBox
+                    uid=snap_13_266 InlineTextBox
+                    uid=snap_13_267 InlineTextBox
+                    uid=snap_13_268 InlineTextBox
+                    uid=snap_13_269 InlineTextBox
+                    uid=snap_13_270 InlineTextBox
+                    uid=snap_13_271 InlineTextBox
+                    uid=snap_13_272 InlineTextBox
+                    uid=snap_13_273 InlineTextBox
+                    uid=snap_13_274 InlineTextBox
+                    uid=snap_13_275 InlineTextBox
+                    uid=snap_13_276 InlineTextBox
+                    uid=snap_13_277 InlineTextBox
+                    uid=snap_13_278 InlineTextBox
+                    uid=snap_13_279 InlineTextBox
+                    uid=snap_13_280 InlineTextBox
+                    uid=snap_13_281 InlineTextBox
+                    uid=snap_13_282 InlineTextBox
+                    uid=snap_13_283 InlineTextBox
+                    uid=snap_13_284 InlineTextBox
+                    uid=snap_13_285 InlineTextBox
+                    uid=snap_13_286 InlineTextBox
+                    uid=snap_13_287 InlineTextBox
+                    uid=snap_13_288 InlineTextBox
+                    uid=snap_13_289 InlineTextBox
+                    uid=snap_13_290 InlineTextBox
+                    uid=snap_13_291 InlineTextBox
+                    uid=snap_13_292 InlineTextBox
+                    uid=snap_13_293 InlineTextBox
+                    uid=snap_13_294 InlineTextBox
+                    uid=snap_13_295 InlineTextBox
+                    uid=snap_13_296 InlineTextBox
+                    uid=snap_13_297 InlineTextBox
+                    uid=snap_13_298 InlineTextBox
+                    uid=snap_13_299 InlineTextBox
+                    uid=snap_13_300 InlineTextBox
+                    uid=snap_13_301 InlineTextBox
+                    uid=snap_13_302 InlineTextBox
+                    uid=snap_13_303 InlineTextBox
+                    uid=snap_13_304 InlineTextBox
+                    uid=snap_13_305 InlineTextBox
+                    uid=snap_13_306 InlineTextBox
+                    uid=snap_13_307 InlineTextBox
+                    uid=snap_13_308 InlineTextBox
+                    uid=snap_13_309 InlineTextBox
+                    uid=snap_13_310 InlineTextBox
+                    uid=snap_13_311 InlineTextBox
+                    uid=snap_13_312 InlineTextBox
+                    uid=snap_13_313 InlineTextBox
+                    uid=snap_13_314 InlineTextBox
+                    uid=snap_13_315 InlineTextBox
+                    uid=snap_13_316 InlineTextBox
+                    uid=snap_13_317 InlineTextBox
+                    uid=snap_13_318 InlineTextBox
+                    uid=snap_13_319 InlineTextBox
+                    uid=snap_13_320 InlineTextBox
+                    uid=snap_13_321 InlineTextBox
+                    uid=snap_13_322 InlineTextBox
+                    uid=snap_13_323 InlineTextBox
+                    uid=snap_13_324 InlineTextBox
+                    uid=snap_13_325 InlineTextBox
+                    uid=snap_13_326 InlineTextBox
+                    uid=snap_13_327 InlineTextBox
+                    uid=snap_13_328 InlineTextBox
+                    uid=snap_13_329 InlineTextBox
+                    uid=snap_13_330 InlineTextBox
+                    uid=snap_13_331 InlineTextBox
+                    uid=snap_13_332 InlineTextBox
+                    uid=snap_13_333 InlineTextBox
+                    uid=snap_13_334 InlineTextBox
+                    uid=snap_13_335 InlineTextBox
+                    uid=snap_13_336 InlineTextBox
+                    uid=snap_13_337 InlineTextBox
+                    uid=snap_13_338 InlineTextBox
+                    uid=snap_13_339 InlineTextBox
+                    uid=snap_13_340 InlineTextBox
+                    uid=snap_13_341 InlineTextBox
+                    uid=snap_13_342 InlineTextBox
+                    uid=snap_13_343 InlineTextBox
+                    uid=snap_13_344 InlineTextBox
+                    uid=snap_13_345 InlineTextBox
+                    uid=snap_13_346 InlineTextBox
+                    uid=snap_13_347 InlineTextBox
+                    uid=snap_13_348 InlineTextBox
+                    uid=snap_13_349 InlineTextBox
+                    uid=snap_13_350 InlineTextBox
+                    uid=snap_13_351 InlineTextBox
+                    uid=snap_13_352 InlineTextBox
+                    uid=snap_13_353 InlineTextBox
+                    uid=snap_13_354 InlineTextBox
+                    uid=snap_13_355 InlineTextBox
+                    uid=snap_13_356 InlineTextBox
+                    uid=snap_13_357 InlineTextBox
+                    uid=snap_13_358 InlineTextBox
+                    uid=snap_13_359 InlineTextBox
+                    uid=snap_13_360 InlineTextBox
+                    uid=snap_13_361 InlineTextBox
+                    uid=snap_13_362 InlineTextBox
+                    uid=snap_13_363 InlineTextBox
+                    uid=snap_13_364 InlineTextBox
+                    uid=snap_13_365 InlineTextBox
+                    uid=snap_13_366 InlineTextBox
+                    uid=snap_13_367 InlineTextBox
+                    uid=snap_13_368 InlineTextBox
+                    uid=snap_13_369 InlineTextBox
+                    uid=snap_13_370 InlineTextBox
+                    uid=snap_13_371 InlineTextBox
+                    uid=snap_13_372 InlineTextBox
+                    uid=snap_13_373 InlineTextBox
+                    uid=snap_13_374 InlineTextBox
+                    uid=snap_13_375 InlineTextBox
+                    uid=snap_13_376 InlineTextBox
+                    uid=snap_13_377 InlineTextBox
+                    uid=snap_13_378 InlineTextBox
+                    uid=snap_13_379 InlineTextBox
+                    uid=snap_13_380 InlineTextBox
+                    uid=snap_13_381 InlineTextBox
+                    uid=snap_13_382 InlineTextBox
+                    uid=snap_13_383 InlineTextBox
+                    uid=snap_13_384 InlineTextBox
+                    uid=snap_13_385 InlineTextBox
+                    uid=snap_13_386 InlineTextBox
+                    uid=snap_13_387 InlineTextBox
+                    uid=snap_13_388 InlineTextBox
+                    uid=snap_13_389 InlineTextBox
+                    uid=snap_13_390 InlineTextBox
+                    uid=snap_13_391 InlineTextBox
+                    uid=snap_13_392 InlineTextBox
+                    uid=snap_13_393 InlineTextBox
+                    uid=snap_13_394 InlineTextBox
+                    uid=snap_13_395 InlineTextBox
+                    uid=snap_13_396 InlineTextBox
+                    uid=snap_13_397 InlineTextBox
+                    uid=snap_13_398 InlineTextBox
+                    uid=snap_13_399 InlineTextBox
+                    uid=snap_13_400 InlineTextBox
+                    uid=snap_13_401 InlineTextBox
+                    uid=snap_13_402 InlineTextBox
+                    uid=snap_13_403 InlineTextBox
+                    uid=snap_13_404 InlineTextBox
+                    uid=snap_13_405 InlineTextBox
+                    uid=snap_13_406 InlineTextBox
+                    uid=snap_13_407 InlineTextBox
+                    uid=snap_13_408 InlineTextBox
+                    uid=snap_13_409 InlineTextBox
+                    uid=snap_13_410 InlineTextBox
+                    uid=snap_13_411 InlineTextBox
+                    uid=snap_13_412 InlineTextBox
+                    uid=snap_13_413 InlineTextBox
+                    uid=snap_13_414 InlineTextBox
+                    uid=snap_13_415 InlineTextBox
+                    uid=snap_13_416 InlineTextBox
+                    uid=snap_13_417 InlineTextBox
+                    uid=snap_13_418 InlineTextBox
+                    uid=snap_13_419 InlineTextBox
+                    uid=snap_13_420 InlineTextBox
+                    uid=snap_13_421 InlineTextBox
+                    uid=snap_13_422 InlineTextBox
+                    uid=snap_13_423 InlineTextBox
+                    uid=snap_13_424 InlineTextBox
+                    uid=snap_13_425 InlineTextBox
+                    uid=snap_13_426 InlineTextBox
+                    uid=snap_13_427 InlineTextBox
+                    uid=snap_13_428 InlineTextBox
+                    uid=snap_13_429 InlineTextBox
+                    uid=snap_13_430 InlineTextBox
+                    uid=snap_13_431 InlineTextBox
+                    uid=snap_13_432 InlineTextBox
+                    uid=snap_13_433 InlineTextBox
+                    uid=snap_13_434 InlineTextBox
+                    uid=snap_13_435 InlineTextBox
+                    uid=snap_13_436 InlineTextBox
+                    uid=snap_13_437 InlineTextBox
+                    uid=snap_13_438 InlineTextBox
+                    uid=snap_13_439 InlineTextBox
+                    uid=snap_13_440 InlineTextBox
+                    uid=snap_13_441 InlineTextBox
+                    uid=snap_13_442 InlineTextBox
+                    uid=snap_13_443 InlineTextBox
+                    uid=snap_13_444 InlineTextBox
+                    uid=snap_13_445 InlineTextBox
+                    uid=snap_13_446 InlineTextBox
+                    uid=snap_13_447 InlineTextBox
+                    uid=snap_13_448 InlineTextBox
+                    uid=snap_13_449 InlineTextBox
+                    uid=snap_13_450 InlineTextBox
+                    uid=snap_13_451 InlineTextBox
+                    uid=snap_13_452 InlineTextBox
+                    uid=snap_13_453 InlineTextBox
+                    uid=snap_13_454 InlineTextBox
+                    uid=snap_13_455 InlineTextBox
+                    uid=snap_13_456 InlineTextBox
+                    uid=snap_13_457 InlineTextBox
+                    uid=snap_13_458 InlineTextBox
+                    uid=snap_13_459 InlineTextBox
+                    uid=snap_13_460 InlineTextBox
+                    uid=snap_13_461 InlineTextBox
+                    uid=snap_13_462 InlineTextBox
+                    uid=snap_13_463 InlineTextBox
+                    uid=snap_13_464 InlineTextBox
+                    uid=snap_13_465 InlineTextBox
+                    uid=snap_13_466 InlineTextBox
+                    uid=snap_13_467 InlineTextBox
+                    uid=snap_13_468 InlineTextBox
+                    uid=snap_13_469 InlineTextBox
+                    uid=snap_13_470 InlineTextBox
+                    uid=snap_13_471 InlineTextBox
+                    uid=snap_13_472 InlineTextBox
+                    uid=snap_13_473 InlineTextBox
+                    uid=snap_13_474 InlineTextBox
+                    uid=snap_13_475 InlineTextBox
+                    uid=snap_13_476 InlineTextBox
+                    uid=snap_13_477 InlineTextBox
+                    uid=snap_13_478 InlineTextBox
+                    uid=snap_13_479 InlineTextBox
+                    uid=snap_13_480 InlineTextBox
+                    uid=snap_13_481 InlineTextBox
+                    uid=snap_13_482 InlineTextBox
+                    uid=snap_13_483 InlineTextBox
+                    uid=snap_13_484 InlineTextBox
+                    uid=snap_13_485 InlineTextBox
+                    uid=snap_13_486 InlineTextBox
+                    uid=snap_13_487 InlineTextBox
+                    uid=snap_13_488 InlineTextBox
+                    uid=snap_13_489 InlineTextBox
+                    uid=snap_13_490 InlineTextBox
+                    uid=snap_13_491 InlineTextBox
+                    uid=snap_13_492 InlineTextBox
+                    uid=snap_13_493 InlineTextBox
+                    uid=snap_13_494 InlineTextBox
+                    uid=snap_13_495 InlineTextBox
+                    uid=snap_13_496 InlineTextBox
+                    uid=snap_13_497 InlineTextBox
+                    uid=snap_13_498 InlineTextBox
+                    uid=snap_13_499 InlineTextBox
+                    uid=snap_13_500 InlineTextBox
+                    uid=snap_13_501 InlineTextBox
+                    uid=snap_13_502 InlineTextBox
+                    uid=snap_13_503 InlineTextBox
+                    uid=snap_13_504 InlineTextBox
+                    uid=snap_13_505 InlineTextBox
+                    uid=snap_13_506 InlineTextBox
+                    uid=snap_13_507 InlineTextBox
+                    uid=snap_13_508 InlineTextBox
+                    uid=snap_13_509 InlineTextBox
+                    uid=snap_13_510 InlineTextBox
+                    uid=snap_13_511 InlineTextBox
+                    uid=snap_13_512 InlineTextBox
+                    uid=snap_13_513 InlineTextBox
+                    uid=snap_13_514 InlineTextBox
+                    uid=snap_13_515 InlineTextBox
+                    uid=snap_13_516 InlineTextBox
+                    uid=snap_13_517 InlineTextBox
+                    uid=snap_13_518 InlineTextBox
+                    uid=snap_13_519 InlineTextBox
+                    uid=snap_13_520 InlineTextBox
+                    uid=snap_13_521 InlineTextBox
+                    uid=snap_13_522 InlineTextBox
+                    uid=snap_13_523 InlineTextBox
+                    uid=snap_13_524 InlineTextBox
+                    uid=snap_13_525 InlineTextBox
+                    uid=snap_13_526 InlineTextBox
+                    uid=snap_13_527 InlineTextBox
+                    uid=snap_13_528 InlineTextBox
+                    uid=snap_13_529 InlineTextBox
+                    uid=snap_13_530 InlineTextBox
+                    uid=snap_13_531 InlineTextBox
+                    uid=snap_13_532 InlineTextBox
+                    uid=snap_13_533 InlineTextBox
+                    uid=snap_13_534 InlineTextBox
+                    uid=snap_13_535 InlineTextBox
+                    uid=snap_13_536 InlineTextBox
+                    uid=snap_13_537 InlineTextBox
+                    uid=snap_13_538 InlineTextBox
+                    uid=snap_13_539 InlineTextBox
+                    uid=snap_13_540 InlineTextBox
+                    uid=snap_13_541 InlineTextBox
+                    uid=snap_13_542 InlineTextBox
+                    uid=snap_13_543 InlineTextBox
+                    uid=snap_13_544 InlineTextBox
+                    uid=snap_13_545 InlineTextBox
+                    uid=snap_13_546 InlineTextBox
+                    uid=snap_13_547 InlineTextBox
+                    uid=snap_13_548 InlineTextBox
+                    uid=snap_13_549 InlineTextBox
+                    uid=snap_13_550 InlineTextBox
+                    uid=snap_13_551 InlineTextBox
+                    uid=snap_13_552 InlineTextBox
+                    uid=snap_13_553 InlineTextBox
+                    uid=snap_13_554 InlineTextBox
+                    uid=snap_13_555 InlineTextBox
+                    uid=snap_13_556 InlineTextBox
+                    uid=snap_13_557 InlineTextBox
+                    uid=snap_13_558 InlineTextBox
+                    uid=snap_13_559 InlineTextBox
+                    uid=snap_13_560 InlineTextBox
+                    uid=snap_13_561 InlineTextBox
+                    uid=snap_13_562 InlineTextBox
+                    uid=snap_13_563 InlineTextBox
+                    uid=snap_13_564 InlineTextBox
+                    uid=snap_13_565 InlineTextBox
+                    uid=snap_13_566 InlineTextBox
+                    uid=snap_13_567 InlineTextBox
+                    uid=snap_13_568 InlineTextBox
+                    uid=snap_13_569 InlineTextBox
+                    uid=snap_13_570 InlineTextBox
+                    uid=snap_13_571 InlineTextBox
+                    uid=snap_13_572 InlineTextBox
+                    uid=snap_13_573 InlineTextBox
+                    uid=snap_13_574 InlineTextBox
+                    uid=snap_13_575 InlineTextBox
+                    uid=snap_13_576 InlineTextBox
+                    uid=snap_13_577 InlineTextBox
+                    uid=snap_13_578 InlineTextBox
+                    uid=snap_13_579 InlineTextBox
+                    uid=snap_13_580 InlineTextBox
+                    uid=snap_13_581 InlineTextBox
+                    uid=snap_13_582 InlineTextBox
+                    uid=snap_13_583 InlineTextBox
+                    uid=snap_13_584 InlineTextBox
+                    uid=snap_13_585 InlineTextBox
+                    uid=snap_13_586 InlineTextBox
+                    uid=snap_13_587 InlineTextBox
+                    uid=snap_13_588 InlineTextBox
+                    uid=snap_13_589 InlineTextBox
+                    uid=snap_13_590 InlineTextBox
+                    uid=snap_13_591 InlineTextBox
+                    uid=snap_13_592 InlineTextBox
+                    uid=snap_13_593 InlineTextBox
+                    uid=snap_13_594 InlineTextBox
+                    uid=snap_13_595 InlineTextBox
+                    uid=snap_13_596 InlineTextBox
+                    uid=snap_13_597 InlineTextBox
+                    uid=snap_13_598 InlineTextBox
+                    uid=snap_13_599 InlineTextBox
+                    uid=snap_13_600 InlineTextBox
+                    uid=snap_13_601 InlineTextBox
+                    uid=snap_13_602 InlineTextBox
+                    uid=snap_13_603 InlineTextBox
+                    uid=snap_13_604 InlineTextBox
+                    uid=snap_13_605 InlineTextBox
+                    uid=snap_13_606 InlineTextBox
+                    uid=snap_13_607 InlineTextBox
+                    uid=snap_13_608 InlineTextBox
+                    uid=snap_13_609 InlineTextBox
+                    uid=snap_13_610 InlineTextBox
+                    uid=snap_13_611 InlineTextBox
+                    uid=snap_13_612 InlineTextBox
+                    uid=snap_13_613 InlineTextBox
+                    uid=snap_13_614 InlineTextBox
+                    uid=snap_13_615 InlineTextBox
+                    uid=snap_13_616 InlineTextBox
+                    uid=snap_13_617 InlineTextBox
+                    uid=snap_13_618 InlineTextBox
+                    uid=snap_13_619 InlineTextBox
+                    uid=snap_13_620 InlineTextBox
+                    uid=snap_13_621 InlineTextBox
+                    uid=snap_13_622 InlineTextBox
+                    uid=snap_13_623 InlineTextBox
+                    uid=snap_13_624 InlineTextBox
+                    uid=snap_13_625 InlineTextBox
+                    uid=snap_13_626 InlineTextBox
+                    uid=snap_13_627 InlineTextBox
+                    uid=snap_13_628 InlineTextBox
+                    uid=snap_13_629 InlineTextBox
+                    uid=snap_13_630 InlineTextBox
+                    uid=snap_13_631 InlineTextBox
+                    uid=snap_13_632 InlineTextBox
+                    uid=snap_13_633 InlineTextBox
+                    uid=snap_13_634 InlineTextBox
+                    uid=snap_13_635 InlineTextBox
+                    uid=snap_13_636 InlineTextBox
+                    uid=snap_13_637 InlineTextBox
+                    uid=snap_13_638 InlineTextBox
+                    uid=snap_13_639 InlineTextBox
+                    uid=snap_13_640 InlineTextBox
+                    uid=snap_13_641 InlineTextBox
+                    uid=snap_13_642 InlineTextBox
+                    uid=snap_13_643 InlineTextBox
+                    uid=snap_13_644 InlineTextBox
+                    uid=snap_13_645 InlineTextBox
+                    uid=snap_13_646 InlineTextBox
+                    uid=snap_13_647 InlineTextBox
+                    uid=snap_13_648 InlineTextBox
+                    uid=snap_13_649 InlineTextBox
+                    uid=snap_13_650 InlineTextBox
+                    uid=snap_13_651 InlineTextBox
+                    uid=snap_13_652 InlineTextBox
+                    uid=snap_13_653 InlineTextBox
+                    uid=snap_13_654 InlineTextBox
+                    uid=snap_13_655 InlineTextBox
+                    uid=snap_13_656 InlineTextBox
+                    uid=snap_13_657 InlineTextBox
+                    uid=snap_13_658 InlineTextBox
+                    uid=snap_13_659 InlineTextBox
+                    uid=snap_13_660 InlineTextBox
+                    uid=snap_13_661 InlineTextBox
+                    uid=snap_13_662 InlineTextBox
+                    uid=snap_13_663 InlineTextBox
+                    uid=snap_13_664 InlineTextBox
+                    uid=snap_13_665 InlineTextBox
+                    uid=snap_13_666 InlineTextBox
+                    uid=snap_13_667 InlineTextBox
+                    uid=snap_13_668 InlineTextBox
+                    uid=snap_13_669 InlineTextBox
+                    uid=snap_13_670 InlineTextBox
+                    uid=snap_13_671 InlineTextBox
+                    uid=snap_13_672 InlineTextBox
+                    uid=snap_13_673 InlineTextBox
+                    uid=snap_13_674 InlineTextBox
+                    uid=snap_13_675 InlineTextBox
+                    uid=snap_13_676 InlineTextBox
+                    uid=snap_13_677 InlineTextBox
+                    uid=snap_13_678 InlineTextBox
+                    uid=snap_13_679 InlineTextBox
+                    uid=snap_13_680 InlineTextBox
+                    uid=snap_13_681 InlineTextBox
+                    uid=snap_13_682 InlineTextBox
+                    uid=snap_13_683 InlineTextBox
+                    uid=snap_13_684 InlineTextBox
+                    uid=snap_13_685 InlineTextBox
+                    uid=snap_13_686 InlineTextBox
+                    uid=snap_13_687 InlineTextBox
+                    uid=snap_13_688 InlineTextBox
+                    uid=snap_13_689 InlineTextBox
+                    uid=snap_13_690 InlineTextBox
+                    uid=snap_13_691 InlineTextBox
+                    uid=snap_13_692 InlineTextBox
+                    uid=snap_13_693 InlineTextBox
+                    uid=snap_13_694 InlineTextBox
+                    uid=snap_13_695 InlineTextBox
+                    uid=snap_13_696 InlineTextBox
+                    uid=snap_13_697 InlineTextBox
+                    uid=snap_13_698 InlineTextBox
+                    uid=snap_13_699 InlineTextBox
+                    uid=snap_13_700 InlineTextBox
+                    uid=snap_13_701 InlineTextBox
+                    uid=snap_13_702 InlineTextBox
+                    uid=snap_13_703 InlineTextBox
+                    uid=snap_13_704 InlineTextBox
+                    uid=snap_13_705 InlineTextBox
+                    uid=snap_13_706 InlineTextBox
+                    uid=snap_13_707 InlineTextBox
+                    uid=snap_13_708 InlineTextBox
+                    uid=snap_13_709 InlineTextBox
+                    uid=snap_13_710 InlineTextBox
+                    uid=snap_13_711 InlineTextBox
+                    uid=snap_13_712 InlineTextBox
+                    uid=snap_13_713 InlineTextBox
+                    uid=snap_13_714 InlineTextBox
+                    uid=snap_13_715 InlineTextBox
+                    uid=snap_13_716 InlineTextBox
+                    uid=snap_13_717 InlineTextBox
+                    uid=snap_13_718 InlineTextBox
+                    uid=snap_13_719 InlineTextBox
+                    uid=snap_13_720 InlineTextBox
+                    uid=snap_13_721 InlineTextBox
+                    uid=snap_13_722 InlineTextBox
+                    uid=snap_13_723 InlineTextBox
+                    uid=snap_13_724 InlineTextBox
+                    uid=snap_13_725 InlineTextBox
+                    uid=snap_13_726 InlineTextBox
+                    uid=snap_13_727 InlineTextBox
+                    uid=snap_13_728 InlineTextBox
+                    uid=snap_13_729 InlineTextBox
+                    uid=snap_13_730 InlineTextBox
+                    uid=snap_13_731 InlineTextBox
+                    uid=snap_13_732 InlineTextBox
+                    uid=snap_13_733 InlineTextBox
+                    uid=snap_13_734 InlineTextBox
+                    uid=snap_13_735 InlineTextBox
+                    uid=snap_13_736 InlineTextBox
+                    uid=snap_13_737 InlineTextBox
+                    uid=snap_13_738 InlineTextBox
+                    uid=snap_13_739 InlineTextBox
+                    uid=snap_13_740 InlineTextBox
+                    uid=snap_13_741 InlineTextBox
+                    uid=snap_13_742 InlineTextBox
+                    uid=snap_13_743 InlineTextBox
+                    uid=snap_13_744 InlineTextBox
+                    uid=snap_13_745 InlineTextBox
+                    uid=snap_13_746 InlineTextBox
+                    uid=snap_13_747 InlineTextBox
+                    uid=snap_13_748 InlineTextBox
+                    uid=snap_13_749 InlineTextBox
+                    uid=snap_13_750 InlineTextBox
+                    uid=snap_13_751 InlineTextBox
+                    uid=snap_13_752 InlineTextBox
+                    uid=snap_13_753 InlineTextBox
+                    uid=snap_13_754 InlineTextBox
+                    uid=snap_13_755 InlineTextBox
+                    uid=snap_13_756 InlineTextBox
+                    uid=snap_13_757 InlineTextBox
+                    uid=snap_13_758 InlineTextBox
+                    uid=snap_13_759 InlineTextBox
+                    uid=snap_13_760 InlineTextBox
+                    uid=snap_13_761 InlineTextBox
+                    uid=snap_13_762 InlineTextBox
+                    uid=snap_13_763 InlineTextBox
+                    uid=snap_13_764 InlineTextBox
+                    uid=snap_13_765 InlineTextBox
+                    uid=snap_13_766 InlineTextBox
+                    uid=snap_13_767 InlineTextBox
+                    uid=snap_13_768 InlineTextBox
+                    uid=snap_13_769 InlineTextBox
+                    uid=snap_13_770 InlineTextBox
+                    uid=snap_13_771 InlineTextBox
+                    uid=snap_13_772 InlineTextBox
+                    uid=snap_13_773 InlineTextBox
+                    uid=snap_13_774 InlineTextBox
+                    uid=snap_13_775 InlineTextBox
+                    uid=snap_13_776 InlineTextBox
+                    uid=snap_13_777 InlineTextBox
+                    uid=snap_13_778 InlineTextBox
+                    uid=snap_13_779 InlineTextBox
+                    uid=snap_13_780 InlineTextBox
+                    uid=snap_13_781 InlineTextBox
+                    uid=snap_13_782 InlineTextBox
+                    uid=snap_13_783 InlineTextBox
+                    uid=snap_13_784 InlineTextBox
+                    uid=snap_13_785 InlineTextBox
+                    uid=snap_13_786 InlineTextBox
+                    uid=snap_13_787 InlineTextBox
+                    uid=snap_13_788 InlineTextBox
+                    uid=snap_13_789 InlineTextBox
+                    uid=snap_13_790 InlineTextBox
+                    uid=snap_13_791 InlineTextBox
+                    uid=snap_13_792 InlineTextBox
+                    uid=snap_13_793 InlineTextBox
+                    uid=snap_13_794 InlineTextBox
+                    uid=snap_13_795 InlineTextBox
+                    uid=snap_13_796 InlineTextBox
+                    uid=snap_13_797 InlineTextBox
+                    uid=snap_13_798 InlineTextBox
+                    uid=snap_13_799 InlineTextBox
+                    uid=snap_13_800 InlineTextBox
+                    uid=snap_13_801 InlineTextBox
+                    uid=snap_13_802 InlineTextBox
+                    uid=snap_13_803 InlineTextBox
+                    uid=snap_13_804 InlineTextBox
+                    uid=snap_13_805 InlineTextBox
+                    uid=snap_13_806 InlineTextBox
+                    uid=snap_13_807 InlineTextBox
+                    uid=snap_13_808 InlineTextBox
+                    uid=snap_13_809 InlineTextBox
+                    uid=snap_13_810 InlineTextBox
+                    uid=snap_13_811 InlineTextBox
+                    uid=snap_13_812 InlineTextBox
+                    uid=snap_13_813 InlineTextBox
+                    uid=snap_13_814 InlineTextBox
+                    uid=snap_13_815 InlineTextBox
+                    uid=snap_13_816 InlineTextBox
+                    uid=snap_13_817 InlineTextBox
+                    uid=snap_13_818 InlineTextBox
+                    uid=snap_13_819 InlineTextBox
+                    uid=snap_13_820 InlineTextBox
+                    uid=snap_13_821 InlineTextBox
+                    uid=snap_13_822 InlineTextBox
+                    uid=snap_13_823 InlineTextBox
+                    uid=snap_13_824 InlineTextBox
+                    uid=snap_13_825 InlineTextBox
+                    uid=snap_13_826 InlineTextBox
+                    uid=snap_13_827 InlineTextBox
+                    uid=snap_13_828 InlineTextBox
+                    uid=snap_13_829 InlineTextBox
+                    uid=snap_13_830 InlineTextBox
+                    uid=snap_13_831 InlineTextBox
+                    uid=snap_13_832 InlineTextBox
+                    uid=snap_13_833 InlineTextBox
+                    uid=snap_13_834 InlineTextBox
+                    uid=snap_13_835 InlineTextBox
+                    uid=snap_13_836 InlineTextBox
+                    uid=snap_13_837 InlineTextBox
+                    uid=snap_13_838 InlineTextBox
+                    uid=snap_13_839 InlineTextBox
+                    uid=snap_13_840 InlineTextBox
+                    uid=snap_13_841 InlineTextBox
+                    uid=snap_13_842 InlineTextBox
+                    uid=snap_13_843 InlineTextBox
+                    uid=snap_13_844 InlineTextBox
+                    uid=snap_13_845 InlineTextBox
+                    uid=snap_13_846 InlineTextBox
+                    uid=snap_13_847 InlineTextBox
+                    uid=snap_13_848 InlineTextBox
+                    uid=snap_13_849 InlineTextBox
+                    uid=snap_13_850 InlineTextBox
+                    uid=snap_13_851 InlineTextBox
+                    uid=snap_13_852 InlineTextBox
+                    uid=snap_13_853 InlineTextBox
+                    uid=snap_13_854 InlineTextBox
+                    uid=snap_13_855 InlineTextBox
+                    uid=snap_13_856 InlineTextBox
+                    uid=snap_13_857 InlineTextBox
+                    uid=snap_13_858 InlineTextBox
+                    uid=snap_13_859 InlineTextBox
+                    uid=snap_13_860 InlineTextBox
+                    uid=snap_13_861 InlineTextBox
+                    uid=snap_13_862 InlineTextBox
+                    uid=snap_13_863 InlineTextBox
+                    uid=snap_13_864 InlineTextBox
+                    uid=snap_13_865 InlineTextBox
+                    uid=snap_13_866 InlineTextBox
+                    uid=snap_13_867 InlineTextBox
+                    uid=snap_13_868 InlineTextBox
+                    uid=snap_13_869 InlineTextBox
+                    uid=snap_13_870 InlineTextBox
+                    uid=snap_13_871 InlineTextBox
+                    uid=snap_13_872 InlineTextBox
+                    uid=snap_13_873 InlineTextBox
+                    uid=snap_13_874 InlineTextBox
+                    uid=snap_13_875 InlineTextBox
+                    uid=snap_13_876 InlineTextBox
+                    uid=snap_13_877 InlineTextBox
+                    uid=snap_13_878 InlineTextBox
+                    uid=snap_13_879 InlineTextBox
+                    uid=snap_13_880 InlineTextBox
+                    uid=snap_13_881 InlineTextBox
+                    uid=snap_13_882 InlineTextBox
+                    uid=snap_13_883 InlineTextBox
+                    uid=snap_13_884 InlineTextBox
+                    uid=snap_13_885 InlineTextBox
+                    uid=snap_13_886 InlineTextBox
+                    uid=snap_13_887 InlineTextBox
+                    uid=snap_13_888 InlineTextBox
+                    uid=snap_13_889 InlineTextBox
+                    uid=snap_13_890 InlineTextBox
+                    uid=snap_13_891 InlineTextBox
+                    uid=snap_13_892 InlineTextBox
+                    uid=snap_13_893 InlineTextBox
+                    uid=snap_13_894 InlineTextBox
+                    uid=snap_13_895 InlineTextBox
+                    uid=snap_13_896 InlineTextBox
+                    uid=snap_13_897 InlineTextBox
+                    uid=snap_13_898 InlineTextBox
+                    uid=snap_13_899 InlineTextBox
+                    uid=snap_13_900 InlineTextBox
+                    uid=snap_13_901 InlineTextBox
+                    uid=snap_13_902 InlineTextBox
+                    uid=snap_13_903 InlineTextBox
+                    uid=snap_13_904 InlineTextBox
+                    uid=snap_13_905 InlineTextBox
+                    uid=snap_13_906 InlineTextBox
+                    uid=snap_13_907 InlineTextBox
+                    uid=snap_13_908 InlineTextBox
+                    uid=snap_13_909 InlineTextBox
+                    uid=snap_13_910 InlineTextBox
+                    uid=snap_13_911 InlineTextBox
+                    uid=snap_13_912 InlineTextBox
+                    uid=snap_13_913 InlineTextBox
+                    uid=snap_13_914 InlineTextBox
+                    uid=snap_13_915 InlineTextBox
+                    uid=snap_13_916 InlineTextBox
+                    uid=snap_13_917 InlineTextBox
+                    uid=snap_13_918 InlineTextBox
+                    uid=snap_13_919 InlineTextBox
+                    uid=snap_13_920 InlineTextBox
+                    uid=snap_13_921 InlineTextBox
+                    uid=snap_13_922 InlineTextBox
+                    uid=snap_13_923 InlineTextBox
+                    uid=snap_13_924 InlineTextBox
+                    uid=snap_13_925 InlineTextBox
+                    uid=snap_13_926 InlineTextBox
+                    uid=snap_13_927 InlineTextBox
+                    uid=snap_13_928 InlineTextBox
+                    uid=snap_13_929 InlineTextBox
+                    uid=snap_13_930 InlineTextBox
+                    uid=snap_13_931 InlineTextBox
+                    uid=snap_13_932 InlineTextBox
+                    uid=snap_13_933 InlineTextBox
+                    uid=snap_13_934 InlineTextBox
+                    uid=snap_13_935 InlineTextBox
+                    uid=snap_13_936 InlineTextBox
+                    uid=snap_13_937 InlineTextBox
+                    uid=snap_13_938 InlineTextBox
+                    uid=snap_13_939 InlineTextBox
+                    uid=snap_13_940 InlineTextBox
+                    uid=snap_13_941 InlineTextBox
+                    uid=snap_13_942 InlineTextBox
+                    uid=snap_13_943 InlineTextBox
+                    uid=snap_13_944 InlineTextBox
+                    uid=snap_13_945 InlineTextBox
+                    uid=snap_13_946 InlineTextBox
+                    uid=snap_13_947 InlineTextBox
+                    uid=snap_13_948 InlineTextBox
+                    uid=snap_13_949 InlineTextBox
+                    uid=snap_13_950 InlineTextBox
+                    uid=snap_13_951 InlineTextBox
+                    uid=snap_13_952 InlineTextBox
+                    uid=snap_13_953 InlineTextBox
+                    uid=snap_13_954 InlineTextBox
+                    uid=snap_13_955 InlineTextBox
+                    uid=snap_13_956 InlineTextBox
+                    uid=snap_13_957 InlineTextBox
+                    uid=snap_13_958 InlineTextBox
+                    uid=snap_13_959 InlineTextBox
+                    uid=snap_13_960 InlineTextBox
+                    uid=snap_13_961 InlineTextBox
+                    uid=snap_13_962 InlineTextBox
+                    uid=snap_13_963 InlineTextBox
+                    uid=snap_13_964 InlineTextBox
+                    uid=snap_13_965 InlineTextBox
+                    uid=snap_13_966 InlineTextBox
+                    uid=snap_13_967 InlineTextBox
+                    uid=snap_13_968 InlineTextBox
+                    uid=snap_13_969 InlineTextBox
+                    uid=snap_13_970 InlineTextBox
+                    uid=snap_13_971 InlineTextBox
+                    uid=snap_13_972 InlineTextBox
+                    uid=snap_13_973 InlineTextBox
+                    uid=snap_13_974 InlineTextBox
+                    uid=snap_13_975 InlineTextBox
+                    uid=snap_13_976 InlineTextBox
+                    uid=snap_13_977 InlineTextBox
+                    uid=snap_13_978 InlineTextBox
+                    uid=snap_13_979 InlineTextBox
+                    uid=snap_13_980 InlineTextBox
+                    uid=snap_13_981 InlineTextBox
+                    uid=snap_13_982 InlineTextBox
+                    uid=snap_13_983 InlineTextBox
+                    uid=snap_13_984 InlineTextBox
+                    uid=snap_13_985 InlineTextBox
+                    uid=snap_13_986 InlineTextBox
+                    uid=snap_13_987 InlineTextBox
+                    uid=snap_13_988 InlineTextBox
+                    uid=snap_13_989 InlineTextBox
+                    uid=snap_13_990 InlineTextBox
+                    uid=snap_13_991 InlineTextBox
+                    uid=snap_13_992 InlineTextBox
+                    uid=snap_13_993 InlineTextBox
+                    uid=snap_13_994 InlineTextBox
+                    uid=snap_13_995 InlineTextBox
+                    uid=snap_13_996 InlineTextBox
+                    uid=snap_13_997 InlineTextBox
+                    uid=snap_13_998 InlineTextBox
+                    uid=snap_13_999 InlineTextBox
+                    uid=snap_13_1000 InlineTextBox
+                    uid=snap_13_1001 InlineTextBox
+                    uid=snap_13_1002 InlineTextBox
+                    uid=snap_13_1003 InlineTextBox
+                    uid=snap_13_1004 InlineTextBox
+                    uid=snap_13_1005 InlineTextBox
+                    uid=snap_13_1006 InlineTextBox
+                    uid=snap_13_1007 InlineTextBox
+                    uid=snap_13_1008 InlineTextBox
+                    uid=snap_13_1009 InlineTextBox
+                    uid=snap_13_1010 InlineTextBox
+                    uid=snap_13_1011 InlineTextBox
+                    uid=snap_13_1012 InlineTextBox
+                    uid=snap_13_1013 InlineTextBox
+                    uid=snap_13_1014 InlineTextBox
+                    uid=snap_13_1015 InlineTextBox
+                    uid=snap_13_1016 InlineTextBox
+                    uid=snap_13_1017 InlineTextBox
+                    uid=snap_13_1018 InlineTextBox
+                    uid=snap_13_1019 InlineTextBox
+                    uid=snap_13_1020 InlineTextBox
+                    uid=snap_13_1021 InlineTextBox
+                    uid=snap_13_1022 InlineTextBox
+                    uid=snap_13_1023 InlineTextBox
+                    uid=snap_13_1024 InlineTextBox
+                    uid=snap_13_1025 InlineTextBox
+                    uid=snap_13_1026 InlineTextBox
+                    uid=snap_13_1027 InlineTextBox
+                    uid=snap_13_1028 InlineTextBox
+                    uid=snap_13_1029 InlineTextBox
+                    uid=snap_13_1030 InlineTextBox
+                    uid=snap_13_1031 InlineTextBox
+                    uid=snap_13_1032 InlineTextBox
+                    uid=snap_13_1033 InlineTextBox
+                    uid=snap_13_1034 InlineTextBox
+                    uid=snap_13_1035 InlineTextBox
+                    uid=snap_13_1036 InlineTextBox
+                    uid=snap_13_1037 InlineTextBox
+                    uid=snap_13_1038 InlineTextBox
+                    uid=snap_13_1039 InlineTextBox
+                    uid=snap_13_1040 InlineTextBox
+                    uid=snap_13_1041 InlineTextBox
+                    uid=snap_13_1042 InlineTextBox
+                    uid=snap_13_1043 InlineTextBox
+                    uid=snap_13_1044 InlineTextBox
+                    uid=snap_13_1045 InlineTextBox
+                    uid=snap_13_1046 InlineTextBox
+                    uid=snap_13_1047 InlineTextBox
+                    uid=snap_13_1048 InlineTextBox
+                    uid=snap_13_1049 InlineTextBox
+                    uid=snap_13_1050 InlineTextBox
+                    uid=snap_13_1051 InlineTextBox
+                    uid=snap_13_1052 InlineTextBox
+                    uid=snap_13_1053 InlineTextBox
+                    uid=snap_13_1054 InlineTextBox
+                    uid=snap_13_1055 InlineTextBox
+                    uid=snap_13_1056 InlineTextBox
+                    uid=snap_13_1057 InlineTextBox
+                    uid=snap_13_1058 InlineTextBox
+                    uid=snap_13_1059 InlineTextBox
+                    uid=snap_13_1060 InlineTextBox
+                    uid=snap_13_1061 InlineTextBox
+                    uid=snap_13_1062 InlineTextBox
+                    uid=snap_13_1063 InlineTextBox
+                    uid=snap_13_1064 InlineTextBox
+                    uid=snap_13_1065 InlineTextBox
+                    uid=snap_13_1066 InlineTextBox
+                    uid=snap_13_1067 InlineTextBox
+                    uid=snap_13_1068 InlineTextBox
+                    uid=snap_13_1069 InlineTextBox
+                    uid=snap_13_1070 InlineTextBox
+                    uid=snap_13_1071 InlineTextBox
+                    uid=snap_13_1072 InlineTextBox
+                    uid=snap_13_1073 InlineTextBox
+                    uid=snap_13_1074 InlineTextBox
+                    uid=snap_13_1075 InlineTextBox
+                    uid=snap_13_1076 InlineTextBox
+                    uid=snap_13_1077 InlineTextBox
+                    uid=snap_13_1078 InlineTextBox
+                    uid=snap_13_1079 InlineTextBox
+                    uid=snap_13_1080 InlineTextBox
+                    uid=snap_13_1081 InlineTextBox
+                    uid=snap_13_1082 InlineTextBox
+                    uid=snap_13_1083 InlineTextBox
+                    uid=snap_13_1084 InlineTextBox
+                    uid=snap_13_1085 InlineTextBox
+                    uid=snap_13_1086 InlineTextBox
+                    uid=snap_13_1087 InlineTextBox
+                    uid=snap_13_1088 InlineTextBox
+                    uid=snap_13_1089 InlineTextBox
+                    uid=snap_13_1090 InlineTextBox
+                    uid=snap_13_1091 InlineTextBox
+                    uid=snap_13_1092 InlineTextBox
+                    uid=snap_13_1093 InlineTextBox
+                    uid=snap_13_1094 InlineTextBox
+                    uid=snap_13_1095 InlineTextBox
+                    uid=snap_13_1096 InlineTextBox
+                    uid=snap_13_1097 InlineTextBox
+                    uid=snap_13_1098 InlineTextBox
+                    uid=snap_13_1099 InlineTextBox
+                    uid=snap_13_1100 InlineTextBox
+                    uid=snap_13_1101 InlineTextBox
+                    uid=snap_13_1102 InlineTextBox
+                    uid=snap_13_1103 InlineTextBox
+                    uid=snap_13_1104 InlineTextBox
+                    uid=snap_13_1105 InlineTextBox
+                    uid=snap_13_1106 InlineTextBox
+                    uid=snap_13_1107 InlineTextBox
+                    uid=snap_13_1108 InlineTextBox
+                    uid=snap_13_1109 InlineTextBox
+                    uid=snap_13_1110 InlineTextBox
+                    uid=snap_13_1111 InlineTextBox
+                    uid=snap_13_1112 InlineTextBox
+                    uid=snap_13_1113 InlineTextBox
+                    uid=snap_13_1114 InlineTextBox
+                    uid=snap_13_1115 InlineTextBox
+                    uid=snap_13_1116 InlineTextBox
+                    uid=snap_13_1117 InlineTextBox
+                    uid=snap_13_1118 InlineTextBox
+                    uid=snap_13_1119 InlineTextBox
+                    uid=snap_13_1120 InlineTextBox
+                    uid=snap_13_1121 InlineTextBox
+                    uid=snap_13_1122 InlineTextBox
+                    uid=snap_13_1123 InlineTextBox
+                    uid=snap_13_1124 InlineTextBox
+                    uid=snap_13_1125 InlineTextBox
+                    uid=snap_13_1126 InlineTextBox
+                    uid=snap_13_1127 InlineTextBox
+                    uid=snap_13_1128 InlineTextBox
+                    uid=snap_13_1129 InlineTextBox
+                    uid=snap_13_1130 InlineTextBox
+                    uid=snap_13_1131 InlineTextBox
+                    uid=snap_13_1132 InlineTextBox
+                    uid=snap_13_1133 InlineTextBox
+                    uid=snap_13_1134 InlineTextBox
+                    uid=snap_13_1135 InlineTextBox
+                    uid=snap_13_1136 InlineTextBox
+                    uid=snap_13_1137 InlineTextBox
+                    uid=snap_13_1138 InlineTextBox
+                    uid=snap_13_1139 InlineTextBox
+                    uid=snap_13_1140 InlineTextBox
+                    uid=snap_13_1141 InlineTextBox
+                    uid=snap_13_1142 InlineTextBox
+                    uid=snap_13_1143 InlineTextBox
+                    uid=snap_13_1144 InlineTextBox
+                    uid=snap_13_1145 InlineTextBox
+                    uid=snap_13_1146 InlineTextBox
+                    uid=snap_13_1147 InlineTextBox
+                    uid=snap_13_1148 InlineTextBox
+                    uid=snap_13_1149 InlineTextBox
+                    uid=snap_13_1150 InlineTextBox
+                    uid=snap_13_1151 InlineTextBox
+                    uid=snap_13_1152 InlineTextBox
+                    uid=snap_13_1153 InlineTextBox
+                    uid=snap_13_1154 InlineTextBox
+                    uid=snap_13_1155 InlineTextBox
+                    uid=snap_13_1156 InlineTextBox
+                    uid=snap_13_1157 InlineTextBox
+                    uid=snap_13_1158 InlineTextBox
+                    uid=snap_13_1159 InlineTextBox
+                    uid=snap_13_1160 InlineTextBox
+                    uid=snap_13_1161 InlineTextBox
+                    uid=snap_13_1162 InlineTextBox
+                    uid=snap_13_1163 InlineTextBox
+                    uid=snap_13_1164 InlineTextBox
+                    uid=snap_13_1165 InlineTextBox
+                    uid=snap_13_1166 InlineTextBox
+                    uid=snap_13_1167 InlineTextBox
+                    uid=snap_13_1168 InlineTextBox
+                    uid=snap_13_1169 InlineTextBox
+                    uid=snap_13_1170 InlineTextBox
+                    uid=snap_13_1171 InlineTextBox
+                    uid=snap_13_1172 InlineTextBox
+                    uid=snap_13_1173 InlineTextBox
+                    uid=snap_13_1174 InlineTextBox
+                    uid=snap_13_1175 InlineTextBox
+                    uid=snap_13_1176 InlineTextBox
+                    uid=snap_13_1177 InlineTextBox
+                    uid=snap_13_1178 InlineTextBox
+                    uid=snap_13_1179 InlineTextBox
+                    uid=snap_13_1180 InlineTextBox
+                    uid=snap_13_1181 InlineTextBox
+                    uid=snap_13_1182 InlineTextBox
+                    uid=snap_13_1183 InlineTextBox
+                    uid=snap_13_1184 InlineTextBox
+                    uid=snap_13_1185 InlineTextBox
+                    uid=snap_13_1186 InlineTextBox
+                    uid=snap_13_1187 InlineTextBox
+                    uid=snap_13_1188 InlineTextBox
+                    uid=snap_13_1189 InlineTextBox
+                    uid=snap_13_1190 InlineTextBox
+                    uid=snap_13_1191 InlineTextBox
+                    uid=snap_13_1192 InlineTextBox
+                    uid=snap_13_1193 InlineTextBox
+                    uid=snap_13_1194 InlineTextBox
+                    uid=snap_13_1195 InlineTextBox
+                    uid=snap_13_1196 InlineTextBox
+                    uid=snap_13_1197 InlineTextBox
+                    uid=snap_13_1198 InlineTextBox
+                    uid=snap_13_1199 InlineTextBox
+                    uid=snap_13_1200 InlineTextBox
+                    uid=snap_13_1201 InlineTextBox
+                    uid=snap_13_1202 InlineTextBox
+                    uid=snap_13_1203 InlineTextBox
+                    uid=snap_13_1204 InlineTextBox
+                    uid=snap_13_1205 InlineTextBox
+                    uid=snap_13_1206 InlineTextBox
+                    uid=snap_13_1207 InlineTextBox
+                    uid=snap_13_1208 InlineTextBox
+                    uid=snap_13_1209 InlineTextBox
+                    uid=snap_13_1210 InlineTextBox
+                    uid=snap_13_1211 InlineTextBox
+                    uid=snap_13_1212 InlineTextBox
+                    uid=snap_13_1213 InlineTextBox
+                    uid=snap_13_1214 InlineTextBox
+                    uid=snap_13_1215 InlineTextBox
+                    uid=snap_13_1216 InlineTextBox
+                    uid=snap_13_1217 InlineTextBox
+                    uid=snap_13_1218 InlineTextBox
+                    uid=snap_13_1219 InlineTextBox
+                    uid=snap_13_1220 InlineTextBox
+                    uid=snap_13_1221 InlineTextBox
+                    uid=snap_13_1222 InlineTextBox
+                    uid=snap_13_1223 InlineTextBox
+                    uid=snap_13_1224 InlineTextBox
+                    uid=snap_13_1225 InlineTextBox
+                    uid=snap_13_1226 InlineTextBox
+                    uid=snap_13_1227 InlineTextBox
+                    uid=snap_13_1228 InlineTextBox
+                    uid=snap_13_1229 InlineTextBox
+                    uid=snap_13_1230 InlineTextBox
+                    uid=snap_13_1231 InlineTextBox
+                    uid=snap_13_1232 InlineTextBox
+                    uid=snap_13_1233 InlineTextBox
+                    uid=snap_13_1234 InlineTextBox
+                    uid=snap_13_1235 InlineTextBox
+                    uid=snap_13_1236 InlineTextBox
+                    uid=snap_13_1237 InlineTextBox
+                    uid=snap_13_1238 InlineTextBox
+                    uid=snap_13_1239 InlineTextBox
+                    uid=snap_13_1240 InlineTextBox
+                    uid=snap_13_1241 InlineTextBox
+                    uid=snap_13_1242 InlineTextBox
+                    uid=snap_13_1243 InlineTextBox
+                    uid=snap_13_1244 InlineTextBox
+                    uid=snap_13_1245 InlineTextBox
+                    uid=snap_13_1246 InlineTextBox
+                    uid=snap_13_1247 InlineTextBox
+                    uid=snap_13_1248 InlineTextBox
+                    uid=snap_13_1249 InlineTextBox
+                    uid=snap_13_1250 InlineTextBox
+                    uid=snap_13_1251 InlineTextBox
+                    uid=snap_13_1252 InlineTextBox
+                    uid=snap_13_1253 InlineTextBox
+                    uid=snap_13_1254 InlineTextBox
+                    uid=snap_13_1255 InlineTextBox
+                    uid=snap_13_1256 InlineTextBox
+                    uid=snap_13_1257 InlineTextBox
+                    uid=snap_13_1258 InlineTextBox
+                    uid=snap_13_1259 InlineTextBox
+                    uid=snap_13_1260 InlineTextBox
+                    uid=snap_13_1261 InlineTextBox
+                    uid=snap_13_1262 InlineTextBox
+                    uid=snap_13_1263 InlineTextBox
+                    uid=snap_13_1264 InlineTextBox
+                    uid=snap_13_1265 InlineTextBox
+                    uid=snap_13_1266 InlineTextBox
+                    uid=snap_13_1267 InlineTextBox
+                    uid=snap_13_1268 InlineTextBox
+                    uid=snap_13_1269 InlineTextBox
+                    uid=snap_13_1270 InlineTextBox
+                    uid=snap_13_1271 InlineTextBox
+                    uid=snap_13_1272 InlineTextBox
+                    uid=snap_13_1273 InlineTextBox
+                    uid=snap_13_1274 InlineTextBox
+                    uid=snap_13_1275 InlineTextBox
+                    uid=snap_13_1276 InlineTextBox
+                    uid=snap_13_1277 InlineTextBox
+                    uid=snap_13_1278 InlineTextBox
+                    uid=snap_13_1279 InlineTextBox
+                    uid=snap_13_1280 InlineTextBox
+                    uid=snap_13_1281 InlineTextBox
+                    uid=snap_13_1282 InlineTextBox
+                    uid=snap_13_1283 InlineTextBox
+                    uid=snap_13_1284 InlineTextBox
+                    uid=snap_13_1285 InlineTextBox
+                    uid=snap_13_1286 InlineTextBox
+                    uid=snap_13_1287 InlineTextBox
+                    uid=snap_13_1288 InlineTextBox
+                    uid=snap_13_1289 InlineTextBox
+                    uid=snap_13_1290 InlineTextBox
+                    uid=snap_13_1291 InlineTextBox
+                    uid=snap_13_1292 InlineTextBox
+                    uid=snap_13_1293 InlineTextBox
+                    uid=snap_13_1294 InlineTextBox
+                    uid=snap_13_1295 InlineTextBox
+                    uid=snap_13_1296 InlineTextBox
+                    uid=snap_13_1297 InlineTextBox
+                    uid=snap_13_1298 InlineTextBox
+                    uid=snap_13_1299 InlineTextBox
+                    uid=snap_13_1300 InlineTextBox
+                    uid=snap_13_1301 InlineTextBox
+                    uid=snap_13_1302 InlineTextBox
+                    uid=snap_13_1303 InlineTextBox
+                    uid=snap_13_1304 InlineTextBox
+                    uid=snap_13_1305 InlineTextBox
+                    uid=snap_13_1306 InlineTextBox
+                    uid=snap_13_1307 InlineTextBox
+                    uid=snap_13_1308 InlineTextBox
+                    uid=snap_13_1309 InlineTextBox
+                    uid=snap_13_1310 InlineTextBox
+                    uid=snap_13_1311 InlineTextBox
+                    uid=snap_13_1312 InlineTextBox
+                    uid=snap_13_1313 InlineTextBox
+                    uid=snap_13_1314 InlineTextBox
+                    uid=snap_13_1315 InlineTextBox
+                    uid=snap_13_1316 InlineTextBox
+                    uid=snap_13_1317 InlineTextBox
+                    uid=snap_13_1318 InlineTextBox
+                    uid=snap_13_1319 InlineTextBox
+                    uid=snap_13_1320 InlineTextBox
+                    uid=snap_13_1321 InlineTextBox
+                    uid=snap_13_1322 InlineTextBox
+                    uid=snap_13_1323 InlineTextBox
+                    uid=snap_13_1324 InlineTextBox
+                    uid=snap_13_1325 InlineTextBox
+                    uid=snap_13_1326 InlineTextBox
+                    uid=snap_13_1327 InlineTextBox
+                    uid=snap_13_1328 InlineTextBox
+                    uid=snap_13_1329 InlineTextBox
+                    uid=snap_13_1330 InlineTextBox
+                    uid=snap_13_1331 InlineTextBox
+                    uid=snap_13_1332 InlineTextBox
+                    uid=snap_13_1333 InlineTextBox
+                    uid=snap_13_1334 InlineTextBox
+                    uid=snap_13_1335 InlineTextBox
+                    uid=snap_13_1336 InlineTextBox
+                    uid=snap_13_1337 InlineTextBox
+                    uid=snap_13_1338 InlineTextBox
+                    uid=snap_13_1339 InlineTextBox
+                    uid=snap_13_1340 InlineTextBox
+                    uid=snap_13_1341 InlineTextBox
+                    uid=snap_13_1342 InlineTextBox
+                    uid=snap_13_1343 InlineTextBox
+                    uid=snap_13_1344 InlineTextBox
+                    uid=snap_13_1345 InlineTextBox
+                    uid=snap_13_1346 InlineTextBox
+                    uid=snap_13_1347 InlineTextBox
+                    uid=snap_13_1348 InlineTextBox
+                    uid=snap_13_1349 InlineTextBox
+                    uid=snap_13_1350 InlineTextBox
+                    uid=snap_13_1351 InlineTextBox
+                    uid=snap_13_1352 InlineTextBox
+                    uid=snap_13_1353 InlineTextBox
+                    uid=snap_13_1354 InlineTextBox
+                    uid=snap_13_1355 InlineTextBox
+                    uid=snap_13_1356 InlineTextBox
+                    uid=snap_13_1357 InlineTextBox
+                    uid=snap_13_1358 InlineTextBox
+                    uid=snap_13_1359 InlineTextBox
+                    uid=snap_13_1360 InlineTextBox
+                    uid=snap_13_1361 InlineTextBox
+                    uid=snap_13_1362 InlineTextBox
+                    uid=snap_13_1363 InlineTextBox
+                    uid=snap_13_1364 InlineTextBox
+                    uid=snap_13_1365 InlineTextBox
+                    uid=snap_13_1366 InlineTextBox
+                    uid=snap_13_1367 InlineTextBox
+                    uid=snap_13_1368 InlineTextBox
+                    uid=snap_13_1369 InlineTextBox
+                    uid=snap_13_1370 InlineTextBox
+                    uid=snap_13_1371 InlineTextBox
+                    uid=snap_13_1372 InlineTextBox
+                    uid=snap_13_1373 InlineTextBox
+                    uid=snap_13_1374 InlineTextBox
+                    uid=snap_13_1375 InlineTextBox
+                    uid=snap_13_1376 InlineTextBox
+                    uid=snap_13_1377 InlineTextBox
+                    uid=snap_13_1378 InlineTextBox
+                    uid=snap_13_1379 InlineTextBox
+                    uid=snap_13_1380 InlineTextBox
+                    uid=snap_13_1381 InlineTextBox
+                    uid=snap_13_1382 InlineTextBox
+                    uid=snap_13_1383 InlineTextBox
+                    uid=snap_13_1384 InlineTextBox
+                    uid=snap_13_1385 InlineTextBox
+                    uid=snap_13_1386 InlineTextBox
+                    uid=snap_13_1387 InlineTextBox
+                    uid=snap_13_1388 InlineTextBox
+                    uid=snap_13_1389 InlineTextBox
+                    uid=snap_13_1390 InlineTextBox
+                    uid=snap_13_1391 InlineTextBox
+                    uid=snap_13_1392 InlineTextBox
+                    uid=snap_13_1393 InlineTextBox
+                    uid=snap_13_1394 InlineTextBox
+                    uid=snap_13_1395 InlineTextBox
+                    uid=snap_13_1396 InlineTextBox
+                    uid=snap_13_1397 InlineTextBox
+                    uid=snap_13_1398 InlineTextBox
+                    uid=snap_13_1399 InlineTextBox
+                    uid=snap_13_1400 InlineTextBox
+                    uid=snap_13_1401 InlineTextBox
+                    uid=snap_13_1402 InlineTextBox
+                    uid=snap_13_1403 InlineTextBox
+                    uid=snap_13_1404 InlineTextBox
+                    uid=snap_13_1405 InlineTextBox
+                    uid=snap_13_1406 InlineTextBox
+                    uid=snap_13_1407 InlineTextBox
+                    uid=snap_13_1408 InlineTextBox
+                    uid=snap_13_1409 InlineTextBox
+                    uid=snap_13_1410 InlineTextBox
+                    uid=snap_13_1411 InlineTextBox
+                    uid=snap_13_1412 InlineTextBox
+                    uid=snap_13_1413 InlineTextBox
+                    uid=snap_13_1414 InlineTextBox
+                    uid=snap_13_1415 InlineTextBox
+                    uid=snap_13_1416 InlineTextBox
+                    uid=snap_13_1417 InlineTextBox
+                    uid=snap_13_1418 InlineTextBox
+                    uid=snap_13_1419 InlineTextBox
+                    uid=snap_13_1420 InlineTextBox
+                    uid=snap_13_1421 InlineTextBox
+                    uid=snap_13_1422 InlineTextBox
+                    uid=snap_13_1423 InlineTextBox
+                    uid=snap_13_1424 InlineTextBox
+                    uid=snap_13_1425 InlineTextBox
+                    uid=snap_13_1426 InlineTextBox
+                    uid=snap_13_1427 InlineTextBox
+                    uid=snap_13_1428 InlineTextBox
+                    uid=snap_13_1429 InlineTextBox
+                    uid=snap_13_1430 InlineTextBox
+                    uid=snap_13_1431 InlineTextBox
+                    uid=snap_13_1432 InlineTextBox
+                    uid=snap_13_1433 InlineTextBox
+                    uid=snap_13_1434 InlineTextBox
+                    uid=snap_13_1435 InlineTextBox
+                    uid=snap_13_1436 InlineTextBox
+                    uid=snap_13_1437 InlineTextBox
+                    uid=snap_13_1438 InlineTextBox
+                    uid=snap_13_1439 InlineTextBox
+                    uid=snap_13_1440 InlineTextBox
+                    uid=snap_13_1441 InlineTextBox
+                    uid=snap_13_1442 InlineTextBox
+                    uid=snap_13_1443 InlineTextBox
+                    uid=snap_13_1444 InlineTextBox
+                    uid=snap_13_1445 InlineTextBox
+                    uid=snap_13_1446 InlineTextBox
+                    uid=snap_13_1447 InlineTextBox
+                    uid=snap_13_1448 InlineTextBox
+                    uid=snap_13_1449 InlineTextBox
+                    uid=snap_13_1450 InlineTextBox
+                    uid=snap_13_1451 InlineTextBox
+                    uid=snap_13_1452 InlineTextBox
+                    uid=snap_13_1453 InlineTextBox
+                    uid=snap_13_1454 InlineTextBox
+                    uid=snap_13_1455 InlineTextBox
+                    uid=snap_13_1456 InlineTextBox
+                    uid=snap_13_1457 InlineTextBox
+                    uid=snap_13_1458 InlineTextBox
+                    uid=snap_13_1459 InlineTextBox
+                    uid=snap_13_1460 InlineTextBox
+                    uid=snap_13_1461 InlineTextBox
+                    uid=snap_13_1462 InlineTextBox
+                    uid=snap_13_1463 InlineTextBox
+                    uid=snap_13_1464 InlineTextBox
+                    uid=snap_13_1465 InlineTextBox
+                    uid=snap_13_1466 InlineTextBox
+                    uid=snap_13_1467 InlineTextBox
+                    uid=snap_13_1468 InlineTextBox
+                    uid=snap_13_1469 InlineTextBox
+                    uid=snap_13_1470 InlineTextBox
+                    uid=snap_13_1471 InlineTextBox
+                    uid=snap_13_1472 InlineTextBox
+                    uid=snap_13_1473 InlineTextBox
+                    uid=snap_13_1474 InlineTextBox
+                    uid=snap_13_1475 InlineTextBox
+                    uid=snap_13_1476 InlineTextBox
+                    uid=snap_13_1477 InlineTextBox
+                    uid=snap_13_1478 InlineTextBox
+                    uid=snap_13_1479 InlineTextBox
+                    uid=snap_13_1480 InlineTextBox
+                    uid=snap_13_1481 InlineTextBox
+                    uid=snap_13_1482 InlineTextBox
+                    uid=snap_13_1483 InlineTextBox
+                    uid=snap_13_1484 InlineTextBox
+                    uid=snap_13_1485 InlineTextBox
+                    uid=snap_13_1486 InlineTextBox
+                    uid=snap_13_1487 InlineTextBox
+                    uid=snap_13_1488 InlineTextBox
+                    uid=snap_13_1489 InlineTextBox
+                    uid=snap_13_1490 InlineTextBox
+                    uid=snap_13_1491 InlineTextBox
+                    uid=snap_13_1492 InlineTextBox
+                    uid=snap_13_1493 InlineTextBox
+                    uid=snap_13_1494 InlineTextBox
+                    uid=snap_13_1495 InlineTextBox
+                    uid=snap_13_1496 InlineTextBox
+                    uid=snap_13_1497 InlineTextBox
+                    uid=snap_13_1498 InlineTextBox
+                    uid=snap_13_1499 InlineTextBox
+                    uid=snap_13_1500 InlineTextBox
+                    uid=snap_13_1501 InlineTextBox
+                    uid=snap_13_1502 InlineTextBox
+                    uid=snap_13_1503 InlineTextBox
+                    uid=snap_13_1504 InlineTextBox
+                    uid=snap_13_1505 InlineTextBox
+                    uid=snap_13_1506 InlineTextBox
+                    uid=snap_13_1507 InlineTextBox
+                    uid=snap_13_1508 InlineTextBox
+                    uid=snap_13_1509 InlineTextBox
+                    uid=snap_13_1510 InlineTextBox
+                    uid=snap_13_1511 InlineTextBox
+                    uid=snap_13_1512 InlineTextBox
+                    uid=snap_13_1513 InlineTextBox
+                    uid=snap_13_1514 InlineTextBox
+                    uid=snap_13_1515 InlineTextBox
+                    uid=snap_13_1516 InlineTextBox
+                    uid=snap_13_1517 InlineTextBox
+                    uid=snap_13_1518 InlineTextBox
+                    uid=snap_13_1519 InlineTextBox
+                    uid=snap_13_1520 InlineTextBox
+                    uid=snap_13_1521 InlineTextBox
+                    uid=snap_13_1522 InlineTextBox
+                    uid=snap_13_1523 InlineTextBox
+                    uid=snap_13_1524 InlineTextBox
+                    uid=snap_13_1525 InlineTextBox
+                    uid=snap_13_1526 InlineTextBox
+                    uid=snap_13_1527 InlineTextBox
+                    uid=snap_13_1528 InlineTextBox
+                    uid=snap_13_1529 InlineTextBox
+                    uid=snap_13_1530 InlineTextBox
+                    uid=snap_13_1531 InlineTextBox
+                    uid=snap_13_1532 InlineTextBox
+                    uid=snap_13_1533 InlineTextBox
+                    uid=snap_13_1534 InlineTextBox
+                    uid=snap_13_1535 InlineTextBox
+                    uid=snap_13_1536 InlineTextBox
+                    uid=snap_13_1537 InlineTextBox
+                    uid=snap_13_1538 InlineTextBox
+                    uid=snap_13_1539 InlineTextBox
+                    uid=snap_13_1540 InlineTextBox
+                    uid=snap_13_1541 InlineTextBox
+                    uid=snap_13_1542 InlineTextBox
+                    uid=snap_13_1543 InlineTextBox
+                    uid=snap_13_1544 InlineTextBox
+                    uid=snap_13_1545 InlineTextBox
+                    uid=snap_13_1546 InlineTextBox
+                    uid=snap_13_1547 InlineTextBox
+                    uid=snap_13_1548 InlineTextBox
+                    uid=snap_13_1549 InlineTextBox
+                    uid=snap_13_1550 InlineTextBox
+                    uid=snap_13_1551 InlineTextBox
+                    uid=snap_13_1552 InlineTextBox
+                    uid=snap_13_1553 InlineTextBox
+                    uid=snap_13_1554 InlineTextBox
+                    uid=snap_13_1555 InlineTextBox
+                    uid=snap_13_1556 InlineTextBox
+                    uid=snap_13_1557 InlineTextBox
+                    uid=snap_13_1558 InlineTextBox
+                    uid=snap_13_1559 InlineTextBox
+                    uid=snap_13_1560 InlineTextBox
+                    uid=snap_13_1561 InlineTextBox
+                    uid=snap_13_1562 InlineTextBox
+                    uid=snap_13_1563 InlineTextBox
+                    uid=snap_13_1564 InlineTextBox
+                    uid=snap_13_1565 InlineTextBox
+                    uid=snap_13_1566 InlineTextBox
+                    uid=snap_13_1567 InlineTextBox
+                    uid=snap_13_1568 InlineTextBox
+                    uid=snap_13_1569 InlineTextBox
+                    uid=snap_13_1570 InlineTextBox
+                    uid=snap_13_1571 InlineTextBox
+                    uid=snap_13_1572 InlineTextBox
+                    uid=snap_13_1573 InlineTextBox
+                    uid=snap_13_1574 InlineTextBox
+                    uid=snap_13_1575 InlineTextBox
+                    uid=snap_13_1576 InlineTextBox
+                    uid=snap_13_1577 InlineTextBox
+                    uid=snap_13_1578 InlineTextBox
+                    uid=snap_13_1579 InlineTextBox
+                    uid=snap_13_1580 InlineTextBox
+                    uid=snap_13_1581 InlineTextBox
+                    uid=snap_13_1582 InlineTextBox
+                    uid=snap_13_1583 InlineTextBox
+                    uid=snap_13_1584 InlineTextBox
+                    uid=snap_13_1585 InlineTextBox
+                    uid=snap_13_1586 InlineTextBox
+                    uid=snap_13_1587 InlineTextBox
+                    uid=snap_13_1588 InlineTextBox
+                    uid=snap_13_1589 InlineTextBox
+                    uid=snap_13_1590 InlineTextBox
+                    uid=snap_13_1591 InlineTextBox
+                    uid=snap_13_1592 InlineTextBox
+                    uid=snap_13_1593 InlineTextBox
+                    uid=snap_13_1594 InlineTextBox
+                    uid=snap_13_1595 InlineTextBox
+                    uid=snap_13_1596 InlineTextBox
+                    uid=snap_13_1597 InlineTextBox
+                    uid=snap_13_1598 InlineTextBox
+                    uid=snap_13_1599 InlineTextBox
+                    uid=snap_13_1600 InlineTextBox
+                    uid=snap_13_1601 InlineTextBox
+                    uid=snap_13_1602 InlineTextBox
+                    uid=snap_13_1603 InlineTextBox
+                    uid=snap_13_1604 InlineTextBox
+                    uid=snap_13_1605 InlineTextBox
+                    uid=snap_13_1606 InlineTextBox
+                    uid=snap_13_1607 InlineTextBox
+                    uid=snap_13_1608 InlineTextBox
+                    uid=snap_13_1609 InlineTextBox
+                    uid=snap_13_1610 InlineTextBox
+                    uid=snap_13_1611 InlineTextBox
+                    uid=snap_13_1612 InlineTextBox
+                    uid=snap_13_1613 InlineTextBox
+                    uid=snap_13_1614 InlineTextBox
+                    uid=snap_13_1615 InlineTextBox
+                    uid=snap_13_1616 InlineTextBox
+                    uid=snap_13_1617 InlineTextBox
+                    uid=snap_13_1618 InlineTextBox
+                    uid=snap_13_1619 InlineTextBox
+                    uid=snap_13_1620 InlineTextBox
+                    uid=snap_13_1621 InlineTextBox
+                    uid=snap_13_1622 InlineTextBox
+                    uid=snap_13_1623 InlineTextBox
+                    uid=snap_13_1624 InlineTextBox
+                    uid=snap_13_1625 InlineTextBox
+                    uid=snap_13_1626 InlineTextBox
+                    uid=snap_13_1627 InlineTextBox
+                    uid=snap_13_1628 InlineTextBox
+                    uid=snap_13_1629 InlineTextBox
+                    uid=snap_13_1630 InlineTextBox
+                    uid=snap_13_1631 InlineTextBox
+                    uid=snap_13_1632 InlineTextBox
+                    uid=snap_13_1633 InlineTextBox
+                    uid=snap_13_1634 InlineTextBox
+                    uid=snap_13_1635 InlineTextBox
+                    uid=snap_13_1636 InlineTextBox
+                    uid=snap_13_1637 InlineTextBox
+                    uid=snap_13_1638 InlineTextBox
+                    uid=snap_13_1639 InlineTextBox
+                    uid=snap_13_1640 InlineTextBox
+                    uid=snap_13_1641 InlineTextBox
+                    uid=snap_13_1642 InlineTextBox
+                    uid=snap_13_1643 InlineTextBox
+                    uid=snap_13_1644 InlineTextBox
+                    uid=snap_13_1645 InlineTextBox
+                    uid=snap_13_1646 InlineTextBox
+                    uid=snap_13_1647 InlineTextBox
+                    uid=snap_13_1648 InlineTextBox
+                    uid=snap_13_1649 InlineTextBox
+                    uid=snap_13_1650 InlineTextBox
+                    uid=snap_13_1651 InlineTextBox
+                    uid=snap_13_1652 InlineTextBox
+                    uid=snap_13_1653 InlineTextBox
+                    uid=snap_13_1654 InlineTextBox
+                    uid=snap_13_1655 InlineTextBox
+                    uid=snap_13_1656 InlineTextBox
+                    uid=snap_13_1657 InlineTextBox
+                    uid=snap_13_1658 InlineTextBox
+                    uid=snap_13_1659 InlineTextBox
+                    uid=snap_13_1660 InlineTextBox
+                    uid=snap_13_1661 InlineTextBox
+                    uid=snap_13_1662 InlineTextBox
+                    uid=snap_13_1663 InlineTextBox
+                    uid=snap_13_1664 InlineTextBox
+                    uid=snap_13_1665 InlineTextBox
+                    uid=snap_13_1666 InlineTextBox
+                    uid=snap_13_1667 InlineTextBox
+                    uid=snap_13_1668 InlineTextBox
+                    uid=snap_13_1669 InlineTextBox
+                    uid=snap_13_1670 InlineTextBox
+                    uid=snap_13_1671 InlineTextBox
+                    uid=snap_13_1672 InlineTextBox
+                    uid=snap_13_1673 InlineTextBox
+                    uid=snap_13_1674 InlineTextBox
+                    uid=snap_13_1675 InlineTextBox
+                    uid=snap_13_1676 InlineTextBox
+                    uid=snap_13_1677 InlineTextBox
+                    uid=snap_13_1678 InlineTextBox
+                    uid=snap_13_1679 InlineTextBox
+                    uid=snap_13_1680 InlineTextBox
+                    uid=snap_13_1681 InlineTextBox
+                    uid=snap_13_1682 InlineTextBox
+                    uid=snap_13_1683 InlineTextBox
+                    uid=snap_13_1684 InlineTextBox
+                    uid=snap_13_1685 InlineTextBox
+                    uid=snap_13_1686 InlineTextBox
+                    uid=snap_13_1687 InlineTextBox
+                    uid=snap_13_1688 InlineTextBox
+                    uid=snap_13_1689 InlineTextBox
+                    uid=snap_13_1690 InlineTextBox
+                    uid=snap_13_1691 InlineTextBox
+                    uid=snap_13_1692 InlineTextBox
+                    uid=snap_13_1693 InlineTextBox
+                    uid=snap_13_1694 InlineTextBox
+                    uid=snap_13_1695 InlineTextBox
+                    uid=snap_13_1696 InlineTextBox
+                    uid=snap_13_1697 InlineTextBox
+                    uid=snap_13_1698 InlineTextBox
+                    uid=snap_13_1699 InlineTextBox
+                    uid=snap_13_1700 InlineTextBox
+                    uid=snap_13_1701 InlineTextBox
+                    uid=snap_13_1702 InlineTextBox
+                    uid=snap_13_1703 InlineTextBox
+                    uid=snap_13_1704 InlineTextBox
+                    uid=snap_13_1705 InlineTextBox
+                    uid=snap_13_1706 InlineTextBox
+                    uid=snap_13_1707 InlineTextBox
+                    uid=snap_13_1708 InlineTextBox
+                    uid=snap_13_1709 InlineTextBox
+                    uid=snap_13_1710 InlineTextBox
+                    uid=snap_13_1711 InlineTextBox
+                    uid=snap_13_1712 InlineTextBox
+                    uid=snap_13_1713 InlineTextBox
+                    uid=snap_13_1714 InlineTextBox
+                    uid=snap_13_1715 InlineTextBox
+                    uid=snap_13_1716 InlineTextBox
+                    uid=snap_13_1717 InlineTextBox
+                    uid=snap_13_1718 InlineTextBox
+                    uid=snap_13_1719 InlineTextBox
+                    uid=snap_13_1720 InlineTextBox
+                    uid=snap_13_1721 InlineTextBox
+                    uid=snap_13_1722 InlineTextBox
+                    uid=snap_13_1723 InlineTextBox
+                    uid=snap_13_1724 InlineTextBox
+                    uid=snap_13_1725 InlineTextBox
+                    uid=snap_13_1726 InlineTextBox
+                    uid=snap_13_1727 InlineTextBox
+                    uid=snap_13_1728 InlineTextBox
+                    uid=snap_13_1729 InlineTextBox
+                    uid=snap_13_1730 InlineTextBox
+                    uid=snap_13_1731 InlineTextBox
+                    uid=snap_13_1732 InlineTextBox
+                    uid=snap_13_1733 InlineTextBox
+                    uid=snap_13_1734 InlineTextBox
+                    uid=snap_13_1735 InlineTextBox
+                    uid=snap_13_1736 InlineTextBox
+                    uid=snap_13_1737 InlineTextBox
+                    uid=snap_13_1738 InlineTextBox
+                    uid=snap_13_1739 InlineTextBox
+                    uid=snap_13_1740 InlineTextBox
+                    uid=snap_13_1741 InlineTextBox
+                    uid=snap_13_1742 InlineTextBox
+                    uid=snap_13_1743 InlineTextBox
+                    uid=snap_13_1744 InlineTextBox
+                    uid=snap_13_1745 InlineTextBox
+                    uid=snap_13_1746 InlineTextBox
+                    uid=snap_13_1747 InlineTextBox
+                    uid=snap_13_1748 InlineTextBox
+                    uid=snap_13_1749 InlineTextBox
+                    uid=snap_13_1750 InlineTextBox
+                    uid=snap_13_1751 InlineTextBox
+                    uid=snap_13_1752 InlineTextBox
+                    uid=snap_13_1753 InlineTextBox
+                    uid=snap_13_1754 InlineTextBox
+                    uid=snap_13_1755 InlineTextBox
+                    uid=snap_13_1756 InlineTextBox
+                    uid=snap_13_1757 InlineTextBox
+                    uid=snap_13_1758 InlineTextBox
+                    uid=snap_13_1759 InlineTextBox
+                    uid=snap_13_1760 InlineTextBox
+                    uid=snap_13_1761 InlineTextBox
+                    uid=snap_13_1762 InlineTextBox
+                    uid=snap_13_1763 InlineTextBox
+                    uid=snap_13_1764 InlineTextBox
+                    uid=snap_13_1765 InlineTextBox
+                    uid=snap_13_1766 InlineTextBox
+                    uid=snap_13_1767 InlineTextBox
+                    uid=snap_13_1768 InlineTextBox
+                    uid=snap_13_1769 InlineTextBox
+                    uid=snap_13_1770 InlineTextBox
+                    uid=snap_13_1771 InlineTextBox
+                    uid=snap_13_1772 InlineTextBox
+                    uid=snap_13_1773 InlineTextBox
+                    uid=snap_13_1774 InlineTextBox
+                    uid=snap_13_1775 InlineTextBox
+                    uid=snap_13_1776 InlineTextBox
+    uid=snap_13_1780 alert

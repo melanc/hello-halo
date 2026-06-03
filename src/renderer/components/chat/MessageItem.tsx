@@ -258,20 +258,14 @@ export const MessageItem = memo(function MessageItem({ message, previousCost = 0
   const handleCopyMessage = useCallback(async () => {
     if (!message.content) return
     try {
-      await navigator.clipboard.writeText(message.content)
+      // Use Electron native clipboard via IPC (reliable in all contexts)
+      await window.devx.clipboardWriteText(message.content)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Fallback for Electron/restricted contexts where clipboard API fails
+      // Fallback to Web Clipboard API
       try {
-        const textarea = document.createElement('textarea')
-        textarea.value = message.content
-        textarea.style.cssText = 'position:fixed;opacity:0;pointer-events:none'
-        document.body.appendChild(textarea)
-        textarea.focus()
-        textarea.select()
-        document.execCommand('copy')
-        document.body.removeChild(textarea)
+        await navigator.clipboard.writeText(message.content)
         setCopied(true)
         setTimeout(() => setCopied(false), 2000)
       } catch (fallbackErr) {

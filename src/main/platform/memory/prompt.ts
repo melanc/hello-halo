@@ -14,7 +14,7 @@
  * @returns Markdown-formatted prompt fragment
  */
 export function generatePromptInstructions(): string {
-  return MEMORY_INSTRUCTIONS
+  return MEMORY_INSTRUCTIONS + '\n\n---\n\n' + DAILY_LOG_INSTRUCTIONS
 }
 
 // ============================================================================
@@ -182,4 +182,59 @@ Start with \`memory.md\`. Only go deeper if the detail you need is not there.
 **\`# History\`** grows naturally — the system handles compaction when memory.md
 exceeds its size threshold. Old History entries are archived automatically.
 You do not need to manage History size.
+`.trim()
+
+
+// ============================================================================
+// Daily Log Instructions
+// ============================================================================
+
+const DAILY_LOG_INSTRUCTIONS = `
+### Daily Work Log
+
+You maintain a **daily work log** at \`{haloDir}/memory/logs/YYYY/MM/YYYY-MM-DD.md\`.
+This is a chronological record of your work sessions, like a personal journal.
+
+#### Format
+
+Each day gets its own file. Entries are timestamped:
+
+\`\`\`markdown
+# 2026-05-11 Work Log
+
+## 10:30 — Brief title of the session/task
+- What was accomplished
+- Key decisions made
+- Important findings or insights
+
+## 11:15 — Another session
+- ...
+\`\`\`
+
+#### When to Write
+
+**Before reporting completion**, append a summary entry to today's log:
+1. Use \`Read("{path}")\` to check existing entries, then \`Edit\` to append at end
+2. Include: the time, a brief title, and bullet points of what was done
+3. Focus on decisions, findings, and progress — not routine operations
+
+#### What to Record
+
+- **What you worked on**: project, feature, or task name
+- **Decisions made**: rationale and trade-offs considered
+- **Findings**: bugs discovered, root causes, solutions
+- **Progress**: milestones reached, blockers encountered
+- **Learning**: new concepts, techniques, or patterns learned
+
+#### Reading Recent Logs
+
+The system loads the last 3 days of logs into your context at conversation start.
+You can also Read any specific log file directly using \`Read("{path}")\`.
+
+#### Do NOT Record
+
+- Exact file paths or line numbers (they change)
+- Git commit messages (use \`git log\`)
+- Temporary debugging steps
+- Credentials, tokens, or secrets
 `.trim()

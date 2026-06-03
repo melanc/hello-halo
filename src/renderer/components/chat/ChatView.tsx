@@ -31,6 +31,7 @@ import type { ImageAttachment, Artifact } from '../../types'
 import type { SlashCommandItem } from '../../types/slash-command'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
+import { useSessionReportStore } from '../../stores/session-report.store'
 import { useConfirmDialog } from '../../hooks/useConfirmDialog'
 import {
   extractLastAssistantPlanFromMessages,
@@ -225,22 +226,156 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
   // Artifact list for @ mention suggestions in InputArea
   const [mentionArtifacts, setMentionArtifacts] = useState<Artifact[]>([])
 
-  // Load artifacts for @ mention suggestions (depth=5 for deeper file references)
+  // Helper: recursively scan a directory (local or external) and build Artifact entries
+  const scanDirectoryForMentions = useCallback(async (
+    dirPath: string,
+    spaceId: string,
+    prefix: string,
+    depth: number,
+    maxDepth: number,
+  ): Promise<Artifact[]> => {
+    const results: Artifact[] = []
+
+    // Add the directory entry itself (skip at depth 0 — the root is handled by the caller)
+    if (depth > 0) {
+      const dirName = dirPath.replace(/[/\\]+$/, '').split(/[/\\]/).filter(Boolean).pop() || dirPath
+      results.push({
+        id: `${prefix}-dir-${dirPath.replace(/[/\\]/g, '_')}`,
+        spaceId,
+        conversationId: 'all',
+        name: dirName,
+        type: 'folder',
+        path: dirPath,
+        relativePath: dirPath,
+        extension: '',
+        icon: 'folder',
+        createdAt: new Date().toISOString(),
+      })
+    }
+
+    if (depth >= maxDepth) return results
+
+    try {
+      const response = await api.readDirectory(dirPath)
+      if (!response.success || !response.data) return results
+
+      const entries = response.data as Array<{ name: string; isDirectory: boolean; isFile: boolean }>
+      for (const entry of entries) {
+        const entryPath = dirPath.replace(/\\/g, '/').replace(/\/$/, '') + '/' + entry.name
+        if (entry.isDirectory) {
+          const children = await scanDirectoryForMentions(entryPath, spaceId, prefix, depth + 1, maxDepth)
+          results.push(...children)
+        } else if (entry.isFile) {
+          const ext = entry.name.includes('.') ? entry.name.split('.').pop() || '' : ''
+          results.push({
+            id: `${prefix}-file-${entryPath.replace(/[/\\]/g, '_')}`,
+            spaceId,
+            conversationId: 'all',
+            name: entry.name,
+            type: 'file',
+            path: entryPath,
+            relativePath: entryPath,
+            extension: ext,
+            icon: '',
+            createdAt: new Date().toISOString(),
+          })
+        }
+      }
+    } catch (err) {
+      console.warn(`[ChatView] Failed to read directory ${dirPath}:`, err)
+    }
+
+    return results
+  }, [])
+
+  // Load artifacts + task external dirs for @ mention suggestions
   useEffect(() => {
     if (!currentSpace?.id) {
       setMentionArtifacts([])
       return
     }
     let cancelled = false
-    api.listArtifacts(currentSpace.id, 5).then(response => {
-      if (!cancelled && response.success && response.data) {
-        setMentionArtifacts(response.data as Artifact[])
+
+    const loadAll = async () => {
+      // 1. Load workspace artifacts (depth=5)
+      const wsResponse = await api.listArtifacts(currentSpace.id, 5)
+      if (cancelled) return
+
+      const wsArtifacts: Artifact[] = []
+      if (wsResponse.success && wsResponse.data) {
+        const data = wsResponse.data as Artifact[]
+        if (data.length > 0) wsArtifacts.push(...data)
       }
-    }).catch(error => {
-      if (!cancelled) console.error('[ChatView] Failed to load mention artifacts:', error)
-    })
+
+      // 2. Find active task's external project dirs
+      let externalDirs: string[] = []
+      if (activeTaskId) {
+        const activeTask = tasks.find(t => t.id === activeTaskId)
+        if (activeTask?.projectDirs) {
+          externalDirs = activeTask.projectDirs.filter(p =>
+            p.includes('/') || p.includes('\\') || /^[a-zA-Z]:/.test(p)
+          )
+        }
+      }
+
+      // 3. Scan each external dir (depth=2: root + immediate children + grandchildren)
+      const extArtifacts: Artifact[] = []
+      if (externalDirs.length > 0) {
+        const scanPromises = externalDirs.map(async (dir, idx) => {
+          // Add the external dir root as a folder artifact
+          const dirName = dir.replace(/[/\\]+$/, '').split(/[/\\]/).filter(Boolean).pop() || dir
+          extArtifacts.push({
+            id: `ext-${currentSpace.id}-${idx}-root`,
+            spaceId: currentSpace.id,
+            conversationId: 'all',
+            name: dirName,
+            type: 'folder',
+            path: dir,
+            relativePath: dir,
+            extension: '',
+            icon: 'folder',
+            createdAt: new Date().toISOString(),
+          })
+          // Scan children
+          const children = await scanDirectoryForMentions(dir, currentSpace.id, `ext-${currentSpace.id}-${idx}`, 1, 2)
+          extArtifacts.push(...children)
+        })
+        await Promise.all(scanPromises)
+      }
+
+      if (cancelled) return
+
+      // 4. Merge workspace + external artifacts
+      const merged = [...wsArtifacts, ...extArtifacts]
+      if (merged.length > 0) {
+        setMentionArtifacts(merged)
+        return
+      }
+
+      // 5. Fallback: workspace root directory when everything is empty
+      const rootDir: string = currentSpace.workingDir || currentSpace.path || ''
+      if (!rootDir) {
+        setMentionArtifacts([])
+        return
+      }
+      const rootName = rootDir.split(/[/\\]/).filter(Boolean).pop() || rootDir
+      setMentionArtifacts([{
+        id: `@root-${currentSpace.id}`,
+        spaceId: currentSpace.id,
+        conversationId: 'all',
+        name: rootName,
+        type: 'folder',
+        path: rootDir,
+        relativePath: '.',
+        extension: '',
+        icon: 'folder',
+        createdAt: new Date().toISOString(),
+      }])
+    }
+
+    loadAll()
     return () => { cancelled = true }
-  }, [currentSpace?.id])
+  }, [currentSpace?.id, activeTaskId, tasks, scanDirectoryForMentions])
 
   // Clear mock state when onboarding completes
   useEffect(() => {
@@ -375,6 +510,31 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
   }, [])
   const session = getCurrentSession()
   const { isGenerating, streamingContent, isStreaming, thoughts, isThinking, compactInfo, error, errorType, textBlockVersion, pendingQuestion, pendingFileChanges } = session
+
+  // Auto-cancel confirmation dialogs after 120s of inactivity
+  const confirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    const hasActiveConfirm =
+      (pendingQuestion?.status === 'active') ||
+      (pendingFileChanges?.status === 'active')
+
+    if (hasActiveConfirm) {
+      confirmTimeoutRef.current = setTimeout(() => {
+        // Use currentConversationId (from spaceState) instead of currentConversation
+        // (from cache), which could be null.
+        if (currentConversationId) {
+          stopGeneration(currentConversationId)
+        }
+      }, 120_000)
+    }
+
+    return () => {
+      if (confirmTimeoutRef.current) {
+        clearTimeout(confirmTimeoutRef.current)
+        confirmTimeoutRef.current = null
+      }
+    }
+  }, [pendingQuestion?.status, pendingFileChanges?.status, currentConversationId, stopGeneration])
 
   // Build the slash-command list for the autocomplete menu.
   // Only reads from SDK slash_commands array.
@@ -516,6 +676,8 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
     if (task.conversationId !== currentConversationId) return null
     return task
   }, [activeTaskId, currentConversationId, currentSpace, tasks])
+
+  const sessionReport = useSessionReportStore((s) => s.report)
 
   const breakdownPlanSource = useMemo(() => {
     if (!activeTask?.requirementBreakdownUsed) return ''
@@ -991,7 +1153,6 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
         ${isCompact ? 'bg-background/50' : 'bg-background'}
       `}
     >
-      {/* Task header (shrink) + messages (flex-1 min-h-0) so long breakdown lists do not hide chat */}
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
 <div className={`flex min-h-0 flex-1 flex-col ${isCompact ? 'px-3' : 'px-4'}`}>
           <div className="relative min-h-0 flex-1">
@@ -1066,6 +1227,7 @@ export function ChatView({ isCompact = false, isTaskFocusComposer = false }: Cha
           name: activeTask.name,
           stage: ({ 1: t('需求识别'), 2: t('计划与实现'), 3: t('用例验证') } as Record<number, string>)[activeTask.pipelineStage ?? 1] ?? t('需求识别'),
         } : undefined}
+        sessionReport={activeTask && sessionReport && !isGenerating ? sessionReport : undefined}
         appendBlock={appendInputBlock}
         onAppendBlockConsumed={() => setAppendInputBlock(null)}
       />

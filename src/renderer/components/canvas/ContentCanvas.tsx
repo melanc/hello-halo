@@ -35,6 +35,8 @@ import { JsonViewer } from './viewers/JsonViewer'
 import { CsvViewer } from './viewers/CsvViewer'
 import { TextViewer } from './viewers/TextViewer'
 import { DiffContent } from '../diff/DiffContent'
+import { TaskPipelinePanel } from '../tasks/TaskPipelinePanel'
+import { XtermTerminal } from '../terminal/XtermTerminal'
 import { BrowserViewer, BrowserViewerFallback } from './viewers/BrowserViewer'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
@@ -257,6 +259,14 @@ interface TabContentProps {
 
 function TabContent({ tab, onScrollChange, onContentChange, onSaveComplete, onEditRequest }: TabContentProps) {
   const { t } = useTranslation()
+  if (tab.type === 'requirement-dev') {
+    return (
+      <div className="h-full min-h-0 overflow-hidden">
+        <TaskPipelinePanel embedded />
+      </div>
+    )
+  }
+
   // Browser and PDF tabs use BrowserView (handle their own loading state)
   if (tab.type === 'browser' || tab.type === 'pdf') {
     if (api.isRemoteMode()) {
@@ -305,22 +315,10 @@ function TabContent({ tab, onScrollChange, onContentChange, onSaveComplete, onEd
       )
 
     case 'markdown':
-      // Default to MarkdownViewer for preview, switch to CodeViewer when editing
-      if (tab.isEditMode) {
-        return (
-          <CodeViewer
-            tab={tab}
-            onScrollChange={onScrollChange}
-            onContentChange={onContentChange}
-            onSaveComplete={onSaveComplete}
-          />
-        )
-      }
       return (
         <MarkdownViewer
           tab={tab}
           onScrollChange={onScrollChange}
-          onEditRequest={onEditRequest}
         />
       )
 
@@ -356,13 +354,9 @@ function TabContent({ tab, onScrollChange, onContentChange, onSaveComplete, onEd
       )
 
     case 'terminal':
-      // Terminal view placeholder (future feature)
       return (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <p className="text-lg font-medium mb-2">{t('Terminal output')}</p>
-            <p className="text-sm text-muted-foreground">{t('This feature is coming soon')}</p>
-          </div>
+        <div className="h-full min-h-0 overflow-hidden">
+          <XtermTerminal />
         </div>
       )
 
@@ -394,6 +388,7 @@ function TabContent({ tab, onScrollChange, onContentChange, onSaveComplete, onEd
  * Empty State - Shown when no tabs are open
  */
 function EmptyState() {
+  const { t } = useTranslation()
   return (
     <div className="flex items-center justify-center h-full">
       <div className="text-center max-w-md px-4">

@@ -1,6 +1,6 @@
 {
   "name": "devx",
-  "version": "2.0.10-rc.4",
+  "version": "2.0.10-rc.12",
   "description": "AI that gets things done",
   "type": "module",
   "main": "./out/main/index.mjs",
@@ -13,8 +13,8 @@
     "postinstall": "patch-package && electron-builder install-app-deps && electron-rebuild -f -w better-sqlite3",
     "bump-rc": "node scripts/bump-rc-version.mjs",
     "build:mac": "npm run bump-rc && npm run build && electron-builder --mac",
-    "build:win": "npm run bump-rc && npm run build && electron-builder --win",
-    "build:win-x64": "npm run bump-rc && npm run build && electron-builder --win --x64",
+    "build:win": "npm run bump-rc && npm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win",
+    "build:win-x64": "npm run bump-rc && npm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --x64",
     "prepare": "node scripts/prepare-binaries.mjs",
     "prepare:all": "node scripts/prepare-binaries.mjs --platform all",
     "build:mac-x64": "npm run bump-rc && npm run build && electron-builder --mac --x64",
@@ -22,7 +22,7 @@
     "icons": "bash scripts/generate-icons.sh",
     "release": "npm run build && electron-builder --mac --win --publish always",
     "release:mac": "npm run build && electron-builder --mac --publish always",
-    "release:win": "npm run build && electron-builder --win --publish always",
+    "release:win": "npm run build && cross-env ELECTRON_BUILDER_BINARIES_MIRROR=https://npmmirror.com/mirrors/electron-builder-binaries/ electron-builder --win --publish always",
     "release:linux": "npm run build && electron-builder --linux --publish always",
     "test": "npm run test:check && npm run test:unit",
     "test:check": "node tests/check/binaries.mjs",
@@ -49,9 +49,9 @@
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "0.1.76",
-    "@anthropic-ai/claude-code": "latest",
-    "@anthropic-ai/sdk": "latest",
-    "@anthropic-ai/tokenizer": "^0.0.4",
+    "@anthropic-ai/claude-code": "2.1.112",
+    "@anthropic-ai/sdk": "0.98.0",
+    "@anthropic-ai/tokenizer": "0.0.4",
     "@capacitor/android": "^8.2.0",
     "@capacitor/app": "^8.0.1",
     "@capacitor/cli": "^8.2.0",
@@ -85,6 +85,7 @@
     "@codemirror/view": "^6.39.11",
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",
+    "@larksuiteoapi/node-sdk": "^1.65.0",
     "@lezer/highlight": "^1.2.3",
     "@parcel/watcher": "^2.5.6",
     "@replit/codemirror-lang-svelte": "^6.0.0",
@@ -248,6 +249,7 @@
     },
     "win": {
       "icon": "resources/icon.ico",
+      "signAndEditExecutable": false,
       "target": [
         {
           "target": "nsis",

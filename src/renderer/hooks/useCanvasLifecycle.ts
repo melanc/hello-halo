@@ -66,6 +66,11 @@ export function useCanvasLifecycle() {
     []
   )
 
+  const openRequirementDevTab = useCallback(
+    (title?: string) => canvasLifecycle.openRequirementDevTab(title),
+    []
+  )
+
   const attachAIBrowserView = useCallback(
     (viewId: string, url: string, title?: string) =>
       canvasLifecycle.attachAIBrowserView(viewId, url, title),
@@ -176,6 +181,7 @@ export function useCanvasLifecycle() {
     openFile,
     openGitDiffTab,
     openUrl,
+    openRequirementDevTab,
     attachAIBrowserView,
     openContent,
     closeTab,

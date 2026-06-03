@@ -1145,30 +1145,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
       })
     }
 
-    // First, just stop streaming indicator but keep isGenerating=true
-    // This keeps the streaming bubble visible during backend load
+    // Synchronously clear session flags to unblock the UI in a single pass.
+    // isGenerating=false removes the "thinking" indicator immediately.
+    // Backend data is already persisted; conversation reload is fire-and-forget.
     set((state) => {
       const newSessions = new Map(state.sessions)
       const session = newSessions.get(conversationId)
       if (session) {
         newSessions.set(conversationId, {
           ...session,
+          isGenerating: false,
           isStreaming: false,
-          isThinking: false
-          // Keep isGenerating=true and streamingContent until backend loads
+          isThinking: false,
+          streamingContent: '',
+          compactInfo: null,
+          pendingQuestion: null,
+          pendingFileChanges: null
         })
       }
       return { sessions: newSessions }
     })
 
-    // Reload conversation from backend (Single Source of Truth)
-    // Backend has already saved the complete message with thoughts
-    try {
-      const response = await api.getConversation(spaceId, conversationId)
+    // Fire-and-forget: reload conversation from backend to update cache.
+    // Session state is already cleared synchronously above.
+    api.getConversation(spaceId, conversationId).then(response => {
       if (response.success && response.data) {
         const updatedConversation = response.data as Conversation
 
-        // Extract updated metadata
         const updatedMeta: ConversationMeta = {
           id: updatedConversation.id,
           spaceId: updatedConversation.spaceId,
@@ -1182,14 +1185,11 @@ export const useChatStore = create<ChatState>((set, get) => ({
           starred: updatedConversation.starred
         }
 
-        // Now atomically: update cache, metadata, AND clear session state
-        // This prevents flash by doing all in one render
+        // Update cache and metadata (session already cleared above)
         set((state) => {
-          // Update cache with fresh data
           const newCache = new Map(state.conversationCache)
           newCache.set(conversationId, updatedConversation)
 
-          // Update metadata in space state
           const newSpaceStates = new Map(state.spaceStates)
           const currentSpaceState = newSpaceStates.get(spaceId)
           if (currentSpaceState) {
@@ -1201,73 +1201,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
             })
           }
 
-          // Clear session state atomically with conversation update
-          // Error is now persisted in message.error, so clear session-level error.
-          // IMPORTANT: interrupted errors arrive AFTER agent:complete via a separate IPC event.
-          // Because this reload is async, handleAgentError may have already written the
-          // interrupted error into the session by the time we get here. We must NOT clear it.
-          const newSessions = new Map(state.sessions)
-          const currentSession = newSessions.get(conversationId)
-          if (currentSession) {
-            newSessions.set(conversationId, {
-              ...currentSession,
-              isGenerating: false,
-              streamingContent: '',
-              compactInfo: null,  // Clear temporary compact notification
-              pendingQuestion: null,  // Clear pending question
-              pendingFileChanges: null,  // Clear pending file changes
-              // Preserve interrupted errors — they may have arrived during the async reload
-              error: currentSession.errorType === 'interrupted' ? currentSession.error : null,
-              errorType: currentSession.errorType === 'interrupted' ? currentSession.errorType : null
-            })
-          }
-
           return {
             spaceStates: newSpaceStates,
-            sessions: newSessions,
             conversationCache: newCache
           }
         })
         console.log(`[ChatStore] Conversation reloaded from backend [${conversationId}]`)
       } else {
-        // Conversation not found in backend (e.g. virtual conversationIds like "app-chat:*")
-        // Still must clear generating state to unblock UI
-        set((state) => {
-          const newSessions = new Map(state.sessions)
-          const currentSession = newSessions.get(conversationId)
-          if (currentSession) {
-            newSessions.set(conversationId, {
-              ...currentSession,
-              isGenerating: false,
-              streamingContent: '',
-              compactInfo: null,
-              pendingQuestion: null,
-              pendingFileChanges: null
-            })
-          }
-          return { sessions: newSessions }
-        })
-        console.log(`[ChatStore] No backend conversation for [${conversationId}], session state cleared`)
+        console.log(`[ChatStore] No backend conversation for [${conversationId}]`)
       }
-    } catch (error) {
+    }).catch(error => {
       console.error('[ChatStore] Failed to reload conversation:', error)
-      // Even on error, must clear state to avoid stale content
-      set((state) => {
-        const newSessions = new Map(state.sessions)
-        const currentSession = newSessions.get(conversationId)
-        if (currentSession) {
-          newSessions.set(conversationId, {
-            ...currentSession,
-            isGenerating: false,
-            streamingContent: '',
-            compactInfo: null,  // Clear temporary compact notification
-            pendingQuestion: null,  // Clear pending question
-            pendingFileChanges: null  // Clear pending file changes
-          })
-        }
-        return { sessions: newSessions }
-      })
-    }
+    })
   },
 
   // Handle thought for a specific conversation

@@ -217,8 +217,8 @@ export const haloEditorTheme = EditorView.theme(
       WebkitAppearance: 'none',
       appearance: 'none',
       backgroundImage: 'none',
-      backgroundColor: 'hsl(var(--secondary))',
-      border: '1px solid hsl(var(--border))',
+      backgroundColor: 'transparent',
+      border: '1px solid transparent',
       borderRadius: '4px',
       padding: '4px 8px',
       color: 'hsl(var(--foreground))',
@@ -231,6 +231,37 @@ export const haloEditorTheme = EditorView.theme(
 
     '.cm-button:hover': {
       backgroundColor: 'hsl(var(--muted))',
+    },
+
+    // Icon-based search buttons (hide text, show SVG icon)
+    '.cm-panel.cm-search button[name="next"], .cm-panel.cm-search button[name="prev"], .cm-panel.cm-search button[name="select"], .cm-panel.cm-search button[name="replace"], .cm-panel.cm-search button[name="replaceAll"]': {
+      fontSize: '0',
+      minWidth: '26px',
+      height: '24px',
+      padding: '0',
+      backgroundRepeat: 'no-repeat',
+      backgroundPosition: 'center',
+      backgroundSize: '14px',
+    },
+
+    '.cm-panel.cm-search button[name="prev"]': {
+      backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2714%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27m18 15-6-6-6 6%27/%3E%3C/svg%3E')",
+    },
+
+    '.cm-panel.cm-search button[name="next"]': {
+      backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2714%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27m6 9 6 6 6-6%27/%3E%3C/svg%3E')",
+    },
+
+    '.cm-panel.cm-search button[name="select"]': {
+      backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2714%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cline x1=%278%27 x2=%2721%27 y1=%276%27 y2=%276%27/%3E%3Cline x1=%278%27 x2=%2721%27 y1=%2712%27 y2=%2712%27/%3E%3Cline x1=%278%27 x2=%2721%27 y1=%2718%27 y2=%2718%27/%3E%3Cline x1=%273%27 x2=%273.01%27 y1=%276%27 y2=%276%27/%3E%3Cline x1=%273%27 x2=%273.01%27 y1=%2712%27 y2=%2712%27/%3E%3Cline x1=%273%27 x2=%273.01%27 y1=%2718%27 y2=%2718%27/%3E%3C/svg%3E')",
+    },
+
+    '.cm-panel.cm-search button[name="replace"]': {
+      backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2714%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272.5%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27M5 12h14%27/%3E%3Cpath d=%27m12 5 7 7-7 7%27/%3E%3C/svg%3E')",
+    },
+
+    '.cm-panel.cm-search button[name="replaceAll"]': {
+      backgroundImage: "url('data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 width=%2714%27 height=%2714%27 viewBox=%270 0 24 24%27 fill=%27none%27 stroke=%27currentColor%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27%3E%3Cpath d=%27M2 12h8%27/%3E%3Cpath d=%27m6 8 4 4-4 4%27/%3E%3Cpath d=%27M10 12h12%27/%3E%3Cpath d=%27m16 8 4 4-4 4%27/%3E%3C/svg%3E')",
     },
 
     // Fold placeholder

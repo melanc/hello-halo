@@ -1,20 +1,23 @@
 /**
- * Markdown Viewer - Rendered markdown with source toggle
+ * Markdown Viewer - Rendered markdown with editable source toggle
  *
  * Features:
  * - Beautiful markdown rendering
- * - Toggle between rendered and source view
+ * - Toggle between rendered preview and editable source view
+ * - Edit markdown directly in source mode
+ * - Save (Cmd+S) to persist changes
  * - Code block syntax highlighting
  * - Copy to clipboard
- * - Window maximize for fullscreen viewing
+ * - Open with external application
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Copy, Check, Code, Eye, ExternalLink, Pencil } from 'lucide-react'
+import { Copy, Check, Code, Eye, ExternalLink, Save } from 'lucide-react'
 import { Streamdown } from 'streamdown'
 import 'streamdown/styles.css'
 import { useCodePlugin } from '../../../lib/streamdown-plugins'
 import { api } from '../../../api'
+import { useNotificationStore } from '../../../stores/notification.store'
 import type { CanvasTab } from '../../../stores/canvas.store'
 import { useTranslation } from '../../../i18n'
 
@@ -59,18 +62,27 @@ function resolveImageSrc(src: string | undefined, basePath: string): string {
 interface MarkdownViewerProps {
   tab: CanvasTab
   onScrollChange?: (position: number) => void
-  onEditRequest?: () => void
 }
 
-export function MarkdownViewer({ tab, onScrollChange, onEditRequest }: MarkdownViewerProps) {
+export function MarkdownViewer({ tab, onScrollChange }: MarkdownViewerProps) {
   const { t } = useTranslation()
   const containerRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [viewMode, setViewMode] = useState<'rendered' | 'source'>('rendered')
+  const [editContent, setEditContent] = useState<string>('')
+  const [isDirty, setIsDirty] = useState(false)
+  const [isSaving, setIsSaving] = useState(false)
   const [copied, setCopied] = useState(false)
   const codePlugin = useCodePlugin()
 
   // Get the base directory of the markdown file for resolving relative paths
   const basePath = tab.path ? tab.path.substring(0, tab.path.lastIndexOf('/')) : ''
+
+  // Reset edit state when tab changes
+  useEffect(() => {
+    setEditContent(tab.content || '')
+    setIsDirty(false)
+  }, [tab.id, tab.content])
 
   // Restore scroll position
   useEffect(() => {
@@ -78,6 +90,13 @@ export function MarkdownViewer({ tab, onScrollChange, onEditRequest }: MarkdownV
       containerRef.current.scrollTop = tab.scrollPosition
     }
   }, [tab.id, viewMode])
+
+  // Focus textarea when switching to source mode
+  useEffect(() => {
+    if (viewMode === 'source' && textareaRef.current) {
+      textareaRef.current.focus()
+    }
+  }, [viewMode])
 
   // Save scroll position
   const handleScroll = useCallback(() => {
@@ -88,9 +107,10 @@ export function MarkdownViewer({ tab, onScrollChange, onEditRequest }: MarkdownV
 
   // Copy content
   const handleCopy = async () => {
-    if (!tab.content) return
+    const text = viewMode === 'source' ? editContent : (tab.content || '')
+    if (!text) return
     try {
-      await navigator.clipboard.writeText(tab.content)
+      await navigator.clipboard.writeText(text)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch (err) {
@@ -108,11 +128,94 @@ export function MarkdownViewer({ tab, onScrollChange, onEditRequest }: MarkdownV
     }
   }
 
-  const content = tab.content || ''
+  // Handle source editing
+  const handleEditChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const newContent = e.target.value
+    setEditContent(newContent)
+    setIsDirty(newContent !== tab.content)
+  }, [tab.content])
+
+  // Save changes
+  const handleSave = useCallback(async () => {
+    if (!tab.path || isSaving) return
+    if (!isDirty) return
+
+    setIsSaving(true)
+    try {
+      const result = await api.saveArtifactContent(tab.path, editContent)
+      if (result.success) {
+        setIsDirty(false)
+        useNotificationStore.getState().show({
+          title: t('File saved'),
+          body: '',
+          variant: 'success',
+          duration: 2000,
+        })
+      } else {
+        useNotificationStore.getState().show({
+          title: t('Failed to save file'),
+          body: result.error || t('Unknown error'),
+          variant: 'error',
+          duration: 6000,
+        })
+      }
+    } catch (err) {
+      console.error('Failed to save:', err)
+      useNotificationStore.getState().show({
+        title: t('Failed to save file'),
+        body: (err as Error).message || t('Unknown error'),
+        variant: 'error',
+        duration: 6000,
+      })
+    } finally {
+      setIsSaving(false)
+    }
+  }, [tab.path, editContent, isDirty, isSaving, t])
+
+  // Switch to source mode and initialize content
+  const handleSwitchToSource = useCallback(() => {
+    setEditContent(tab.content || '')
+    setIsDirty(false)
+    setViewMode('source')
+  }, [tab.content])
+
+  // Handle keyboard shortcuts
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    // Cmd+S / Ctrl+S: Save
+    if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+      e.preventDefault()
+      if (viewMode === 'source' && isDirty) {
+        void handleSave()
+      }
+      return
+    }
+
+    // Cmd+Shift+P / Ctrl+Shift+P: Toggle view mode
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'P') {
+      e.preventDefault()
+      if (viewMode === 'rendered') {
+        handleSwitchToSource()
+      } else {
+        setViewMode('rendered')
+      }
+      return
+    }
+
+    // Escape: switch to preview if in source mode
+    if (e.key === 'Escape' && viewMode === 'source') {
+      e.preventDefault()
+      setViewMode('rendered')
+    }
+  }, [viewMode, isDirty, handleSave, handleSwitchToSource])
+
+  const displayContent = viewMode === 'rendered' ? (tab.content || '') : editContent
   const canOpenExternal = !api.isRemoteMode() && tab.path
 
   return (
-    <div className="relative flex flex-col h-full bg-background">
+    <div
+      className="relative flex flex-col h-full bg-background"
+      onKeyDown={handleKeyDown}
+    >
       {/* Toolbar */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-border bg-card/50">
         <div className="flex items-center gap-2">
@@ -127,12 +230,13 @@ export function MarkdownViewer({ tab, onScrollChange, onEditRequest }: MarkdownV
                   : 'text-muted-foreground hover:text-foreground'
                 }
               `}
+              title={t('Preview (Cmd+Shift+P)')}
             >
               <Eye className="w-3.5 h-3.5" />
               {t('Preview')}
             </button>
             <button
-              onClick={() => setViewMode('source')}
+              onClick={handleSwitchToSource}
               className={`
                 flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors
                 ${viewMode === 'source'
@@ -140,22 +244,33 @@ export function MarkdownViewer({ tab, onScrollChange, onEditRequest }: MarkdownV
                   : 'text-muted-foreground hover:text-foreground'
                 }
               `}
+              title={t('Source (Cmd+Shift+P)')}
             >
               <Code className="w-3.5 h-3.5" />
               {t('Source')}
             </button>
           </div>
+
+          {/* Dirty indicator dot */}
+          {isDirty && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <span className="w-1.5 h-1.5 rounded-full bg-yellow-500 inline-block" />
+              <span>{t('Unsaved')}</span>
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-1">
-          {/* Edit button */}
-          {onEditRequest && (
+          {/* Save button (source mode + dirty) */}
+          {viewMode === 'source' && isDirty && (
             <button
-              onClick={onEditRequest}
-              className="p-1.5 rounded hover:bg-secondary transition-colors"
-              title={t('Edit')}
+              onClick={handleSave}
+              disabled={isSaving}
+              className="flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              title={t('Save (Cmd+S)')}
             >
-              <Pencil className="w-4 h-4 text-muted-foreground" />
+              <Save className="w-3.5 h-3.5" />
+              {isSaving ? t('Saving...') : t('Save')}
             </button>
           )}
 
@@ -228,38 +343,20 @@ export function MarkdownViewer({ tab, onScrollChange, onEditRequest }: MarkdownV
                 }
               }}
             >
-              {content}
+              {tab.content || ''}
             </Streamdown>
           </div>
         ) : (
-          <SourceView content={content} />
+          <textarea
+            ref={textareaRef}
+            value={editContent}
+            onChange={handleEditChange}
+            className="w-full h-full resize-none border-0 bg-background text-foreground font-mono text-sm p-4 leading-6 focus:outline-none focus:ring-0"
+            spellCheck={false}
+            placeholder={t('Start editing markdown...')}
+          />
         )}
       </div>
-    </div>
-  )
-}
-
-/**
- * Source code view with line numbers
- */
-function SourceView({ content }: { content: string }) {
-  const lines = content.split('\n')
-
-  return (
-    <div className="flex font-mono text-sm">
-      {/* Line numbers */}
-      <div className="sticky left-0 flex-shrink-0 select-none bg-background border-r border-border/50 text-right text-muted-foreground/40 pr-3 pl-4 py-4 leading-6">
-        {lines.map((_, i) => (
-          <div key={i + 1}>
-            {i + 1}
-          </div>
-        ))}
-      </div>
-
-      {/* Content */}
-      <pre className="flex-1 py-4 pl-4 pr-4 overflow-x-auto whitespace-pre-wrap break-words leading-6 m-0">
-        {content}
-      </pre>
     </div>
   )
 }

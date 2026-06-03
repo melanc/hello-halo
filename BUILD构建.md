@@ -37,4 +37,25 @@ npm run build:linux
 Android/iOS 还有 cap:run:android、cap:run:ios、build:android:debug、release:android 等（Android 脚本里示例用了 ANDROID_HOME）。
 简要对照：想改代码调试 → install + prepare + dev；想确认能编过 → build；想得到 .dmg/.exe/.AppImage → 用各平台的 build:*；想多端打包 → 先 prepare:all。更细的贡献流程可见仓库根目录的 CONTRIBUTING.md。
 
--------
+-------------------
+Windows下安装：
+给 VS2022 生成工具补上 C++
+打开 「Visual Studio Installer」（开始菜单搜 Visual Studio Installer）。
+找到 「Visual Studio 2022 生成工具」（或 Build Tools 2022），点 「修改」。
+在工作负载里勾选 「使用 C++ 的桌面开发」（英文界面：Desktop development with C++）。
+若界面是组件列表，至少要保证包含：
+MSVC v143 - VS 2022 C++ x64/x86 生成工具（或同类「VC++ 工具」）
+Windows 10/11 SDK（任意较新版本即可）
+点 「修改」/「下载并安装」，等安装完成（体积较大，需一些时间）。
+
+---------
+
+打开 Visual Studio Installer（Visual Studio 安装程序）。
+找到 Visual Studio 2022 生成工具（Build Tools 2022）→ 修改。
+切到 单个组件（Individual components）。
+在搜索框输入 Spectre 或 缓解。
+勾选与你本机一致的项，至少要包含：
+MSVC v143 - VS 2022 C++ x64/x86 Spectre 缓解库（英文界面多为 MSVC v143 - VS 2022 C++ x64/x86 Spectre-mitigated libs）
+若你只用 x64 构建，选带 x64 的那一项即可。
+若安装程序里 MSVC 工具集版本 与当前项目用的不完全一致，可按界面里显示的 v14.xx 选对应 Spectre 包（与已安装的 VC++ 工具集 主版本一致即可）。
+点击 修改/安装，完成后重新打开终端，在 devx 目录再执行：

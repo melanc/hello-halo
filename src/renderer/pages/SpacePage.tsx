@@ -8,7 +8,7 @@
  * - Mobile mode: Full-screen panels with overlay canvas
  *
  * Layout preferences:
- * - Artifact Rail expansion state (persisted per space)
+ * - 工作区导航栏 WorkspaceNavBar（ArtifactRail）展开状态（按 Space 持久化，默认展开）
  * - Chat width when canvas is open (persisted per space)
  * - Maximized mode overrides (temporary)
  */
@@ -24,7 +24,6 @@ import { ChatView } from '../components/chat/ChatView'
 import { ArtifactRail } from '../components/artifact/ArtifactRail'
 import { ConversationList } from '../components/chat/ConversationList'
 import { TaskListSidebar } from '../components/tasks/TaskListSidebar'
-import { TaskPipelinePanel } from '../components/tasks/TaskPipelinePanel'
 import { ChatHistoryPanel } from '../components/chat/ChatHistoryPanel'
 import { Header } from '../components/layout/Header'
 import { SidebarToggle } from '../components/layout/SidebarToggle'
@@ -111,9 +110,7 @@ export function SpacePage() {
 
   // Layout preferences (persisted per space)
   const {
-    effectiveRailExpanded,
     effectiveChatWidth,
-    setRailExpanded,
     setChatWidth,
     chatWidthMin,
     chatWidthMax,
@@ -287,33 +284,18 @@ export function SpacePage() {
     }
   }, [isCanvasOpen, isCanvasMaximized, setCanvasMaximized])
 
-  // Auto-collapse rail when entering maximized mode, restore when exiting
-  const prevMaximizedRef = useRef(isCanvasMaximized)
-  const railExpandedBeforeMaximize = useRef(effectiveRailExpanded)
-
+  // Maximized mode: show/hide chat capsule overlay
   useEffect(() => {
-    if (isCanvasMaximized && !prevMaximizedRef.current) {
-      // Entering maximized mode - save current state and collapse
-      railExpandedBeforeMaximize.current = effectiveRailExpanded
-      if (effectiveRailExpanded) {
-        setRailExpanded(false)
-      }
-      // Show overlay chat capsule (renders above BrowserView)
+    if (isCanvasMaximized) {
       if (!isMobile) {
         api.showChatCapsuleOverlay()
       }
-    } else if (!isCanvasMaximized && prevMaximizedRef.current) {
-      // Exiting maximized mode - restore previous state
-      if (railExpandedBeforeMaximize.current) {
-        setRailExpanded(true)
-      }
-      // Hide overlay chat capsule
+    } else {
       if (!isMobile) {
         api.hideChatCapsuleOverlay()
       }
     }
-    prevMaximizedRef.current = isCanvasMaximized
-  }, [isCanvasMaximized, effectiveRailExpanded, setRailExpanded, isMobile])
+  }, [isCanvasMaximized, isMobile])
 
   // Listen for exit-maximized event from overlay
   useEffect(() => {
@@ -329,13 +311,6 @@ export function SpacePage() {
     enabled: true,
     onSearch: (scope) => openSearch(scope)
   })
-
-  // Handle new conversation (still needed for header button)
-  const handleNewConversation = useCallback(async () => {
-    if (currentSpace) {
-      await useChatStore.getState().createConversation(currentSpace.id)
-    }
-  }, [currentSpace])
 
   if (!currentSpace) {
     return (
@@ -363,7 +338,7 @@ export function SpacePage() {
       <Header
         left={
           <>
-            {/* Back button */}
+            {/* Back to home */}
             <button
               type="button"
               onClick={() => {
@@ -375,7 +350,33 @@ export function SpacePage() {
               aria-label={t('Back to home')}
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l9-8 9 8M5 12v8a1 1 0 001 1h12a1 1 0 001-1V12" />
+              </svg>
+            </button>
+
+            {/* Navigation arrows (browser-style back/forward) */}
+            <button
+              type="button"
+              onClick={() => useAppStore.getState().navBack()}
+              disabled={!useAppStore.getState().canGoBack()}
+              className="p-1.5 hover:bg-secondary rounded-lg transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              title={t('Back')}
+              aria-label={t('Back')}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 12H5M12 5l-7 7 7 7" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={() => useAppStore.getState().navForward()}
+              disabled={!useAppStore.getState().canGoForward()}
+              className="p-1.5 hover:bg-secondary rounded-lg transition-colors disabled:opacity-30 disabled:pointer-events-none"
+              title={t('Forward')}
+              aria-label={t('Forward')}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 12h14M12 5l7 7-7 7" />
               </svg>
             </button>
 
@@ -392,20 +393,6 @@ export function SpacePage() {
         }
         right={
           <>
-            {/* New conversation — hidden in task focus mode (left rail is tasks) */}
-            {!taskFocusMode && (
-              <button
-                onClick={handleNewConversation}
-                className="flex items-center gap-1.5 px-2.5 py-1 text-sm hover:bg-secondary rounded-lg transition-colors"
-                title={t('New conversation')}
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                <span className="hidden sm:inline">{t('New conversation')}</span>
-              </button>
-            )}
-
             {/* Search Icon - hidden on mobile, accessible via shortcut */}
             <div className="hidden sm:block">
               <SearchIcon onClick={openSearch} isInSpace={true} />
@@ -474,7 +461,6 @@ export function SpacePage() {
                   maxWidth: isCanvasOpen ? chatWidthMax : undefined,
                 }}
               >
-                {taskFocusMode && <TaskPipelinePanel />}
                 <ChatView isCompact={isCanvasOpen} isTaskFocusComposer={taskFocusMode} />
 
                 {/* Restore editor when canvas collapsed (desktop — was missing; must sit above ChatView stack) */}
@@ -527,17 +513,13 @@ export function SpacePage() {
             <div className="absolute bottom-[calc(env(safe-area-inset-bottom,0px)+5.5rem)] right-3 z-[100] pointer-events-auto">
               <CanvasRestoreButton />
             </div>
-            {taskFocusMode && <TaskPipelinePanel />}
             <ChatView isCompact={false} isTaskFocusComposer={taskFocusMode} />
           </div>
         )}
 
-        {/* Artifact rail - auto-collapses when maximized via useEffect above */}
-        {/* Smart collapse: collapses when canvas is open, respects user preference */}
+        {/* 工作区导航栏 WorkspaceNavBar — Dock 风格图标条，始终显示 */}
         {!isMobile && (
           <ArtifactRail
-            externalExpanded={effectiveRailExpanded}
-            onExpandedChange={setRailExpanded}
             initialWidth={artifactRailWidthConfig}
             onWidthChange={handleArtifactRailWidthChange}
           />

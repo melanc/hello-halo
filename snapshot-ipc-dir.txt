@@ -1,0 +1,4 @@
+# Page: ipc
+URL: file:///D:/workspace/node/devx/src/main/ipc
+
+uid=snap_6_0 RootWebArea

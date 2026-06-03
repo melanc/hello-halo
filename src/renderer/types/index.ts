@@ -247,6 +247,7 @@ export interface DevXConfig {
   notifications?: NotificationConfig;  // Notification preferences
   notificationChannels?: NotificationChannelsConfig;  // External notification channels
   wecomBot?: import('../../../shared/types/notification-channels').WecomBotConfig;  // WeCom Intelligent Bot
+  feishuBot?: import('../../../shared/types/notification-channels').FeishuBotConfig;  // Feishu Intelligent Bot (bidirectional)
   imChannels?: import('../../../shared/types/notification-channels').ImChannelsConfig;  // Global IM channel config
   agent?: AgentConfig;  // Agent behavior settings
   layout?: LayoutConfig;  // Global layout preferences (panel sizes and visibility)

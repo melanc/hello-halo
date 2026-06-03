@@ -49,6 +49,7 @@ import { createEventRouter, type EventRouter } from './event-router'
 import { FileWatcherSource } from './sources/file-watcher.source'
 import { WebhookSource, type WebhookSecretResolver } from './sources/webhook.source'
 import { WecomBotSource } from './sources/wecom-bot.source'
+import { FeishuBotSource } from './sources/feishu-bot.source'
 import { ImSessionRegistry, setImSessionRegistry } from './im-session-registry'
 import { getConfig } from '../../services/config.service'
 import { getDataFolderName } from '../../services/ai-sources/auth-loader'
@@ -114,6 +115,7 @@ let memoryServiceRef: MemoryService | null = null
 let activityStoreRef: ActivityStore | null = null
 let eventRouterInstance: EventRouter | null = null
 let wecomBotSourceInstance: WecomBotSource | null = null
+let feishuBotSourceInstance: FeishuBotSource | null = null
 let imSessionRegistryInstance: ImSessionRegistry | null = null
 
 /** Channel adapter registry: channel identifier → adapter instance */
@@ -219,6 +221,12 @@ export async function initAppRuntime(
   eventRouter.registerSource(wecomBotSource)
   wecomBotSourceInstance = wecomBotSource
 
+  // FeishuBotSource: bridges Feishu WebSocket long-connection events into the event router.
+  // Config is resolved at runtime (lazy) so the source adapts to settings changes.
+  const feishuBotSource = new FeishuBotSource(() => getConfig().feishuBot ?? null)
+  eventRouter.registerSource(feishuBotSource)
+  feishuBotSourceInstance = feishuBotSource
+
   // ── IM Session Registry + Channel Adapters ─────────────────────────────
   // The registry tracks all known IM sessions across digital humans.
   // Channel adapters provide the pushToChat() capability for proactive messaging.
@@ -227,8 +235,9 @@ export async function initAppRuntime(
   setImSessionRegistry(registry)
   imSessionRegistryInstance = registry
 
-  // Register WecomBotSource as a channel adapter (implements ImChannelAdapter)
+  // Register channel adapters (implements ImChannelAdapter)
   channelAdapters.set(wecomBotSource.channel, wecomBotSource)
+  channelAdapters.set(feishuBotSource.channel, feishuBotSource)
 
   // ── Create the runtime service ─────────────────────────────────────────
   const service = createAppRuntimeService({
@@ -295,6 +304,13 @@ export function getWecomBotSource(): WecomBotSource | null {
 }
 
 /**
+ * Get the FeishuBotSource instance for external use (e.g., reconnect on config change).
+ */
+export function getFeishuBotSource(): FeishuBotSource | null {
+  return feishuBotSourceInstance
+}
+
+/**
  * Shutdown the App Runtime module.
  *
  * 1. Deactivates all Apps (removes scheduler jobs + event subscriptions)
@@ -318,6 +334,7 @@ export async function shutdownAppRuntime(): Promise<void> {
   }
 
   wecomBotSourceInstance = null
+  feishuBotSourceInstance = null
   imSessionRegistryInstance = null
   channelAdapters.clear()
   setImSessionRegistry(null as any)

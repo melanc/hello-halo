@@ -25,8 +25,9 @@ import {
   memo,
   useState,
 } from 'react'
-import { Prec } from '@codemirror/state'
+import { Prec, StateEffect } from '@codemirror/state'
 import { EditorView, keymap } from '@codemirror/view'
+import { SearchQuery, setSearchQuery } from '@codemirror/search'
 import { MessageSquare } from 'lucide-react'
 import {
   createEditorState,
@@ -255,6 +256,34 @@ export const CodeMirrorEditor = memo(
       viewRef.current = view
       originalContentRef.current = content
 
+      // ── Live search on input (search as you type) ──
+      // Use MutationObserver to detect when the search panel appears in the DOM,
+      // then attach an 'input' handler to the search field that immediately
+      // dispatches search query updates so highlights are shown on every keystroke.
+      const liveSearchObserver = new MutationObserver(() => {
+        const searchField = containerRef.current?.querySelector<HTMLInputElement>(
+          '.cm-panel.cm-search input[main-field]'
+        )
+        if (!searchField || searchField.dataset.liveSearchAttached) return
+
+        searchField.dataset.liveSearchAttached = 'true'
+        searchField.addEventListener('input', () => {
+          try {
+            const query = SearchQuery.create({ search: searchField.value || undefined })
+            view.dispatch({ effects: setSearchQuery(query) })
+          } catch {
+            // Ignore errors during search dispatch
+          }
+        })
+      })
+
+      if (containerRef.current) {
+        liveSearchObserver.observe(containerRef.current, {
+          childList: true,
+          subtree: true,
+        })
+      }
+
       // Restore scroll position if provided
       if (scrollPosition !== undefined && scrollPosition > 0) {
         // Use requestAnimationFrame to ensure DOM is ready
@@ -264,6 +293,7 @@ export const CodeMirrorEditor = memo(
       }
 
       return () => {
+        liveSearchObserver.disconnect()
         view.destroy()
         viewRef.current = null
       }

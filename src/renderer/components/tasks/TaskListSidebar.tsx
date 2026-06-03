@@ -3,12 +3,14 @@
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo, memo } from 'react'
-import { ListTodo, ChevronLeft, Home, ChevronDown, ChevronUp, Circle, CheckCircle2 } from 'lucide-react'
+import { ListTodo, ChevronLeft, ChevronDown, ChevronUp, Circle, CheckCircle2, Plus } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useChatStore } from '../../stores/chat.store'
 import { useSpaceStore } from '../../stores/space.store'
 import { useAppStore } from '../../stores/app.store'
 import { useTaskStore } from '../../stores/task.store'
+import { useAppsStore } from '../../stores/apps.store'
+import { useAppsPageStore } from '../../stores/apps-page.store'
 import type { Space, WorkspaceTask } from '../../types'
 
 const MIN_WIDTH = 140
@@ -67,6 +69,8 @@ export const TaskListSidebar = memo(function TaskListSidebar({
   const { t } = useTranslation()
   const setView = useAppStore((s) => s.setView)
   const devxSpace = useSpaceStore((s) => s.devxSpace)
+  const apps = useAppsStore((s) => s.apps)
+  const setInitialAppId = useAppsPageStore((s) => s.setInitialAppId)
   const spaces = useSpaceStore((s) => s.spaces)
   const layoutConfig = useAppStore((s) => s.config?.layout)
   const initialWidth = layoutConfig?.sidebarWidth
@@ -152,7 +156,8 @@ export const TaskListSidebar = memo(function TaskListSidebar({
     async (task: WorkspaceTask) => {
       const hasDoc = Boolean(task.requirementDocName?.trim() && task.requirementDocContent?.trim())
       const hasDesc = Boolean(task.requirementDescription?.trim())
-      if (!hasDoc && !hasDesc) {
+      // Simple tasks skip the requirement-doc gate
+      if (task.taskType !== 'simple' && !hasDoc && !hasDesc) {
         setPendingRequirementTask(task.id)
         clearActiveTask()
         setView('home')
@@ -214,6 +219,48 @@ export const TaskListSidebar = memo(function TaskListSidebar({
           </button>
         )}
       </div>
+
+      {/* Automation status */}
+      {(() => {
+        const automationApps = apps.filter(a => a.spec.type === 'automation')
+        if (automationApps.length === 0) return null
+
+        const waitingApp = automationApps.find(a => a.status === 'waiting_user')
+        if (waitingApp) {
+          return (
+            <button
+              onClick={() => {
+                setInitialAppId(waitingApp.id)
+                setView('apps')
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left bg-orange-400/10 hover:bg-orange-400/20 border-b border-orange-400/20 transition-colors"
+            >
+              <span className="w-2 h-2 rounded-full bg-orange-400 flex-shrink-0" />
+              <span className="text-xs text-orange-300 truncate flex-1 min-w-0">
+                {waitingApp.spec.name} — {t('needs your input')}
+              </span>
+            </button>
+          )
+        }
+
+        const runningApps = automationApps.filter(a => a.status === 'active' || a.status === 'error')
+        if (runningApps.length === 0) return null
+
+        return (
+          <button
+            onClick={() => setView('apps')}
+            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-secondary/50 border-b border-border transition-colors"
+          >
+            <span className="w-2 h-2 rounded-full bg-green-500/70 flex-shrink-0" />
+            <span className="text-xs text-muted-foreground truncate flex-1 min-w-0">
+              {runningApps.length === 1
+                ? t('{{name}} running', { name: runningApps[0].spec.name })
+                : t('{{count}} apps running', { count: runningApps.length })
+              }
+            </span>
+          </button>
+        )
+      })()}
 
       {/* Task list */}
       <div className="flex-1 overflow-y-auto min-h-0 py-1">
@@ -337,13 +384,20 @@ export const TaskListSidebar = memo(function TaskListSidebar({
         <button
           type="button"
           onClick={() => {
-            clearActiveTask()
-            setView('home')
+            const currentSpace = useSpaceStore.getState().currentSpace
+            if (currentSpace) {
+              useChatStore.getState().createConversation(currentSpace.id)
+            }
           }}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-secondary rounded-lg transition-colors"
+          disabled={!!activeTaskId}
+          className={`w-full flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs rounded-lg transition-colors ${
+            activeTaskId
+              ? 'text-muted-foreground/30 cursor-not-allowed'
+              : 'text-muted-foreground hover:text-foreground hover:bg-secondary'
+          }`}
         >
-          <Home className="w-3.5 h-3.5" />
-          {t('Back to home')}
+          <Plus className="w-3.5 h-3.5" />
+          {t('New conversation')}
         </button>
       </div>
 

@@ -191,7 +191,8 @@ function getWorkingDir(spaceId: string): string {
     return space.workingDir || space.path
   }
 
-  return getTempSpacePath()
+  // Not a known space — could be a filesystem path (used by simple tasks)
+  return spaceId
 }
 
 /**
@@ -418,7 +419,7 @@ function isBinaryFile(ext: string): boolean {
 export interface ArtifactContent {
   content: string
   mimeType: string
-  encoding: 'utf-8' | 'base64'
+  encoding: 'utf-8' | 'gbk' | 'base64'
   size: number
 }
 
@@ -458,12 +459,15 @@ export function readArtifactContent(filePath: string): ArtifactContent {
         size: stats.size
       }
     } else {
-      // Read as UTF-8 for text files
-      const content = readFileSync(filePath, 'utf-8')
+      // Read as Buffer first for encoding detection
+      const buffer = readFileSync(filePath)
+
+      // Detect and decode text encoding
+      const { content, sourceEncoding } = decodeTextContent(buffer)
       return {
         content,
         mimeType,
-        encoding: 'utf-8',
+        encoding: sourceEncoding,
         size: stats.size
       }
     }
@@ -471,6 +475,52 @@ export function readArtifactContent(filePath: string): ArtifactContent {
     console.error(`[Artifact] Failed to read file: ${filePath}`, error)
     throw new Error(`Failed to read file: ${(error as Error).message}`)
   }
+}
+
+/**
+ * Decode text content with encoding detection.
+ *
+ * On Windows, files are often saved in GBK encoding rather than UTF-8.
+ * This function detects the encoding and decodes accordingly:
+ * 1. Check for UTF-8 BOM (0xEF 0xBB 0xBF) -> strip and decode as UTF-8
+ * 2. Try UTF-8 decoding, check for replacement characters (U+FFFD)
+ * 3. If U+FFFD found AND on Windows, try GBK fallback
+ * 4. Otherwise return UTF-8 decoded content
+ */
+function decodeTextContent(buffer: Buffer): { content: string; sourceEncoding: 'utf-8' | 'gbk' } {
+  // Check for UTF-8 BOM
+  if (buffer.length >= 3 && buffer[0] === 0xEF && buffer[1] === 0xBB && buffer[2] === 0xBF) {
+    return { content: buffer.toString('utf-8', 3), sourceEncoding: 'utf-8' }
+  }
+
+  // Try UTF-8 decoding first
+  const utf8Content = buffer.toString('utf-8')
+
+  // If the decoded content doesn't contain replacement characters (U+FFFD),
+  // it was valid UTF-8 — use it as-is
+  if (!utf8Content.includes('\uFFFD')) {
+    return { content: utf8Content, sourceEncoding: 'utf-8' }
+  }
+
+  // On Windows, try GBK fallback for files that aren't valid UTF-8
+  if (process.platform === 'win32') {
+    try {
+      // Lazy-require iconv-lite — only needed on Windows
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const iconv = require('iconv-lite') as typeof import('iconv-lite')
+      if (iconv.encodingExists('gbk')) {
+        const gbkContent = iconv.decode(buffer, 'gbk')
+        if (gbkContent) {
+          return { content: gbkContent, sourceEncoding: 'gbk' }
+        }
+      }
+    } catch {
+      // iconv-lite not available — fall through to return garbled UTF-8
+    }
+  }
+
+  // Return UTF-8 decoded content as best-effort
+  return { content: utf8Content, sourceEncoding: 'utf-8' }
 }
 
 /**

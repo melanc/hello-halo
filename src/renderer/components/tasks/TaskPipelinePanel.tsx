@@ -25,7 +25,6 @@ import {
   Pencil,
   Plus,
   X,
-  GitBranch,
   Eye,
   Activity,
   ShieldCheck,
@@ -34,6 +33,7 @@ import {
 import { MarkdownRenderer } from '../chat/MarkdownRenderer'
 import { useTranslation } from '../../i18n'
 import { useTaskStore } from '../../stores/task.store'
+import { useSessionReportStore } from '../../stores/session-report.store'
 import { useChatStore } from '../../stores/chat.store'
 import { extractDocument } from '../../utils/documentExtract'
 import {
@@ -49,7 +49,7 @@ import {
   getSubtaskProgressStats,
   parseDevPlan,
 } from '../../lib/workspace-task-messages'
-import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, PipelineDevPlanProject, WorkspaceTask, FileChangesSummary } from '../../types'
+import type { PipelineStage, PipelineSubtask, PipelineSubtaskStatus, PipelineDevPlanProject, WorkspaceTask } from '../../types'
 import { api } from '../../api'
 
 // ─────────────────────────────────────────────
@@ -770,7 +770,6 @@ function Tab3PlanAndImpl({
   availableRoots,
   resolvedRoot,
   onSaveDevPlan,
-  onSaveBranchName,
   onAddProject,
   onRemoveProject,
   onRegeneratePlan,
@@ -781,7 +780,6 @@ function Tab3PlanAndImpl({
   availableRoots: string[]
   resolvedRoot: string | null
   onSaveDevPlan: (text: string) => void
-  onSaveBranchName: (branch: string) => void
   onAddProject: (dir: string) => void
   onRemoveProject: (dir: string) => void
   onRegeneratePlan: () => void
@@ -791,8 +789,6 @@ function Tab3PlanAndImpl({
   const [draft, setDraft] = useState(task.pipelineDevPlan ?? '')
   const savedRef = useRef(task.pipelineDevPlan ?? '')
   const [devPlanEditing, setDevPlanEditing] = useState(false)
-  const [branchDraft, setBranchDraft] = useState(task.branchName ?? '')
-  const savedBranchRef = useRef(task.branchName ?? '')
   // Collapsed by default; expand button shows non-added projects; never re-collapses on X click.
   // Component remounts on tab switch, so this resets to false each time Tab3 is opened.
   const [showAllRoots, setShowAllRoots] = useState(false)
@@ -807,29 +803,12 @@ function Tab3PlanAndImpl({
     }
   }, [task.pipelineDevPlan])
 
-  useEffect(() => {
-    const incoming = task.branchName ?? ''
-    if (incoming !== savedBranchRef.current) {
-      savedBranchRef.current = incoming
-      setBranchDraft(incoming)
-    }
-  }, [task.branchName])
-
   const handleBlur = useCallback(() => {
     if (draft !== savedRef.current) {
       savedRef.current = draft
       onSaveDevPlan(draft)
     }
   }, [draft, onSaveDevPlan])
-
-  const handleBranchBlur = useCallback(() => {
-    const trimmed = branchDraft.trim()
-    if (trimmed !== savedBranchRef.current) {
-      savedBranchRef.current = trimmed
-      setBranchDraft(trimmed)
-      onSaveBranchName(trimmed)
-    }
-  }, [branchDraft, onSaveBranchName])
 
   const devPlanTextareaRef = useRef<HTMLTextAreaElement>(null)
   useEffect(() => {
@@ -847,7 +826,7 @@ function Tab3PlanAndImpl({
   const notAddedCount = allRootsToShow.filter((n) => !projectDirsSet.has(n)).length
 
   // Resolved full paths for display
-  const effectiveRoot = resolvedRoot ?? workspaceRoot
+  const effectiveRoot = workspaceRoot ?? resolvedRoot
   const dirs = task.projectDirs.filter(Boolean)
   const resolvedPaths = effectiveRoot ? buildProjectDisplayPaths(effectiveRoot, dirs) : dirs
 
@@ -944,22 +923,6 @@ function Tab3PlanAndImpl({
           )}
         </div>
       )}
-
-      {/* 开发分支 */}
-      <div>
-        <div className="flex items-center gap-1 mb-1.5">
-          <GitBranch className="w-3 h-3 text-muted-foreground/70 flex-shrink-0" />
-          <span className="text-[11px] text-muted-foreground">{t('开发分支')}</span>
-        </div>
-        <input
-          type="text"
-          className="w-full text-xs bg-secondary/40 border border-border rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/50 font-mono"
-          placeholder={t('e.g. feature/your-branch')}
-          value={branchDraft}
-          onChange={(e) => setBranchDraft(e.target.value)}
-          onBlur={handleBranchBlur}
-        />
-      </div>
 
       {/* 代码改动计划 */}
       <div>
@@ -1194,81 +1157,12 @@ function Tab4Review({
 }
 
 // ─────────────────────────────────────────────
-// Session report
-// ─────────────────────────────────────────────
-
-interface SessionReport {
-  durationMs: number
-  inputTokens: number
-  outputTokens: number
-  fileChanges?: FileChangesSummary
-  stage: PipelineStage
-}
-
-function formatDuration(ms: number): string {
-  const s = Math.floor(ms / 1000)
-  if (s < 60) return `${s}秒`
-  const m = Math.floor(s / 60)
-  const rem = s % 60
-  return rem > 0 ? `${m}分${rem}秒` : `${m}分钟`
-}
-
-function formatTokens(n: number): string {
-  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
-  return String(n)
-}
-
-function SessionReportCard({ report }: { report: SessionReport }) {
-  const { t } = useTranslation()
-  const showCodeStats = report.stage >= 2 && report.fileChanges
-
-  return (
-    <div className="mx-3 mb-2 rounded-lg border border-border/50 bg-secondary/40 px-3 py-2 text-[11px] text-foreground/80 space-y-1.5">
-      {/* Row 1: duration + tokens */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="flex items-center gap-1">
-          <span className="text-muted-foreground">{t('耗时')}</span>
-          <span className="font-medium tabular-nums">{formatDuration(report.durationMs)}</span>
-        </span>
-        <span className="text-border/80">|</span>
-        <span className="flex items-center gap-1">
-          <span className="text-muted-foreground">{t('输入')}</span>
-          <span className="font-medium tabular-nums text-blue-500/90">{formatTokens(report.inputTokens)}</span>
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="text-muted-foreground">{t('输出')}</span>
-          <span className="font-medium tabular-nums text-violet-500/90">{formatTokens(report.outputTokens)}</span>
-        </span>
-      </div>
-
-      {/* Row 2: code change stats (stage 4 / 5 only) */}
-      {showCodeStats && report.fileChanges && (
-        <div className="flex items-center gap-3 flex-wrap">
-          <span className="flex items-center gap-1">
-            <span className="text-muted-foreground">{t('涉及文件')}</span>
-            <span className="font-medium tabular-nums">{report.fileChanges.totalFiles}</span>
-          </span>
-          <span className="text-border/80">|</span>
-          <span className="font-medium tabular-nums text-emerald-600 dark:text-emerald-400">
-            +{report.fileChanges.totalAdded}
-          </span>
-          <span className="font-medium tabular-nums text-red-500/90">
-            -{report.fileChanges.totalRemoved}
-          </span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─────────────────────────────────────────────
 // Main panel inner
 // ─────────────────────────────────────────────
 
-function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
+function TaskPipelinePanelInner({ task, embedded = false }: { task: WorkspaceTask; embedded?: boolean }) {
   const { t } = useTranslation()
   const updateTaskPipelineState = useTaskStore((s) => s.updateTaskPipelineState)
-  const updateTaskBranchName = useTaskStore((s) => s.updateTaskBranchName)
   const addProjectDirToTask = useTaskStore((s) => s.addProjectDirToTask)
   const removeProjectDirFromTask = useTaskStore((s) => s.removeProjectDirFromTask)
 
@@ -1289,7 +1183,8 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   const [isSendingMessage, setIsSendingMessage] = useState(false)
   const [isIdentifying, setIsIdentifying] = useState(false)
   const [identifyHovered, setIdentifyHovered] = useState(false)
-  const [sessionReport, setSessionReport] = useState<SessionReport | null>(null)
+  const sessionReport = useSessionReportStore((s) => s.report)
+  const setSessionReport = useSessionReportStore((s) => s.setReport)
 
   // Shared artifacts tree data for Tab3 and Tab4 — fetched once per spaceId instead of
   // duplicating the IPC call in each tab component (which remounts on every tab switch).
@@ -1628,7 +1523,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             const missing: string[] = []
             await Promise.all(
               dirs.map(async (dir) => {
-                const fullPath = `${workspaceRoot}/${dir}`
+                const fullPath = dir.startsWith('/') || /^[A-Za-z]:[\\/]/.test(dir) ? dir : `${workspaceRoot}/${dir}`
                 const res = await api.checkPathExists(fullPath)
                 if (!res.success || !res.data?.exists) missing.push(fullPath)
               })
@@ -1712,7 +1607,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
             const missing: string[] = []
             await Promise.all(
               tab3ProjectDirs.map(async (dir) => {
-                const fullPath = `${workspaceRoot}/${dir}`
+                const fullPath = dir.startsWith('/') || /^[A-Za-z]:[\\/]/.test(dir) ? dir : `${workspaceRoot}/${dir}`
                 const res = await api.checkPathExists(fullPath)
                 if (!res.success || !res.data?.exists) missing.push(fullPath)
               })
@@ -1826,9 +1721,9 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
   // ── render ──
 
   return (
-    <div className="border-b border-border bg-card/60 flex flex-col">
+    <div className={`flex flex-col ${embedded ? 'h-full min-h-0 bg-card/30' : 'border-b border-border bg-card/60'}`}>
       {/* Header: tab bar + progress badge + collapse toggle */}
-      <div className="flex items-center gap-2 px-3 py-2 min-h-[40px]">
+      <div className={`flex items-center gap-2 px-3 py-2 min-h-[40px]${embedded ? ' border-b border-border/50' : ''}`}>
         <StageTabBar
           stage={stage}
           selectedTab={selectedTab}
@@ -1856,9 +1751,12 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
 
       {/* Body */}
       {!collapsed && (
-        <div className="flex flex-col">
+        <div className={`flex flex-col ${embedded ? 'flex-1 min-h-0' : ''}`}>
           {/* Tab content */}
-          <div className="overflow-y-auto px-3 pt-1 pb-3" style={{ height: contentHeight }}>
+          <div
+            className={`overflow-y-auto px-3 pt-1 pb-3 ${embedded ? 'flex-1 min-h-0' : ''}`}
+            style={embedded ? undefined : { height: contentHeight }}
+          >
             {selectedTab === 1 && (
               <Tab1Requirements
                 task={task}
@@ -1879,7 +1777,6 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
                 availableRoots={artifactsRootNames}
                 resolvedRoot={resolvedWorkspaceRoot}
                 onSaveDevPlan={handleSaveDevPlan}
-                onSaveBranchName={(b) => updateTaskBranchName(task.id, b)}
                 onAddProject={(dir) => addProjectDirToTask(task.id, dir)}
                 onRemoveProject={(dir) => removeProjectDirFromTask(task.id, dir)}
                 onRegeneratePlan={handleRegeneratePlan}
@@ -2025,20 +1922,17 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
               </div>
             )}
 
-            {/* Session report card */}
-            {sessionReport && !isSendingMessage && (
-              <SessionReportCard report={sessionReport} />
-            )}
           </div>
 
-          {/* Resize handle */}
-          <div
-            onMouseDown={handleResizeMouseDown}
-            className="h-3 cursor-ns-resize flex items-center justify-center group select-none border-t border-border/30 hover:border-border/60 transition-colors"
-            aria-hidden="true"
-          >
-            <div className="w-10 h-0.5 rounded-full bg-border/50 group-hover:bg-muted-foreground/40 transition-colors" />
-          </div>
+          {!embedded && (
+            <div
+              onMouseDown={handleResizeMouseDown}
+              className="h-3 cursor-ns-resize flex items-center justify-center group select-none border-t border-border/30 hover:border-border/60 transition-colors"
+              aria-hidden="true"
+            >
+              <div className="w-10 h-0.5 rounded-full bg-border/50 group-hover:bg-muted-foreground/40 transition-colors" />
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -2053,7 +1947,7 @@ function TaskPipelinePanelInner({ task }: { task: WorkspaceTask }) {
  * Reads the active task from the task store and renders the pipeline panel.
  * Returns null when not in task-focus mode.
  */
-export function TaskPipelinePanel() {
+export function TaskPipelinePanel({ embedded = false }: { embedded?: boolean }) {
   const activeTaskId = useTaskStore((s) => s.activeTaskId)
   const tasks = useTaskStore((s) => s.tasks)
 
@@ -2061,5 +1955,5 @@ export function TaskPipelinePanel() {
   const task = tasks.find((t) => t.id === activeTaskId)
   if (!task) return null
 
-  return <TaskPipelinePanelInner task={task} />
+  return <TaskPipelinePanelInner task={task} embedded={embedded} />
 }

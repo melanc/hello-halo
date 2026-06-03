@@ -20,6 +20,8 @@ interface AppState {
   // View state
   view: AppView
   previousView: AppView | null  // Track previous view for back navigation
+  navStack: AppView[]           // History stack for back/forward navigation
+  navForward: AppView[]         // Forward stack for forward navigation
   isLoading: boolean
   error: string | null
 
@@ -38,6 +40,10 @@ interface AppState {
   // Actions
   setView: (view: AppView) => void
   goBack: () => void  // Navigate back to previous view
+  navBack: () => void   // Navigate backward through history stack
+  navForward: () => void  // Navigate forward through history stack
+  canGoBack: () => boolean
+  canGoForward: () => boolean
   setLoading: (loading: boolean) => void
   setError: (error: string | null) => void
   setConfig: (config: DevXConfig) => void
@@ -58,6 +64,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   // Initial state
   view: 'splash',
   previousView: null,
+  navStack: [],
+  navForward: [],
   isLoading: true,
   error: null,
   config: null,
@@ -72,17 +80,42 @@ export const useAppStore = create<AppState>((set, get) => ({
     const currentView = get().view
     // Save current view as previous (except for transient screens)
     if (currentView !== 'splash' && currentView !== 'setup' && currentView !== 'serverConnect' && currentView !== 'serverList') {
-      set({ previousView: currentView, view })
+      // Push to nav history if genuinely different and not doing back/forward
+      if (view !== currentView) {
+        const navStack = [...get().navStack, currentView]
+        set({ previousView: currentView, view, navStack, navForward: [] })
+      }
     } else {
       set({ view })
     }
   },
 
   goBack: () => {
-    const previousView = get().previousView
-    // Go back to previous view, or default to home
-    set({ view: previousView || 'home', previousView: null })
+    // Use nav stack for proper history management
+    get().navBack()
   },
+
+  navBack: () => {
+    const { navStack, view: currentView } = get()
+    if (navStack.length === 0) return
+    const prev = navStack[navStack.length - 1]
+    const newStack = navStack.slice(0, -1)
+    const navForward = [...get().navForward, currentView]
+    set({ view: prev, navStack: newStack, navForward })
+  },
+
+  navForward: () => {
+    const { navForward, view: currentView } = get()
+    if (navForward.length === 0) return
+    const next = navForward[navForward.length - 1]
+    const newForward = navForward.slice(0, -1)
+    const navStack = [...get().navStack, currentView]
+    set({ view: next, navStack, navForward: newForward })
+  },
+
+  canGoBack: () => get().navStack.length > 0,
+
+  canGoForward: () => get().navForward.length > 0,
 
   setLoading: (isLoading) => set({ isLoading }),
   setError: (error) => set({ error }),

@@ -24,11 +24,9 @@
  */
 
 import { useState, useRef, useCallback, useEffect, forwardRef } from 'react'
-import { X, Loader2, AlertCircle, Plus, XCircle, Maximize2, Minimize2, PanelRightClose } from 'lucide-react'
+import { X, Loader2, AlertCircle, Plus, XCircle, PanelRightClose, Kanban } from 'lucide-react'
 import { type TabState } from '../../services/canvas-lifecycle'
 import { useCanvasLifecycle } from '../../hooks/useCanvasLifecycle'
-import { useCanvasStore } from '../../stores/canvas.store'
-import { useWindowMaximize } from './viewers/useWindowMaximize'
 import { FileIcon } from '../icons/ToolIcons'
 import { api } from '../../api'
 import { useTranslation } from '../../i18n'
@@ -300,21 +298,6 @@ export function CanvasTabs({
 
       {/* Right-side action buttons */}
       <div className="canvas-tab-bar-actions">
-        {/* Maximize/Minimize toggle button */}
-        {onToggleMaximize && (
-          <button
-            onClick={onToggleMaximize}
-            className="canvas-tab-bar-action"
-            title={isMaximized ? t('Exit fullscreen') : t('Enter fullscreen')}
-          >
-            {isMaximized ? (
-              <Minimize2 className="w-4 h-4" />
-            ) : (
-              <Maximize2 className="w-4 h-4" />
-            )}
-          </button>
-        )}
-
         {onCollapseCanvas && tabs.length > 0 && (
           <button
             type="button"
@@ -377,8 +360,8 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(function TabItem({
   onDragEnd
 }, ref) {
   const { t } = useTranslation()
-  // Get file extension for icon
   const extension = tab.path?.split('.').pop() || ''
+  const isRequirementDevTab = tab.type === 'requirement-dev'
 
   // Handle middle-click to close tab
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -423,6 +406,8 @@ const TabItem = forwardRef<HTMLDivElement, TabItemProps>(function TabItem({
           <Loader2 className="w-4 h-4 animate-spin text-primary" />
         ) : tab.error ? (
           <AlertCircle className="w-4 h-4 text-destructive" />
+        ) : isRequirementDevTab ? (
+          <Kanban className="w-4 h-4 text-violet-500" />
         ) : (
           <FileIcon
             extension={extension}
@@ -468,34 +453,10 @@ export function CanvasTabBar() {
   const { t } = useTranslation()
   const { tabs, activeTabId, switchTab, closeTab, closeAllTabs, refreshTab, openUrl, setOpen } =
     useCanvasLifecycle()
-  const isCanvasMaximized = useCanvasStore(state => state.isMaximized)
-  const toggleCanvasMaximized = useCanvasStore(state => state.toggleMaximized)
-  const { isMaximized: isWindowMaximized, toggleMaximize: toggleWindowMaximize } = useWindowMaximize()
-
-  // Combined maximize state: both window AND canvas are maximized
-  const isFullyMaximized = isCanvasMaximized && isWindowMaximized
-
   // Handle new tab - opens configured homepage (respects browser policy)
   const handleNewTab = useCallback(() => {
     getBrowserHomepage().then(url => openUrl(url, t('New Tab')))
   }, [openUrl, t])
-
-  // Handle combined maximize toggle: window maximize + canvas fullscreen
-  const handleToggleMaximize = useCallback(async () => {
-    if (isFullyMaximized) {
-      // Exit: restore window size first, then exit canvas fullscreen
-      await toggleWindowMaximize()
-      toggleCanvasMaximized()
-    } else {
-      // Enter: maximize window and canvas fullscreen together
-      if (!isWindowMaximized) {
-        await toggleWindowMaximize()
-      }
-      if (!isCanvasMaximized) {
-        toggleCanvasMaximized()
-      }
-    }
-  }, [isFullyMaximized, isWindowMaximized, isCanvasMaximized, toggleWindowMaximize, toggleCanvasMaximized])
 
   return (
     <CanvasTabs
@@ -506,8 +467,6 @@ export function CanvasTabBar() {
       onRefresh={refreshTab}
       onNewTab={handleNewTab}
       onCloseAll={closeAllTabs}
-      isMaximized={isFullyMaximized}
-      onToggleMaximize={handleToggleMaximize}
       onCollapseCanvas={() => setOpen(false)}
     />
   )

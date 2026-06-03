@@ -20,7 +20,7 @@
  */
 
 import { useState, useRef, useEffect, useMemo, useCallback, KeyboardEvent, ClipboardEvent, DragEvent } from 'react'
-import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X, FileText, FileCode, Folder, Mic, ListChecks, TerminalSquare } from 'lucide-react'
+import { Plus, ImagePlus, Loader2, AlertCircle, Atom, Globe, X, FileText, FileCode, Folder, Mic, ListChecks } from 'lucide-react'
 import { useAppStore } from '../../stores/app.store'
 import { useChatStore } from '../../stores/chat.store'
 import { useOnboardingStore } from '../../stores/onboarding.store'
@@ -28,7 +28,6 @@ import { useAIBrowserStore } from '../../stores/ai-browser.store'
 import { getOnboardingPrompt } from '../onboarding/onboardingData'
 import { ImageAttachmentPreview } from './ImageAttachmentPreview'
 import { SpeechVolumeMeter } from './SpeechVolumeMeter'
-import { CommandPanel } from './CommandPanel'
 import { processImage, isValidImageType, formatFileSize } from '../../utils/imageProcessor'
 import {
   extractWordDocument,
@@ -89,7 +88,10 @@ interface MentionMatch {
 
 function getMentionMatch(value: string, cursorPosition: number): MentionMatch | null {
   const beforeCursor = value.slice(0, cursorPosition)
-  const match = beforeCursor.match(/(^|\s)@([^\s@]*)$/)
+  // Match @ when preceded by start-of-input, whitespace, or any non-alphanumeric
+  // character (e.g. CJK characters). This ensures Chinese users typing 修改@src
+  // without a space before @ still get the mention menu.
+  const match = beforeCursor.match(/(^|[^a-zA-Z0-9_])@([^\s@]*)$/)
   if (!match || match.index === undefined) return null
   const start = match.index + match[1].length
   return { query: match[2] || '', start, end: cursorPosition }
@@ -135,6 +137,8 @@ interface InputAreaProps {
   clearComposerReferenceChips?: () => void
   /** Active task context shown as a small label inside the top-left of the input box */
   taskContext?: { name: string; stage: string }
+  /** Session report stats shown to the right of the task context label */
+  sessionReport?: { durationMs: number; inputTokens: number; outputTokens: number }
   /** When set, appends the text as a blockquote into the textarea then calls the callback */
   appendBlock?: string | null
   onAppendBlockConsumed?: () => void
@@ -176,12 +180,26 @@ export function InputArea({
   onRemoveComposerReferenceChip,
   clearComposerReferenceChips,
   taskContext,
+  sessionReport,
   appendBlock,
   onAppendBlockConsumed,
   initialContent,
   onDraftChange,
 }: InputAreaProps) {
   const { t, i18n } = useTranslation()
+
+  function formatDuration(ms: number): string {
+    const s = Math.floor(ms / 1000)
+    if (s < 60) return `${s}${t('秒')}`
+    const m = Math.floor(s / 60)
+    const rem = s % 60
+    return rem > 0 ? `${m}${t('分')}${rem}${t('秒')}` : `${m}${t('分钟')}`
+  }
+
+  function formatTokens(n: number): string {
+    if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+    return String(n)
+  }
   const textareaMaxHeightPx = 200 + (isTaskFocusComposer ? TASK_FOCUS_COMPOSER_EXTRA_HEIGHT_PX : 0)
   const textareaMinHeightPx = 24 + (isTaskFocusComposer ? TASK_FOCUS_COMPOSER_EXTRA_HEIGHT_PX : 0)
   const sendKeyMode = useAppStore(state => state.config?.chat?.sendKeyMode ?? 'enter')
@@ -193,7 +211,6 @@ export function InputArea({
   const [isProcessingImages, setIsProcessingImages] = useState(false)
   const [isProcessingWord, setIsProcessingWord] = useState(false)
   const [isProcessingTextFile, setIsProcessingTextFile] = useState(false)
-  const [isTerminalMode, setIsTerminalMode] = useState(false)
   const [imageError, setImageError] = useState<ImageError | null>(null)
   const [thinkingEnabled, setThinkingEnabled] = useState(true)  // Extended thinking mode
   const [showAttachMenu, setShowAttachMenu] = useState(false)  // Attachment menu visibility
@@ -1077,9 +1094,6 @@ export function InputArea({
         />
 
         {/* Input container */}
-        {isTerminalMode ? (
-          <CommandPanel onClose={() => setIsTerminalMode(false)} />
-        ) : (
         <div
           className={`
             relative flex flex-col rounded-2xl transition-all duration-200
@@ -1247,9 +1261,24 @@ export function InputArea({
 
           {/* Active task tag — top-left inside the rounded input box */}
           {taskContext && (
-            <div className="px-3 pt-2 pb-0 flex items-center gap-1.5 select-none pointer-events-none">
-              <ListChecks className="w-2.5 h-2.5 text-primary/70 flex-shrink-0" />
-              <span className="text-[10px] font-medium text-primary truncate max-w-[220px]">{taskContext.name}</span>
+            <div className="px-3 pt-2 pb-0 flex items-center justify-between gap-1.5 select-none pointer-events-none">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <ListChecks className="w-2.5 h-2.5 text-primary/70 flex-shrink-0" />
+                <span className="text-[10px] font-medium text-primary truncate max-w-[220px]">{taskContext.name}</span>
+              </div>
+              {sessionReport && (
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground/70 flex-shrink-0">
+                  <span className="tabular-nums">{formatDuration(sessionReport.durationMs)}</span>
+                  <span className="flex items-center gap-0.5">
+                    <span>{t('输入')}</span>
+                    <span className="font-medium text-blue-500/80">{formatTokens(sessionReport.inputTokens)}</span>
+                  </span>
+                  <span className="flex items-center gap-0.5">
+                    <span>{t('输出')}</span>
+                    <span className="font-medium text-violet-500/80">{formatTokens(sessionReport.outputTokens)}</span>
+                  </span>
+                </div>
+              )}
             </div>
           )}
 
@@ -1319,7 +1348,6 @@ export function InputArea({
             onThinkingToggle={() => setThinkingEnabled(!thinkingEnabled)}
             aiBrowserEnabled={aiBrowserEnabled}
             onAIBrowserToggle={() => setAIBrowserEnabled(!aiBrowserEnabled)}
-            onTerminalClick={() => setIsTerminalMode(true)}
             showAttachMenu={showAttachMenu}
             onAttachMenuToggle={() => setShowAttachMenu(!showAttachMenu)}
             onImageClick={handleImageButtonClick}
@@ -1339,7 +1367,6 @@ export function InputArea({
             onVoiceClick={handleVoiceInputClick}
           />
         </div>
-        )}
       </div>
     </div>
   )
@@ -1361,7 +1388,6 @@ interface InputToolbarProps {
   onAIBrowserToggle: () => void
   showAttachMenu: boolean
   onAttachMenuToggle: () => void
-  onTerminalClick: () => void
   onImageClick: () => void
   onWordClick: () => void
   onTextFileClick: () => void
@@ -1387,7 +1413,6 @@ function InputToolbar({
   onThinkingToggle,
   aiBrowserEnabled,
   onAIBrowserToggle,
-  onTerminalClick,
   showAttachMenu,
   onAttachMenuToggle,
   onImageClick,
@@ -1487,19 +1512,6 @@ function InputToolbar({
               </div>
             )}
           </div>
-        )}
-
-        {/* Terminal toggle — sits right next to + */}
-        {!isGenerating && !isOnboarding && (
-          <button
-            onClick={onTerminalClick}
-            className="w-8 h-8 flex items-center justify-center rounded-lg
-              text-muted-foreground/60 hover:text-muted-foreground hover:bg-muted/50
-              transition-all duration-150"
-            title={t('Open terminal')}
-          >
-            <TerminalSquare size={15} />
-          </button>
         )}
 
         {/* AI Browser toggle */}

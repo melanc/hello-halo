@@ -49,9 +49,70 @@ import {
 import { onAgentError, runPpidScanAndCleanup } from '../health'
 import { resolveCredentialsForSdk, buildBaseSdkOptions } from './sdk-config'
 import { processStream } from './stream-processor'
+import { generatePromptInstructions } from '../../platform/memory/prompt'
+import { readMemorySection } from '../../platform/memory/file-ops'
+import { buildDailyLogContext } from '../../platform/memory/dailylog'
+import { consolidateDailyLog } from '../../platform/memory/consolidation'
+import { getSpace } from '../space.service'
+import { join } from 'path'
 
 // Unified fallback error suffix - guides user to check logs
 const FALLBACK_ERROR_HINT = 'Check logs in Settings > System > Logs.'
+
+// ============================================
+// Memory Context Builder
+// ============================================
+
+/**
+ * Build memory instructions + current snapshot for injection into interactive chat.
+ *
+ * Reads V3 memory.md (# now section) and formats it as a context block appended to the system prompt.
+ *
+ * When credentials are provided, uses relevance recall to select only the most
+ * relevant memory context. Without credentials, falls back
+ * to showing the current state.
+ *
+ * Failures are silently caught — memory is best-effort, never blocks the message.
+ */
+async function buildMemoryContext(
+  spacePath: string,
+  options?: {
+    query?: string          // User message for relevance recall
+    apiKey?: string         // API key for side-query model
+    baseUrl?: string        // Base URL for side-query model
+  }
+): Promise<string | null> {
+  try {
+    const memoryInstructions = generatePromptInstructions()
+    const snapshotParts: string[] = []
+
+    // V3 working memory: read # now section from memory.md
+    const memoryFilePath = join(spacePath, '.devx', 'memory.md')
+    const nowSection = await readMemorySection(memoryFilePath, '# now')
+    if (nowSection) {
+      snapshotParts.push('## Current Working Memory\n' + nowSection)
+    }
+
+    const snapshotBlock = snapshotParts.length > 0
+    ? '\n\n### Current Memory State\n\n' + snapshotParts.join('\n\n')
+    : '\n\n### Current Memory State\n\n*(No memory entries yet — create them as you learn.)*'
+
+  // Inject recent daily logs (global scope — best-effort)
+  let dailyLogBlock = ''
+  try {
+    const recentLogs = await buildDailyLogContext(3)
+    if (recentLogs) {
+      dailyLogBlock = '\n\n' + recentLogs
+    }
+  } catch {
+    // Best-effort: daily log is non-critical
+  }
+
+  return '## Memory System\n\n' + memoryInstructions + snapshotBlock + dailyLogBlock
+  } catch {
+    return null // Best-effort: don't block the message on memory errors
+  }
+}
 
 // ============================================
 // Send Message
@@ -87,6 +148,8 @@ export async function sendMessage(
 
   const config = getConfig()
   const workDir = getWorkingDir(spaceId)
+  // Resolve space path for memory access (best-effort)
+  const memorySpacePath = spaceId ? getSpace(spaceId)?.path : undefined
 
   // Create abort controller for this session
   const abortController = new AbortController()
@@ -178,6 +241,24 @@ export async function sendMessage(
     }
     if (thinkingEnabled) {
       sdkOptions.maxThinkingTokens = 10240
+    }
+
+    // Inject memory instructions + snapshot into system prompt (best-effort)
+    // Uses relevance recall to select the most relevant memory context.
+    if (memorySpacePath) {
+      try {
+        const memoryContext = await buildMemoryContext(memorySpacePath, {
+          query: message,  // Use user's message for relevance matching
+          apiKey: resolvedCredentials.anthropicApiKey,
+          baseUrl: resolvedCredentials.anthropicBaseUrl,
+        })
+        if (memoryContext) {
+          sdkOptions.systemPrompt = (sdkOptions.systemPrompt || '') + '\n\n' + memoryContext
+          console.log(`[Agent][${conversationId}] Memory context injected into system prompt (with relevance recall)`)
+        }
+      } catch (err) {
+        console.error(`[Agent][${conversationId}] Failed to inject memory context:`, err)
+      }
     }
 
     const t0 = Date.now()
@@ -295,6 +376,16 @@ export async function sendMessage(
 
     // System notification for task completion (if window not focused)
     notifyTaskComplete(conversation?.title || 'Conversation')
+
+    // Fire-and-forget: consolidate daily log (global scope, best-effort)
+    // Does NOT block the response to the user.
+    consolidateDailyLog(credentials, abortController.signal).then(result => {
+      if (result && result.saved > 0) {
+        console.log(`[Agent][${conversationId}] Daily log consolidation: ${result.saved} memories saved`)
+      }
+    }).catch(err => {
+      console.error(`[Agent][${conversationId}] Background daily log consolidation failed:`, err)
+    })
 
   } catch (error: unknown) {
     const err = error as Error

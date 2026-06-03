@@ -20,7 +20,7 @@ const LAYOUT_DEFAULTS = {
   chatWidthMax: 800,
   chatWidthMaxWhenMaximized: 800,
   chatWidthMinWhenMaximized: 320,
-  artifactRailExpanded: false, // Default: collapsed when canvas is open
+  artifactRailExpanded: true, // Default: expanded (user can collapse)
 }
 
 interface UseLayoutPreferencesReturn {
@@ -100,7 +100,7 @@ export function useLayoutPreferences(
       return layoutPrefs.artifactRailExpanded
     }
 
-    // Priority 4: Default (collapsed when canvas open)
+    // Priority 4: Default (expanded; user may collapse and persist)
     return LAYOUT_DEFAULTS.artifactRailExpanded
   })()
 
@@ -128,7 +128,7 @@ export function useLayoutPreferences(
 
   // Set rail expanded state (user action)
   const setRailExpanded = useCallback((expanded: boolean) => {
-    console.log('[useLayoutPreferences] 🟡 setRailExpanded called:', expanded, 'time:', Date.now())
+    console.log('[useLayoutPreferences] setRailExpanded called:', expanded)
     // Mark as user override
     setUserRailOverride(expanded)
 

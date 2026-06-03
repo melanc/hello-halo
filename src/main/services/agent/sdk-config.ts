@@ -337,7 +337,21 @@ export function buildSdkEnv(params: SdkEnvParams): Record<string, string | numbe
 // Claude Code CLI Path Resolution
 // ============================================
 
-const CLI_RELATIVE = 'node_modules/@anthropic-ai/claude-code/cli.js'
+/** Legacy Node entry; newer @anthropic-ai/claude-code ships a native binary instead. */
+const CLI_RELATIVE_CANDIDATES = [
+  'node_modules/@anthropic-ai/claude-code/cli.js',
+  'node_modules/@anthropic-ai/claude-code/bin/claude.exe',
+] as const
+
+function buildCliPathCandidates(...baseDirs: string[]): string[] {
+  const candidates: string[] = []
+  for (const baseDir of baseDirs) {
+    for (const relative of CLI_RELATIVE_CANDIDATES) {
+      candidates.push(path.join(baseDir, relative))
+    }
+  }
+  return candidates
+}
 
 /**
  * Resolve the path to the Claude Code CLI executable.
@@ -359,21 +373,16 @@ const CLI_RELATIVE = 'node_modules/@anthropic-ai/claude-code/cli.js'
  * Using `app.isPackaged` cleanly separates case 1 from 2/3. For the unpackaged cases,
  * `existsSync` picks whichever candidate path actually exists, covering both dev and E2E
  * without any hardcoded relative-path assumptions.
+ *
+ * Newer claude-code releases replace cli.js with bin/claude.exe (native binary).
+ * The agent SDK detects native vs Node entry by file extension.
  */
-function resolveClaudeCodeCliPath(): string {
-  if (app.isPackaged) {
-    // Packaged: node_modules is bundled inside the asar alongside the app
-    return path.join(app.getAppPath(), CLI_RELATIVE)
-  }
+export function resolveClaudeCodeCliPath(): string {
+  const baseDirs = app.isPackaged
+    ? [app.getAppPath()]
+    : [app.getAppPath(), path.join(app.getAppPath(), '..', '..')]
 
-  // Unpackaged (dev or E2E build): search candidate locations
-  const candidates = [
-    // Dev mode: app.getAppPath() === project root
-    path.join(app.getAppPath(), CLI_RELATIVE),
-    // E2E build mode: app.getAppPath() === out/main/, project root is two levels up
-    path.join(app.getAppPath(), '..', '..', CLI_RELATIVE),
-  ]
-
+  const candidates = buildCliPathCandidates(...baseDirs)
   const resolved = candidates.find(existsSync)
   if (!resolved) {
     throw new Error(

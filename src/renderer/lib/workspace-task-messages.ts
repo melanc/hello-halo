@@ -16,13 +16,20 @@ export function getInvolvedProjectDirNames(task: WorkspaceTask): string[] {
   return Array.from(new Set([...(task.projectDirs ?? []), ...(task.touchedProjectDirs ?? [])])).filter(Boolean)
 }
 
-/** Best-effort absolute-style paths for prompts (workspace root + each first-level dir). */
+/** Best-effort absolute-style paths for prompts (workspace root + each first-level dir).
+ *  If a dir name is already an absolute path (starts with `/` or a Windows drive letter),
+ *  it is returned as-is instead of being concatenated with workspaceRoot. */
 export function buildProjectDisplayPaths(workspaceRoot: string, dirNames: string[]): string[] {
   const root = workspaceRoot.trim()
   if (!root) return dirNames
   const sep = root.includes('\\') ? '\\' : '/'
   const normalizedRoot = root.replace(/[\\/]+$/, '')
-  return dirNames.map((d) => `${normalizedRoot}${sep}${d.replace(/^[\\/]+/, '')}`)
+  return dirNames.map((d) => {
+    const trimmed = d.trim()
+    if (trimmed.startsWith('/')) return trimmed
+    if (/^[A-Za-z]:[\\/]/.test(trimmed)) return trimmed
+    return `${normalizedRoot}${sep}${trimmed.replace(/^[\\/]+/, '')}`
+  })
 }
 
 /** Tab 2 — require saved dev plan text, at least one project dir, and a non-empty branch.
@@ -39,11 +46,10 @@ export function evaluateCodingPrereqs(task: WorkspaceTask, t: TFunction): { ok: 
     }
   }
   const dirs = getInvolvedProjectDirNames(task)
-  const branch = task.branchName?.trim() ?? ''
-  if (!isSimple && (dirs.length === 0 || !branch)) {
+  if (!isSimple && dirs.length === 0) {
     return {
       ok: false,
-      message: t('请先在标签 2 设置至少一个涉及项目和开发分支，确认后再开始编码。'),
+      message: t('请先在标签 2 设置至少一个涉及项目，确认后再开始编码。'),
     }
   }
   return { ok: true, message: '' }
@@ -316,9 +322,6 @@ export function buildIntentAnalysisMessage(
       if (plan) {
         blocks.push('', t('开发计划（必须遵照执行）：'), plan.slice(0, DEV_PLAN_EXCERPT_LEN))
       }
-      if (task.branchName?.trim()) {
-        blocks.push('', t('开发分支：{{branch}}', { branch: task.branchName.trim() }))
-      }
       if (opts.codingWorkspaceRoot?.trim()) {
         blocks.push('', t('工作区根路径：{{path}}', { path: opts.codingWorkspaceRoot.trim() }))
       }
@@ -506,9 +509,6 @@ export function buildCodingKickoffMessage(
     t('任务名称：{{name}}', { name: task.name }),
   )
 
-  if (task.branchName?.trim()) {
-    blocks.push('', t('开发分支：{{branch}}', { branch: task.branchName.trim() }))
-  }
   if (ctx?.workspaceRoot?.trim()) {
     blocks.push('', t('工作区根路径：{{path}}', { path: ctx.workspaceRoot.trim() }))
   }

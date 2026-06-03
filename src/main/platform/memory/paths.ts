@@ -24,9 +24,23 @@ const MEMORY_FILENAME = 'memory.md'
 /** Subdirectory for compaction archives; session summaries go to memory/run/ */
 const MEMORY_ARCHIVE_DIR = 'memory'
 
+/** Halo-level global memory directory (daily logs, cross-scope features) */
+const GLOBAL_MEMORY_DIR = 'memory'
+
 // ============================================================================
 // Path Resolution
 // ============================================================================
+
+/**
+ * Get the global memory directory at the halo (DevX data) level.
+ *
+ * Path: {haloDir}/memory/
+ *
+ * Used for platform-wide memory features such as daily logs ({haloDir}/memory/logs/).
+ */
+export function getGlobalMemoryDir(): string {
+  return join(getDevXDir(), GLOBAL_MEMORY_DIR)
+}
 
 /**
  * Get the base directory for a given memory scope.

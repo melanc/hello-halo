@@ -94,22 +94,33 @@ interface ArtifactTreeProps {
   onboardingArtifactActivate?: () => void
 }
 
-// Fixed offsets for tree height calculation (in pixels)
-// 180px accounts for: header (60px) + toolbar (40px) + padding/margins (80px)
-const TREE_HEIGHT_OFFSET = 180
-
 // Row height for virtual scrolling (in pixels)
 // 26px provides comfortable spacing for file/folder names with icons
 const TREE_ROW_HEIGHT = 26
 
-function useTreeHeight() {
-  const [height, setHeight] = useState(() => window.innerHeight - TREE_HEIGHT_OFFSET)
+/**
+ * Dynamically measure tree container height via ResizeObserver.
+ * Uses a state callback ref so the measurement happens when the
+ * tree area div actually mounts (not when the ref object is created).
+ */
+function useTreeHeight(el: HTMLElement | null): number {
+  const [height, setHeight] = useState(400)
 
   useEffect(() => {
-    const handleResize = () => setHeight(window.innerHeight - TREE_HEIGHT_OFFSET)
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
+    if (!el) return
+
+    const updateHeight = () => {
+      setHeight(el.clientHeight)
+    }
+
+    updateHeight()
+
+    const observer = new ResizeObserver(() => {
+      updateHeight()
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [el])
 
   return height
 }
@@ -296,7 +307,8 @@ export function ArtifactTree({
   }, [taskFocusSessionId, effectiveTaskRootSet])
 
   const [loadingPaths, setLoadingPaths] = useState<Set<string>>(new Set())
-  const treeHeight = useTreeHeight()
+  const [treeAreaEl, setTreeAreaEl] = useState<HTMLDivElement | null>(null)
+  const treeHeight = useTreeHeight(treeAreaEl)
   /** Bumped on each spaceId change so in-flight loadChildren cannot mutate a stale tree. */
   const spaceEpochRef = useRef(0)
   const treeRef = useRef<TreeApi<ArtifactTreeNode>>(null)
@@ -927,7 +939,7 @@ export function ArtifactTree({
       <SpaceIdContext.Provider value={spaceId}>
       <OnboardingTreeContext.Provider value={onboardingTreeValue}>
       <LazyLoadContext.Provider value={lazyLoadValue}>
-        <div ref={containerRef} tabIndex={-1} className="flex flex-col h-full outline-none">
+        <div ref={containerRef} tabIndex={-1} className="flex flex-col absolute inset-0 outline-none">
           {/* Override react-arborist focus-visible styles */}
           <style>{`
             [role="treeitem"]:focus-visible {
@@ -937,10 +949,7 @@ export function ArtifactTree({
           
           {/* Header with toolbar */}
           <div className="flex-shrink-0 bg-card px-2 py-1.5 border-b border-border/50">
-            <div className="flex items-center justify-between">
-              <span className="text-[10px] text-muted-foreground/80 [.light_&]:text-muted-foreground uppercase tracking-wider">
-                {t('File navigation bar')}
-              </span>
+            <div className="flex items-center justify-end">
               <div className="flex gap-1 items-center">
                 {effectiveTaskRootSet != null ? (
                   <button
@@ -969,7 +978,7 @@ export function ArtifactTree({
                     )}
                   </button>
                 ) : null}
-                <button 
+                <button
                   onClick={handleNewFile}
                   className="p-1 hover:bg-secondary/60 rounded transition-colors"
                   title={t('New File')}
@@ -987,9 +996,10 @@ export function ArtifactTree({
             </div>
           </div>
 
-          {/* Tree — uses window height based calculation */}
+          {/* Tree — dynamically measured height via ResizeObserver */}
+          <div ref={setTreeAreaEl} className="flex-1 overflow-hidden relative">
           <ContextMenu
-            className="flex-1 overflow-hidden"
+            className="h-full"
             items={[
               {
                 label: t('New File'),
@@ -1026,6 +1036,7 @@ export function ArtifactTree({
               {TreeNodeComponent}
             </Tree>
           </ContextMenu>
+          </div> {/* end treeArea wrapper */}
         </div>
 
         {/* Confirmation dialog */}

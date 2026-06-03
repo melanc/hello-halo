@@ -185,7 +185,7 @@ const ThoughtItem = memo(function ThoughtItem({ thought, isLast }: { thought: Th
 
 
   return (
-    <div className="flex gap-3 group animate-fade-in">
+    <div className="flex gap-3 group">
       {/* Timeline line */}
       <div className="flex flex-col items-center">
         <div className={`w-7 h-7 rounded-full flex items-center justify-center ${
@@ -402,7 +402,8 @@ export function ThoughtProcess({ thoughts, isThinking }: ThoughtProcessProps) {
   const { handleScroll } = useSmartScroll({
     containerRef: contentRef,
     threshold: 50,
-    deps: [thoughts, isExpanded]
+    deps: [thoughts.length, isExpanded],
+    behavior: 'auto'
   })
 
   // Don't render if no thoughts and not thinking

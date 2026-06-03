@@ -2,8 +2,10 @@ import { ipcMain, BrowserWindow } from 'electron'
 import { spawn, ChildProcess } from 'child_process'
 import path from 'path'
 import fs from 'fs'
+import * as pty from 'node-pty'
 
 const activeProcesses = new Map<string, ChildProcess>()
+const activePtyProcesses = new Map<string, pty.IPty>()
 
 export function registerTerminalHandlers(): void {
   ipcMain.handle('terminal:run', (event, { id, cmd, cwd }: { id: string; cmd: string; cwd?: string }) => {
@@ -79,11 +81,76 @@ export function registerTerminalHandlers(): void {
     }
     return { success: true }
   })
+
+  // === PTY-based terminal (node-pty + xterm.js) ===
+
+  ipcMain.handle('terminal-pty:create', (event, { cols, rows }: { cols?: number; rows?: number } = {}) => {
+    const win = BrowserWindow.fromWebContents(event.sender)
+    const shell = process.platform === 'win32' ? 'powershell.exe' : (process.env.SHELL || '/bin/bash')
+    const id = `pty-${Date.now()}`
+
+    const term = pty.spawn(shell, [], {
+      name: 'xterm-256color',
+      cols: cols ?? 80,
+      rows: rows ?? 24,
+      cwd: process.env.HOME,
+      env: { ...process.env } as { [key: string]: string },
+    })
+
+    activePtyProcesses.set(id, term)
+
+    term.onData((data: string) => {
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('terminal-pty:data', { id, data })
+      }
+    })
+
+    term.onExit(({ exitCode, signal }) => {
+      activePtyProcesses.delete(id)
+      if (win && !win.isDestroyed()) {
+        win.webContents.send('terminal-pty:exit', { id, exitCode, signal })
+      }
+    })
+
+    return { success: true, data: { id } }
+  })
+
+  ipcMain.handle('terminal-pty:write', (_event, { id, data }: { id: string; data: string }) => {
+    const term = activePtyProcesses.get(id)
+    if (term) {
+      term.write(data)
+      return { success: true }
+    }
+    return { success: false, error: 'PTY not found' }
+  })
+
+  ipcMain.handle('terminal-pty:resize', (_event, { id, cols, rows }: { id: string; cols: number; rows: number }) => {
+    const term = activePtyProcesses.get(id)
+    if (term) {
+      term.resize(cols, rows)
+      return { success: true }
+    }
+    return { success: false, error: 'PTY not found' }
+  })
+
+  ipcMain.handle('terminal-pty:kill', (_event, { id }: { id: string }) => {
+    const term = activePtyProcesses.get(id)
+    if (term) {
+      term.kill()
+      activePtyProcesses.delete(id)
+      return { success: true }
+    }
+    return { success: false, error: 'PTY not found' }
+  })
 }
 
 export function cleanupTerminalHandlers(): void {
   for (const [id, p] of activeProcesses) {
     try { p.kill() } catch {}
     activeProcesses.delete(id)
+  }
+  for (const [id, p] of activePtyProcesses) {
+    try { p.kill() } catch {}
+    activePtyProcesses.delete(id)
   }
 }

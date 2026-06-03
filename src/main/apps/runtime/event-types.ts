@@ -115,6 +115,7 @@ export type EventSourceType =
   | 'webpage'    // V2 placeholder
   | 'rss'        // V2 placeholder
   | 'wecom-bot'
+  | 'feishu-bot'
   | 'internal'
 
 /**

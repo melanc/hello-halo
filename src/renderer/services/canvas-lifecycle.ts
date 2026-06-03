@@ -46,6 +46,10 @@ export type ContentType =
   | 'browser'
   | 'terminal'
   | 'diff'
+  | 'requirement-dev'
+
+/** Virtual path for the singleton requirement-development kanban tab */
+export const REQUIREMENT_DEV_TAB_PATH = 'devx://requirement-dev'
 
 export interface BrowserState {
   isLoading: boolean
@@ -327,6 +331,13 @@ class CanvasLifecycle {
   private isOpen: boolean = false
   private isTransitioning: boolean = false
 
+  // Per-space tab persistence: save/restore tabs when switching spaces
+  private savedSpaceStates = new Map<string, {
+    tabs: Map<string, TabState>
+    activeTabId: string | null
+    isOpen: boolean
+  }>()
+
   // Track which space the current tabs belong to
   private currentSpaceId: string | null = null
 
@@ -335,6 +346,10 @@ class CanvasLifecycle {
 
   // IPC listener cleanup
   private browserStateUnsubscribe: (() => void) | null = null
+
+  // File watching
+  private fileChangedUnsubscribe: (() => void) | null = null
+  private watchedFiles: Set<string> = new Set()
 
   // Callback subscriptions
   private tabsChangeCallbacks: Set<TabsChangeCallback> = new Set()
@@ -405,6 +420,23 @@ class CanvasLifecycle {
       }
     })
 
+    // Listen for external file changes
+    this.fileChangedUnsubscribe = api.onFileChanged((data) => {
+      const { path: changedPath, content } = data
+      // Find if any tab has this file path open
+      for (const [tabId, tab] of this.tabs) {
+        if (tab.path === changedPath) {
+          // Only auto-reload if tab has no unsaved changes
+          if (!tab.isDirty) {
+            tab.content = content
+            tab.isLoading = false
+            this.notifyTabsChange()
+          }
+          break
+        }
+      }
+    })
+
     console.log('[CanvasLifecycle] Initialized successfully')
   }
 
@@ -418,6 +450,17 @@ class CanvasLifecycle {
       this.browserStateUnsubscribe()
       this.browserStateUnsubscribe = null
     }
+
+    if (this.fileChangedUnsubscribe) {
+      this.fileChangedUnsubscribe()
+      this.fileChangedUnsubscribe = null
+    }
+
+    // Unwatch all files
+    for (const filePath of this.watchedFiles) {
+      api.unwatchFile(filePath)
+    }
+    this.watchedFiles.clear()
 
     // Destroy all browser views
     this.closeAll()
@@ -517,6 +560,12 @@ class CanvasLifecycle {
 
     // Load content (async)
     this.loadFileContent(tabId, path, type)
+
+    // Watch file for external changes (text-based files only)
+    if (type !== 'image' && !this.watchedFiles.has(path)) {
+      this.watchedFiles.add(path)
+      api.watchFile(path)
+    }
 
     return tabId
   }
@@ -649,6 +698,65 @@ class CanvasLifecycle {
   }
 
   /**
+   * Open (or focus) the requirement-development kanban tab — one per canvas session.
+   */
+  async openRequirementDevTab(title = '需求开发'): Promise<string> {
+    for (const [tabId, tab] of this.tabs) {
+      if (tab.type === 'requirement-dev') {
+        tab.title = title
+        this.notifyTabsChange()
+        await this.switchTab(tabId)
+        return tabId
+      }
+    }
+
+    const tabId = generateTabId()
+    const tab: TabState = {
+      id: tabId,
+      type: 'requirement-dev',
+      title,
+      path: REQUIREMENT_DEV_TAB_PATH,
+      isDirty: false,
+      isLoading: false,
+    }
+
+    this.tabs.set(tabId, tab)
+    this.setOpen(true)
+    this.notifyTabsChange()
+    await this.switchTab(tabId)
+    return tabId
+  }
+
+  /**
+   * Open (or focus) the terminal tab — one per canvas session.
+   */
+  async openTerminalTab(title = 'Terminal'): Promise<string> {
+    for (const [tabId, tab] of this.tabs) {
+      if (tab.type === 'terminal') {
+        tab.title = title
+        this.notifyTabsChange()
+        await this.switchTab(tabId)
+        return tabId
+      }
+    }
+
+    const tabId = generateTabId()
+    const tab: TabState = {
+      id: tabId,
+      type: 'terminal',
+      title,
+      isDirty: false,
+      isLoading: false,
+    }
+
+    this.tabs.set(tabId, tab)
+    this.setOpen(true)
+    this.notifyTabsChange()
+    await this.switchTab(tabId)
+    return tabId
+  }
+
+  /**
    * Attach an existing AI Browser BrowserView to the Canvas
    */
   async attachAIBrowserView(viewId: string, url: string, title?: string): Promise<string> {
@@ -771,6 +879,12 @@ class CanvasLifecycle {
       await this.destroyBrowserView(tab.browserViewId!)
     }
 
+    // Stop watching file if this is a file tab
+    if (tab.path && this.watchedFiles.has(tab.path)) {
+      this.watchedFiles.delete(tab.path)
+      api.unwatchFile(tab.path)
+    }
+
     // Remove tab
     this.tabs.delete(tabId)
 
@@ -795,6 +909,11 @@ class CanvasLifecycle {
   async closeAll(): Promise<void> {
     console.log('[CanvasLifecycle] Closing all tabs')
 
+    // Clear saved state for current space (user explicitly closed everything)
+    if (this.currentSpaceId) {
+      this.savedSpaceStates.delete(this.currentSpaceId)
+    }
+
     // Destroy all browser views (browser and pdf types)
     for (const [, tab] of this.tabs) {
       const hasBrowserView = (tab.type === 'browser' || tab.type === 'pdf') && tab.browserViewId
@@ -802,6 +921,12 @@ class CanvasLifecycle {
         await this.destroyBrowserView(tab.browserViewId!)
       }
     }
+
+    // Stop all file watchers
+    for (const filePath of this.watchedFiles) {
+      api.unwatchFile(filePath)
+    }
+    this.watchedFiles.clear()
 
     this.tabs.clear()
     this.activeTabId = null
@@ -1107,7 +1232,7 @@ class CanvasLifecycle {
     if (hasBrowserView) {
       // Reload browser/PDF view
       await api.browserReload(tab.browserViewId!)
-    } else if (tab.path) {
+    } else if (tab.path && tab.type !== 'requirement-dev') {
       // Reload file content
       tab.isLoading = true
       tab.error = undefined
@@ -1254,22 +1379,66 @@ class CanvasLifecycle {
   }
 
   /**
-   * Called when entering a space - clears tabs if switching to different space
-   * This is the single point of control for Space isolation of Canvas state.
-   * Returns true if tabs were cleared
+   * Called when entering a space - saves current space's tabs and restores
+   * target space's tabs from previous session instead of destroying them.
+   * Returns true if tabs were restored for the target space.
    */
   enterSpace(spaceId: string): boolean {
     const previousSpaceId = this.currentSpaceId
 
-    if (previousSpaceId && previousSpaceId !== spaceId && this.tabs.size > 0) {
-      // Switching to different space with existing tabs - clear all
-      console.log(`[CanvasLifecycle] Space switch: clearing ${this.tabs.size} tabs`)
-      this.closeAll()
-      this.currentSpaceId = spaceId
-      return true
+    if (previousSpaceId && previousSpaceId !== spaceId) {
+      // Save current space's tabs
+      if (this.tabs.size > 0) {
+        this.savedSpaceStates.set(previousSpaceId, {
+          tabs: new Map(this.tabs),
+          activeTabId: this.activeTabId,
+          isOpen: this.isOpen,
+        })
+
+        // Destroy all BrowserViews for current space
+        for (const [, tab] of this.tabs) {
+          if (tab.browserViewId) {
+            this.destroyBrowserView(tab.browserViewId).catch(() => {})
+          }
+        }
+      }
+
+      this.tabs.clear()
+      this.activeTabId = null
+      this.setOpen(false)
     }
 
     this.currentSpaceId = spaceId
+
+    // Restore previous state for the target space
+    const saved = this.savedSpaceStates.get(spaceId)
+    if (saved && saved.tabs.size > 0) {
+      this.tabs = new Map(saved.tabs)
+
+      // Clear stale browserViewId/browserState (views were destroyed on prior save)
+      for (const [, tab] of this.tabs) {
+        if (tab.browserViewId) {
+          tab.browserViewId = undefined
+          tab.browserState = undefined
+          tab.isLoading = false
+        }
+      }
+
+      this.activeTabId = saved.activeTabId
+      this.setOpen(saved.isOpen)
+
+      // Recreate BrowserView for active browser tab (switchTab handles creation/shown)
+      if (saved.isOpen && this.activeTabId) {
+        const activeTab = this.tabs.get(this.activeTabId)
+        if (activeTab?.type === 'browser' || activeTab?.type === 'pdf') {
+          this.switchTab(this.activeTabId)
+        }
+      }
+
+      this.notifyTabsChange()
+      return true
+    }
+
     return false
   }
 
