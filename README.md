@@ -22,7 +22,6 @@ DevX 由 Claude Code 驱动，拥有与 Claude Code 同等强大的 Agent 能力
 <img width="1000" height="650" alt="image" src="https://github.com/user-attachments/assets/25282544-203c-4412-88a3-ccbc9689de06" />
 <img width="1000" height="650" alt="image" src="https://github.com/user-attachments/assets/b548bb4c-8a60-4ebd-8244-6d339fce61f4" />
 
-
 ---
 
 ## 核心功能
@@ -51,7 +50,7 @@ DevX 由 Claude Code 驱动，拥有与 Claude Code 同等强大的 Agent 能力
 
 ```bash
 git clone https://github.com/devx.git
-cd hello-halo
+cd devx
 npm install  #安装依赖包
 npm run prepare #安装平台相关的二进制依赖
 npm run dev
