@@ -35,14 +35,6 @@ DevX 由 Claude Code 驱动，拥有与 Claude Code 同等强大的 Agent 能力
 
 ---
 
-## 快速开始
-
-1. 从 [Releases](https://github.com/openkursar/hello-halo/releases/latest) 下载对应平台的安装包
-2. 安装并启动，输入你的 API 密钥（推荐 Anthropic）
-3. 开始使用 —— 试试 "帮我用 React 做一个待办事项应用"
-
----
-
 ## 技术栈
 
 - **架构**: Electron 29 + React 18 + TypeScript + Vite 5
@@ -55,7 +47,7 @@ DevX 由 Claude Code 驱动，拥有与 Claude Code 同等强大的 Agent 能力
 ## 从源码构建
 
 ```bash
-git clone https://github.com/openkursar/hello-halo.git
+git clone https://github.com/devx.git
 cd hello-halo
 npm install
 npm run prepare
