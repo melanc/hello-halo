@@ -19,6 +19,9 @@
 DevX 由 Claude Code 驱动，拥有与 Claude Code 同等强大的 Agent 能力。
 
 不同的是，DevX 把这份能力从终端带到了完整的图形界面中 —— 不再需要盯着命令行输出，不再需要手写提示词，不再需要等待任务完成后才知道结果。打开即用，所见即所得。
+<img width="3320" height="2148" alt="image" src="https://github.com/user-attachments/assets/25282544-203c-4412-88a3-ccbc9689de06" />
+<img width="3324" height="2152" alt="image" src="https://github.com/user-attachments/assets/b548bb4c-8a60-4ebd-8244-6d339fce61f4" />
+
 
 ---
 
