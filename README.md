@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="../resources/icon.png" alt="DevX Logo" width="120" height="120">
-
 # DevX
 
 ### 7×24 小时桌面 AI Agent —— AI that gets things done
