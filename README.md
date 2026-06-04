@@ -49,6 +49,34 @@ DevX 由 Claude Code 驱动，拥有与 Claude Code 同等强大的 Agent 能力
 ```bash
 git clone https://github.com/devx.git
 cd hello-halo
-npm install
-npm run prepare
+npm install  #安装依赖包
+npm run prepare #安装平台相关的二进制依赖
 npm run dev
+```
+
+## 打桌面安装包
+- 前置执行
+```
+npm install  #安装依赖包
+npm run prepare #安装平台相关的二进制依赖
+```
+- macOS（当前机器架构，Apple Silicon 下为 arm64）
+```
+npm run build:mac
+```
+- macOS Intel x64
+```
+npm run build:mac-x64
+```
+- Windows
+```
+npm run build:win
+```
+- Windows x64（明确指定）
+```
+npm run build:win-x64
+```
+- Linux
+```
+npm run build:linux
+```
