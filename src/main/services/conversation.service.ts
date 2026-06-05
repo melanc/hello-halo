@@ -140,7 +140,7 @@ const CONVERSATION_FORMAT_VERSION = 2
 // Active Conversation Cache (write-through, LRU eviction)
 // ============================================================================
 
-const CACHE_MAX_SIZE = 3  // Keep at most 3 conversations in memory (~1-6MB)
+const CACHE_MAX_SIZE = 10  // Keep at most 10 conversations in memory
 
 /**
  * LRU cache for active conversations.
@@ -627,8 +627,21 @@ export function listConversations(spaceId: string): ConversationMeta[] {
 
   const index = readIndex(conversationsDir)
   if (index) {
-    // Filter out workspace task conversations from the listing
-    return index.conversations.filter(c => !isWorkspaceTaskConversationId(c.id))
+    const filtered = index.conversations.filter(c => !isWorkspaceTaskConversationId(c.id))
+
+    // Warm the cache: preload the first (most recent) conversation asynchronously.
+    // This reduces latency when the renderer immediately selects it after listing.
+    if (filtered.length > 0) {
+      const firstId = filtered[0].id
+      const firstCached = conversationCache.get(firstId)
+      if (!firstCached) {
+        setImmediate(() => {
+          cachedRead(spaceId, firstId)
+        })
+      }
+    }
+
+    return filtered
   }
 
   const metas = fullScanConversations(conversationsDir, spaceId)

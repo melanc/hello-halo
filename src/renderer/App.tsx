@@ -14,20 +14,20 @@ import { useSearchStore } from './stores/search.store'
 import { useAppsStore } from './stores/apps.store'
 import { useAppsPageStore } from './stores/apps-page.store'
 import { SplashPage } from './pages/SplashPage'
-import { SetupPage } from './pages/SetupPage'
-import { GitBashSetupPage } from './pages/GitBashSetupPage'
-import { ServerConnectPage } from './pages/ServerConnectPage'
 import type { ServerAddedInfo } from './pages/ServerConnectPage'
-import { ServerListPage } from './pages/ServerListPage'
 import { useServerStore } from './stores/server.store'
 import type { ServerEntry } from './stores/server.store'
 import { clearPendingServerUrl, setAuthToken } from './api/transport'
-import { SearchPanel } from './components/search/SearchPanel'
-import { SearchHighlightBar } from './components/search/SearchHighlightBar'
-import { OnboardingOverlay } from './components/onboarding'
 import { UpdateNotification } from './components/updater/UpdateNotification'
-import { NotificationToast } from './components/notification/NotificationToast'
 import { useNotificationStore } from './stores/notification.store'
+
+// Lazy-loaded overlay components (not needed for first paint).
+// These are triggered by user actions or events after the app has loaded,
+// so deferring them saves ~987 KB of JS parse time on startup (lucide icons).
+const SearchPanel = lazy(() => import('./components/search/SearchPanel').then(m => ({ default: m.SearchPanel })))
+const SearchHighlightBar = lazy(() => import('./components/search/SearchHighlightBar').then(m => ({ default: m.SearchHighlightBar })))
+const OnboardingOverlay = lazy(() => import('./components/onboarding').then(m => ({ default: m.OnboardingOverlay })))
+const NotificationToast = lazy(() => import('./components/notification/NotificationToast').then(m => ({ default: m.NotificationToast })))
 import { api } from './api'
 import { isCapacitor, isElectron } from './api/transport'
 import type { WsConnectionState } from './api/transport'
@@ -43,6 +43,13 @@ const SpacePage = lazy(() => import('./pages/SpacePage').then(m => ({ default: m
 const SettingsPage = lazy(() => import('./pages/SettingsPage').then(m => ({ default: m.SettingsPage })))
 const AppsPage = lazy(() => import('./pages/AppsPage').then(m => ({ default: m.AppsPage })))
 const TasksPage = lazy(() => import('./pages/TasksPage').then(m => ({ default: m.TasksPage })))
+
+// Non-essential pages (setup, git-bash, server list) also lazy-loaded to
+// keep the initial bundle lean. Only SplashPage renders on first paint.
+const SetupPage = lazy(() => import('./pages/SetupPage').then(m => ({ default: m.SetupPage })))
+const GitBashSetupPage = lazy(() => import('./pages/GitBashSetupPage').then(m => ({ default: m.GitBashSetupPage })))
+const ServerListPage = lazy(() => import('./pages/ServerListPage').then(m => ({ default: m.ServerListPage })))
+const ServerConnectPage = lazy(() => import('./pages/ServerConnectPage').then(m => ({ default: m.ServerConnectPage })))
 
 // Page loading fallback - minimal spinner that matches app style
 function PageLoader() {
@@ -840,28 +847,40 @@ export default function App() {
     && view !== 'splash'
 
   // Render based on current view
-  // Heavy pages (HomePage, SpacePage, SettingsPage) are lazy-loaded for better initial performance
+  // Heavy pages are lazy-loaded for better initial performance
   const renderView = () => {
     switch (view) {
       case 'splash':
         return <SplashPage />
       case 'gitBashSetup':
-        return <GitBashSetupPage onComplete={handleGitBashSetupComplete} />
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <GitBashSetupPage onComplete={handleGitBashSetupComplete} />
+          </Suspense>
+        )
       case 'setup':
-        return <SetupPage />
+        return (
+          <Suspense fallback={<PageLoader />}>
+            <SetupPage />
+          </Suspense>
+        )
       case 'serverConnect':
         return (
-          <ServerConnectPage
-            onServerAdded={handleServerAdded}
-            onBack={useServerStore.getState().servers.length > 0 ? handleServerConnectBack : undefined}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <ServerConnectPage
+              onServerAdded={handleServerAdded}
+              onBack={useServerStore.getState().servers.length > 0 ? handleServerConnectBack : undefined}
+            />
+          </Suspense>
         )
       case 'serverList':
         return (
-          <ServerListPage
-            onServerSelected={handleServerSelected}
-            onAddServer={handleAddServer}
-          />
+          <Suspense fallback={<PageLoader />}>
+            <ServerListPage
+              onServerSelected={handleServerSelected}
+              onAddServer={handleAddServer}
+            />
+          </Suspense>
         )
       case 'home':
         return (
@@ -910,16 +929,25 @@ export default function App() {
         </div>
       )}
       {renderView()}
-      {/* Search panel - full screen edit mode */}
-      <SearchPanel isOpen={isSearchOpen} onClose={closeSearch} />
-      {/* Search highlight bar - floating navigation mode */}
-      <SearchHighlightBar />
-      {/* Onboarding overlay - renders on top of everything */}
-      <OnboardingOverlay />
+      {/* Overlay components (lazy-loaded for startup performance) */}
+      <Suspense fallback={null}>
+        {/* Search panel - full screen edit mode */}
+        <SearchPanel isOpen={isSearchOpen} onClose={closeSearch} />
+      </Suspense>
+      <Suspense fallback={null}>
+        {/* Search highlight bar - floating navigation mode */}
+        <SearchHighlightBar />
+      </Suspense>
+      <Suspense fallback={null}>
+        {/* Onboarding overlay - renders on top of everything */}
+        <OnboardingOverlay />
+      </Suspense>
       {/* Update notification listener - pushes toasts into notification store */}
       <UpdateNotification />
-      {/* Unified in-app toast notifications */}
-      <NotificationToast />
+      <Suspense fallback={null}>
+        {/* Unified in-app toast notifications */}
+        <NotificationToast />
+      </Suspense>
     </div>
   )
 }

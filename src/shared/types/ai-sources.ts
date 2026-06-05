@@ -114,6 +114,36 @@ export interface ModelOption {
  */
 export const AVAILABLE_MODELS: ModelOption[] = [
   {
+    id: 'claude-opus-4-8',
+    name: 'Claude Opus 4.8',
+    description: 'Most powerful model, great for complex reasoning and architecture decisions'
+  },
+  {
+    id: 'claude-sonnet-4-8',
+    name: 'Claude Sonnet 4.8',
+    description: 'Balanced performance and cost, suitable for most tasks'
+  },
+  {
+    id: 'claude-haiku-4-8',
+    name: 'Claude Haiku 4.8',
+    description: 'Fast and lightweight, ideal for simple tasks'
+  },
+  {
+    id: 'claude-opus-4-7',
+    name: 'Claude Opus 4.7',
+    description: 'Most powerful model, great for complex reasoning and architecture decisions'
+  },
+  {
+    id: 'claude-sonnet-4-7',
+    name: 'Claude Sonnet 4.7',
+    description: 'Balanced performance and cost, suitable for most tasks'
+  },
+  {
+    id: 'claude-haiku-4-7',
+    name: 'Claude Haiku 4.7',
+    description: 'Fast and lightweight, ideal for simple tasks'
+  },
+  {
     id: 'claude-opus-4-6',
     name: 'Claude Opus 4.6',
     description: 'Most powerful model, great for complex reasoning and architecture decisions'

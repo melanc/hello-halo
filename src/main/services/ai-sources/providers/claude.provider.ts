@@ -171,6 +171,12 @@ class ClaudeProvider implements OAuthAISourceProvider {
   async getAvailableModels(_config: AISourcesConfig): Promise<string[]> {
     // Claude OAuth uses the same models as regular Anthropic API
     return [
+      'claude-opus-4-8',
+      'claude-sonnet-4-8',
+      'claude-haiku-4-8',
+      'claude-opus-4-7',
+      'claude-sonnet-4-7',
+      'claude-haiku-4-7',
       'claude-opus-4-6',
       'claude-opus-4-5-20251101',
       'claude-sonnet-4-6',
@@ -302,6 +308,12 @@ class ClaudeProvider implements OAuthAISourceProvider {
       // Get available models
       const models = await this.getAvailableModels({} as AISourcesConfig)
       const modelNames: Record<string, string> = {
+        'claude-opus-4-8': 'Claude Opus 4.8',
+        'claude-sonnet-4-8': 'Claude Sonnet 4.8',
+        'claude-haiku-4-8': 'Claude Haiku 4.8',
+        'claude-opus-4-7': 'Claude Opus 4.7',
+        'claude-sonnet-4-7': 'Claude Sonnet 4.7',
+        'claude-haiku-4-7': 'Claude Haiku 4.7',
         'claude-opus-4-6': 'Claude Opus 4.6',
         'claude-opus-4-5-20251101': 'Claude Opus 4.5',
         'claude-sonnet-4-6': 'Claude Sonnet 4.6',
@@ -454,6 +466,12 @@ class ClaudeProvider implements OAuthAISourceProvider {
     try {
       const models = await this.getAvailableModels(config)
       const modelNames: Record<string, string> = {
+        'claude-opus-4-8': 'Claude Opus 4.8',
+        'claude-sonnet-4-8': 'Claude Sonnet 4.8',
+        'claude-haiku-4-8': 'Claude Haiku 4.8',
+        'claude-opus-4-7': 'Claude Opus 4.7',
+        'claude-sonnet-4-7': 'Claude Sonnet 4.7',
+        'claude-haiku-4-7': 'Claude Haiku 4.7',
         'claude-opus-4-6': 'Claude Opus 4.6',
         'claude-opus-4-5-20251101': 'Claude Opus 4.5',
         'claude-sonnet-4-6': 'Claude Sonnet 4.6',
